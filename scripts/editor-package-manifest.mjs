@@ -33,6 +33,7 @@ export const EDITOR_EXTERNAL_DEPENDENCIES = Object.freeze([
   "react-dom",
   "tailwind-merge",
   "yaml",
+  "zustand",
 ]);
 
 export const EDITOR_BUNDLED_DEPENDENCIES = Object.freeze([
@@ -56,7 +57,6 @@ export const EDITOR_FORBIDDEN_EXTERNAL_DEPENDENCIES = Object.freeze([
   "@tauri-apps/plugin-log",
   "chokidar",
   "ws",
-  "zustand",
 ]);
 
 const EXTERNAL_DEPENDENCY_SET = new Set(EDITOR_EXTERNAL_DEPENDENCIES);

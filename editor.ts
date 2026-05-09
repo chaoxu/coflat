@@ -137,3 +137,74 @@ export function mountEditor(options: MountEditorOptions): MountedEditor {
 // shells which need fine-grained control (compartments, plugins, theme,
 // project config, etc.) can import them straight from this package.
 export * from "./src/editor";
+
+// Kitchen-sink re-exports for the coflat shell, which reaches into many
+// editor-library submodules. Cosheaf only needs the standalone API above.
+export * from "./src/citations/bibtex-parser";
+export * from "./src/citations/csl-processor";
+export * from "./src/constants";
+export * from "./src/constants/block-manifest";
+export * from "./src/constants/css-classes";
+export * from "./src/constants/events";
+export * from "./src/debug/debug-bridge-ready";
+export * from "./src/debug/editor-runtime-contract";
+export * from "./src/debug/session-recorder";
+export * from "./src/debug/tree-view-portal-context";
+// ./src/editor-display-mode: EditorMode/markdownEditorModes already in src/editor barrel
+export * from "./src/editor/debug-lane-state";
+export * from "./src/editor/editor-plugin-metadata";
+export * from "./src/editor/image-insert";
+export * from "./src/editor/programmatic-document-change";
+export * from "./src/editor/scroll-stability";
+export * from "./src/editor/theme-config";
+export * from "./src/index";
+export * from "./src/index/indexer";
+export * from "./src/index/query-api";
+export * from "./src/latex/export-options.mjs";
+export * from "./src/latex/preprocess-core.mjs";
+export * from "./src/lib/context-menu";
+export * from "./src/lib/debug-types";
+export * from "./src/lib/editor-document-diff";
+export * from "./src/lib/file-tree-model";
+export * from "./src/lib/katex-options";
+export * from "./src/lib/markdown-reference-paths";
+export * from "./src/lib/markdown/heading-syntax";
+export * from "./src/lib/markdown/headings";
+export * from "./src/lib/markdown/label-parser";
+export * from "./src/lib/markdown/text-lines";
+export * from "./src/lib/open-link";
+export * from "./src/lib/perf";
+export * from "./src/lib/project-file-paths";
+export * from "./src/lib/tauri";
+export * from "./src/lib/types";
+// ./src/lib/ui/context-menu conflicts with ./src/lib/context-menu (same symbol names; picked the latter)
+export * from "./src/lib/utils";
+export * from "./src/parser";
+export * from "./src/parser/equation-label";
+export * from "./src/parser/fenced-div";
+export * from "./src/parser/footnote";
+export * from "./src/parser/frontmatter";
+export * from "./src/parser/math-backslash";
+export * from "./src/plugins";
+export * from "./src/plugins/plugin-types";
+export * from "./src/render";
+export * from "./src/render/image-url-cache";
+export * from "./src/render/inline-shared";
+export * from "./src/render/pdf-preview-cache";
+export * from "./src/render/render-core";
+// ./src/search doesn't exist as a barrel
+// ./src/semantics/document re-exports lib/markdown/* — covered there
+export * from "./src/semantics/document-label-backlinks";
+export * from "./src/semantics/document-label-rename";
+// ./src/semantics/heading-ancestry conflicts with lib/markdown/headings
+export * from "./src/semantics/reference-catalog";
+export * from "./src/semantics/reference-conflicts";
+export * from "./src/state/bib-data";
+export * from "./src/state/block-counter";
+export * from "./src/state/change-detection";
+export * from "./src/state/dev-settings";
+export * from "./src/state/document-analysis";
+export * from "./src/state/document-label-graph";
+export * from "./src/state/frontmatter-state";
+export * from "./src/state/math-macros";
+export * from "./src/state/plugin-registry";

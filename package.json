@@ -1,6 +1,6 @@
 {
   "name": "@chaoxu/coflat-editor",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Math-aware markdown editor library extracted from coflat — CM6 + Lezer + Typora-style ViewPlugins.",
   "type": "module",
   "license": "MIT",
@@ -70,7 +70,8 @@
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "tailwind-merge": "^3.5.0",
-    "yaml": "^2.8.3"
+    "yaml": "^2.8.3",
+    "zustand": "^5.0.12"
   },
   "dependencies": {
     "@overleaf/codemirror-tree-view": "^0.1.3"
