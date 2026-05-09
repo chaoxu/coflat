@@ -1,0 +1,18 @@
+export {
+  addColumn,
+  addRow,
+  deleteColumn,
+  deleteRow,
+  detectAlignment,
+  formatTable,
+  moveColumn,
+  moveRow,
+  parseTable,
+  serializeTable,
+  setAlignment,
+  type Alignment,
+  type ParsedTable,
+  type TableCell,
+  type TableParseResult,
+  type TableRow,
+} from "../state/table-utils";

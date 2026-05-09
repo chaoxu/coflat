@@ -1,0 +1,805 @@
+/**
+ * Unit tests for blockDecorationField — tests decoration logic
+ * without a browser by creating EditorState directly.
+ *
+ * Pattern: EditorState.create({doc, extensions}) → state.field(blockDecorationField)
+ * to check which decorations are applied for a given document + cursor position.
+ */
+
+import { describe, expect, it } from "vitest";
+import { Compartment, EditorState } from "@codemirror/state";
+import { Decoration } from "@codemirror/view";
+import { markdown } from "@codemirror/lang-markdown";
+import { markdownExtensions } from "../parser";
+import {
+  _blockDecorationFieldForTest as blockDecorationField,
+  _blockDecorationInputsChangedForTest as blockDecorationInputsChanged,
+} from "./plugin-render";
+import {
+  BlockCaptionWidget,
+  BlockHeaderWidget,
+} from "./plugin-adapters/chrome";
+import { blockCounterField } from "../state/block-counter";
+import { createPluginRegistryField } from "../state/plugin-registry";
+import { documentSemanticsField } from "../state/document-analysis";
+import { mathMacrosField } from "../state/math-macros";
+import { editorFocusField, focusEffect } from "./render-core";
+import { widgetSourceMap } from "./render-utils";
+import { frontmatterField } from "../state/frontmatter-state";
+import {
+  activeStructureEditField,
+  createFencedStructureEditTarget,
+  setStructureEditTargetEffect,
+} from "../state/cm-structure-edit";
+import {
+  applyStateEffects,
+  CSL_FIXTURES,
+  createEditorState,
+  getDecorationSpecs,
+  hasBlockReplacementClassAt,
+  hasLineClassAt,
+  hasMarkClassInRange,
+  makeBibStore,
+  makeBlockPlugin,
+} from "../test-utils";
+import { CSS } from "../constants/css-classes";
+import { defaultPlugins } from "../plugins/default-plugins";
+import { withCm6BlockPlugin } from "../state/cm6-block-plugin";
+import { bibDataEffect, bibDataField } from "../state/bib-data";
+import { CslProcessor } from "../citations/csl-processor";
+
+/** Create an EditorState with all extensions needed for block decorations. */
+function createTestState(doc: string, cursorPos = 0, focused = false) {
+  const state = createEditorState(doc, {
+    cursorPos,
+    extensions: [
+      markdown({ extensions: markdownExtensions }),
+      frontmatterField,
+      activeStructureEditField,
+      documentSemanticsField,
+      mathMacrosField,
+      bibDataField,
+      createPluginRegistryField([]),
+      blockCounterField,
+      editorFocusField,
+      blockDecorationField,
+    ],
+  });
+
+  return focused ? applyStateEffects(state, focusEffect.of(true)) : state;
+}
+
+/**
+ * Create an EditorState pre-loaded with the given plugins, where frontmatter
+ * in the doc can disable specific ones via `blocks: { name: false }`.
+ *
+ * The pluginRegistryField reads frontmatter on create, so disabling via
+ * frontmatter is the canonical integration path tested here.
+ */
+function createTestStateWithPlugins(
+  doc: string,
+  plugins: ReturnType<typeof makeBlockPlugin>[],
+  cursorPos = 0,
+  focused = false,
+) {
+  const state = createEditorState(doc, {
+    cursorPos,
+    extensions: [
+      markdown({ extensions: markdownExtensions }),
+      frontmatterField,
+      activeStructureEditField,
+      documentSemanticsField,
+      mathMacrosField,
+      bibDataField,
+      createPluginRegistryField(plugins),
+      blockCounterField,
+      editorFocusField,
+      blockDecorationField,
+    ],
+  });
+
+  return focused ? applyStateEffects(state, focusEffect.of(true)) : state;
+}
+
+function getDecoSpecs(state: EditorState) {
+  return getDecorationSpecs(state.field(blockDecorationField));
+}
+
+function getWidgetFromDecorations<T>(state: EditorState, widgetClass: string): T {
+  const cursor = state.field(blockDecorationField).iter();
+  while (cursor.value) {
+    const widget = cursor.value.spec.widget;
+    if (widget?.constructor?.name === widgetClass) {
+      return widget as T;
+    }
+    cursor.next();
+  }
+  throw new Error(`expected widget ${widgetClass}`);
+}
+
+const TWO_BLOCKS = [
+  '::: {.theorem title="Title"}',
+  "Content",
+  ":::",
+  "",
+  "::: {.proof}",
+  "Proof text",
+  ":::",
+].join("\n");
+
+describe("blockDecorationField", () => {
+  it("renders canonical 5/4/3-colon theorem-proof-blockquote nesting", () => {
+    const doc = [
+      '::::: {.theorem title="Outer"}',
+      "outside",
+      ":::: {.proof}",
+      "outer proof",
+      "::: {.blockquote}",
+      "quote inside",
+      ":::",
+      "back in proof",
+      "::::",
+      "back in theorem",
+      ":::::",
+    ].join("\n");
+    const state = createTestStateWithPlugins(doc, [...defaultPlugins]);
+    const specs = getDecoSpecs(state);
+
+    expect(hasLineClassAt(specs, state.doc.line(1).from, CSS.blockHeader)).toBe(true);
+    expect(hasBlockReplacementClassAt(specs, state.doc.line(3).from, CSS.blockHeaderCollapsed)).toBe(true);
+    expect(hasLineClassAt(specs, state.doc.line(4).from, CSS.blockHeader)).toBe(true);
+    expect(hasBlockReplacementClassAt(specs, state.doc.line(5).from, CSS.blockHeaderCollapsed)).toBe(true);
+
+    expect(hasBlockReplacementClassAt(specs, state.doc.line(7).from, CSS.blockClosingFence)).toBe(true);
+    expect(hasBlockReplacementClassAt(specs, state.doc.line(9).from, CSS.blockClosingFence)).toBe(true);
+    expect(hasBlockReplacementClassAt(specs, state.doc.line(11).from, CSS.blockClosingFence)).toBe(true);
+
+    const headerWidgets = specs.filter((s) => s.widgetClass === "BlockHeaderWidget");
+    expect(headerWidgets).toHaveLength(2);
+    expect(headerWidgets.map((spec) => `${spec.from}:${spec.to}`)).toEqual([
+      `${state.doc.line(1).from}:${state.doc.line(1).to}`,
+      `${state.doc.line(4).from}:${state.doc.line(4).from}`,
+    ]);
+  });
+
+  it("renders header widget when cursor is not on fence (unfocused)", () => {
+    const state = createTestState(TWO_BLOCKS);
+    const specs = getDecoSpecs(state);
+
+    // Should have decorations for both blocks
+    expect(specs.length).toBeGreaterThan(0);
+
+    // Opening fence lines should have cf-block-header class
+    const theoremLine = state.doc.line(1).from;
+    expect(hasLineClassAt(specs, theoremLine, CSS.blockHeader)).toBe(true);
+
+    // Should have BlockHeaderWidget replacements
+    const widgets = specs.filter((s) => s.widgetClass === "BlockHeaderWidget");
+    expect(widgets.length).toBe(2); // theorem + proof
+  });
+
+  it("keeps the rendered shell when cursor is on opening fence until structure edit activates", () => {
+    const theoremStart = 0;
+    const state = createTestState(TWO_BLOCKS, theoremStart, true);
+    const specs = getDecoSpecs(state);
+
+    const theoremLine = state.doc.line(1);
+    expect(hasLineClassAt(specs, theoremLine.from, CSS.blockSource)).toBe(false);
+    expect(hasLineClassAt(specs, theoremLine.from, CSS.blockHeader)).toBe(true);
+    expect(hasMarkClassInRange(specs, theoremLine.from, theoremLine.to, CSS.blockSource)).toBe(false);
+  });
+
+  it("shows opener source when structure edit is active for a block", () => {
+    const base = createTestState(TWO_BLOCKS, 0, true);
+    const active = applyStateEffects(
+      base,
+      setStructureEditTargetEffect.of(createFencedStructureEditTarget(base, 0)),
+    );
+    const specs = getDecoSpecs(active);
+
+    const theoremLine = active.doc.line(1);
+    expect(hasLineClassAt(specs, theoremLine.from, CSS.blockHeader)).toBe(true);
+    expect(specs.some((spec) =>
+      spec.widgetClass === "BlockHeaderWidget" &&
+      spec.from === theoremLine.from
+    )).toBe(false);
+
+    const proofLine = active.doc.line(5).from;
+    expect(hasLineClassAt(specs, proofLine, CSS.blockHeader)).toBe(true);
+    expect(hasLineClassAt(specs, proofLine, CSS.blockHeaderCollapsed)).toBe(false);
+  });
+
+  it("hides closing fence when cursor is not on it", () => {
+    // Cursor on line 2 (content, not fence)
+    const contentPos = TWO_BLOCKS.indexOf("Content");
+    const state = createTestState(TWO_BLOCKS, contentPos, true);
+    const specs = getDecoSpecs(state);
+
+    // Closing fence line (:::) should have cf-block-closing-fence (collapsed)
+    const closeFenceLine = state.doc.line(3).from;
+    expect(hasBlockReplacementClassAt(specs, closeFenceLine, CSS.blockClosingFence)).toBe(true);
+  });
+
+  it("rebuilds when the plugin registry changes without a doc edit", () => {
+    const doc = [
+      '::: {.theorem title="Title"}',
+      "Content",
+      ":::",
+    ].join("\n");
+    const registryCompartment = new Compartment();
+    const state = EditorState.create({
+      doc,
+      extensions: [
+        markdown({ extensions: markdownExtensions }),
+        frontmatterField,
+        activeStructureEditField,
+        documentSemanticsField,
+        mathMacrosField,
+        registryCompartment.of(
+          createPluginRegistryField([
+            makeBlockPlugin({ name: "theorem", title: "Theorem" }),
+          ]),
+        ),
+        blockCounterField,
+        editorFocusField,
+        blockDecorationField,
+      ],
+    });
+
+    const initialSpecs = getDecoSpecs(state);
+    const openerLine = state.doc.line(1).from;
+    expect(hasLineClassAt(initialSpecs, openerLine, CSS.blockHeader)).toBe(true);
+    expect(
+      getWidgetFromDecorations<BlockHeaderWidget>(state, "BlockHeaderWidget")
+        .toDOM()
+        .textContent,
+    ).toContain("Theorem");
+
+    const tr = state.update({
+      effects: registryCompartment.reconfigure(
+        createPluginRegistryField([
+          makeBlockPlugin({
+            name: "theorem",
+            title: "Satz",
+          }),
+        ]),
+      ),
+    });
+    expect(
+      getWidgetFromDecorations<BlockHeaderWidget>(tr.state, "BlockHeaderWidget")
+        .toDOM()
+        .textContent,
+    ).toContain("Satz");
+  });
+
+  it("rebuilds when fenced-div positions remap (prose edit before a div)", () => {
+    const doc = [
+      "# Intro",
+      "",
+      "Plain prose here.",
+      "",
+      '::: {.theorem #thm:one title="Title"}',
+      "Body",
+      ":::",
+    ].join("\n");
+    const state = createTestState(doc, doc.indexOf("prose"), true);
+    const prosePos = state.doc.toString().indexOf("prose");
+    const tr = state.update({
+      changes: { from: prosePos, to: prosePos, insert: "1" },
+      selection: { anchor: prosePos + 1 },
+    });
+
+    expect(blockDecorationInputsChanged(tr)).toBe(true);
+  });
+
+  it("rebuilds when fenced-div render content changes", () => {
+    const doc = [
+      '::: {.theorem #thm:one title="Old Title"}',
+      "Body",
+      ":::",
+    ].join("\n");
+    const state = createTestState(doc, 0, true);
+    const titlePos = state.doc.toString().indexOf("Old");
+    const tr = state.update({
+      changes: { from: titlePos, to: titlePos + "Old".length, insert: "New" },
+      selection: { anchor: titlePos + 1 },
+    });
+
+    expect(blockDecorationInputsChanged(tr)).toBe(true);
+  });
+
+  it("closing fence always hidden even when cursor is on closing fence (#428)", () => {
+    // Closing fence is always hidden in rich mode — cursor position doesn't matter
+    const closeFencePos = TWO_BLOCKS.indexOf(":::\n\n::: {.proof}");
+    const state = createTestState(TWO_BLOCKS, closeFencePos, true);
+    const specs = getDecoSpecs(state);
+
+    // Closing fence should be hidden (cf-block-closing-fence), NOT source-visible
+    const closeFenceLine = state.doc.line(3).from;
+    expect(hasBlockReplacementClassAt(specs, closeFenceLine, CSS.blockClosingFence)).toBe(true);
+    expect(hasLineClassAt(specs, closeFenceLine, CSS.blockSource)).toBe(false);
+  });
+
+  it("closing fence stays hidden when structure edit is active on the opener (#428)", () => {
+    const base = createTestState(TWO_BLOCKS, 0, true);
+    const state = applyStateEffects(
+      base,
+      setStructureEditTargetEffect.of(createFencedStructureEditTarget(base, 0)),
+    );
+    const specs = getDecoSpecs(state);
+
+    // Titled theorem opener stays stable; explicit structure edit does not unmount it.
+    const openLine = state.doc.line(1);
+    expect(hasLineClassAt(specs, openLine.from, CSS.blockHeader)).toBe(true);
+    expect(hasLineClassAt(specs, openLine.from, CSS.blockSource)).toBe(true);
+    expect(specs.some((spec) =>
+      spec.widgetClass === "BlockHeaderWidget" &&
+      spec.from === openLine.from
+    )).toBe(false);
+
+    // Closing fence is always hidden — cf-block-closing-fence, not cf-block-source
+    const closeFenceLine = state.doc.line(3).from;
+    expect(hasBlockReplacementClassAt(specs, closeFenceLine, CSS.blockClosingFence)).toBe(true);
+    expect(hasLineClassAt(specs, closeFenceLine, CSS.blockSource)).toBe(false);
+  });
+
+  it("other blocks stay rendered when one block has active structure edit", () => {
+    const base = createTestState(TWO_BLOCKS, 0, true);
+    const state = applyStateEffects(
+      base,
+      setStructureEditTargetEffect.of(createFencedStructureEditTarget(base, 0)),
+    );
+    const specs = getDecoSpecs(state);
+
+    // Proof block should be fully rendered (not in source mode)
+    const proofOpenLine = state.doc.line(5).from;
+    expect(hasLineClassAt(specs, proofOpenLine, CSS.blockHeader)).toBe(true);
+    expect(hasLineClassAt(specs, proofOpenLine, CSS.blockSource)).toBe(false);
+
+    // Proof closing fence should be hidden with cf-block-closing-fence
+    const proofCloseLine = state.doc.line(7).from;
+    expect(hasBlockReplacementClassAt(specs, proofCloseLine, CSS.blockClosingFence)).toBe(true);
+  });
+
+  it.each([
+    {
+      name: "theorem",
+      plugin: makeBlockPlugin({ name: "theorem", title: "Theorem" }),
+      doc: `::: {.theorem}\nBody text\n:::`,
+      headerLine: 1,
+    },
+    {
+      name: "proof",
+      plugin: makeBlockPlugin({
+        name: "proof",
+        numbered: false,
+        title: "Proof",
+        headerPosition: "inline",
+      }),
+      doc: `::: {.proof}\nBody text\n:::`,
+      headerLine: 2,
+    },
+  ])("keeps $name rendered when a stale fenced structure target has body selection", ({
+    plugin,
+    doc,
+    headerLine,
+  }) => {
+    const base = createTestStateWithPlugins(doc, [plugin], doc.indexOf("Body"), true);
+    const staleBodyTarget = base.update({
+      selection: { anchor: doc.indexOf("Body") },
+      effects: setStructureEditTargetEffect.of(createFencedStructureEditTarget(base, 0)),
+    }).state;
+    const specs = getDecoSpecs(staleBodyTarget);
+
+    expect(hasLineClassAt(specs, staleBodyTarget.doc.line(headerLine).from, CSS.blockHeader)).toBe(true);
+    expect(
+      hasBlockReplacementClassAt(specs, staleBodyTarget.doc.line(3).from, CSS.blockClosingFence),
+    ).toBe(true);
+    expect(specs.some((spec) => spec.widgetClass === "BlockHeaderWidget")).toBe(true);
+  });
+
+  it("trailing title text prevents block header rendering", () => {
+    const doc = `::: {.theorem} **Main Result**\nContent\n:::`;
+    const state = createTestState(doc);
+    const specs = getDecoSpecs(state);
+
+    const widgets = specs.filter((s) => s.widgetClass === "BlockHeaderWidget");
+    expect(widgets.length).toBe(0);
+  });
+
+  it("canonical title attributes render a block header widget", () => {
+    const doc = `::: {.theorem title="Fundamental Theorem"}\nContent\n:::`;
+    const state = createTestState(doc);
+    const specs = getDecoSpecs(state);
+
+    const widgets = specs.filter((s) => s.widgetClass === "BlockHeaderWidget");
+    expect(widgets.length).toBe(1);
+    expect(hasLineClassAt(specs, state.doc.line(1).from, CSS.blockHeader)).toBe(true);
+  });
+
+  it("attribute title widgets hide during explicit structure edit", () => {
+    const doc = `::: {.theorem title="Main Result"}\nContent\n:::`;
+
+    const rendered = createTestState(doc);
+    const renderedSpecs = getDecoSpecs(rendered);
+    const renderedTitleWidgets = renderedSpecs.filter((s) => s.widgetClass === "AttributeTitleWidget");
+    expect(renderedTitleWidgets.length).toBe(1);
+
+    const base = createTestState(doc, 0, true);
+    const source = applyStateEffects(
+      base,
+      setStructureEditTargetEffect.of(createFencedStructureEditTarget(base, 0)),
+    );
+    const sourceSpecs = getDecoSpecs(source);
+    const sourceTitleWidgets = sourceSpecs.filter((s) => s.widgetClass === "AttributeTitleWidget");
+    expect(sourceTitleWidgets.length).toBe(0);
+  });
+
+  it("structure edit keeps widget replacement for geometry stability (#1015)", () => {
+    const doc = `::: {.theorem title="Main Result"}\nContent\n:::`;
+    const base = createTestState(doc, 0, true);
+    const state = applyStateEffects(
+      base,
+      setStructureEditTargetEffect.of(createFencedStructureEditTarget(base, 0)),
+    );
+    const specs = getDecoSpecs(state);
+
+    const line1 = state.doc.line(1);
+    // Widget replacement stays active — no cf-block-source mark on the line
+    expect(hasMarkClassInRange(specs, line1.from, line1.to, CSS.blockSource)).toBe(false);
+    // Header class present for geometry stability
+    expect(hasLineClassAt(specs, line1.from, CSS.blockHeader)).toBe(true);
+  });
+
+  it("no-title block: structure edit keeps widget replacement (#1015)", () => {
+    const doc = `::: {.proof}\nContent\n:::`;
+    const base = createTestState(doc, 0, true);
+    const state = applyStateEffects(
+      base,
+      setStructureEditTargetEffect.of(createFencedStructureEditTarget(base, 0)),
+    );
+    const specs = getDecoSpecs(state);
+
+    const line1 = state.doc.line(1);
+    // Widget replacement stays active — no source mark
+    expect(hasMarkClassInRange(specs, line1.from, line1.to, CSS.blockSource)).toBe(false);
+  });
+
+  it("does not crash on an incomplete fenced div without a closing fence", () => {
+    const doc = [
+      "::: {.definition}",
+      "Body",
+    ].join("\n");
+
+    expect(() => {
+      const state = createTestState(doc, 0, true);
+      getDecoSpecs(state);
+    }).not.toThrow();
+  });
+
+  it("renders attribute-only title via widget when no inline title (issue #401)", () => {
+    // title="**3SUM**" in attributes, no inline title text after attributes
+    const doc = `::: {.theorem title="**3SUM**"}\nContent\n:::`;
+    const state = createTestState(doc);
+    const specs = getDecoSpecs(state);
+
+    // Should have a BlockHeaderWidget for the label
+    const headerWidgets = specs.filter((s) => s.widgetClass === "BlockHeaderWidget");
+    expect(headerWidgets.length).toBe(1);
+
+    // Should have an AttributeTitleWidget for the attribute-only title
+    const attrTitleWidgets = specs.filter((s) => s.widgetClass === "AttributeTitleWidget");
+    expect(attrTitleWidgets.length).toBe(1);
+
+    // No inline title paren widgets (those are only for inline titles)
+    const parenWidgets = specs.filter((s) => s.widgetClass === "SimpleTextWidget");
+    expect(parenWidgets.length).toBe(0);
+  });
+
+  it("renders math inside attribute-only titles", () => {
+    const doc = `::: {.theorem title="For $n^2 + 1$ values"}\nContent\n:::`;
+    const state = createTestState(doc);
+    const widget = getWidgetFromDecorations<{ toDOM: () => HTMLElement }>(
+      state,
+      "AttributeTitleWidget",
+    );
+
+    expect(widget.toDOM().querySelector(".katex")).not.toBeNull();
+  });
+
+  it("renders citations inside attribute-only titles with the editor reference context", () => {
+    const doc = `::: {.theorem title="From [@karger2000]"}\nContent\n:::`;
+    const state = applyStateEffects(
+      createTestState(doc),
+      bibDataEffect.of({
+        store: makeBibStore([CSL_FIXTURES.karger]),
+        cslProcessor: new CslProcessor([CSL_FIXTURES.karger]),
+        status: { state: "ok", bibPath: "refs.bib" },
+      }),
+    );
+    const widget = getWidgetFromDecorations<{ toDOM: (view?: { state: EditorState }) => HTMLElement }>(
+      state,
+      "AttributeTitleWidget",
+    );
+
+    const dom = widget.toDOM({ state });
+    expect(dom.querySelector(`.${CSS.citation}`)).not.toBeNull();
+    expect(dom.textContent).not.toContain("karger2000");
+  });
+
+  it("attribute-only title widget is hidden only during explicit structure edit", () => {
+    const doc = `::: {.theorem title="**3SUM**"}\nContent\n:::`;
+    const base = createTestState(doc, 0, true);
+    const state = applyStateEffects(
+      base,
+      setStructureEditTargetEffect.of(createFencedStructureEditTarget(base, 0)),
+    );
+    const specs = getDecoSpecs(state);
+
+    // In source mode: no attribute title widget, no header widget
+    const attrTitleWidgets = specs.filter((s) => s.widgetClass === "AttributeTitleWidget");
+    expect(attrTitleWidgets.length).toBe(0);
+  });
+
+  it("rejects trailing inline titles even when an attribute title exists", () => {
+    const doc = `::: {.theorem title="Attr Title"} Inline Title\nContent\n:::`;
+    const state = createTestState(doc);
+    const specs = getDecoSpecs(state);
+
+    const headerWidgets = specs.filter((s) => s.widgetClass === "BlockHeaderWidget");
+    expect(headerWidgets.length).toBe(0);
+    const attrTitleWidgets = specs.filter((s) => s.widgetClass === "AttributeTitleWidget");
+    expect(attrTitleWidgets.length).toBe(0);
+  });
+
+  it("no title widget when neither inline nor attribute title exists", () => {
+    const doc = `::: {.proof}\nContent\n:::`;
+    const state = createTestState(doc);
+    const specs = getDecoSpecs(state);
+
+    // No attribute title widget
+    const attrTitleWidgets = specs.filter((s) => s.widgetClass === "AttributeTitleWidget");
+    expect(attrTitleWidgets.length).toBe(0);
+
+    // No paren widgets
+    const parenWidgets = specs.filter((s) => s.widgetClass === "SimpleTextWidget");
+    expect(parenWidgets.length).toBe(0);
+  });
+});
+
+describe("disabled blocks show raw fences (issue #356)", () => {
+  it("disabled block via frontmatter shows no cf-block-header (raw fences)", () => {
+    // blocks: { theorem: false } must make the fenced div render as raw text,
+    // not as a styled block. No cf-block-header, no header widget.
+    const doc = [
+      "---",
+      "blocks:",
+      "  theorem: false",
+      "---",
+      '::: {.theorem title="Main Result"}',
+      "Content",
+      ":::",
+    ].join("\n");
+
+    const state = createTestStateWithPlugins(
+      doc,
+      [makeBlockPlugin({ name: "theorem", title: "Theorem" })],
+    );
+    const specs = getDecoSpecs(state);
+
+    // The theorem block's opening line must NOT have cf-block-header
+    const theoremLine = state.doc.line(5).from; // line 5 after 4-line frontmatter
+    expect(hasLineClassAt(specs, theoremLine, CSS.blockHeader)).toBe(false);
+
+    // No header widget should be emitted for a disabled block
+    const widgets = specs.filter((s) => s.widgetClass === "BlockHeaderWidget");
+    expect(widgets).toHaveLength(0);
+  });
+
+  it("enabled block alongside disabled block renders correctly", () => {
+    // When theorem is disabled and proof is not, proof should still render.
+    const doc = [
+      "---",
+      "blocks:",
+      "  theorem: false",
+      "---",
+      "::: {.theorem}",
+      "A theorem.",
+      ":::",
+      "",
+      "::: {.proof}",
+      "A proof.",
+      ":::",
+    ].join("\n");
+
+    const state = createTestStateWithPlugins(
+      doc,
+      [
+        makeBlockPlugin({ name: "theorem", title: "Theorem" }),
+        makeBlockPlugin({ name: "proof", numbered: false, title: "Proof" }),
+      ],
+    );
+    const specs = getDecoSpecs(state);
+
+    // theorem line: no cf-block-header
+    const theoremLine = state.doc.line(5).from;
+    expect(hasLineClassAt(specs, theoremLine, CSS.blockHeader)).toBe(false);
+
+    // proof line: has cf-block-header (not disabled)
+    const proofLine = state.doc.line(9).from;
+    expect(hasLineClassAt(specs, proofLine, CSS.blockHeader)).toBe(true);
+  });
+
+  it("renders proof label inline on the first body line", () => {
+    const doc = `::: {.proof}\nProof text\n:::`;
+    const state = createTestStateWithPlugins(
+      doc,
+      [makeBlockPlugin({ name: "proof", numbered: false, title: "Proof", headerPosition: "inline" })],
+    );
+    const specs = getDecoSpecs(state);
+
+    expect(hasBlockReplacementClassAt(specs, state.doc.line(1).from, CSS.blockHeaderCollapsed)).toBe(true);
+    expect(hasLineClassAt(specs, state.doc.line(2).from, CSS.blockHeader)).toBe(true);
+
+    const widgets = specs.filter((s) => s.widgetClass === "BlockHeaderWidget");
+    expect(widgets).toHaveLength(1);
+    expect(widgets[0]?.from).toBe(state.doc.line(2).from);
+  });
+
+  it("routes inline proof labels back to the hidden opener source", () => {
+    const doc = `::: {.proof}\nProof text\n:::`;
+    const state = createTestStateWithPlugins(
+      doc,
+      [makeBlockPlugin({ name: "proof", numbered: false, title: "Proof", headerPosition: "inline" })],
+    );
+
+    const widget = getWidgetFromDecorations<BlockHeaderWidget>(state, "BlockHeaderWidget");
+    const openerLine = state.doc.line(1);
+
+    expect(widget.sourceFrom).toBe(openerLine.from);
+    expect(widget.sourceTo).toBe(openerLine.to);
+  });
+
+  it("renders figure captions as below-content widgets", () => {
+    const doc = `::: {.figure title="Caption text"}\n![alt](img.png)\n:::`;
+    const state = createTestStateWithPlugins(
+      doc,
+      [makeBlockPlugin({ name: "figure", numbered: true, title: "Figure", captionPosition: "below" })],
+    );
+    const specs = getDecoSpecs(state);
+
+    expect(hasBlockReplacementClassAt(specs, state.doc.line(1).from, CSS.blockHeaderCollapsed)).toBe(true);
+    const captionWidgets = specs.filter((s) => s.widgetClass === "BlockCaptionWidget");
+    expect(captionWidgets).toHaveLength(1);
+  });
+
+  it("targets the hidden opening-line caption text for below-caption widgets", () => {
+    const doc = `::: {.figure title="Caption text"}\n![alt](img.png)\n:::`;
+    const state = createTestStateWithPlugins(
+      doc,
+      [makeBlockPlugin({ name: "figure", numbered: true, title: "Figure", captionPosition: "below" })],
+    );
+
+    const widget = getWidgetFromDecorations<BlockCaptionWidget>(state, "BlockCaptionWidget");
+    const openLine = state.doc.line(1);
+    const titleText = "Caption text";
+    const titleFrom = openLine.text.indexOf(titleText) + openLine.from;
+    const titleTo = titleFrom + titleText.length;
+
+    expect(widget.sourceFrom).toBe(titleFrom);
+    expect(widget.sourceTo).toBe(titleTo);
+  });
+
+  it("falls back to the opening fence when a below-caption block has no caption text", () => {
+    const doc = `::: {.figure}\n![alt](img.png)\n:::`;
+    const state = createTestStateWithPlugins(
+      doc,
+      [makeBlockPlugin({ name: "figure", numbered: true, title: "Figure", captionPosition: "below" })],
+    );
+
+    const widget = getWidgetFromDecorations<BlockCaptionWidget>(state, "BlockCaptionWidget");
+    const openLine = state.doc.line(1);
+
+    expect(widget.sourceFrom).toBe(openLine.from);
+    expect(widget.sourceTo).toBe(openLine.to);
+  });
+
+  it("dispatches plugin-owned body decoration hooks without renderer special-cases", () => {
+    const doc = `::: {.callout}\nBody\n:::`;
+    const state = createTestStateWithPlugins(
+      doc,
+      [
+        withCm6BlockPlugin(
+          makeBlockPlugin({
+            name: "callout",
+            numbered: false,
+            title: "Callout",
+          }),
+          {
+            renderDecorations: {
+              addBodyDecorations({ items, state }) {
+                items.push(
+                  Decoration.line({ class: "cf-callout-body" }).range(state.doc.line(2).from),
+                );
+              },
+            },
+          },
+        ),
+      ],
+    );
+
+    expect(hasLineClassAt(getDecoSpecs(state), state.doc.line(2).from, "cf-callout-body")).toBe(true);
+  });
+});
+
+describe("BlockHeaderWidget.updateDOM", () => {
+  it("updates content and refreshes source-range metadata", () => {
+    const oldWidget = new BlockHeaderWidget("Theorem 1.", {});
+    oldWidget.sourceFrom = 0;
+    oldWidget.sourceTo = 15;
+    const dom = oldWidget.toDOM();
+
+    expect(widgetSourceMap.get(dom)).toBe(oldWidget);
+    expect(dom.dataset.sourceFrom).toBe("0");
+    expect(dom.dataset.sourceTo).toBe("15");
+
+    const newWidget = new BlockHeaderWidget("Theorem 2.", {});
+    newWidget.sourceFrom = 22;
+    newWidget.sourceTo = 37;
+
+    const result = newWidget.updateDOM(dom);
+    expect(result).toBe(true);
+
+    // Source-range metadata must be refreshed (reviewer #732 blocking issue)
+    const mappedWidget = widgetSourceMap.get(dom);
+    expect(mappedWidget).toBe(newWidget);
+    expect(mappedWidget?.sourceFrom).toBe(22);
+    expect(mappedWidget?.sourceTo).toBe(37);
+    expect(dom.dataset.sourceFrom).toBe("22");
+    expect(dom.dataset.sourceTo).toBe("37");
+  });
+
+  it("preserves DOM node identity (no destroy/recreate)", () => {
+    const oldWidget = new BlockHeaderWidget("Proof.", {});
+    oldWidget.sourceFrom = 0;
+    oldWidget.sourceTo = 10;
+    const dom = oldWidget.toDOM();
+    const domRef = dom;
+
+    const newWidget = new BlockHeaderWidget("Lemma 1.", {});
+    newWidget.sourceFrom = 0;
+    newWidget.sourceTo = 10;
+    newWidget.updateDOM(dom);
+
+    expect(dom).toBe(domRef);
+  });
+});
+
+describe("BlockCaptionWidget.updateDOM", () => {
+  it("updates content and refreshes source-range metadata", () => {
+    const oldWidget = new BlockCaptionWidget("Figure 1.", "Old caption", {});
+    oldWidget.sourceFrom = 10;
+    oldWidget.sourceTo = 21;
+    const dom = oldWidget.toDOM();
+
+    expect(widgetSourceMap.get(dom)).toBe(oldWidget);
+    expect(dom.dataset.sourceFrom).toBe("10");
+    expect(dom.dataset.sourceTo).toBe("21");
+
+    const newWidget = new BlockCaptionWidget("Figure 2.", "New caption", {});
+    newWidget.sourceFrom = 30;
+    newWidget.sourceTo = 41;
+
+    const result = newWidget.updateDOM(dom);
+    expect(result).toBe(true);
+
+    expect(dom.textContent).toContain("Figure 2.");
+    expect(dom.textContent).toContain("New caption");
+    const mappedWidget = widgetSourceMap.get(dom);
+    expect(mappedWidget).toBe(newWidget);
+    expect(mappedWidget?.sourceFrom).toBe(30);
+    expect(mappedWidget?.sourceTo).toBe(41);
+    expect(dom.dataset.sourceFrom).toBe("30");
+    expect(dom.dataset.sourceTo).toBe("41");
+  });
+});

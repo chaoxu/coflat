@@ -1,0 +1,250 @@
+import { type EditorState, type Line, type Range, type StateField, type Transaction } from "@codemirror/state";
+import { type DecorationSet, Decoration, EditorView, WidgetType } from "@codemirror/view";
+import { syntaxTree, syntaxTreeAvailable } from "@codemirror/language";
+import type { FencedBlockInfo } from "../fenced-block/model";
+import { containsPos } from "../lib/range-helpers";
+import {
+  buildDecorations,
+  decorationHidden,
+} from "./decoration-core";
+import { createDecorationsField } from "./decoration-field";
+import { editorFocusField, focusEffect } from "./focus-state";
+import { CSS } from "../constants/css-classes";
+
+export { findFencedBlockAt, type FencedBlockInfo } from "../fenced-block/model";
+
+class CollapsedStructureLineWidget extends WidgetType {
+  constructor(private readonly className: string) {
+    super();
+  }
+
+  toDOM(): HTMLElement {
+    const el = document.createElement("div");
+    el.className = this.className;
+    el.setAttribute("aria-hidden", "true");
+    // The .cf-block:not(.cm-line) rule in editor-theme.css adds vertical
+    // margins for block-wrapper divs in the preview surface. CM6 reports
+    // estimatedHeight = 0 for this widget, so any visual margin here is
+    // unaccounted for in the height map and shifts subsequent line clicks.
+    el.style.margin = "0";
+    return el;
+  }
+
+  eq(other: WidgetType): boolean {
+    return (
+      other instanceof CollapsedStructureLineWidget &&
+      this.className === other.className
+    );
+  }
+
+  get estimatedHeight(): number {
+    return 0;
+  }
+}
+
+/**
+ * Hide an entire structural line through a block replacement. This is used for
+ * rich-mode fence lines that visually disappear. A line class with height: 0
+ * only affects already-drawn DOM; a block replacement with estimatedHeight=0
+ * participates in CM6's offscreen height model.
+ *
+ * The replacement covers the structural text, not the trailing line break.
+ * Keeping the break outside the replacement lets decorations at the next line
+ * start compose normally, which is required for inline proof headers.
+ */
+export function addCollapsedStructureLine(
+  _state: EditorState,
+  line: Line,
+  className: string,
+  items: Range<Decoration>[],
+): void {
+  if (!className || line.to <= line.from) return;
+
+  items.push(
+    Decoration.replace({
+      widget: new CollapsedStructureLineWidget(className),
+      block: true,
+      class: className,
+    }).range(line.from, line.to),
+  );
+}
+
+/** Shared derived state for rendering a fenced block. */
+export interface FencedBlockRenderContext<T extends FencedBlockInfo> {
+  readonly state: EditorState;
+  readonly block: T;
+  readonly focused: boolean;
+  readonly cursorOnOpenFence: boolean;
+  readonly cursorOnCloseFence: boolean;
+  readonly cursorOnEitherFence: boolean;
+  readonly openLine: Line;
+  readonly closeLine: Line;
+  readonly bodyLineCount: number;
+}
+
+/** Check whether the cursor is on the opening fence line of a fenced block. */
+export function isCursorOnOpenFence(
+  state: EditorState,
+  block: FencedBlockInfo,
+  focused: boolean,
+): boolean {
+  if (!focused) return false;
+  const cursor = state.selection.main;
+  const openLine = state.doc.lineAt(block.openFenceFrom);
+  return containsPos(openLine, cursor.from);
+}
+
+/** Check whether the cursor is on the closing fence line of a fenced block. */
+export function isCursorOnCloseFence(
+  state: EditorState,
+  block: FencedBlockInfo,
+  focused: boolean,
+): boolean {
+  if (!focused || block.closeFenceFrom < 0) return false;
+  const cursor = state.selection.main;
+  return containsPos(
+    { from: block.closeFenceFrom, to: block.closeFenceTo },
+    cursor.from,
+  );
+}
+
+/** Compute shared fence/body render context for a fenced block. */
+export function getFencedBlockRenderContext<T extends FencedBlockInfo>(
+  state: EditorState,
+  block: T,
+  focused: boolean,
+): FencedBlockRenderContext<T> {
+  const cursorOnOpenFence = isCursorOnOpenFence(state, block, focused);
+  const cursorOnCloseFence = isCursorOnCloseFence(state, block, focused);
+  const openLine = state.doc.lineAt(block.openFenceFrom);
+  const closeLine = block.closeFenceFrom >= 0 && block.closeFenceFrom <= state.doc.length
+    ? state.doc.lineAt(block.closeFenceFrom)
+    : openLine;
+  return {
+    state,
+    block,
+    focused,
+    cursorOnOpenFence,
+    cursorOnCloseFence,
+    cursorOnEitherFence: cursorOnOpenFence || cursorOnCloseFence,
+    openLine,
+    closeLine,
+    bodyLineCount: Math.max(0, closeLine.number - openLine.number - 1),
+  };
+}
+
+/** Resolve the rendered CM line element containing a document position. */
+export function getLineElement(view: EditorView, pos: number): HTMLElement | null {
+  const domPos = view.domAtPos(pos);
+  let el: Node | null = domPos.node;
+  if (el.nodeType === Node.TEXT_NODE) el = el.parentNode;
+  while (el && !(el instanceof HTMLElement && el.classList.contains("cm-line"))) {
+    el = el.parentNode;
+  }
+  return el as HTMLElement | null;
+}
+
+/** Hide a trailing closing fence that lives on the same line as the opening fence. */
+export function addSingleLineClosingFence(
+  state: EditorState,
+  closeFenceFrom: number,
+  closeFenceTo: number,
+  items: Range<Decoration>[],
+): void {
+  if (closeFenceFrom < 0 || closeFenceTo <= closeFenceFrom) return;
+
+  let hideFrom = closeFenceFrom;
+  const line = state.doc.lineAt(closeFenceFrom);
+  const relPos = hideFrom - line.from;
+  let trimFrom = relPos;
+  while (
+    trimFrom > 0 &&
+    (line.text.charCodeAt(trimFrom - 1) === 32 ||
+      line.text.charCodeAt(trimFrom - 1) === 9)
+  ) {
+    trimFrom--;
+  }
+  hideFrom = line.from + trimFrom;
+  items.push(decorationHidden.range(hideFrom, closeFenceTo));
+}
+
+/** Hide a multi-line closing fence as an explicit zero-height block. */
+export function hideMultiLineClosingFence(
+  state: EditorState,
+  closeFenceFrom: number,
+  closeFenceTo: number,
+  items: Range<Decoration>[],
+): void {
+  if (closeFenceFrom < 0 || closeFenceTo <= closeFenceFrom) return;
+
+  addCollapsedStructureLine(
+    state,
+    state.doc.lineAt(closeFenceFrom),
+    CSS.blockClosingFence,
+    items,
+  );
+}
+
+/** Hide a multi-line closing fence and collapse its line. */
+export function addCollapsedClosingFence(
+  state: EditorState,
+  closeFenceFrom: number,
+  closeFenceTo: number,
+  items: Range<Decoration>[],
+): void {
+  hideMultiLineClosingFence(state, closeFenceFrom, closeFenceTo, items);
+}
+
+/** Shared DecorationSet builder for fenced-block renderers. */
+export function buildFencedBlockDecorations<T extends FencedBlockInfo>(
+  state: EditorState,
+  collect: (state: EditorState) => readonly T[],
+  decorate: (
+    context: FencedBlockRenderContext<T>,
+    items: Range<Decoration>[],
+  ) => void,
+): DecorationSet {
+  const focused = state.field(editorFocusField, false) ?? false;
+  const items: Range<Decoration>[] = [];
+  for (const block of collect(state)) {
+    decorate(getFencedBlockRenderContext(state, block, focused), items);
+  }
+  return buildDecorations(items);
+}
+
+/** Shared StateField wrapper for fenced-block renderers.
+ * Selection-driven rebuilds are opt-in so stable-shell owners can rebuild
+ * only when the active shell path changes, not on every caret advance.
+ * Uses `mapOnDocChanged` so text edits preserving the syntax tree
+ * map decoration positions for cheaper DOM reconciliation (#718). */
+export function createFencedBlockDecorationField(
+  build: (state: EditorState) => DecorationSet,
+  options?: {
+    extraShouldRebuild?: (tr: Transaction) => boolean;
+    selectionShouldRebuild?: (tr: Transaction) => boolean;
+    rebuildOnTreeChange?: boolean;
+    spanName?: string;
+  },
+): StateField<DecorationSet> {
+  return createDecorationsField(
+    build,
+    (tr) => {
+      const selectionChanged = tr.selection !== undefined;
+      const selectionNeedsRebuild = selectionChanged
+        ? options?.selectionShouldRebuild?.(tr) ?? true
+        : false;
+      return (
+        selectionNeedsRebuild ||
+        tr.effects.some((e) => e.is(focusEffect)) ||
+        (
+          options?.rebuildOnTreeChange !== false &&
+          syntaxTree(tr.state) !== syntaxTree(tr.startState) &&
+          syntaxTreeAvailable(tr.state, tr.state.doc.length)
+        ) ||
+        (options?.extraShouldRebuild?.(tr) ?? false)
+      );
+    },
+    true,
+    options?.spanName,
+  );
+}

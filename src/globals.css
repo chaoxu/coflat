@@ -1,0 +1,84 @@
+@import "tailwindcss";
+@import "katex/dist/katex.min.css";
+@import "./editor-theme.css";
+
+/* ── App-only tokens ───────────────────────────────────────────────────────── */
+
+:root {
+  --cf-logo-display-filter: none;
+}
+
+[data-theme="dark"] {
+  --cf-logo-display-filter: invert(1);
+}
+
+/* ── Base styles ────────────────────────────────────────────────────────────── */
+
+html,
+body {
+  overscroll-behavior: none;
+}
+
+body {
+  font-family: var(--cf-ui-font, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: var(--cf-bg);
+  color: var(--cf-fg);
+}
+
+/* Section numbers — period after number, margin matching blog */
+.cf-section-number {
+  color: var(--cf-fg);
+  margin-right: 0.6em;
+}
+
+.cf-section-number::after {
+  content: '.';
+}
+
+.cf-table-widget mark {
+  background: var(--cf-mark-bg, rgba(255, 255, 0, 0.2));
+  padding: 0.1em 0.2em;
+  border-radius: var(--cf-border-radius);
+}
+
+/* ── Print ───────────────────────────────────────────────────────────────── */
+
+@media print {
+  /* Hide UI chrome — sidebar, tab bar, status bar */
+  [data-sidebar],
+  [data-tabbar],
+  [data-statusbar] {
+    display: none !important;
+  }
+
+  /* Let content fill the full page */
+  html,
+  body,
+  #root {
+    height: auto;
+    overflow: visible;
+  }
+
+  /* Remove fixed/absolute decoration from the editor scroller */
+  .cm-scroller {
+    overflow: visible !important;
+  }
+
+  /* Ensure editor content uses full width */
+  .cm-editor {
+    height: auto;
+    overflow: visible;
+    max-width: 100%;
+    padding: 0;
+    margin: 0;
+  }
+
+  /* Hide sidenote margin and hover tooltips */
+  .cf-sidenote-portal,
+  .cf-preview-surface-shell {
+    display: none !important;
+  }
+
+}

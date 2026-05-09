@@ -1,0 +1,89 @@
+import { type TableRange } from "../state/table-discovery";
+import {
+  type HiddenWidgetStop,
+  type WidgetStopIndex,
+  firstHiddenWidgetStopBetweenLines,
+  firstTableStopBetweenLines,
+  hiddenWidgetStopAtPos,
+  tableStopAtPos,
+} from "./widget-stop-index";
+
+export const SUSPICIOUS_STRUCTURE_EXIT_LINE_DELTA = 25;
+
+export type VerticalMotionStopPlan =
+  | { readonly kind: "hidden-crossed"; readonly stop: HiddenWidgetStop }
+  | { readonly kind: "table-crossed"; readonly table: TableRange }
+  | {
+      readonly kind: "hidden-landed";
+      readonly landedHead: number;
+      readonly stop: HiddenWidgetStop;
+    }
+  | { readonly kind: "table-landed"; readonly table: TableRange };
+
+export function hasReversedVerticalDirection(
+  beforeLine: number,
+  targetLine: number,
+  forward: boolean,
+): boolean {
+  return forward ? targetLine < beforeLine : targetLine > beforeLine;
+}
+
+export function shouldFallbackRootMotion(
+  beforeLine: number,
+  targetLine: number,
+  forward: boolean,
+): boolean {
+  return hasReversedVerticalDirection(beforeLine, targetLine, forward) ||
+    Math.abs(targetLine - beforeLine) > SUSPICIOUS_STRUCTURE_EXIT_LINE_DELTA;
+}
+
+export function shouldCorrectStructureExit(
+  beforeLine: number,
+  targetLine: number,
+  insideActiveStructure: boolean,
+  forward: boolean,
+): boolean {
+  if (insideActiveStructure) return false;
+  return Math.abs(targetLine - beforeLine) > SUSPICIOUS_STRUCTURE_EXIT_LINE_DELTA ||
+    hasReversedVerticalDirection(beforeLine, targetLine, forward);
+}
+
+export function planVerticalMotionStop(
+  index: WidgetStopIndex,
+  beforeLine: number,
+  rawTargetLine: number,
+  landedHead: number,
+  forward: boolean,
+): VerticalMotionStopPlan | null {
+  const landedWidgetStop = hiddenWidgetStopAtPos(index, landedHead);
+  const landedTableStop = tableStopAtPos(index, landedHead);
+  const hiddenWidgetStop = firstHiddenWidgetStopBetweenLines(
+    index,
+    beforeLine,
+    rawTargetLine,
+    forward,
+  );
+  if (hiddenWidgetStop && hiddenWidgetStop !== landedWidgetStop) {
+    return { kind: "hidden-crossed", stop: hiddenWidgetStop };
+  }
+
+  const crossedTableStop = firstTableStopBetweenLines(
+    index,
+    beforeLine,
+    rawTargetLine,
+    forward,
+  );
+  if (crossedTableStop && crossedTableStop !== landedTableStop) {
+    return { kind: "table-crossed", table: crossedTableStop };
+  }
+
+  if (landedWidgetStop) {
+    return { kind: "hidden-landed", landedHead, stop: landedWidgetStop };
+  }
+
+  if (landedTableStop) {
+    return { kind: "table-landed", table: landedTableStop };
+  }
+
+  return null;
+}
