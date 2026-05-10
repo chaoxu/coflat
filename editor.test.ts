@@ -69,4 +69,114 @@ describe("mountEditor", () => {
 
     editor.unmount();
   });
+
+  it("exposes synchronous headless outline data after mount", () => {
+    const parent = document.createElement("div");
+    const editor = mountEditor({
+      parent,
+      doc: "# Intro {#sec:intro}\n\nBody\n\n## Lemma\nText",
+    });
+
+    expect(editor.outline.get()).toEqual([
+      {
+        level: 1,
+        text: "Intro",
+        line: 1,
+        from: 0,
+        key: "0",
+        id: "sec:intro",
+        number: "1",
+      },
+      {
+        level: 2,
+        text: "Lemma",
+        line: 5,
+        from: 28,
+        key: "28",
+        id: undefined,
+        number: "1.1",
+      },
+    ]);
+
+    editor.unmount();
+  });
+
+  it("publishes headless outline updates without rendering panel DOM", () => {
+    const parent = document.createElement("div");
+    const editor = mountEditor({
+      parent,
+      doc: "# Intro",
+    });
+    const onOutline = vi.fn();
+
+    const unsubscribe = editor.outline.subscribe(onOutline);
+    editor.setDoc("# Intro\n\n## Details");
+
+    expect(onOutline).toHaveBeenCalledTimes(1);
+    expect(onOutline.mock.calls[0][0].map((entry) => entry.text)).toEqual([
+      "Intro",
+      "Details",
+    ]);
+    expect(parent.querySelector(".cf-outline")).toBeNull();
+
+    unsubscribe();
+    editor.setDoc("# Intro\n\n## Details\n\n### Tail");
+    expect(onOutline).toHaveBeenCalledTimes(1);
+
+    editor.unmount();
+  });
+
+  it("exposes counts for the markdown body", () => {
+    const parent = document.createElement("div");
+    const editor = mountEditor({
+      parent,
+      doc: "---\ntitle: Draft\n---\nOne two.\n\nThree.",
+    });
+
+    expect(editor.counts.get()).toEqual({
+      words: 3,
+      chars: "One two.\n\nThree.".length,
+      paragraphs: 2,
+    });
+
+    editor.unmount();
+  });
+
+  it("updates cursor context on line-oriented navigation", () => {
+    const parent = document.createElement("div");
+    const editor = mountEditor({
+      parent,
+      doc: "# Chapter\n\n## Section\nBody text",
+    });
+    const onCursorContext = vi.fn();
+
+    const unsubscribe = editor.cursorContext.subscribe(onCursorContext);
+    editor.scrollToLine(4, { column: 6 });
+
+    expect(editor.cursorContext.get()).toEqual({
+      line: 4,
+      column: 6,
+      from: 27,
+      currentHeadingPath: ["Chapter", "Section"],
+    });
+    expect(onCursorContext).toHaveBeenCalledWith(editor.cursorContext.get());
+
+    unsubscribe();
+    editor.unmount();
+  });
+
+  it("clears headless subscribers on unmount", () => {
+    const parent = document.createElement("div");
+    const editor = mountEditor({
+      parent,
+      doc: "# Intro",
+    });
+    const onCounts = vi.fn();
+
+    editor.counts.subscribe(onCounts);
+    editor.unmount();
+    editor.setDoc("# Changed");
+
+    expect(onCounts).not.toHaveBeenCalled();
+  });
 });

@@ -6,6 +6,15 @@ import {
   editorModeField,
   setEditorMode,
 } from "./src/editor";
+import {
+  createPerFilePanelApi,
+  type Counts,
+  type CursorContext,
+  type HeadlessPanelStore,
+  type OutlineEntry,
+  type ScrollToLineOptions,
+  type ScrollToPositionOptions,
+} from "./src/headless/per-file-panels";
 import { programmaticDocumentChangeAnnotation } from "./src/editor/programmatic-document-change";
 
 export type StandaloneEditorMode = "rich" | "source";
@@ -30,6 +39,11 @@ export interface MountedEditor {
   setDoc: (doc: string) => void;
   getMode: () => StandaloneEditorMode;
   setMode: (mode: StandaloneEditorMode) => void;
+  outline: HeadlessPanelStore<readonly OutlineEntry[]>;
+  counts: HeadlessPanelStore<Counts>;
+  cursorContext: HeadlessPanelStore<CursorContext>;
+  scrollToLine: (line: number, opts?: ScrollToLineOptions) => void;
+  scrollToPosition: (from: number, opts?: ScrollToPositionOptions) => void;
   focus: () => void;
   unmount: () => void;
 }
@@ -44,6 +58,7 @@ export function mountEditor(options: MountEditorOptions): MountedEditor {
   let currentDoc = initialDoc;
   let currentMode: StandaloneEditorMode = "rich";
   let suppressModeCallback = false;
+  const panelApi = createPerFilePanelApi();
 
   options.parent.replaceChildren();
 
@@ -71,8 +86,9 @@ export function mountEditor(options: MountEditorOptions): MountedEditor {
   let view: EditorView | null = createEditor({
     parent: options.parent,
     doc: initialDoc,
-    extensions: [updateListener, ...(options.extensions ?? [])],
+    extensions: [updateListener, panelApi.extension, ...(options.extensions ?? [])],
   });
+  panelApi.attach(view);
 
   if (initialMode !== "rich") {
     suppressModeCallback = true;
@@ -117,6 +133,20 @@ export function mountEditor(options: MountEditorOptions): MountedEditor {
       setEditorMode(view, mode);
     },
 
+    outline: panelApi.outline,
+
+    counts: panelApi.counts,
+
+    cursorContext: panelApi.cursorContext,
+
+    scrollToLine(line, opts) {
+      panelApi.scrollToLine(line, opts);
+    },
+
+    scrollToPosition(from, opts) {
+      panelApi.scrollToPosition(from, opts);
+    },
+
     focus() {
       view?.focus();
     },
@@ -127,6 +157,7 @@ export function mountEditor(options: MountEditorOptions): MountedEditor {
       }
       const mountedView = view;
       view = null;
+      panelApi.detach();
       mountedView.destroy();
       options.parent.replaceChildren();
     },
@@ -137,6 +168,7 @@ export function mountEditor(options: MountEditorOptions): MountedEditor {
 // shells which need fine-grained control (compartments, plugins, theme,
 // project config, etc.) can import them straight from this package.
 export * from "./src/editor";
+export * from "./src/headless/per-file-panels";
 
 // Kitchen-sink re-exports for the coflat shell, which reaches into many
 // editor-library submodules. Cosheaf only needs the standalone API above.

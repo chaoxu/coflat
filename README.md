@@ -18,9 +18,45 @@ const editor = mountEditor({
 });
 ```
 
+## Headless Per-File Panels
+
+`mountEditor` also exposes per-file derived state without rendering any
+panels, sidebars, CSS, or chrome. Hosts own the UI and subscribe to editor
+state:
+
+```ts
+const editor = mountEditor({ parent, doc });
+
+renderOutline(editor.outline.get());
+
+const unsubscribe = editor.outline.subscribe((outline) => {
+  renderOutline(outline);
+});
+
+// Line and column values are 1-based. `from` offsets are 0-based CodeMirror
+// document positions for exact editor navigation.
+editor.scrollToLine(12, { column: 1 });
+editor.scrollToPosition(editor.outline.get()[0]?.from ?? 0);
+
+unsubscribe();
+editor.unmount();
+```
+
+Available stores:
+
+- `editor.outline`: `{ level, text, line, from, key, id?, number? }[]`
+- `editor.counts`: `{ words, chars, paragraphs }`
+- `editor.cursorContext`: `{ line, column, from, currentHeadingPath }`
+
+`subscribe` returns an unsubscribe function. All remaining subscriptions are
+cleared by `editor.unmount()`. The API is additive, so existing consumers that
+only use `getDoc`, `setDoc`, `getMode`, `setMode`, `focus`, or `unmount` keep
+working unchanged.
+
 For finer-grained control, the lower-level CodeMirror primitives are also
 re-exported from this package — `createEditor`, `editorModeField`,
-`coflatTheme`, etc. See `src/editor/index.ts` in source for the full surface.
+`coflatTheme`, `createPerFilePanelApi`, etc. See `src/editor/index.ts` in
+source for the full surface.
 
 ## Installation (Gitea registry)
 
