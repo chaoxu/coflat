@@ -25,7 +25,7 @@ function readPackageJson(): PackageManifest {
 describe("package editor export", () => {
   it("publishes the standalone editor from generated dist output", () => {
     const packageJson = readPackageJson();
-    const editorExport = packageJson.exports?.["./editor"];
+    const editorExport = packageJson.exports?.["."];
 
     expect(editorExport).toEqual({
       types: "./dist/editor.d.ts",
@@ -36,27 +36,20 @@ describe("package editor export", () => {
 
   it("publishes the standalone editor stylesheet", () => {
     const packageJson = readPackageJson();
-    const cssExport = packageJson.exports?.["./editor/style.css"];
+    const cssExport = packageJson.exports?.["./style.css"];
 
     expect(cssExport).toBe("./dist/editor.css");
   });
 
-  it("preserves the workflow scripts used by worktrees and push verification", () => {
+  it("preserves the extracted editor package scripts", () => {
     const packageJson = readPackageJson();
 
-    expect(packageJson.name).toBe("coflat");
+    expect(packageJson.name).toBe("@chaoxu/coflat-editor");
     expect(packageJson.packageManager).toBe("pnpm@10.33.0");
-    expect(packageJson.scripts?.["dev:worktree"]).toBe("node scripts/dev-worktree.mjs");
+    expect(packageJson.scripts?.build).toContain("tsc -p tsconfig.editor.json");
+    expect(packageJson.scripts?.build).toContain("vite build --config vite.editor.config.ts");
     expect(packageJson.scripts?.typecheck).toBe("tsc --noEmit");
-    expect(packageJson.scripts?.["check:types"]).toBe("pnpm typecheck && pnpm typecheck:server");
-    expect(packageJson.scripts?.["check:unit"]).toBe("node scripts/watched-vitest.mjs");
-    expect(packageJson.scripts?.["check:runtime"]).toBe(
-      "pnpm test:browser:quick -- smoke && pnpm test:browser:scroll-jump",
-    );
-    expect(packageJson.scripts?.["check:merge"]).toBe(
-      "pnpm check:static && pnpm check:unit && pnpm check:runtime",
-    );
-    expect(packageJson.scripts?.test).toBe("pnpm check:unit");
-    expect(packageJson.scripts?.prepare).toBe("lefthook install");
+    expect(packageJson.scripts?.test).toBe("vitest run");
+    expect(packageJson.scripts?.prepack).toBe("pnpm build");
   });
 });
