@@ -164,6 +164,15 @@ export function mountEditor(options: MountEditorOptions): MountedEditor {
   };
 }
 
+// React click-to-edit primitive (Phase 2.7, issue #4).
+export {
+  EditableReader,
+  preloadEditableReaderEditor,
+  type EditableReaderMode,
+  type EditableReaderProps,
+  type EditableReaderRenderOptions,
+} from "./editable-reader";
+
 // Lower-level API: re-export everything from src/editor/index.ts so that
 // shells which need fine-grained control (compartments, plugins, theme,
 // project config, etc.) can import them straight from this package.
