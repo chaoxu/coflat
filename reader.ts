@@ -306,9 +306,18 @@ interface WalkContext {
   source: string;
   resolvers: Resolvers;
   lineOffsets: Uint32Array | null;
+  /** When true, emit `data-source-from`/`data-source-to` byte offsets on
+   *  every block element, inline mark, math placeholder, and plain-text
+   *  span (the latter wrapped in `<span class="cf-text">`). */
+  sourcePositions: boolean;
   // Footnote tracking
   footnotesById: Map<string, FootnoteEntry>;
   footnotesInOrder: FootnoteEntry[];
+}
+
+function sourcePosAttrs(ctx: WalkContext, from: number, to: number): string {
+  if (!ctx.sourcePositions) return "";
+  return ` data-source-from="${from}" data-source-to="${to}"`;
 }
 
 // ---------------------------------------------------------------------------
@@ -326,8 +335,13 @@ function renderInline(
   let text = "";
   let hasMath = false;
 
-  function emitText(slice: string): void {
-    html += escapeHtml(slice);
+  function emitText(slice: string, sliceFrom: number, sliceTo: number): void {
+    if (slice.length === 0) return;
+    if (ctx.sourcePositions) {
+      html += `<span class="cf-text" data-source-from="${sliceFrom}" data-source-to="${sliceTo}">${escapeHtml(slice)}</span>`;
+    } else {
+      html += escapeHtml(slice);
+    }
     text += slice;
   }
 
@@ -347,7 +361,7 @@ function renderInline(
     const cTo = Math.min(child.to, to);
 
     if (cFrom > cursor) {
-      emitText(ctx.source.slice(cursor, cFrom));
+      emitText(ctx.source.slice(cursor, cFrom), cursor, cFrom);
     }
 
     const r = renderInlineNode(ctx, child);
@@ -360,7 +374,7 @@ function renderInline(
   }
 
   if (cursor < to) {
-    emitText(ctx.source.slice(cursor, to));
+    emitText(ctx.source.slice(cursor, to), cursor, to);
   }
 
   return { html, text, hasMath };
@@ -396,20 +410,24 @@ function renderInlineNode(
   switch (name) {
     case NODE.Emphasis: {
       const inner = renderInline(ctx, node, node.from, node.to);
-      return { html: `<em>${inner.html}</em>`, text: inner.text, hasMath: inner.hasMath };
+      const sp = sourcePosAttrs(ctx, node.from, node.to);
+      return { html: `<em${sp}>${inner.html}</em>`, text: inner.text, hasMath: inner.hasMath };
     }
     case NODE.StrongEmphasis: {
       const inner = renderInline(ctx, node, node.from, node.to);
-      return { html: `<strong>${inner.html}</strong>`, text: inner.text, hasMath: inner.hasMath };
+      const sp = sourcePosAttrs(ctx, node.from, node.to);
+      return { html: `<strong${sp}>${inner.html}</strong>`, text: inner.text, hasMath: inner.hasMath };
     }
     case NODE.Strikethrough: {
       const inner = renderInline(ctx, node, node.from, node.to);
-      return { html: `<del>${inner.html}</del>`, text: inner.text, hasMath: inner.hasMath };
+      const sp = sourcePosAttrs(ctx, node.from, node.to);
+      return { html: `<del${sp}>${inner.html}</del>`, text: inner.text, hasMath: inner.hasMath };
     }
     case NODE.Highlight: {
       const inner = renderInline(ctx, node, node.from, node.to);
+      const sp = sourcePosAttrs(ctx, node.from, node.to);
       return {
-        html: `<mark class="cf-highlight">${inner.html}</mark>`,
+        html: `<mark class="cf-highlight"${sp}>${inner.html}</mark>`,
         text: inner.text,
         hasMath: inner.hasMath,
       };
@@ -419,8 +437,9 @@ function renderInlineNode(
       const m = raw.match(/^`+/);
       const fenceLen = m ? m[0].length : 1;
       const inner = raw.slice(fenceLen, raw.length - fenceLen);
+      const sp = sourcePosAttrs(ctx, node.from, node.to);
       return {
-        html: `<code class="cf-code-inline">${escapeHtml(inner)}</code>`,
+        html: `<code class="cf-code-inline"${sp}>${escapeHtml(inner)}</code>`,
         text: inner,
         hasMath: false,
       };
@@ -432,9 +451,17 @@ function renderInlineNode(
     case "Autolink": {
       const raw = source.slice(node.from, node.to);
       const href = raw.startsWith("<") && raw.endsWith(">") ? raw.slice(1, -1) : raw;
+      const sp = sourcePosAttrs(ctx, node.from, node.to);
       if (isSafeUrl(href)) {
         return {
-          html: `<a href="${escapeHtml(href)}">${escapeHtml(href)}</a>`,
+          html: `<a href="${escapeHtml(href)}"${sp}>${escapeHtml(href)}</a>`,
+          text: href,
+          hasMath: false,
+        };
+      }
+      if (ctx.sourcePositions) {
+        return {
+          html: `<span class="cf-text"${sp}>${escapeHtml(href)}</span>`,
           text: href,
           hasMath: false,
         };
@@ -444,8 +471,9 @@ function renderInlineNode(
     case NODE.InlineMath: {
       const raw = source.slice(node.from, node.to);
       const inner = stripMathDelims(raw, false);
+      const sp = sourcePosAttrs(ctx, node.from, node.to);
       return {
-        html: `<span class="cf-math cf-math-inline" data-math="${escapeHtml(inner)}">${escapeHtml(raw)}</span>`,
+        html: `<span class="cf-math cf-math-inline" data-math="${escapeHtml(inner)}"${sp}>${escapeHtml(raw)}</span>`,
         text: raw,
         hasMath: true,
       };
@@ -453,8 +481,9 @@ function renderInlineNode(
     case NODE.DisplayMath: {
       const raw = source.slice(node.from, node.to);
       const inner = stripMathDelims(raw, true);
+      const sp = sourcePosAttrs(ctx, node.from, node.to);
       return {
-        html: `<span class="cf-math cf-math-display" data-math="${escapeHtml(inner)}">${escapeHtml(raw)}</span>`,
+        html: `<span class="cf-math cf-math-display" data-math="${escapeHtml(inner)}"${sp}>${escapeHtml(raw)}</span>`,
         text: raw,
         hasMath: true,
       };
@@ -483,9 +512,10 @@ function renderInlineNode(
         entry.hasRef = true;
       }
       const safeId = encodeURIComponent(id);
+      const sp = sourcePosAttrs(ctx, node.from, node.to);
       return {
         html:
-          `<sup class="cf-footnote-ref">` +
+          `<sup class="cf-footnote-ref"${sp}>` +
           `<a href="#fn-${escapeHtml(safeId)}" id="fnref-${escapeHtml(safeId)}">${entry.number}</a>` +
           `</sup>`,
         text: `[${entry.number}]`,
@@ -495,16 +525,28 @@ function renderInlineNode(
     case NODE.Escape: {
       const raw = source.slice(node.from, node.to);
       const ch = raw.length >= 2 ? raw.slice(1) : raw;
+      if (ctx.sourcePositions) {
+        const sp = sourcePosAttrs(ctx, node.from, node.to);
+        return { html: `<span class="cf-text"${sp}>${escapeHtml(ch)}</span>`, text: ch, hasMath: false };
+      }
       return { html: escapeHtml(ch), text: ch, hasMath: false };
     }
     case NODE.Text: {
       const raw = source.slice(node.from, node.to);
+      if (ctx.sourcePositions) {
+        const sp = sourcePosAttrs(ctx, node.from, node.to);
+        return { html: `<span class="cf-text"${sp}>${escapeHtml(raw)}</span>`, text: raw, hasMath: false };
+      }
       return { html: escapeHtml(raw), text: raw, hasMath: false };
     }
   }
 
   // Unknown inline node — fall back to its source text.
   const raw = source.slice(node.from, node.to);
+  if (ctx.sourcePositions) {
+    const sp = sourcePosAttrs(ctx, node.from, node.to);
+    return { html: `<span class="cf-text"${sp}>${escapeHtml(raw)}</span>`, text: raw, hasMath: false };
+  }
   return { html: escapeHtml(raw), text: raw, hasMath: false };
 }
 
@@ -541,7 +583,7 @@ function emitLink(
     const body = clusterMatch[1] ?? "";
     const parts = parseReferenceClusterBody(body);
     if (parts) {
-      return emitCitationCluster(ctx, parts.map((p) => p.id), raw);
+      return emitCitationCluster(ctx, parts.map((p) => p.id), raw, node.from, node.to);
     }
   }
 
@@ -595,6 +637,7 @@ function emitLink(
   let attrs = ` href="${escapeHtml(href)}"`;
   if (className) attrs += ` class="${escapeHtml(className)}"`;
   if (title) attrs += ` title="${escapeHtml(title)}"`;
+  attrs += sourcePosAttrs(ctx, node.from, node.to);
   return {
     html: `<a${attrs}>${label.html}</a>`,
     text: label.text,
@@ -606,6 +649,8 @@ function emitCitationCluster(
   ctx: WalkContext,
   ids: string[],
   _raw: string,
+  from: number,
+  to: number,
 ): { html: string; text: string; hasMath: boolean } {
   const refResolver = ctx.resolvers.refResolver;
   const parts: string[] = [];
@@ -639,8 +684,12 @@ function emitCitationCluster(
     }
   }
 
+  const inner = parts.join("");
+  const html = ctx.sourcePositions
+    ? `<span class="cf-citation-cluster"${sourcePosAttrs(ctx, from, to)}>${inner}</span>`
+    : inner;
   return {
-    html: parts.join(""),
+    html,
     text: textParts.join("; "),
     hasMath: false,
   };
@@ -679,11 +728,19 @@ function emitImage(
     }
   }
 
+  const sp = sourcePosAttrs(ctx, node.from, node.to);
   if (!isSafeUrl(src)) {
+    if (ctx.sourcePositions) {
+      return {
+        html: `<span class="cf-text"${sp}>${escapeHtml(alt)}</span>`,
+        text: alt,
+        hasMath: false,
+      };
+    }
     return { html: escapeHtml(alt), text: alt, hasMath: false };
   }
   return {
-    html: `<img class="cf-image" src="${escapeHtml(src)}" alt="${escapeHtml(alt)}">`,
+    html: `<img class="cf-image" src="${escapeHtml(src)}" alt="${escapeHtml(alt)}"${sp}>`,
     text: alt,
     hasMath: false,
   };
@@ -698,6 +755,13 @@ type TruncateSpec = { lines: number } | { chars: number };
 interface RenderOptions {
   /** If true, emit `data-source-line` on every block-level element. */
   sourceLineAttribution?: boolean;
+  /** If true, emit `data-source-from`/`data-source-to` byte offsets on
+   *  every block element, every inline mark (`<strong>`, `<em>`, `<del>`,
+   *  `<code>`, `<a>`, `<sup class="cf-footnote-ref">`, `<span class="cf-math">`,
+   *  citation/crossref spans), and wrap contiguous plain-text runs in
+   *  `<span class="cf-text" data-source-from=… data-source-to=…>`. Off by
+   *  default — output is byte-identical to the un-opted form. */
+  sourcePositions?: boolean;
   /** Block-boundary truncation budget. */
   truncate?: TruncateSpec;
 }
@@ -734,6 +798,13 @@ function sourceLineAttr(ctx: WalkContext, pos: number): string {
   return ` data-source-line="${lineAt(ctx.lineOffsets, pos)}"`;
 }
 
+/** Block-level convenience: emits both `data-source-line` (if
+ *  `sourceLineAttribution`) and `data-source-from`/`data-source-to` (if
+ *  `sourcePositions`). Pass the block node's `from`/`to`. */
+function blockSourceAttrs(ctx: WalkContext, from: number, to: number): string {
+  return sourceLineAttr(ctx, from) + sourcePosAttrs(ctx, from, to);
+}
+
 function renderBlock(ctx: WalkContext, node: SyntaxNode): BlockResult {
   const name = node.name;
 
@@ -758,7 +829,7 @@ function renderBlock(ctx: WalkContext, node: SyntaxNode): BlockResult {
       return renderIndentedCode(ctx, node);
     case NODE.HorizontalRule:
       return {
-        html: `<hr class="cf-hr"${sourceLineAttr(ctx, node.from)}>`,
+        html: `<hr class="cf-hr"${blockSourceAttrs(ctx, node.from, node.to)}>`,
         text: "",
         hasMath: false,
       };
@@ -773,7 +844,7 @@ function renderBlock(ctx: WalkContext, node: SyntaxNode): BlockResult {
       const inner = stripMathDelims(raw, true);
       return {
         html:
-          `<div class="cf-math cf-math-display" data-math="${escapeHtml(inner)}"${sourceLineAttr(ctx, node.from)}>` +
+          `<div class="cf-math cf-math-display" data-math="${escapeHtml(inner)}"${blockSourceAttrs(ctx, node.from, node.to)}>` +
           escapeHtml(raw) +
           `</div>`,
         text: raw,
@@ -832,7 +903,7 @@ function renderHeading(ctx: WalkContext, node: SyntaxNode, level: number): Block
 
   const inner = renderInline(ctx, node, contentFrom, contentTo);
   return {
-    html: `<h${level} class="cf-heading-${level}"${sourceLineAttr(ctx, node.from)}>${inner.html}</h${level}>`,
+    html: `<h${level} class="cf-heading-${level}"${blockSourceAttrs(ctx, node.from, node.to)}>${inner.html}</h${level}>`,
     text: inner.text,
     hasMath: inner.hasMath,
   };
@@ -843,7 +914,7 @@ function renderParagraph(ctx: WalkContext, node: SyntaxNode): BlockResult {
   // Trim trailing whitespace/newlines for tidy output.
   const html = inner.html.replace(/\s+$/, "");
   return {
-    html: `<p class="cf-paragraph"${sourceLineAttr(ctx, node.from)}>${html}</p>`,
+    html: `<p class="cf-paragraph"${blockSourceAttrs(ctx, node.from, node.to)}>${html}</p>`,
     text: inner.text.replace(/\s+$/, ""),
     hasMath: inner.hasMath,
   };
@@ -898,7 +969,7 @@ function renderList(ctx: WalkContext, node: SyntaxNode, ordered: boolean): Block
   classes.push(isLoose ? "cf-list-loose" : "cf-list-tight");
   return {
     html:
-      `<${tag} class="${classes.join(" ")}"${startAttr}${sourceLineAttr(ctx, node.from)}>` +
+      `<${tag} class="${classes.join(" ")}"${startAttr}${blockSourceAttrs(ctx, node.from, node.to)}>` +
       items.map((b) => b.html).join("") +
       `</${tag}>`,
     text: items.map((b) => b.text).join("\n"),
@@ -939,7 +1010,7 @@ function renderListItem(ctx: WalkContext, node: SyntaxNode): BlockResult {
         // Task is an inline-content wrapper; treat its content as paragraph text.
         const inner = renderInline(ctx, child, child.from, child.to);
         blocks.push({
-          html: `<p class="cf-paragraph"${sourceLineAttr(ctx, child.from)}>${inner.html.replace(/\s+$/, "")}</p>`,
+          html: `<p class="cf-paragraph"${blockSourceAttrs(ctx, child.from, child.to)}>${inner.html.replace(/\s+$/, "")}</p>`,
           text: inner.text.replace(/\s+$/, ""),
           hasMath: inner.hasMath,
         });
@@ -979,7 +1050,7 @@ function renderListItem(ctx: WalkContext, node: SyntaxNode): BlockResult {
     text = (task.checked ? "[x] " : "[ ] ") + text;
   }
   return {
-    html: `<li class="${classes.join(" ")}"${dataAttrs}${sourceLineAttr(ctx, node.from)}>${inner}</li>`,
+    html: `<li class="${classes.join(" ")}"${dataAttrs}${blockSourceAttrs(ctx, node.from, node.to)}>${inner}</li>`,
     text,
     hasMath,
   };
@@ -998,7 +1069,7 @@ function renderBlockquote(ctx: WalkContext, node: SyntaxNode): BlockResult {
   }
   return {
     html:
-      `<blockquote class="cf-blockquote"${sourceLineAttr(ctx, node.from)}>` +
+      `<blockquote class="cf-blockquote"${blockSourceAttrs(ctx, node.from, node.to)}>` +
       blocks.map((b) => b.html).join("") +
       `</blockquote>`,
     text: blocks.map((b) => b.text).join("\n"),
@@ -1026,7 +1097,7 @@ function renderFencedCode(ctx: WalkContext, node: SyntaxNode): BlockResult {
   const langAttr = lang ? ` data-lang="${escapeHtml(lang)}"` : "";
   return {
     html:
-      `<pre class="cf-code-block"${langAttr}${sourceLineAttr(ctx, node.from)}>` +
+      `<pre class="cf-code-block"${langAttr}${blockSourceAttrs(ctx, node.from, node.to)}>` +
       `<code>${escapeHtml(code)}</code></pre>`,
     text: code,
     hasMath: false,
@@ -1037,7 +1108,7 @@ function renderIndentedCode(ctx: WalkContext, node: SyntaxNode): BlockResult {
   const code = ctx.source.slice(node.from, node.to).replace(/^( {4}|\t)/gm, "");
   return {
     html:
-      `<pre class="cf-code-block"${sourceLineAttr(ctx, node.from)}>` +
+      `<pre class="cf-code-block"${blockSourceAttrs(ctx, node.from, node.to)}>` +
       `<code>${escapeHtml(code)}</code></pre>`,
     text: code,
     hasMath: false,
@@ -1069,7 +1140,7 @@ function renderTable(ctx: WalkContext, node: SyntaxNode): BlockResult {
   if (headerRowsHtml.length) inner += `<thead>${headerRowsHtml.join("")}</thead>`;
   if (bodyRowsHtml.length) inner += `<tbody>${bodyRowsHtml.join("")}</tbody>`;
   return {
-    html: `<table class="cf-table"${sourceLineAttr(ctx, node.from)}>${inner}</table>`,
+    html: `<table class="cf-table"${blockSourceAttrs(ctx, node.from, node.to)}>${inner}</table>`,
     text: textRows.join("\n"),
     hasMath: false,
   };
@@ -1116,7 +1187,7 @@ function renderTableRow(
     cellTexts.push(inner.text);
   });
   return {
-    rowHtml: `<tr class="cf-table-row"${sourceLineAttr(ctx, row.from)}>${cellHtmls.join("")}</tr>`,
+    rowHtml: `<tr class="cf-table-row"${blockSourceAttrs(ctx, row.from, row.to)}>${cellHtmls.join("")}</tr>`,
     rowText: cellTexts.join("\t"),
   };
 }
@@ -1163,7 +1234,7 @@ function renderFencedDiv(ctx: WalkContext, node: SyntaxNode): BlockResult {
   }
   return {
     html:
-      `<div${attrs}${sourceLineAttr(ctx, node.from)}>` +
+      `<div${attrs}${blockSourceAttrs(ctx, node.from, node.to)}>` +
       blocks.map((b) => b.html).join("") +
       `</div>`,
     text: blocks.map((b) => b.text).join("\n\n"),
@@ -1340,6 +1411,7 @@ function walkDocument(
     source,
     resolvers,
     lineOffsets: opts.sourceLineAttribution ? buildLineOffsets(source) : null,
+    sourcePositions: !!opts.sourcePositions,
     footnotesById: new Map(),
     footnotesInOrder: [],
   };
@@ -1531,6 +1603,15 @@ void ALLOWED_ATTR_RE;
  * `opts.sourceLineAttribution` (default `false`) adds `data-source-line`
  * to every emitted block-level element with the 1-based source line of
  * its start position. Off by default to keep output small.
+ *
+ * `opts.sourcePositions` (default `false`) adds `data-source-from` and
+ * `data-source-to` byte offsets on every block element, every inline
+ * mark (`<strong>`, `<em>`, `<del>`, `<code>`, `<a>`, `<mark>`,
+ * `<sup class="cf-footnote-ref">`, `<span class="cf-math">`,
+ * citation/crossref spans, images), and wraps contiguous plain-text
+ * runs in `<span class="cf-text">`. Used by {@link mapDomRangeToSource}
+ * to invert the rendering. Off by default — the un-opted output is
+ * byte-identical to the form without it.
  */
 export function renderToHtml(
   source: string,
@@ -1542,6 +1623,7 @@ export function renderToHtml(
   if (
     !FAST_PATH_RE.test(source) &&
     !opts.sourceLineAttribution &&
+    !opts.sourcePositions &&
     !opts.truncate
   ) {
     const fast = fastRenderInline(source);
@@ -1606,6 +1688,160 @@ function buildResolvers(ctx: DocumentContext | undefined): Resolvers {
     refResolver: ctx.refResolver,
     resolveAssetUrl,
   };
+}
+
+// ---------------------------------------------------------------------------
+// DOM Range → source position mapping (Phase 2.6).
+// ---------------------------------------------------------------------------
+
+/**
+ * Map a live DOM {@link Range} back to a source byte interval, using the
+ * `data-source-from`/`data-source-to` attributes emitted by
+ * {@link renderToHtml} with `sourcePositions: true`.
+ *
+ * Walks each endpoint up to the nearest ancestor carrying source-position
+ * attrs. Plain text inside a `<span class="cf-text">`, inline marks
+ * (`<strong>`, `<em>`, `<del>`, `<code>`, `<a>`, `<sup>`, `<mark>`) and
+ * block elements all qualify. For these the text-to-source mapping is 1:1
+ * by character count (HTML escapes are atomic in source), so the offset
+ * inside the text node is added to the ancestor's `data-source-from`.
+ *
+ * Limitation — math: after {@link hydrateMath} runs, a `<span class="cf-math">`
+ * contains KaTeX-rendered MathML/HTML whose character offsets do NOT
+ * correspond to LaTeX source. Selections inside a hydrated math node
+ * collapse to the math span's full `[from, to)` range (block-granularity).
+ * The same is true for the un-hydrated placeholder (its rendered text is
+ * the raw source which IS 1:1, but we still return the span's full range
+ * for consistency).
+ *
+ * If neither endpoint has a `data-source-from` ancestor (e.g., the range
+ * is rooted on `container` itself before any walk, or sits inside a
+ * synthetic backref glyph), returns `null` rather than fabricating
+ * offsets. Requires `renderToHtml({ sourcePositions: true })`; if no
+ * attrs are present anywhere, also returns `null`.
+ *
+ * Pure function over the live DOM — no global state.
+ *
+ * @param range DOM Range produced by, e.g., `window.getSelection()`.
+ * @param container Reader root that bounds the search (walks stop here).
+ * @returns `{ from, to }` byte offsets into the original source, or `null`.
+ */
+export function mapDomRangeToSource(
+  range: Range,
+  container: HTMLElement,
+): { from: number; to: number } | null {
+  const start = resolveEndpoint(range.startContainer, range.startOffset, container, /* atEnd */ false);
+  if (start === null) return null;
+  const end = resolveEndpoint(range.endContainer, range.endOffset, container, /* atEnd */ true);
+  if (end === null) return null;
+
+  let from = start;
+  let to = end;
+  if (from > to) {
+    const t = from;
+    from = to;
+    to = t;
+  }
+  return { from, to };
+}
+
+function resolveEndpoint(
+  node: Node,
+  offset: number,
+  container: HTMLElement,
+  atEnd: boolean,
+): number | null {
+  // Find the nearest ancestor element carrying data-source-from/to.
+  let el: Element | null =
+    node.nodeType === 1 /* ELEMENT_NODE */
+      ? (node as Element)
+      : node.parentElement;
+
+  // If endpoint is a text node, the offset is meaningful for character-level
+  // mapping. For element endpoints (e.g., before/after a child element), we
+  // treat `offset` as a child index and fall back to block-granularity.
+  const isText = node.nodeType === 3 /* TEXT_NODE */;
+
+  while (el && el !== container && !el.hasAttribute("data-source-from")) {
+    el = el.parentElement;
+  }
+  if (!el || el === container || !el.hasAttribute("data-source-from")) {
+    return null;
+  }
+
+  const fromStr = el.getAttribute("data-source-from");
+  const toStr = el.getAttribute("data-source-to");
+  if (fromStr === null || toStr === null) return null;
+  const elFrom = Number(fromStr);
+  const elTo = Number(toStr);
+  if (!Number.isFinite(elFrom) || !Number.isFinite(elTo)) return null;
+
+  // Math: hydrated subtrees do not character-map; collapse to block bounds.
+  // Detect by walking from the endpoint up to `el` and looking for cf-math.
+  let probe: Element | null = node.nodeType === 1 ? (node as Element) : node.parentElement;
+  while (probe && probe !== el) {
+    if (probe.classList && probe.classList.contains("cf-math")) {
+      return atEnd ? elTo : elFrom;
+    }
+    probe = probe.parentElement;
+  }
+  if (el.classList && el.classList.contains("cf-math")) {
+    return atEnd ? elTo : elFrom;
+  }
+
+  if (!isText) {
+    // Element endpoint: collapse to span bounds.
+    return atEnd ? elTo : elFrom;
+  }
+
+  // Text-node endpoint: 1:1 character → source mapping within `el`.
+  // The text node may be nested (e.g., text inside <a> inside <p>); the
+  // offset within `el`'s rendered text is the sum of all preceding text
+  // characters under `el`, minus those before our text node.
+  const charsBefore = countTextCharsBefore(el, node);
+  if (charsBefore < 0) {
+    // node not under el (shouldn't happen if walk succeeded).
+    return atEnd ? elTo : elFrom;
+  }
+  const candidate = elFrom + charsBefore + offset;
+  // Clamp to span bounds.
+  if (candidate < elFrom) return elFrom;
+  if (candidate > elTo) return elTo;
+  return candidate;
+}
+
+/**
+ * Count the number of text characters under `root` that precede `target`
+ * in document order. Returns -1 if `target` is not a descendant of `root`.
+ */
+function countTextCharsBefore(root: Element, target: Node): number {
+  let count = 0;
+  let found = false;
+
+  function walk(n: Node): boolean {
+    if (n === target) {
+      found = true;
+      return true;
+    }
+    if (n.nodeType === 3 /* TEXT_NODE */) {
+      count += (n as Text).data.length;
+      return false;
+    }
+    if (n.nodeType !== 1 /* ELEMENT_NODE */) return false;
+    let child = n.firstChild;
+    while (child) {
+      if (walk(child)) return true;
+      child = child.nextSibling;
+    }
+    return false;
+  }
+
+  let child = root.firstChild;
+  while (child) {
+    if (walk(child)) break;
+    child = child.nextSibling;
+  }
+  return found ? count : -1;
 }
 
 // ---------------------------------------------------------------------------
