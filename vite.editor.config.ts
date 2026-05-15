@@ -42,6 +42,7 @@ export default defineConfig(({ mode }) => ({
     lib: {
       entry: {
         editor: fileURLToPath(new URL("./editor.ts", import.meta.url)),
+        parse: fileURLToPath(new URL("./parse.ts", import.meta.url)),
         citeproc: fileURLToPath(new URL("./citeproc.ts", import.meta.url)),
       },
       formats: ["es"],
