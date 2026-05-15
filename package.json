@@ -15,6 +15,10 @@
       "types": "./dist/editor.d.ts",
       "import": "./dist/editor.mjs"
     },
+    "./reader": {
+      "types": "./dist/reader.d.ts",
+      "import": "./dist/reader.mjs"
+    },
     "./parse": {
       "types": "./dist/parse.d.ts",
       "import": "./dist/parse.mjs"
