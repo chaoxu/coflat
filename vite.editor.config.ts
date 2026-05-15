@@ -43,6 +43,7 @@ export default defineConfig(({ mode }) => ({
       entry: {
         editor: fileURLToPath(new URL("./editor.ts", import.meta.url)),
         reader: fileURLToPath(new URL("./reader.ts", import.meta.url)),
+        "reader-worker": fileURLToPath(new URL("./reader-worker.ts", import.meta.url)),
         parse: fileURLToPath(new URL("./parse.ts", import.meta.url)),
         citeproc: fileURLToPath(new URL("./citeproc.ts", import.meta.url)),
       },

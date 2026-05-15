@@ -19,6 +19,10 @@
       "types": "./dist/reader.d.ts",
       "import": "./dist/reader.mjs"
     },
+    "./reader/worker": {
+      "types": "./dist/reader-worker.d.ts",
+      "import": "./dist/reader-worker.mjs"
+    },
     "./parse": {
       "types": "./dist/parse.d.ts",
       "import": "./dist/parse.mjs"

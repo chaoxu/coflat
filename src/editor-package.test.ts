@@ -44,6 +44,16 @@ describe("package editor export", () => {
     });
   });
 
+  it("publishes the reader worker sub-entry from generated dist output", () => {
+    const packageJson = readPackageJson();
+    const workerExport = packageJson.exports?.["./reader/worker"];
+
+    expect(workerExport).toEqual({
+      types: "./dist/reader-worker.d.ts",
+      import: "./dist/reader-worker.mjs",
+    });
+  });
+
   it("publishes the standalone editor stylesheet", () => {
     const packageJson = readPackageJson();
     const cssExport = packageJson.exports?.["./style.css"];
