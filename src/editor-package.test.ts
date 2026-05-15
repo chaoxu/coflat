@@ -34,6 +34,16 @@ describe("package editor export", () => {
     expect(packageJson.files).toContain("dist");
   });
 
+  it("publishes the citeproc sub-entry from generated dist output", () => {
+    const packageJson = readPackageJson();
+    const citeprocExport = packageJson.exports?.["./citeproc"];
+
+    expect(citeprocExport).toEqual({
+      types: "./dist/citeproc.d.ts",
+      import: "./dist/citeproc.mjs",
+    });
+  });
+
   it("publishes the standalone editor stylesheet", () => {
     const packageJson = readPackageJson();
     const cssExport = packageJson.exports?.["./style.css"];

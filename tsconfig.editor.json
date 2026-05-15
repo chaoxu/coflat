@@ -8,10 +8,9 @@
     "outDir": "./dist",
     "rootDir": "."
   },
-  "include": ["editor.ts", "src/**/*.d.ts"],
+  "include": ["editor.ts", "citeproc.ts", "src/**/*.d.ts", "src/**/*.d.mts", "src/test-utils.ts"],
   "exclude": [
     "src/**/*.test.ts",
-    "src/**/__tests__/**",
-    "src/test-utils.ts"
+    "src/**/__tests__/**"
   ]
 }

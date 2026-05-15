@@ -172,8 +172,11 @@ export * from "./src/headless/per-file-panels";
 
 // Kitchen-sink re-exports for the coflat shell, which reaches into many
 // editor-library submodules. Cosheaf only needs the standalone API above.
-export * from "./src/citations/bibtex-parser";
-export * from "./src/citations/csl-processor";
+//
+// Citation helpers (CslProcessor, parseBibTeX, etc.) have moved to the
+// `@chaoxu/coflat-editor/citeproc` sub-entry so the main bundle no longer
+// transitively depends on citation-js. Hosts that need them import from
+// there explicitly.
 export * from "./src/constants";
 export * from "./src/constants/block-manifest";
 export * from "./src/constants/css-classes";
@@ -182,7 +185,21 @@ export * from "./src/debug/debug-bridge-ready";
 export * from "./src/debug/editor-runtime-contract";
 export * from "./src/debug/session-recorder";
 export * from "./src/debug/tree-view-portal-context";
-// ./src/editor-display-mode: EditorMode/markdownEditorModes already in src/editor barrel
+export * from "./src/debug/debug-bridge-contract-types";
+export * from "./src/editor-display-mode";
+export * from "./src/product";
+export * from "./src/project-config";
+export * from "./src/theme-contract";
+export * from "./src/document-surfaces";
+export * from "./src/document-surface-classes";
+export * from "./src/inline-editor";
+export * from "./src/inline-fragments";
+export * from "./src/inline-surface";
+export * from "./src/preview-surface";
+export * from "./src/filesystem/file-system-context";
+// export * from "./src/render/reference-render-test-utils"; // test utils only, imports vitest
+// export * from "./src/test-utils"; // test utils only, imports vitest
+export * from "./src/semantics/document";
 export * from "./src/editor/debug-lane-state";
 export * from "./src/editor/editor-plugin-metadata";
 export * from "./src/editor/image-insert";
@@ -192,16 +209,16 @@ export * from "./src/editor/theme-config";
 export * from "./src/index";
 export * from "./src/index/indexer";
 export * from "./src/index/query-api";
-export * from "./src/latex/export-options.mjs";
-export * from "./src/latex/preprocess-core.mjs";
+export * from "./src/latex/index";
 export * from "./src/lib/context-menu";
 export * from "./src/lib/debug-types";
 export * from "./src/lib/editor-document-diff";
 export * from "./src/lib/file-tree-model";
 export * from "./src/lib/katex-options";
 export * from "./src/lib/markdown-reference-paths";
-export * from "./src/lib/markdown/heading-syntax";
-export * from "./src/lib/markdown/headings";
+// ./src/lib/markdown/heading-syntax covered by ./src/semantics/document
+// export * from "./src/lib/markdown/headings"; // conflicts with ./src/semantics/document on findTrailingHeadingAttributes, hasUnnumberedHeadingAttributes
+export * from "./src/lib/markdown/index";
 export * from "./src/lib/markdown/label-parser";
 export * from "./src/lib/markdown/text-lines";
 export * from "./src/lib/open-link";
@@ -225,10 +242,11 @@ export * from "./src/render/inline-shared";
 export * from "./src/render/pdf-preview-cache";
 export * from "./src/render/render-core";
 // ./src/search doesn't exist as a barrel
-// ./src/semantics/document re-exports lib/markdown/* — covered there
+// ./src/semantics/document covered above by re-export
 export * from "./src/semantics/document-label-backlinks";
 export * from "./src/semantics/document-label-rename";
-// ./src/semantics/heading-ancestry conflicts with lib/markdown/headings
+export * from "./src/semantics/heading-ancestry-types";
+export * from "./src/semantics/incremental/cached-document-analysis";
 export * from "./src/semantics/reference-catalog";
 export * from "./src/semantics/reference-conflicts";
 export * from "./src/state/bib-data";

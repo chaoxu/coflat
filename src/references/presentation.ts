@@ -1,5 +1,5 @@
 import { StateField, type EditorState, type Transaction } from "@codemirror/state";
-import type { CslJsonItem } from "../citations/bibtex-parser";
+import type { CslJsonItem } from "../citations/csl-json";
 import { formatCitationPreview } from "../citations/citation-preview";
 import {
   collectCitationMatches,

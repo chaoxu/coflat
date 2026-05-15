@@ -4,7 +4,7 @@ import { EditorState, type Extension, type StateEffect } from "@codemirror/state
 import { EditorView, type DecorationSet } from "@codemirror/view";
 import type { Parser, Tree } from "@lezer/common";
 import type { BlockPlugin } from "./plugins/plugin-types";
-import type { CslJsonItem } from "./citations/bibtex-parser";
+import type { CslJsonItem } from "./citations/csl-json";
 import type { BibStore } from "./state/bib-data";
 
 // ── CslJsonItem fixture factory ───────────────────────────────────────────────

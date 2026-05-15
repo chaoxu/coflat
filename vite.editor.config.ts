@@ -1,4 +1,4 @@
-import { copyFileSync, cpSync, readFileSync, writeFileSync } from "node:fs";
+import { cpSync, readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import type { Plugin } from "vite";
 import { defineConfig } from "vite";
@@ -40,9 +40,12 @@ export default defineConfig(({ mode }) => ({
     outDir: "dist",
     emptyOutDir: false,
     lib: {
-      entry: fileURLToPath(new URL("./editor.ts", import.meta.url)),
+      entry: {
+        editor: fileURLToPath(new URL("./editor.ts", import.meta.url)),
+        citeproc: fileURLToPath(new URL("./citeproc.ts", import.meta.url)),
+      },
       formats: ["es"],
-      fileName: () => "editor.mjs",
+      fileName: (_format, entryName) => `${entryName}.mjs`,
     },
     rolldownOptions: {
       external: (id) => {
@@ -70,7 +73,10 @@ export default defineConfig(({ mode }) => ({
         return isEditorExternalDependency(id);
       },
       output: {
-        codeSplitting: false,
+        // Keep entries self-contained where possible; the only shared
+        // module across `editor` and `citeproc` is small type-only code,
+        // which is fine to live in a shared chunk if rolldown emits one.
+        chunkFileNames: "shared/[name]-[hash].mjs",
       },
     },
   },

@@ -1,6 +1,6 @@
 {
   "name": "@chaoxu/coflat-editor",
-  "version": "0.1.2",
+  "version": "0.1.13",
   "description": "Math-aware markdown editor library extracted from coflat — CM6 + Lezer + Typora-style ViewPlugins.",
   "type": "module",
   "license": "MIT",
@@ -14,10 +14,18 @@
       "types": "./dist/editor.d.ts",
       "import": "./dist/editor.mjs"
     },
+    "./citeproc": {
+      "types": "./dist/citeproc.d.ts",
+      "import": "./dist/citeproc.mjs"
+    },
+    "./test-utils": {
+      "types": "./dist/src/test-utils.d.ts",
+      "import": "./dist/src/test-utils.js"
+    },
     "./style.css": "./dist/editor.css"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.editor.json && vite build --config vite.editor.config.ts",
+    "build": "tsc -p tsconfig.editor.json && vite build --config vite.editor.config.ts && rsync -aR src/**/*.d.mts dist/ && rsync -aR src/**/*.d.ts dist/ && tsc -p tsconfig.test-utils.json && cp src/test-utils.ts dist/src/test-utils.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",

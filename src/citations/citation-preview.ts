@@ -1,4 +1,4 @@
-import type { CslJsonItem } from "./bibtex-parser";
+import type { CslJsonItem } from "./csl-json";
 import { CSS } from "../constants/css-classes";
 import { formatBibEntry } from "./bibliography";
 

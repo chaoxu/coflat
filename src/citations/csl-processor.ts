@@ -13,7 +13,7 @@
  *   const bib = processor.bibliography(["karger2000"]);
  */
 
-import { type CslJsonItem } from "./bibtex-parser";
+import { type CslJsonItem } from "./csl-json";
 import {
   getCitationRegistrationKey,
   type CitationCluster,

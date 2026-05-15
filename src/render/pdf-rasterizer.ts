@@ -25,14 +25,7 @@ let pdfjsPromise: Promise<typeof import("pdfjs-dist")> | null = null;
 async function getPdfjsLib(): Promise<typeof import("pdfjs-dist")> {
   if (!pdfjsPromise) {
     pdfjsPromise = import("pdfjs-dist").then(async (mod) => {
-      // Configure the web worker so PDF parsing runs off the main thread.
-      // Use Vite's ?url import to get the correct resolved path.
-      try {
-        const workerUrl = await import("pdfjs-dist/build/pdf.worker.min.mjs?url");
-        mod.GlobalWorkerOptions.workerSrc = workerUrl.default;
-      } catch (_error) {
-        // Worker unavailable — pdfjs falls back to main-thread parsing
-      }
+      // Worker config left to consumer; pdfjs falls back to main-thread parsing.
       return mod;
     });
   }
