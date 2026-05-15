@@ -131,4 +131,15 @@ export interface FileSystem {
    * @returns       The file contents as a Uint8Array.
    */
   readFileBinary(path: string): Promise<Uint8Array>;
+  /**
+   * Produce a URL the editor and reader emit into the DOM for asset
+   * references (e.g. `<img src="...">`). Hosts can return CDN URLs,
+   * blob URLs, or signed/auth'd URLs without coflat needing to know.
+   * Receives the same workspace-relative path that appears in the
+   * source — e.g. `![alt](images/foo.png)` calls `resolveAssetUrl("images/foo.png")`.
+   *
+   * @param path    Workspace-relative path as written in the source.
+   * @returns       URL string to use as the resource's src.
+   */
+  resolveAssetUrl(path: string): string | Promise<string>;
 }

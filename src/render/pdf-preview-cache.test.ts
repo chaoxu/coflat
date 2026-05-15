@@ -54,6 +54,7 @@ function createMockFs(): FileSystem {
     deleteFile: vi.fn(),
     writeFileBinary: vi.fn(),
     readFileBinary: vi.fn().mockResolvedValue(new Uint8Array([0x25, 0x50, 0x44, 0x46])),
+    resolveAssetUrl: vi.fn().mockImplementation((p) => p),
   };
 }
 
