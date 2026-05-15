@@ -25,6 +25,10 @@ import {
   type StatusEvents,
 } from "./src/editor-host-api";
 import { createSaveController, saveExtension } from "./src/save-handler";
+import {
+  assetUploaderExtension,
+  type AssetUploader,
+} from "./src/asset-uploader";
 
 export type StandaloneEditorMode = "rich" | "source";
 
@@ -58,6 +62,14 @@ export interface MountEditorOptions {
    * See `SaveHandler`.
    */
   saveHandler?: SaveHandler;
+  /**
+   * Host-supplied asset upload pipeline for paste/drop. When present,
+   * dropped/pasted files insert an `upload:<id>` placeholder, fire
+   * {@link StatusEvents.onAssetUploading}, and rewrite to the returned
+   * path (or an `upload-error:<id>` marker) once the host resolves.
+   * See `AssetUploader`.
+   */
+  assetUploader?: AssetUploader;
 }
 
 export interface MountedEditor {
@@ -129,6 +141,9 @@ export function mountEditor(options: MountEditorOptions): MountedEditor {
         ? [saveHandlerFacet.of(options.saveHandler)]
         : []),
       saveExtension(),
+      ...(options.assetUploader
+        ? [assetUploaderExtension(options.assetUploader)]
+        : []),
       ...(options.extensions ?? []),
     ],
   });
@@ -252,6 +267,7 @@ export * from "./src/debug/tree-view-portal-context";
 export * from "./src/debug/debug-bridge-contract-types";
 export * from "./src/editor-display-mode";
 export * from "./src/editor-host-api";
+export * from "./src/asset-uploader";
 export * from "./src/product";
 export * from "./src/project-config";
 export * from "./src/theme-contract";
