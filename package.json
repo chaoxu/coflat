@@ -33,7 +33,9 @@
     "check:package": "pnpm build && pnpm publint",
     "test:watch": "vitest",
     "lint": "biome lint .",
-    "prepack": "pnpm build && pnpm publint"
+    "prepack": "pnpm build && pnpm publint",
+    "test:e2e": "playwright test",
+    "e2e:install": "playwright install --with-deps chromium"
   },
   "publishConfig": {
     "registry": "http://localhost:3001/api/packages/chaoxu/npm/"
@@ -89,6 +91,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.9",
+    "@playwright/test": "^1.49.0",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@types/dompurify": "^3.0.5",
