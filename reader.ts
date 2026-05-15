@@ -1452,3 +1452,87 @@ function buildResolvers(ctx: DocumentContext | undefined): Resolvers {
     resolveAssetUrl,
   };
 }
+
+// ---------------------------------------------------------------------------
+// KaTeX lazy hydration (Phase 2.3).
+// ---------------------------------------------------------------------------
+
+/**
+ * Options for {@link hydrateMath}.
+ */
+export interface HydrateMathOptions {
+  /**
+   * KaTeX macro definitions, e.g. `{ "\\R": "\\mathbb{R}" }`.
+   *
+   * NOTE: v1 does NOT auto-extract macros from the document's frontmatter.
+   * Hosts that want frontmatter-driven macros must parse the frontmatter
+   * themselves and pass the macros explicitly here.
+   */
+  mathMacros?: Record<string, string>;
+}
+
+/**
+ * Lazily hydrate `[data-math]` placeholders inside `root` with KaTeX-rendered
+ * HTML.
+ *
+ * Behaviour:
+ * - Walks `root` for descendants with a `data-math` attribute. If none are
+ *   found, resolves immediately without importing KaTeX.
+ * - Otherwise dynamically `import("katex")` once (the browser's module cache
+ *   keeps subsequent calls cheap) and replaces each placeholder's contents
+ *   with KaTeX HTML. `displayMode: true` is used for elements bearing the
+ *   `cf-math-display` class, `false` otherwise.
+ * - On render error, the placeholder is left as-is (the raw `$…$` source
+ *   inside the `<span>` remains visible as a fallback) and gets a
+ *   `cf-math-error` class plus a `data-math-error` attribute carrying the
+ *   error message. A single bad equation does not abort the pass.
+ * - Sets `data-math-hydrated="true"` on each successfully rendered
+ *   placeholder so subsequent calls skip already-hydrated nodes (idempotent).
+ *
+ * Browser-only: KaTeX needs a real DOM. The static module graph of
+ * `./reader` stays free of `katex`; this helper performs the dynamic import.
+ *
+ * The host is responsible for loading `katex/dist/katex.min.css` separately;
+ * this helper does NOT import the stylesheet.
+ *
+ * @param root Element whose `[data-math]` descendants should be hydrated.
+ * @param opts Optional macros to forward to KaTeX.
+ */
+export async function hydrateMath(
+  root: HTMLElement,
+  opts?: HydrateMathOptions,
+): Promise<void> {
+  const placeholders = root.querySelectorAll<HTMLElement>(
+    "[data-math]:not([data-math-hydrated])",
+  );
+  if (placeholders.length === 0) return;
+
+  const katexModule = await import("katex");
+  const katex = katexModule.default ?? katexModule;
+  const macros = opts?.mathMacros;
+
+  for (const el of Array.from(placeholders)) {
+    if (el.getAttribute("data-math-hydrated") === "true") continue;
+    const latex = el.getAttribute("data-math");
+    if (latex === null) continue;
+
+    const isDisplay = el.classList.contains("cf-math-display");
+    let html: string;
+    try {
+      html = katex.renderToString(latex, {
+        displayMode: isDisplay,
+        throwOnError: true,
+        output: "htmlAndMathml",
+        ...(macros ? { macros: { ...macros } } : {}),
+      });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      el.classList.add("cf-math-error");
+      el.setAttribute("data-math-error", message);
+      continue;
+    }
+
+    el.innerHTML = html;
+    el.setAttribute("data-math-hydrated", "true");
+  }
+}
