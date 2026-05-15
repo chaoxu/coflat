@@ -1,8 +1,9 @@
 {
   "name": "@chaoxu/coflat-editor",
-  "version": "0.1.13",
+  "version": "0.2.0-alpha.0",
   "description": "Math-aware markdown editor library extracted from coflat — CM6 + Lezer + Typora-style ViewPlugins.",
   "type": "module",
+  "sideEffects": ["**/*.css"],
   "license": "MIT",
   "packageManager": "pnpm@10.33.0",
   "files": [
@@ -28,9 +29,11 @@
     "build": "tsc -p tsconfig.editor.json && vite build --config vite.editor.config.ts && rsync -aR src/**/*.d.mts dist/ && rsync -aR src/**/*.d.ts dist/ && tsc -p tsconfig.test-utils.json && cp src/test-utils.ts dist/src/test-utils.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "publint": "publint",
+    "check:package": "pnpm build && pnpm publint",
     "test:watch": "vitest",
     "lint": "biome lint .",
-    "prepack": "pnpm build"
+    "prepack": "pnpm build && pnpm publint"
   },
   "publishConfig": {
     "registry": "http://localhost:3001/api/packages/chaoxu/npm/"

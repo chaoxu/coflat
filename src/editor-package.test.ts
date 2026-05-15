@@ -60,6 +60,6 @@ describe("package editor export", () => {
     expect(packageJson.scripts?.build).toContain("vite build --config vite.editor.config.ts");
     expect(packageJson.scripts?.typecheck).toBe("tsc --noEmit");
     expect(packageJson.scripts?.test).toBe("vitest run");
-    expect(packageJson.scripts?.prepack).toBe("pnpm build");
+    expect(packageJson.scripts?.prepack).toBe("pnpm build && pnpm publint");
   });
 });
