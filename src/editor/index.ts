@@ -13,8 +13,8 @@ export {
 export {
   setEditorMode,
   editorModeField,
-  markdownEditorModes,
-  type EditorMode,
+  markdownEditorModes as cm6MarkdownEditorModes,
+  type EditorMode as Cm6EditorMode,
 } from "./editor-mode-state";
 export {
   frontmatterField,

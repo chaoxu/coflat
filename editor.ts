@@ -16,6 +16,12 @@ import {
   type ScrollToPositionOptions,
 } from "./src/headless/per-file-panels";
 import { programmaticDocumentChangeAnnotation } from "./src/editor/programmatic-document-change";
+import {
+  requestHandlerFacet,
+  statusEventsFacet,
+  type RequestHandler,
+  type StatusEvents,
+} from "./src/editor-host-api";
 
 export type StandaloneEditorMode = "rich" | "source";
 
@@ -32,6 +38,17 @@ export interface MountEditorOptions {
   onChange?: (doc: string) => void;
   /** Called whenever the effective rich/source mode changes. */
   onModeChange?: (mode: StandaloneEditorMode) => void;
+  /**
+   * Host UI for request/response intents (link picker, upload toast,
+   * autocomplete). Each method is optional; missing methods fall
+   * through to the library's default chrome. See `RequestHandler`.
+   */
+  requestHandler?: RequestHandler;
+  /**
+   * Fire-and-forget lifecycle events (save, dirty-state, asset upload).
+   * Specific events are emitted by later phases. See `StatusEvents`.
+   */
+  statusEvents?: StatusEvents;
 }
 
 export interface MountedEditor {
@@ -86,7 +103,17 @@ export function mountEditor(options: MountEditorOptions): MountedEditor {
   let view: EditorView | null = createEditor({
     parent: options.parent,
     doc: initialDoc,
-    extensions: [updateListener, panelApi.extension, ...(options.extensions ?? [])],
+    extensions: [
+      updateListener,
+      panelApi.extension,
+      ...(options.requestHandler
+        ? [requestHandlerFacet.of(options.requestHandler)]
+        : []),
+      ...(options.statusEvents
+        ? [statusEventsFacet.of(options.statusEvents)]
+        : []),
+      ...(options.extensions ?? []),
+    ],
   });
   panelApi.attach(view);
 
@@ -196,6 +223,7 @@ export * from "./src/debug/session-recorder";
 export * from "./src/debug/tree-view-portal-context";
 export * from "./src/debug/debug-bridge-contract-types";
 export * from "./src/editor-display-mode";
+export * from "./src/editor-host-api";
 export * from "./src/product";
 export * from "./src/project-config";
 export * from "./src/theme-contract";

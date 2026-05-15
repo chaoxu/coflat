@@ -14,9 +14,50 @@ a real consumer needs them.
 
 ## Status
 
-Placeholder. Names the seams, doesn't fully design them. Expand each
-section as cosheaf (or another host) actually wants to customize the
-corresponding behavior.
+The intent surface (`RequestHandler` + `StatusEvents`) is implemented
+as of Phase 3.1 (issue #13). The other seams remain placeholders that
+expand as a real consumer wants to customize them.
+
+## Intent surface (implemented)
+
+Editor mount options gain two optional fields:
+
+```ts
+import {
+  mountEditor,
+  type RequestHandler,
+  type StatusEvents,
+} from "@chaoxu/coflat-editor";
+
+mountEditor({
+  parent,
+  requestHandler: { /* openLinkPicker, showUploadToast, openAutocomplete */ },
+  statusEvents: { /* onSaveStart, onDirtyChange, ... */ },
+});
+```
+
+`RequestHandler` is for request/response intents — the editor asks the
+host for some UI (link picker, upload toast, autocomplete), the host
+returns a `Promise<Result | null>` (where `null` means the user
+cancelled). Every method is optional; missing methods fall through to
+the library's **default chrome**, implemented in vanilla DOM under
+`src/editor/default-chrome/`. The default chrome is intentionally
+minimal — class hooks (`cf-default-picker`,
+`cf-default-picker__input`, …) let hosts restyle without overriding.
+
+`StatusEvents` is fire-and-forget. Hosts subscribe by providing any
+subset of the callbacks; events for save/dirty (Phase 3.2) and asset
+upload (Phase 3.3) plug into this surface. There's no return value;
+the editor doesn't wait on the host.
+
+Wired via two facets (`requestHandlerFacet`, `statusEventsFacet`)
+defined in `src/editor-host-api.ts`. They sit alongside
+`documentContextFacet`, not inside it: `DocumentContext` is shared,
+read-mostly document state; host-API facets are per-instance
+behavior.
+
+Commands and keymaps are intentionally **not** part of this surface;
+they'll land as a future `CommandRegistry` chunk.
 
 ## Seams
 
