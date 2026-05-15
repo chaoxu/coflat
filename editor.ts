@@ -18,10 +18,13 @@ import {
 import { programmaticDocumentChangeAnnotation } from "./src/editor/programmatic-document-change";
 import {
   requestHandlerFacet,
+  saveHandlerFacet,
   statusEventsFacet,
   type RequestHandler,
+  type SaveHandler,
   type StatusEvents,
 } from "./src/editor-host-api";
+import { createSaveController, saveExtension } from "./src/save-handler";
 
 export type StandaloneEditorMode = "rich" | "source";
 
@@ -49,6 +52,12 @@ export interface MountEditorOptions {
    * Specific events are emitted by later phases. See `StatusEvents`.
    */
   statusEvents?: StatusEvents;
+  /**
+   * Host-supplied persistence. When present, Ctrl/Cmd-S, autosave, and
+   * {@link MountedEditor.triggerSave} dispatch through {@code save}.
+   * See `SaveHandler`.
+   */
+  saveHandler?: SaveHandler;
 }
 
 export interface MountedEditor {
@@ -63,6 +72,10 @@ export interface MountedEditor {
   scrollToPosition: (from: number, opts?: ScrollToPositionOptions) => void;
   focus: () => void;
   unmount: () => void;
+  /** True when the live doc matches the last successfully-saved source. */
+  isSaved: () => boolean;
+  /** Explicit save entry point. Resolves once the dispatch settles. */
+  triggerSave: (reason?: "manual" | "command") => Promise<void>;
 }
 
 function toStandaloneMode(mode: string | undefined): StandaloneEditorMode {
@@ -112,6 +125,10 @@ export function mountEditor(options: MountEditorOptions): MountedEditor {
       ...(options.statusEvents
         ? [statusEventsFacet.of(options.statusEvents)]
         : []),
+      ...(options.saveHandler
+        ? [saveHandlerFacet.of(options.saveHandler)]
+        : []),
+      saveExtension(),
       ...(options.extensions ?? []),
     ],
   });
@@ -124,6 +141,8 @@ export function mountEditor(options: MountEditorOptions): MountedEditor {
   }
 
   currentMode = toStandaloneMode(view.state.field(editorModeField, false));
+
+  const saveController = createSaveController(view);
 
   return {
     getDoc() {
@@ -187,6 +206,15 @@ export function mountEditor(options: MountEditorOptions): MountedEditor {
       panelApi.detach();
       mountedView.destroy();
       options.parent.replaceChildren();
+    },
+
+    isSaved() {
+      return view ? saveController.isSaved() : true;
+    },
+
+    async triggerSave(reason: "manual" | "command" = "manual") {
+      if (!view) return;
+      await saveController.triggerSave(reason);
     },
   };
 }

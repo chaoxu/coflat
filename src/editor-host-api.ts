@@ -114,6 +114,44 @@ export interface StatusEvents {
 }
 
 /* ────────────────────────────────────────────────────────────────────────────
+ * SaveHandler
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+/**
+ * Host-supplied save persistence. The editor calls {@link SaveHandler.save}
+ * on Ctrl+S, explicit {@code triggerSave} commands, and on autosave ticks.
+ *
+ * Dirty tracking is library-owned: the editor compares the live document
+ * against the last successfully-saved source and fires
+ * {@link StatusEvents.onDirtyChange} on transitions only.
+ *
+ * Autosave suppression is event-driven, not polled: the editor only
+ * consults {@link SaveHandler.isBusy} at the moment an autosave is about
+ * to fire. Hosts return {@code true} to defer the autosave until the next
+ * doc change.
+ *
+ * The save payload is intentionally minimal — cursor / scroll / selection
+ * are not save concerns.
+ */
+export interface SaveHandler {
+  save(payload: {
+    source: string;
+    reason: "manual" | "command" | "autosave";
+  }): Promise<{ ok: true } | { ok: false; error: string }>;
+
+  /** Autosave debounce in ms. Defaults to {@link DEFAULT_AUTOSAVE_DEBOUNCE_MS}. */
+  autosaveDebounceMs?: number;
+
+  /**
+   * If present and returns {@code true} at autosave-fire time, the editor
+   * skips that autosave tick and waits for the next doc change.
+   */
+  isBusy?(): boolean;
+}
+
+export const DEFAULT_AUTOSAVE_DEBOUNCE_MS = 1500;
+
+/* ────────────────────────────────────────────────────────────────────────────
  * Facets
  * ──────────────────────────────────────────────────────────────────────────── */
 
@@ -137,6 +175,16 @@ export const requestHandlerFacet = Facet.define<RequestHandler, RequestHandler>(
 export const statusEventsFacet = Facet.define<StatusEvents, StatusEvents>({
   combine(values) {
     return values.length > 0 ? values[values.length - 1] : EMPTY_STATUS_EVENTS;
+  },
+});
+
+/**
+ * At-most-one save handler; last wins. The save extension reads from
+ * this facet at dispatch time.
+ */
+export const saveHandlerFacet = Facet.define<SaveHandler, SaveHandler | null>({
+  combine(values) {
+    return values.length > 0 ? values[values.length - 1] : null;
   },
 });
 
