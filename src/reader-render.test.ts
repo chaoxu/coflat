@@ -67,7 +67,7 @@ describe("renderToHtml — slow path (Lezer)", () => {
 
   it("renders inline code", () => {
     const r = renderToHtml("see `code` here");
-    expect(r.html).toContain("<code>code</code>");
+    expect(r.html).toContain('<code class="cf-code-inline">code</code>');
   });
 
   it("renders a [label](url) link", () => {
@@ -81,17 +81,16 @@ describe("renderToHtml — slow path (Lezer)", () => {
     expect(r.html).toContain("https://example.com</a>");
   });
 
-  it("flattens headings to text (no <h1>)", () => {
+  it("renders headings as <h1> with cf-heading-1 class", () => {
     const r = renderToHtml("# Heading\n\nbody");
-    expect(r.html).not.toContain("<h1");
-    expect(r.html).toContain("Heading");
+    expect(r.html).toContain('<h1 class="cf-heading-1">Heading</h1>');
     expect(r.html).toContain("body");
   });
 
-  it("flattens lists to text (no <ul>)", () => {
+  it("renders bullet lists as <ul> with cf-list classes", () => {
     const r = renderToHtml("- a\n- b");
-    expect(r.html).not.toContain("<ul");
-    expect(r.html).not.toContain("<li");
+    expect(r.html).toContain('<ul class="cf-list cf-list-bullet');
+    expect(r.html).toContain('<li class="cf-list-item');
     expect(r.html).toContain("a");
     expect(r.html).toContain("b");
   });
@@ -187,6 +186,142 @@ describe("renderToText", () => {
   it("preserves math source as plain text", () => {
     const r = renderToText("x = $y^2$");
     expect(r.text).toContain("$y^2$");
+  });
+});
+
+describe("renderToHtml — block-level rendering (Phase 2.1)", () => {
+  it("renders all six heading levels", () => {
+    for (let n = 1; n <= 6; n++) {
+      const r = renderToHtml(`${"#".repeat(n)} H${n}\n\nbody`);
+      expect(r.html).toContain(`<h${n} class="cf-heading-${n}">H${n}</h${n}>`);
+    }
+  });
+
+  it("renders an ordered list with start attribute", () => {
+    const r = renderToHtml("3. three\n4. four");
+    expect(r.html).toContain('<ol class="cf-list cf-list-ordered');
+    expect(r.html).toContain('start="3"');
+  });
+
+  it("renders task list items with checkbox + data-checked", () => {
+    const r = renderToHtml("- [ ] open\n- [x] done");
+    expect(r.html).toContain('cf-list-task');
+    expect(r.html).toContain('data-checked="false"');
+    expect(r.html).toContain('data-checked="true"');
+    expect(r.html).toContain('type="checkbox"');
+    // disabled attribute may be normalized by DOMPurify but should be present
+    expect(r.html.toLowerCase()).toContain('disabled');
+  });
+
+  it("renders blockquotes", () => {
+    const r = renderToHtml("> quoted\n> body");
+    expect(r.html).toContain('<blockquote class="cf-blockquote"');
+    expect(r.html).toContain('quoted');
+  });
+
+  it("renders fenced code with language attribute, HTML-escaped contents", () => {
+    const r = renderToHtml("```js\nconst x = '<b>';\n```");
+    expect(r.html).toContain('class="cf-code-block"');
+    expect(r.html).toContain('data-lang="js"');
+    expect(r.html).toContain('&lt;b&gt;');
+    expect(r.html).not.toContain('<b>');
+  });
+
+  it("renders inline code inside a heading", () => {
+    const r = renderToHtml("# Use `foo` here");
+    expect(r.html).toContain('<h1 class="cf-heading-1">');
+    expect(r.html).toContain('<code class="cf-code-inline">foo</code>');
+  });
+
+  it("renders horizontal rules", () => {
+    const r = renderToHtml("a\n\n---\n\nb");
+    expect(r.html).toContain('<hr class="cf-hr"');
+  });
+
+  it("renders tables with header, body, and cell alignment", () => {
+    const r = renderToHtml("| a | b |\n|:--|--:|\n| 1 | 2 |");
+    expect(r.html).toContain('<table class="cf-table"');
+    expect(r.html).toContain('<thead>');
+    expect(r.html).toContain('<tbody>');
+    expect(r.html).toContain('cf-table-header');
+    expect(r.html).toMatch(/text-align:left|data-align="left"/);
+    expect(r.html).toMatch(/text-align:right|data-align="right"/);
+  });
+
+  it("renders footnote refs + numbered list at end", () => {
+    const r = renderToHtml("Here[^a] and there[^b].\n\n[^a]: first\n[^b]: second");
+    expect(r.html).toContain('class="cf-footnote-ref"');
+    expect(r.html).toContain('href="#fn-a"');
+    expect(r.html).toContain('id="fnref-a"');
+    expect(r.html).toContain('<ol class="cf-footnotes">');
+    expect(r.html).toContain('id="fn-a"');
+    expect(r.html).toContain('class="cf-footnote-backref"');
+  });
+
+  it("propagates hasMath when math appears inside a footnote body", () => {
+    const r = renderToHtml("see [^1].\n\n[^1]: math here: $x^2$.");
+    expect(r.hasMath).toBe(true);
+  });
+
+  it("renders fenced divs with class and data-* attributes", () => {
+    const r = renderToHtml("::: {.theorem #thm-1 title=\"Pythagoras\"}\nbody\n:::");
+    expect(r.html).toContain('cf-fenced-div');
+    expect(r.html).toContain('cf-fenced-theorem');
+    expect(r.html).toContain('id="thm-1"');
+    expect(r.html).toContain('data-title="Pythagoras"');
+  });
+
+  it("emits inline math placeholder with cf-math-inline + hasMath flag", () => {
+    const r = renderToHtml("x is $y^2$ today");
+    expect(r.hasMath).toBe(true);
+    expect(r.html).toContain('class="cf-math cf-math-inline"');
+    expect(r.html).toContain('data-math="y^2"');
+  });
+
+  it("emits display math placeholder with cf-math-display", () => {
+    const r = renderToHtml("eq:\n\n$$x^2$$\n\nend");
+    expect(r.hasMath).toBe(true);
+    expect(r.html).toContain('class="cf-math cf-math-display"');
+    expect(r.html).toContain('data-math="x^2"');
+  });
+
+  it("emits cf-citation-unresolved for [@key] with no RefResolver", () => {
+    const r = renderToHtml("As shown in [@knuth1984], …");
+    expect(r.html).toContain('cf-citation-unresolved');
+    expect(r.html).toContain('data-ref-key="knuth1984"');
+    expect(r.html).toContain('data-ref-mode="bracketed"');
+  });
+
+  it("emits cf-crossref-unresolved for [@eq:foo]", () => {
+    const r = renderToHtml("see [@eq:euler]");
+    expect(r.html).toContain('cf-crossref-unresolved');
+    expect(r.html).toContain('cf-crossref-eq');
+    expect(r.html).toContain('data-ref-key="eq:euler"');
+  });
+
+  it("emits data-source-line when sourceLineAttribution is enabled", () => {
+    const src = "# top\n\nfirst paragraph\n\n## h2\n\nsecond";
+    const r = renderToHtml(src, undefined, { sourceLineAttribution: true });
+    expect(r.html).toContain('data-source-line="1"');
+    expect(r.html).toContain('data-source-line="3"');
+    expect(r.html).toContain('data-source-line="5"');
+    expect(r.html).toContain('data-source-line="7"');
+  });
+
+  it("omits data-source-line by default", () => {
+    const r = renderToHtml("# top\n\nbody");
+    expect(r.html).not.toContain('data-source-line');
+  });
+
+  it("wraps multi-paragraph documents in <p class=\"cf-paragraph\">", () => {
+    const r = renderToHtml("first\n\nsecond");
+    expect(r.html).toContain('<p class="cf-paragraph">first</p>');
+    expect(r.html).toContain('<p class="cf-paragraph">second</p>');
+  });
+
+  it("keeps bare-inline shape for single-paragraph (no <p>)", () => {
+    const r = renderToHtml("hello *world*");
+    expect(r.html).toBe("hello <em>world</em>");
   });
 });
 

@@ -1,36 +1,57 @@
 /**
  * `@chaoxu/coflat-editor/reader` — read-only renderer for FORMAT.md.
  *
- * v1 scope: **inline subset only**. No block-level rendering (no headings,
- * no lists, no tables, no fenced divs). No math. No refs. No citations.
- * Block-level nodes that appear in the source emit only their visible
- * text content. See READER.md ("Public API", "Fast path", "Sanitization")
- * and issue #1 for the design rationale.
+ * Phase 2.1 scope: block-level rendering with semantic `cf-*` class names,
+ * footnote collection + backref linking, math placeholders for Phase 2.3
+ * hydration, unresolved-ref placeholders, and optional `data-source-line`
+ * attribution (issue #3).
+ *
+ * See READER.md ("Public API", "Fast path", "Sanitization", "Plan", and
+ * "Theming") and THEMING.md (class names + CSS custom properties).
  *
  * Node-importable: no `@codemirror/view`, no React, no KaTeX, no pdfjs,
  * no citation-js.
  */
 
 import { parser as baseMarkdownParser } from "@lezer/markdown";
-import type { Tree } from "@lezer/common";
+import type { SyntaxNode, Tree } from "@lezer/common";
 import createDOMPurify from "dompurify";
 
-import { markdownExtensions } from "./src/parser";
+import { htmlRenderExtensions } from "./src/parser";
 import { NODE } from "./src/constants/node-types";
 import { isSafeUrl } from "./src/lib/url-utils";
-import type { DocumentContext, LinkResolver, RefResolver } from "./src/document-context";
+import {
+  BRACKETED_REFERENCE_EXACT_RE,
+  parseReferenceClusterBody,
+} from "./src/lib/reference-grammar";
+import { CROSS_REFERENCE_PREFIXES } from "./src/constants/block-manifest";
+import { extractDivClass } from "./src/parser/fenced-div-attrs";
+import type {
+  DocumentContext,
+  LinkResolver,
+  RefResolver,
+} from "./src/document-context";
 import { noteLezerInvocation } from "./src/reader-internal";
 
-export type { DocumentContext, LinkResolver, RefResolver } from "./src/document-context";
+export type {
+  DocumentContext,
+  LinkResolver,
+  RefResolver,
+} from "./src/document-context";
 
 // ---------------------------------------------------------------------------
 // Parser (lazy: only constructed when the fast path can't handle the input).
+//
+// We use `htmlRenderExtensions` rather than `markdownExtensions` because
+// the reader wants `>` blockquotes to parse as `<blockquote>`; the editor
+// uses fenced divs for blockquotes and strips standard syntax, but a
+// preview/diff host renders authored content as written.
 // ---------------------------------------------------------------------------
 
 let _markdownParser: ReturnType<typeof baseMarkdownParser.configure> | null = null;
 function getMarkdownParser() {
   if (!_markdownParser) {
-    _markdownParser = baseMarkdownParser.configure(markdownExtensions);
+    _markdownParser = baseMarkdownParser.configure(htmlRenderExtensions);
   }
   return _markdownParser;
 }
@@ -48,19 +69,8 @@ function parseSource(source: string): Tree {
  * If none of these characters appear, the source contains only plain
  * inline markdown (`*`, `_`, `~`, `\`-escape). No links, no code, no
  * math, no block constructs — a tiny inline-only renderer suffices.
- *
- * Characters in the sieve:
- *   $   inline / display math
- *   [   links, images (`![..]`), citation clusters
- *   :   fenced div fences `::::` (only as a cheap sieve)
- *   `   inline code, fenced code
- *   #   ATX headings
- *   ^   footnote refs (`[^…]` is already covered by `[`, but `^` also
- *       guards setext headings indirectly; cheap to include)
- *   <   autolinks, HTML
- *   ---\n (anchored) frontmatter
  */
-const FAST_PATH_RE = /[$\[:`#^<]|^---\n/m;
+const FAST_PATH_RE = /[$\[:`#^<>\n|-]|^---\n/m;
 
 // ---------------------------------------------------------------------------
 // HTML / text escaping.
@@ -82,6 +92,13 @@ function escapeHtml(s: string): string {
   return out;
 }
 
+const CROSSREF_PREFIX_SET = new Set(CROSS_REFERENCE_PREFIXES);
+function isCrossrefKey(key: string): boolean {
+  const colon = key.indexOf(":");
+  if (colon <= 0) return false;
+  return CROSSREF_PREFIX_SET.has(key.slice(0, colon));
+}
+
 // ---------------------------------------------------------------------------
 // Fast-path inline renderer.
 //
@@ -94,24 +111,17 @@ function escapeHtml(s: string): string {
 interface FastInlineResult {
   html: string;
   text: string;
-  /** source-char index → text-char index (cumulative, monotonic non-decreasing). */
   sourceToText: Uint32Array;
 }
 
 function fastRenderInline(source: string): FastInlineResult {
-  // We model the output as an ordered list of "parts": each part is either
-  // a literal text run or a tag boundary. Tags carry no text-offset width;
-  // text parts do.
-
   type Part =
     | { kind: "text"; html: string; text: string; sourceFrom: number; sourceTo: number }
     | { kind: "tag"; html: string; sourceFrom: number; sourceTo: number };
 
   type Span = {
     delim: "**" | "__" | "*" | "_" | "~~";
-    /** Index in `parts` of the tentative open placeholder (a text part). */
     placeholderIdx: number;
-    /** Source position of the opening delimiter. */
     openFrom: number;
     openTo: number;
   };
@@ -145,17 +155,13 @@ function fastRenderInline(source: string): FastInlineResult {
   function closeSpan(delim: Span["delim"], from: number, to: number): void {
     const idx = matchOpenSpan(delim);
     if (idx < 0) {
-      // No match — emit as literal text.
       pushTextPart(source.slice(from, to), from, to);
       return;
     }
     const span = stack[idx];
-    // Drop any unmatched intermediate spans (they remain as literal-text
-    // placeholders, which is the correct fallback for unbalanced markup).
     stack.length = idx;
 
     const tags = tagsFor(delim);
-    // Replace the tentative open placeholder (a text part) with an open tag.
     parts[span.placeholderIdx] = {
       kind: "tag",
       html: tags.open,
@@ -172,7 +178,6 @@ function fastRenderInline(source: string): FastInlineResult {
 
   function tryOpenSpan(delim: Span["delim"], from: number, to: number): void {
     const placeholderIdx = parts.length;
-    // Tentative: emit as text. If unmatched, this is the final form.
     pushTextPart(source.slice(from, to), from, to);
     stack.push({ delim, placeholderIdx, openFrom: from, openTo: to });
   }
@@ -183,8 +188,6 @@ function fastRenderInline(source: string): FastInlineResult {
 
     if (c === "\\" && i + 1 < source.length) {
       const next = source[i + 1];
-      // Backslash escape — emit the next char literally. Map source range
-      // [i, i+2) to the single output char.
       pushTextPart(next, i, i + 2);
       i += 2;
       continue;
@@ -193,22 +196,16 @@ function fastRenderInline(source: string): FastInlineResult {
     if ((c === "*" || c === "_") && source[i + 1] === c) {
       const delim = (c + c) as "**" | "__";
       const openIdx = matchOpenSpan(delim);
-      if (openIdx >= 0) {
-        closeSpan(delim, i, i + 2);
-      } else {
-        tryOpenSpan(delim, i, i + 2);
-      }
+      if (openIdx >= 0) closeSpan(delim, i, i + 2);
+      else tryOpenSpan(delim, i, i + 2);
       i += 2;
       continue;
     }
 
     if (c === "~" && source[i + 1] === "~") {
       const openIdx = matchOpenSpan("~~");
-      if (openIdx >= 0) {
-        closeSpan("~~", i, i + 2);
-      } else {
-        tryOpenSpan("~~", i, i + 2);
-      }
+      if (openIdx >= 0) closeSpan("~~", i, i + 2);
+      else tryOpenSpan("~~", i, i + 2);
       i += 2;
       continue;
     }
@@ -216,11 +213,8 @@ function fastRenderInline(source: string): FastInlineResult {
     if (c === "*" || c === "_") {
       const delim = c as "*" | "_";
       const openIdx = matchOpenSpan(delim);
-      if (openIdx >= 0) {
-        closeSpan(delim, i, i + 1);
-      } else {
-        tryOpenSpan(delim, i, i + 1);
-      }
+      if (openIdx >= 0) closeSpan(delim, i, i + 1);
+      else tryOpenSpan(delim, i, i + 1);
       i += 1;
       continue;
     }
@@ -229,20 +223,12 @@ function fastRenderInline(source: string): FastInlineResult {
     i += 1;
   }
 
-  // Compose final outputs.
   const htmlOut: string[] = [];
   const textOut: string[] = [];
-  // s2t: source-char → text-char. Size = source.length + 1.
   const s2t = new Uint32Array(source.length + 1);
   let textPos = 0;
-  // Tracks the "current" textPos for unmapped source positions inside
-  // tag-source ranges (so they map to the start of the next text run).
   for (const part of parts) {
     if (part.kind === "text") {
-      // Spread textPos across the source range. Single text part covers
-      // source [from, to) producing `part.text` chars. If text length
-      // equals source-range length, map 1:1; otherwise distribute linearly
-      // (sufficient for escapes: source 2 chars → 1 text char).
       const srcLen = part.sourceTo - part.sourceFrom;
       const txtLen = part.text.length;
       for (let k = 0; k < srcLen; k++) {
@@ -253,8 +239,6 @@ function fastRenderInline(source: string): FastInlineResult {
       textOut.push(part.text);
       textPos += part.text.length;
     } else {
-      // Tag boundary: no text width. Map its source positions to the
-      // current textPos so they collapse to the boundary.
       for (let k = part.sourceFrom; k < part.sourceTo; k++) {
         s2t[k] = textPos;
       }
@@ -271,18 +255,35 @@ function fastRenderInline(source: string): FastInlineResult {
 }
 
 // ---------------------------------------------------------------------------
-// Lezer-tree inline-subset walker.
+// Line-number pre-pass for `data-source-line` attribution.
 //
-// Walks any tree and emits HTML/text for inline-subset nodes only. Block
-// nodes recurse into their children and only their visible text is
-// emitted. Math nodes set `hasMath: true` and emit their source verbatim.
+// Returns 1-based line number for any source offset via binary search.
 // ---------------------------------------------------------------------------
 
-interface WalkResult {
-  html: string;
-  text: string;
-  hasMath: boolean;
+function buildLineOffsets(source: string): Uint32Array {
+  // Offsets of the start of each line. Line 1 starts at offset 0.
+  const offsets: number[] = [0];
+  for (let i = 0; i < source.length; i++) {
+    if (source.charCodeAt(i) === 10) offsets.push(i + 1);
+  }
+  return Uint32Array.from(offsets);
 }
+
+function lineAt(offsets: Uint32Array, pos: number): number {
+  // Binary search for the largest i s.t. offsets[i] <= pos.
+  let lo = 0;
+  let hi = offsets.length - 1;
+  while (lo < hi) {
+    const mid = (lo + hi + 1) >>> 1;
+    if (offsets[mid] <= pos) lo = mid;
+    else hi = mid - 1;
+  }
+  return lo + 1;
+}
+
+// ---------------------------------------------------------------------------
+// Walker types.
+// ---------------------------------------------------------------------------
 
 interface Resolvers {
   linkResolver?: LinkResolver;
@@ -290,338 +291,1032 @@ interface Resolvers {
   resolveAssetUrl?: (path: string) => string;
 }
 
-function walkTree(source: string, tree: Tree, resolvers: Resolvers): WalkResult {
+interface FootnoteEntry {
+  /** Source id (the part between `[^` and `]`). */
+  id: string;
+  /** 1-based footnote number assigned in order of first reference. */
+  number: number;
+  /** Pre-rendered inner HTML of the definition body (from FootnoteDef). */
+  bodyHtml: string;
+  /** True once at least one ref to this id has been emitted. */
+  hasRef: boolean;
+}
+
+interface WalkContext {
+  source: string;
+  resolvers: Resolvers;
+  lineOffsets: Uint32Array | null;
+  // Footnote tracking
+  footnotesById: Map<string, FootnoteEntry>;
+  footnotesInOrder: FootnoteEntry[];
+}
+
+// ---------------------------------------------------------------------------
+// Inline rendering (text-only output side-channel optional).
+// ---------------------------------------------------------------------------
+
+/** Render the inline content inside a node range [from, to). Returns HTML + plain text. */
+function renderInline(
+  ctx: WalkContext,
+  parent: SyntaxNode,
+  from: number,
+  to: number,
+): { html: string; text: string; hasMath: boolean } {
+  let html = "";
+  let text = "";
   let hasMath = false;
-  const htmlOut: string[] = [];
-  const textOut: string[] = [];
 
-  // Recursive walk over a node range, emitting child nodes inline. Anything
-  // we don't recognize emits its plain text content.
-  function renderNode(node: import("@lezer/common").SyntaxNode): void {
-    const name = node.name;
-
-    // Structural markers — emit nothing. They guard syntax but produce
-    // no visible content. The "gap" emission in renderChildren picks up
-    // visible text around them.
-    if (
-      name === "HeaderMark" ||
-      name === "QuoteMark" ||
-      name === "ListMark" ||
-      name === "TaskMarker" ||
-      name === "CodeMark" ||
-      name === "CodeInfo" ||
-      name === "EmphasisMark" ||
-      name === "StrikethroughMark" ||
-      name === "LinkMark" ||
-      name === "URL" ||
-      name === "LinkTitle" ||
-      name === NODE.FencedDivFence ||
-      name === NODE.FencedDivAttributes ||
-      name === "TableDelimiter" ||
-      name === NODE.HorizontalRule
-    ) {
-      return;
-    }
-
-    // Inline subset
-    switch (name) {
-      case NODE.Emphasis:
-        htmlOut.push("<em>");
-        renderChildren(node);
-        htmlOut.push("</em>");
-        return;
-      case NODE.StrongEmphasis:
-        htmlOut.push("<strong>");
-        renderChildren(node);
-        htmlOut.push("</strong>");
-        return;
-      case NODE.Strikethrough:
-        htmlOut.push("<del>");
-        renderChildren(node);
-        htmlOut.push("</del>");
-        return;
-      case NODE.InlineCode: {
-        // Strip backtick fences from both sides. The content between them
-        // is the visible code; emit escaped.
-        const raw = source.slice(node.from, node.to);
-        // Number of backticks on each side: matches /^`+/.
-        const m = raw.match(/^`+/);
-        const fenceLen = m ? m[0].length : 1;
-        const inner = raw.slice(fenceLen, raw.length - fenceLen);
-        htmlOut.push("<code>");
-        htmlOut.push(escapeHtml(inner));
-        htmlOut.push("</code>");
-        textOut.push(inner);
-        return;
-      }
-      case NODE.Link: {
-        emitLink(node);
-        return;
-      }
-      case NODE.Image: {
-        emitImage(node);
-        return;
-      }
-      case "Autolink": {
-        const raw = source.slice(node.from, node.to);
-        // Strip surrounding < … >.
-        const href = raw.startsWith("<") && raw.endsWith(">") ? raw.slice(1, -1) : raw;
-        if (isSafeUrl(href)) {
-          htmlOut.push(`<a href="${escapeHtml(href)}">`);
-          htmlOut.push(escapeHtml(href));
-          htmlOut.push("</a>");
-        } else {
-          htmlOut.push(escapeHtml(href));
-        }
-        textOut.push(href);
-        return;
-      }
-      case NODE.InlineMath:
-      case NODE.DisplayMath: {
-        hasMath = true;
-        // v1: emit math source verbatim (visible dollar signs).
-        const raw = source.slice(node.from, node.to);
-        htmlOut.push(escapeHtml(raw));
-        textOut.push(raw);
-        return;
-      }
-      case NODE.Escape: {
-        // \X → emit X.
-        const raw = source.slice(node.from, node.to);
-        const ch = raw.length >= 2 ? raw.slice(1) : raw;
-        htmlOut.push(escapeHtml(ch));
-        textOut.push(ch);
-        return;
-      }
-      case NODE.Text: {
-        const raw = source.slice(node.from, node.to);
-        htmlOut.push(escapeHtml(raw));
-        textOut.push(raw);
-        return;
-      }
-    }
-
-    // Block-level constructs we deliberately do NOT render structurally
-    // in v1: emit only their visible text content by recursing into
-    // children and flattening to plain text. (No <h1>, no <ul>, etc.)
-    // For block separation between sibling blocks at the document level,
-    // we insert "\n\n" between top-level children below.
-    renderChildren(node);
+  function emitText(slice: string): void {
+    html += escapeHtml(slice);
+    text += slice;
   }
 
-  function renderChildren(parent: import("@lezer/common").SyntaxNode): void {
-    let child = parent.firstChild;
-    if (!child) {
-      // No children — emit the node's source range as plain text. This
-      // happens for Paragraph (which doesn't subdivide unmarked text)
-      // and for any unmodeled leaf.
-      const raw = source.slice(parent.from, parent.to);
-      htmlOut.push(escapeHtml(raw));
-      textOut.push(raw);
-      return;
+  // Walk children of `parent` whose ranges intersect [from, to).
+  // For Paragraph nodes the first child may start at `from` exactly;
+  // for headings, after the HeaderMark.
+  let cursor = from;
+  let child = parent.firstChild;
+  while (child) {
+    if (child.to <= from) {
+      child = child.nextSibling;
+      continue;
     }
-    let cursor = parent.from;
-    while (child) {
-      // Emit any source slice between previous cursor and this child as
-      // plain text (escape rules: leave as-is since the parser already
-      // marked the inline nodes; this is whitespace, etc.).
-      if (child.from > cursor) {
-        const gap = source.slice(cursor, child.from);
-        // Preserve newlines as-is for text output; HTML output also
-        // includes them verbatim (renderToHtml does not add <br>).
-        htmlOut.push(escapeHtml(gap));
-        textOut.push(gap);
+    if (child.from >= to) break;
+
+    const cFrom = Math.max(child.from, from);
+    const cTo = Math.min(child.to, to);
+
+    if (cFrom > cursor) {
+      emitText(ctx.source.slice(cursor, cFrom));
+    }
+
+    const r = renderInlineNode(ctx, child);
+    html += r.html;
+    text += r.text;
+    if (r.hasMath) hasMath = true;
+
+    cursor = cTo;
+    child = child.nextSibling;
+  }
+
+  if (cursor < to) {
+    emitText(ctx.source.slice(cursor, to));
+  }
+
+  return { html, text, hasMath };
+}
+
+function renderInlineNode(
+  ctx: WalkContext,
+  node: SyntaxNode,
+): { html: string; text: string; hasMath: boolean } {
+  const source = ctx.source;
+  const name = node.name;
+
+  // Structural markers we never emit (their text positions are skipped
+  // because their from/to is enclosed by handled nodes).
+  switch (name) {
+    case "HeaderMark":
+    case "QuoteMark":
+    case "ListMark":
+    case "TaskMarker":
+    case "CodeMark":
+    case "CodeInfo":
+    case "EmphasisMark":
+    case "StrikethroughMark":
+    case "LinkMark":
+    case "URL":
+    case "LinkTitle":
+    case NODE.FencedDivFence:
+    case NODE.FencedDivAttributes:
+    case "TableDelimiter":
+      return { html: "", text: "", hasMath: false };
+  }
+
+  switch (name) {
+    case NODE.Emphasis: {
+      const inner = renderInline(ctx, node, node.from, node.to);
+      return { html: `<em>${inner.html}</em>`, text: inner.text, hasMath: inner.hasMath };
+    }
+    case NODE.StrongEmphasis: {
+      const inner = renderInline(ctx, node, node.from, node.to);
+      return { html: `<strong>${inner.html}</strong>`, text: inner.text, hasMath: inner.hasMath };
+    }
+    case NODE.Strikethrough: {
+      const inner = renderInline(ctx, node, node.from, node.to);
+      return { html: `<del>${inner.html}</del>`, text: inner.text, hasMath: inner.hasMath };
+    }
+    case NODE.Highlight: {
+      const inner = renderInline(ctx, node, node.from, node.to);
+      return {
+        html: `<mark class="cf-highlight">${inner.html}</mark>`,
+        text: inner.text,
+        hasMath: inner.hasMath,
+      };
+    }
+    case NODE.InlineCode: {
+      const raw = source.slice(node.from, node.to);
+      const m = raw.match(/^`+/);
+      const fenceLen = m ? m[0].length : 1;
+      const inner = raw.slice(fenceLen, raw.length - fenceLen);
+      return {
+        html: `<code class="cf-code-inline">${escapeHtml(inner)}</code>`,
+        text: inner,
+        hasMath: false,
+      };
+    }
+    case NODE.Link:
+      return emitLink(ctx, node);
+    case NODE.Image:
+      return emitImage(ctx, node);
+    case "Autolink": {
+      const raw = source.slice(node.from, node.to);
+      const href = raw.startsWith("<") && raw.endsWith(">") ? raw.slice(1, -1) : raw;
+      if (isSafeUrl(href)) {
+        return {
+          html: `<a href="${escapeHtml(href)}">${escapeHtml(href)}</a>`,
+          text: href,
+          hasMath: false,
+        };
       }
-      renderNode(child);
-      cursor = child.to;
+      return { html: escapeHtml(href), text: href, hasMath: false };
+    }
+    case NODE.InlineMath: {
+      const raw = source.slice(node.from, node.to);
+      const inner = stripMathDelims(raw, false);
+      return {
+        html: `<span class="cf-math cf-math-inline" data-math="${escapeHtml(inner)}">${escapeHtml(raw)}</span>`,
+        text: raw,
+        hasMath: true,
+      };
+    }
+    case NODE.DisplayMath: {
+      const raw = source.slice(node.from, node.to);
+      const inner = stripMathDelims(raw, true);
+      return {
+        html: `<span class="cf-math cf-math-display" data-math="${escapeHtml(inner)}">${escapeHtml(raw)}</span>`,
+        text: raw,
+        hasMath: true,
+      };
+    }
+    case NODE.FootnoteRef: {
+      const raw = source.slice(node.from, node.to);
+      // raw is `[^id]`; extract id.
+      const idMatch = raw.match(/^\[\^([^\]]+)\]$/);
+      if (!idMatch) {
+        return { html: escapeHtml(raw), text: raw, hasMath: false };
+      }
+      const id = idMatch[1];
+      let entry = ctx.footnotesById.get(id);
+      if (!entry) {
+        // Forward ref before definition seen — create placeholder, body
+        // filled in when FootnoteDef is encountered.
+        entry = {
+          id,
+          number: ctx.footnotesInOrder.length + 1,
+          bodyHtml: "",
+          hasRef: true,
+        };
+        ctx.footnotesById.set(id, entry);
+        ctx.footnotesInOrder.push(entry);
+      } else {
+        entry.hasRef = true;
+      }
+      const safeId = encodeURIComponent(id);
+      return {
+        html:
+          `<sup class="cf-footnote-ref">` +
+          `<a href="#fn-${escapeHtml(safeId)}" id="fnref-${escapeHtml(safeId)}">${entry.number}</a>` +
+          `</sup>`,
+        text: `[${entry.number}]`,
+        hasMath: false,
+      };
+    }
+    case NODE.Escape: {
+      const raw = source.slice(node.from, node.to);
+      const ch = raw.length >= 2 ? raw.slice(1) : raw;
+      return { html: escapeHtml(ch), text: ch, hasMath: false };
+    }
+    case NODE.Text: {
+      const raw = source.slice(node.from, node.to);
+      return { html: escapeHtml(raw), text: raw, hasMath: false };
+    }
+  }
+
+  // Unknown inline node — fall back to its source text.
+  const raw = source.slice(node.from, node.to);
+  return { html: escapeHtml(raw), text: raw, hasMath: false };
+}
+
+function stripMathDelims(raw: string, display: boolean): string {
+  if (display) {
+    // $$..$$ or \[..\]
+    if (raw.startsWith("$$") && raw.endsWith("$$") && raw.length >= 4) {
+      return raw.slice(2, -2);
+    }
+    if (raw.startsWith("\\[") && raw.endsWith("\\]") && raw.length >= 4) {
+      return raw.slice(2, -2);
+    }
+    return raw;
+  }
+  if (raw.startsWith("$") && raw.endsWith("$") && raw.length >= 2) {
+    return raw.slice(1, -1);
+  }
+  if (raw.startsWith("\\(") && raw.endsWith("\\)") && raw.length >= 4) {
+    return raw.slice(2, -2);
+  }
+  return raw;
+}
+
+function emitLink(
+  ctx: WalkContext,
+  node: SyntaxNode,
+): { html: string; text: string; hasMath: boolean } {
+  const source = ctx.source;
+  const raw = source.slice(node.from, node.to);
+
+  // Citation cluster `[@key]` or `[@key; @other]` → handle via RefResolver.
+  const clusterMatch = BRACKETED_REFERENCE_EXACT_RE.exec(raw);
+  if (clusterMatch) {
+    const body = clusterMatch[1] ?? "";
+    const parts = parseReferenceClusterBody(body);
+    if (parts) {
+      return emitCitationCluster(ctx, parts.map((p) => p.id), raw);
+    }
+  }
+
+  const urlChild = node.getChild("URL");
+  let href = urlChild ? source.slice(urlChild.from, urlChild.to) : "";
+
+  const labelStart = node.from + 1;
+  let labelEnd = node.to;
+  if (urlChild) {
+    for (let i = urlChild.from - 1; i >= labelStart; i--) {
+      if (source[i] === "]") {
+        labelEnd = i;
+        break;
+      }
+    }
+  } else {
+    // No URL — find closing `]`.
+    for (let i = node.to - 1; i >= labelStart; i--) {
+      if (source[i] === "]") {
+        labelEnd = i;
+        break;
+      }
+    }
+  }
+
+  // Crossref `@eq:foo` / `@sec:bar` / `@thm:baz` inside `[ ]` — emit
+  // crossref placeholder unless we have a resolver wired up (not in v1
+  // for crossrefs). Same handling as narrative crossref below.
+  // The cluster code above handles `[@key]`; the body here is general.
+
+  // LinkResolver chance.
+  let className: string | undefined;
+  let title: string | undefined;
+  if (ctx.resolvers.linkResolver?.resolve) {
+    const labelText = source.slice(labelStart, labelEnd);
+    const resolved = ctx.resolvers.linkResolver.resolve(href, labelText, {});
+    if (resolved) {
+      if (resolved.href !== undefined) href = resolved.href;
+      if (resolved.className !== undefined) className = resolved.className;
+      if (resolved.title !== undefined) title = resolved.title;
+    }
+  }
+
+  // Render label inline.
+  const label = renderInline(ctx, node, labelStart, labelEnd);
+
+  if (!isSafeUrl(href)) {
+    return { html: label.html, text: label.text, hasMath: label.hasMath };
+  }
+
+  let attrs = ` href="${escapeHtml(href)}"`;
+  if (className) attrs += ` class="${escapeHtml(className)}"`;
+  if (title) attrs += ` title="${escapeHtml(title)}"`;
+  return {
+    html: `<a${attrs}>${label.html}</a>`,
+    text: label.text,
+    hasMath: label.hasMath,
+  };
+}
+
+function emitCitationCluster(
+  ctx: WalkContext,
+  ids: string[],
+  _raw: string,
+): { html: string; text: string; hasMath: boolean } {
+  const refResolver = ctx.resolvers.refResolver;
+  const parts: string[] = [];
+  const textParts: string[] = [];
+
+  for (const id of ids) {
+    const isCross = isCrossrefKey(id);
+    if (refResolver && !isCross) {
+      const resolved = refResolver.resolve(id, "bracketed");
+      if (resolved) {
+        const cls = `cf-citation${resolved.className ? ` ${resolved.className}` : ""}`;
+        const inner = resolved.href && isSafeUrl(resolved.href)
+          ? `<a href="${escapeHtml(resolved.href)}">${resolved.content}</a>`
+          : resolved.content;
+        parts.push(`<span class="${escapeHtml(cls)}" data-ref-key="${escapeHtml(id)}" data-ref-mode="bracketed">${inner}</span>`);
+        textParts.push(stripTags(resolved.content));
+        continue;
+      }
+    }
+    if (isCross) {
+      const prefix = id.slice(0, id.indexOf(":"));
+      parts.push(
+        `<span class="cf-crossref-unresolved cf-crossref-${escapeHtml(prefix)}" data-ref-key="${escapeHtml(id)}">@${escapeHtml(id)}</span>`,
+      );
+      textParts.push(`@${id}`);
+    } else {
+      parts.push(
+        `<span class="cf-citation cf-citation-unresolved" data-ref-key="${escapeHtml(id)}" data-ref-mode="bracketed">[@${escapeHtml(id)}]</span>`,
+      );
+      textParts.push(`[@${id}]`);
+    }
+  }
+
+  return {
+    html: parts.join(""),
+    text: textParts.join("; "),
+    hasMath: false,
+  };
+}
+
+function stripTags(html: string): string {
+  return html.replace(/<[^>]*>/g, "");
+}
+
+function emitImage(
+  ctx: WalkContext,
+  node: SyntaxNode,
+): { html: string; text: string; hasMath: boolean } {
+  const source = ctx.source;
+  const urlChild = node.getChild("URL");
+  let src = urlChild ? source.slice(urlChild.from, urlChild.to) : "";
+
+  const altStart = node.from + 2;
+  let altEnd = node.to;
+  if (urlChild) {
+    for (let i = urlChild.from - 1; i >= altStart; i--) {
+      if (source[i] === "]") {
+        altEnd = i;
+        break;
+      }
+    }
+  }
+  const alt = source.slice(altStart, altEnd);
+
+  if (ctx.resolvers.resolveAssetUrl) {
+    try {
+      const resolved = ctx.resolvers.resolveAssetUrl(src);
+      if (typeof resolved === "string") src = resolved;
+    } catch {
+      // ignore
+    }
+  }
+
+  if (!isSafeUrl(src)) {
+    return { html: escapeHtml(alt), text: alt, hasMath: false };
+  }
+  return {
+    html: `<img class="cf-image" src="${escapeHtml(src)}" alt="${escapeHtml(alt)}">`,
+    text: alt,
+    hasMath: false,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Block rendering.
+// ---------------------------------------------------------------------------
+
+interface RenderOptions {
+  /** If true, emit `data-source-line` on every block-level element. */
+  sourceLineAttribution?: boolean;
+}
+
+interface BlockResult {
+  html: string;
+  text: string;
+  hasMath: boolean;
+}
+
+function emptyBlock(): BlockResult {
+  return { html: "", text: "", hasMath: false };
+}
+
+function combineBlocks(blocks: BlockResult[]): BlockResult {
+  const htmls: string[] = [];
+  const texts: string[] = [];
+  let hasMath = false;
+  for (const b of blocks) {
+    if (b.html) htmls.push(b.html);
+    if (b.text) texts.push(b.text);
+    if (b.hasMath) hasMath = true;
+  }
+  return { html: htmls.join(""), text: texts.join("\n\n"), hasMath };
+}
+
+function sourceLineAttr(ctx: WalkContext, pos: number): string {
+  if (!ctx.lineOffsets) return "";
+  return ` data-source-line="${lineAt(ctx.lineOffsets, pos)}"`;
+}
+
+function renderBlock(ctx: WalkContext, node: SyntaxNode): BlockResult {
+  const name = node.name;
+
+  // Headings (ATX + Setext) — uniform handling.
+  const headingLevel = headingLevelFor(name);
+  if (headingLevel) {
+    return renderHeading(ctx, node, headingLevel);
+  }
+
+  switch (name) {
+    case NODE.Paragraph:
+      return renderParagraph(ctx, node);
+    case NODE.BulletList:
+      return renderList(ctx, node, /*ordered*/ false);
+    case NODE.OrderedList:
+      return renderList(ctx, node, /*ordered*/ true);
+    case NODE.Blockquote:
+      return renderBlockquote(ctx, node);
+    case NODE.FencedCode:
+      return renderFencedCode(ctx, node);
+    case "CodeBlock":
+      return renderIndentedCode(ctx, node);
+    case NODE.HorizontalRule:
+      return {
+        html: `<hr class="cf-hr"${sourceLineAttr(ctx, node.from)}>`,
+        text: "",
+        hasMath: false,
+      };
+    case "Table":
+      return renderTable(ctx, node);
+    case NODE.FencedDiv:
+      return renderFencedDiv(ctx, node);
+    case "FootnoteDef":
+      return renderFootnoteDef(ctx, node);
+    case NODE.DisplayMath: {
+      const raw = ctx.source.slice(node.from, node.to);
+      const inner = stripMathDelims(raw, true);
+      return {
+        html:
+          `<div class="cf-math cf-math-display" data-math="${escapeHtml(inner)}"${sourceLineAttr(ctx, node.from)}>` +
+          escapeHtml(raw) +
+          `</div>`,
+        text: raw,
+        hasMath: true,
+      };
+    }
+    case NODE.HTMLBlock:
+    case "CommentBlock":
+    case NODE.Frontmatter:
+      // Drop frontmatter / HTML blocks from rendered output. Sanitizer
+      // would strip raw HTML anyway; explicit drop avoids re-injection.
+      return emptyBlock();
+  }
+
+  // Unknown block — emit its inline content as a paragraph fallback.
+  return renderParagraph(ctx, node);
+}
+
+function headingLevelFor(name: string): number {
+  switch (name) {
+    case NODE.ATXHeading1: case NODE.SetextHeading1: return 1;
+    case NODE.ATXHeading2: case NODE.SetextHeading2: return 2;
+    case NODE.ATXHeading3: return 3;
+    case NODE.ATXHeading4: return 4;
+    case NODE.ATXHeading5: return 5;
+    case NODE.ATXHeading6: return 6;
+  }
+  return 0;
+}
+
+function renderHeading(ctx: WalkContext, node: SyntaxNode, level: number): BlockResult {
+  // Skip the HeaderMark child(ren) by rendering inline over [contentStart, contentEnd).
+  // For ATX, content starts after `#+` and optional space; for Setext, content is
+  // the line before the `===`/`---` underline.
+  let contentFrom = node.from;
+  let contentTo = node.to;
+
+  const headerMark = node.getChild("HeaderMark");
+  if (headerMark && headerMark.from === node.from) {
+    // ATX: skip leading marks + one space.
+    contentFrom = headerMark.to;
+    while (contentFrom < contentTo && ctx.source[contentFrom] === " ") contentFrom++;
+    // Strip trailing closing `#+` and whitespace.
+    while (contentTo > contentFrom && ctx.source[contentTo - 1] === " ") contentTo--;
+    // The Lezer tree may include a closing HeaderMark child at the end.
+    const trailing = node.lastChild;
+    if (trailing && trailing.name === "HeaderMark" && trailing.from !== headerMark.from) {
+      contentTo = trailing.from;
+      while (contentTo > contentFrom && ctx.source[contentTo - 1] === " ") contentTo--;
+    }
+  } else if (headerMark && headerMark.from > node.from) {
+    // Setext: content is everything before the underline mark.
+    contentTo = headerMark.from;
+    while (contentTo > contentFrom && /\s/.test(ctx.source[contentTo - 1] ?? "")) contentTo--;
+  }
+
+  const inner = renderInline(ctx, node, contentFrom, contentTo);
+  return {
+    html: `<h${level} class="cf-heading-${level}"${sourceLineAttr(ctx, node.from)}>${inner.html}</h${level}>`,
+    text: inner.text,
+    hasMath: inner.hasMath,
+  };
+}
+
+function renderParagraph(ctx: WalkContext, node: SyntaxNode): BlockResult {
+  const inner = renderInline(ctx, node, node.from, node.to);
+  // Trim trailing whitespace/newlines for tidy output.
+  const html = inner.html.replace(/\s+$/, "");
+  return {
+    html: `<p class="cf-paragraph"${sourceLineAttr(ctx, node.from)}>${html}</p>`,
+    text: inner.text.replace(/\s+$/, ""),
+    hasMath: inner.hasMath,
+  };
+}
+
+function renderList(ctx: WalkContext, node: SyntaxNode, ordered: boolean): BlockResult {
+  const items: BlockResult[] = [];
+  let isTaskList = false;
+  let isLoose = false;
+
+  // Detect loose by checking for blank-line gaps between items.
+  let prevItem: SyntaxNode | null = null;
+  let child = node.firstChild;
+  while (child) {
+    if (child.name === NODE.ListItem) {
+      if (prevItem) {
+        const between = ctx.source.slice(prevItem.to, child.from);
+        if (/\n\s*\n/.test(between)) isLoose = true;
+      }
+      const item = renderListItem(ctx, child);
+      if (item.html.includes("cf-list-task")) isTaskList = true;
+      items.push(item);
+      prevItem = child;
+    }
+    child = child.nextSibling;
+  }
+
+  // Detect start number for ordered lists.
+  let startAttr = "";
+  if (ordered) {
+    // Find the first list-mark on the first ListItem.
+    const firstItem = node.getChild(NODE.ListItem);
+    if (firstItem) {
+      const mark = firstItem.getChild("ListMark");
+      if (mark) {
+        const markText = ctx.source.slice(mark.from, mark.to);
+        const m = markText.match(/(\d+)/);
+        if (m) {
+          const n = parseInt(m[1], 10);
+          if (!isNaN(n) && n !== 1) startAttr = ` start="${n}"`;
+        }
+      }
+    }
+  }
+
+  const tag = ordered ? "ol" : "ul";
+  const classes: string[] = [
+    "cf-list",
+    ordered ? "cf-list-ordered" : "cf-list-bullet",
+  ];
+  if (isTaskList) classes.push("cf-list-task");
+  classes.push(isLoose ? "cf-list-loose" : "cf-list-tight");
+  return {
+    html:
+      `<${tag} class="${classes.join(" ")}"${startAttr}${sourceLineAttr(ctx, node.from)}>` +
+      items.map((b) => b.html).join("") +
+      `</${tag}>`,
+    text: items.map((b) => b.text).join("\n"),
+    hasMath: items.some((b) => b.hasMath),
+  };
+}
+
+function renderListItem(ctx: WalkContext, node: SyntaxNode): BlockResult {
+  // Task marker: TaskMarker is the first child of a Task wrapper (which
+  // wraps the rest of the item content). Detect by walking one level deep.
+  let task: { checked: boolean } | null = null;
+  let scan = node.firstChild;
+  while (scan) {
+    if (scan.name === "Task") {
+      const tm = scan.firstChild;
+      if (tm && tm.name === "TaskMarker") {
+        const raw = ctx.source.slice(tm.from, tm.to);
+        task = { checked: /\[[xX]\]/.test(raw) };
+      }
+      break;
+    }
+    scan = scan.nextSibling;
+  }
+
+  // Render child blocks (Paragraphs, nested lists, …). Skip ListMark.
+  // A Task wrapper is treated transparently — its content is the item content
+  // and its TaskMarker child is skipped.
+  const blocks: BlockResult[] = [];
+  const visit = (parent: SyntaxNode): void => {
+    let child = parent.firstChild;
+    while (child) {
+      const n = child.name;
+      if (n === "ListMark" || n === "TaskMarker") {
+        child = child.nextSibling;
+        continue;
+      }
+      if (n === "Task") {
+        // Task is an inline-content wrapper; treat its content as paragraph text.
+        const inner = renderInline(ctx, child, child.from, child.to);
+        blocks.push({
+          html: `<p class="cf-paragraph"${sourceLineAttr(ctx, child.from)}>${inner.html.replace(/\s+$/, "")}</p>`,
+          text: inner.text.replace(/\s+$/, ""),
+          hasMath: inner.hasMath,
+        });
+        child = child.nextSibling;
+        continue;
+      }
+      if (n === NODE.Paragraph) {
+        blocks.push(renderParagraph(ctx, child));
+      } else {
+        blocks.push(renderBlock(ctx, child));
+      }
       child = child.nextSibling;
     }
-    if (cursor < parent.to) {
-      const tail = source.slice(cursor, parent.to);
-      htmlOut.push(escapeHtml(tail));
-      textOut.push(tail);
-    }
-  }
+  };
+  visit(node);
 
-  function emitLink(node: import("@lezer/common").SyntaxNode): void {
-    // Link node shape: `[text](url)` — children include LinkMark, the
-    // label content, and the URL child. We read URL via getChild("URL").
-    const urlChild = node.getChild("URL");
-    let href = urlChild ? source.slice(urlChild.from, urlChild.to) : "";
-
-    // Extract label text from children between the first and the second
-    // `LinkMark` (i.e. between `[` and `]`).
-    const labelStart = node.from + 1; // after `[`
-    // The label ends just before the URL paren block, or end of node.
-    let labelEnd = node.to;
-    if (urlChild) {
-      // Find `]` before urlChild — walk backwards from urlChild.from.
-      for (let i = urlChild.from - 1; i >= labelStart; i--) {
-        if (source[i] === "]") {
-          labelEnd = i;
-          break;
-        }
-      }
-    }
-    const labelText = source.slice(labelStart, labelEnd);
-
-    // Resolver chance.
-    let className: string | undefined;
-    let title: string | undefined;
-    if (resolvers.linkResolver?.resolve) {
-      const resolved = resolvers.linkResolver.resolve(href, labelText, {});
-      if (resolved) {
-        if (resolved.href !== undefined) href = resolved.href;
-        if (resolved.className !== undefined) className = resolved.className;
-        if (resolved.title !== undefined) title = resolved.title;
-      }
-    }
-
-    if (!isSafeUrl(href)) {
-      // Unsafe href → render as plain text (the label).
-      htmlOut.push(escapeHtml(labelText));
-      textOut.push(labelText);
-      return;
-    }
-
-    let attrs = ` href="${escapeHtml(href)}"`;
-    if (className) attrs += ` class="${escapeHtml(className)}"`;
-    if (title) attrs += ` title="${escapeHtml(title)}"`;
-    htmlOut.push(`<a${attrs}>`);
-    // The label sits between the opening `[` LinkMark and the closing `]`
-    // LinkMark. Children of the Link node include the LinkMarks, URL,
-    // optional LinkTitle, and any inline child nodes (Emphasis, etc.)
-    // that fall inside the label. We walk children left-to-right and
-    // fill gaps within [labelStart, labelEnd) with plain text.
-    let lblCursor = labelStart;
-    let lblChild = node.firstChild;
-    while (lblChild) {
-      if (lblChild.from >= labelEnd) break;
-      if (lblChild.to <= labelStart) {
-        lblChild = lblChild.nextSibling;
-        continue;
-      }
-      // Skip structural marker nodes; their source positions are still
-      // used to bound `lblCursor` so we don't emit `[` etc.
-      if (
-        lblChild.name === "LinkMark" ||
-        lblChild.name === "URL" ||
-        lblChild.name === "LinkTitle"
-      ) {
-        if (lblChild.to > lblCursor) lblCursor = lblChild.to;
-        lblChild = lblChild.nextSibling;
-        continue;
-      }
-      if (lblChild.from > lblCursor) {
-        const gap = source.slice(lblCursor, lblChild.from);
-        htmlOut.push(escapeHtml(gap));
-        textOut.push(gap);
-      }
-      renderNode(lblChild);
-      lblCursor = lblChild.to;
-      lblChild = lblChild.nextSibling;
-    }
-    if (lblCursor < labelEnd) {
-      const tail = source.slice(lblCursor, labelEnd);
-      htmlOut.push(escapeHtml(tail));
-      textOut.push(tail);
-    }
-    htmlOut.push("</a>");
-  }
-
-  function emitImage(node: import("@lezer/common").SyntaxNode): void {
-    const urlChild = node.getChild("URL");
-    let src = urlChild ? source.slice(urlChild.from, urlChild.to) : "";
-
-    // Alt text: between `![` and `]`.
-    const altStart = node.from + 2;
-    let altEnd = node.to;
-    if (urlChild) {
-      for (let i = urlChild.from - 1; i >= altStart; i--) {
-        if (source[i] === "]") {
-          altEnd = i;
-          break;
-        }
-      }
-    }
-    const alt = source.slice(altStart, altEnd);
-
-    // Synchronous asset resolution only.
-    if (resolvers.resolveAssetUrl) {
-      try {
-        const resolved = resolvers.resolveAssetUrl(src);
-        if (typeof resolved === "string") src = resolved;
-      } catch {
-        // Ignore — keep raw src.
-      }
-    }
-
-    if (!isSafeUrl(src)) {
-      // Unsafe src → render as plain text (the alt).
-      htmlOut.push(escapeHtml(alt));
-      textOut.push(alt);
-      return;
-    }
-    htmlOut.push(`<img src="${escapeHtml(src)}" alt="${escapeHtml(alt)}">`);
-    textOut.push(alt);
-  }
-
-  // Document is the tree root. Walk top-level block children with "\n\n"
-  // joins so headings/paragraphs/lists end up separated in text output.
-  const root = tree.topNode;
-  let topChild = root.firstChild;
-  let first = true;
-  let cursor = root.from;
-  if (!topChild) {
-    // Empty doc or single text run — fall back to rendering the entire
-    // source as plain text.
-    htmlOut.push(escapeHtml(source));
-    textOut.push(source);
+  // If the only block is a paragraph, unwrap it to bare inline (tight item).
+  let inner: string;
+  let text: string;
+  const hasMath = blocks.some((b) => b.hasMath);
+  if (blocks.length === 1 && blocks[0].html.startsWith("<p class=\"cf-paragraph\"")) {
+    // Strip outer <p>…</p>.
+    inner = blocks[0].html.replace(/^<p class="cf-paragraph"[^>]*>/, "").replace(/<\/p>$/, "");
+    text = blocks[0].text;
   } else {
-    while (topChild) {
-      if (!first) {
-        // Block separator. Use the actual whitespace between blocks from
-        // source so text round-trips reasonably; HTML separator: also
-        // raw whitespace (we emit no <p> in v1).
-        const gap = source.slice(cursor, topChild.from);
-        htmlOut.push(escapeHtml(gap));
-        textOut.push(gap);
-      } else if (topChild.from > root.from) {
-        // Leading whitespace before the first block.
-        const lead = source.slice(root.from, topChild.from);
-        htmlOut.push(escapeHtml(lead));
-        textOut.push(lead);
-      }
-      renderNode(topChild);
-      cursor = topChild.to;
-      first = false;
-      topChild = topChild.nextSibling;
+    inner = blocks.map((b) => b.html).join("");
+    text = blocks.map((b) => b.text).join("\n");
+  }
+
+  const classes: string[] = ["cf-list-item"];
+  let dataAttrs = "";
+  if (task) {
+    classes.push("cf-list-task");
+    dataAttrs = ` data-checked="${task.checked}"`;
+    const cb = `<input type="checkbox" disabled${task.checked ? " checked" : ""}> `;
+    inner = cb + inner;
+    text = (task.checked ? "[x] " : "[ ] ") + text;
+  }
+  return {
+    html: `<li class="${classes.join(" ")}"${dataAttrs}${sourceLineAttr(ctx, node.from)}>${inner}</li>`,
+    text,
+    hasMath,
+  };
+}
+
+function renderBlockquote(ctx: WalkContext, node: SyntaxNode): BlockResult {
+  const blocks: BlockResult[] = [];
+  let child = node.firstChild;
+  while (child) {
+    if (child.name === "QuoteMark") {
+      child = child.nextSibling;
+      continue;
     }
-    if (cursor < root.to) {
-      const tail = source.slice(cursor, root.to);
-      htmlOut.push(escapeHtml(tail));
-      textOut.push(tail);
+    blocks.push(renderBlock(ctx, child));
+    child = child.nextSibling;
+  }
+  return {
+    html:
+      `<blockquote class="cf-blockquote"${sourceLineAttr(ctx, node.from)}>` +
+      blocks.map((b) => b.html).join("") +
+      `</blockquote>`,
+    text: blocks.map((b) => b.text).join("\n"),
+    hasMath: blocks.some((b) => b.hasMath),
+  };
+}
+
+function renderFencedCode(ctx: WalkContext, node: SyntaxNode): BlockResult {
+  // Lang from CodeInfo child.
+  const info = node.getChild("CodeInfo");
+  const lang = info ? ctx.source.slice(info.from, info.to).trim() : "";
+
+  // Inner content: everything between opening and closing CodeMark fences.
+  let contentFrom = node.from;
+  let contentTo = node.to;
+  const marks = node.getChildren("CodeMark");
+  if (marks.length >= 1) contentFrom = (info ? info.to : marks[0].to);
+  if (marks.length >= 2) contentTo = marks[marks.length - 1].from;
+
+  // Trim a single leading newline (after the info line) and trailing newline.
+  while (contentFrom < contentTo && (ctx.source[contentFrom] === "\n")) contentFrom++;
+  while (contentTo > contentFrom && (ctx.source[contentTo - 1] === "\n")) contentTo--;
+
+  const code = ctx.source.slice(contentFrom, contentTo);
+  const langAttr = lang ? ` data-lang="${escapeHtml(lang)}"` : "";
+  return {
+    html:
+      `<pre class="cf-code-block"${langAttr}${sourceLineAttr(ctx, node.from)}>` +
+      `<code>${escapeHtml(code)}</code></pre>`,
+    text: code,
+    hasMath: false,
+  };
+}
+
+function renderIndentedCode(ctx: WalkContext, node: SyntaxNode): BlockResult {
+  const code = ctx.source.slice(node.from, node.to).replace(/^( {4}|\t)/gm, "");
+  return {
+    html:
+      `<pre class="cf-code-block"${sourceLineAttr(ctx, node.from)}>` +
+      `<code>${escapeHtml(code)}</code></pre>`,
+    text: code,
+    hasMath: false,
+  };
+}
+
+function renderTable(ctx: WalkContext, node: SyntaxNode): BlockResult {
+  const aligns = inferTableAlign(ctx, node);
+
+  const headerRowsHtml: string[] = [];
+  const bodyRowsHtml: string[] = [];
+  const textRows: string[] = [];
+
+  const header = node.getChild("TableHeader");
+  if (header) {
+    const { rowHtml, rowText } = renderTableRow(ctx, header, /*head*/ true, aligns);
+    headerRowsHtml.push(rowHtml);
+    textRows.push(rowText);
+  }
+  // Each TableRow → tbody.
+  const rows = node.getChildren("TableRow");
+  for (const row of rows) {
+    const { rowHtml, rowText } = renderTableRow(ctx, row, /*head*/ false, aligns);
+    bodyRowsHtml.push(rowHtml);
+    textRows.push(rowText);
+  }
+
+  let inner = "";
+  if (headerRowsHtml.length) inner += `<thead>${headerRowsHtml.join("")}</thead>`;
+  if (bodyRowsHtml.length) inner += `<tbody>${bodyRowsHtml.join("")}</tbody>`;
+  return {
+    html: `<table class="cf-table"${sourceLineAttr(ctx, node.from)}>${inner}</table>`,
+    text: textRows.join("\n"),
+    hasMath: false,
+  };
+}
+
+function inferTableAlign(ctx: WalkContext, node: SyntaxNode): (string | null)[] {
+  // Find a TableDelimiter that is a *child* of the table itself (the
+  // delimiter row separating header from body). Its source slice contains
+  // `:?-+:?` cells separated by `|`.
+  const delims = node.getChildren("TableDelimiter");
+  // The first such child whose text contains '-' is the delimiter row.
+  for (const d of delims) {
+    const raw = ctx.source.slice(d.from, d.to);
+    if (!raw.includes("-")) continue;
+    return raw.split("|").map((c) => c.trim()).filter((c) => c.includes("-")).map((c) => {
+      const left = c.startsWith(":");
+      const right = c.endsWith(":");
+      if (left && right) return "center";
+      if (right) return "right";
+      if (left) return "left";
+      return null;
+    });
+  }
+  return [];
+}
+
+function renderTableRow(
+  ctx: WalkContext,
+  row: SyntaxNode,
+  isHeader: boolean,
+  aligns: (string | null)[],
+): { rowHtml: string; rowText: string } {
+  const cellHtmls: string[] = [];
+  const cellTexts: string[] = [];
+  const cells = row.getChildren("TableCell");
+  cells.forEach((cell, idx) => {
+    const inner = renderInline(ctx, cell, cell.from, cell.to);
+    const tag = isHeader ? "th" : "td";
+    const classes = isHeader ? "cf-table-cell cf-table-header" : "cf-table-cell";
+    const align = aligns[idx];
+    const styleAttr = align ? ` style="text-align:${align}"` : "";
+    const alignAttr = align ? ` data-align="${align}"` : "";
+    cellHtmls.push(`<${tag} class="${classes}"${alignAttr}${styleAttr}>${inner.html}</${tag}>`);
+    cellTexts.push(inner.text);
+  });
+  return {
+    rowHtml: `<tr class="cf-table-row"${sourceLineAttr(ctx, row.from)}>${cellHtmls.join("")}</tr>`,
+    rowText: cellTexts.join("\t"),
+  };
+}
+
+function renderFencedDiv(ctx: WalkContext, node: SyntaxNode): BlockResult {
+  // Read attribute text from FencedDivAttributes child.
+  const attrsNode = node.getChild(NODE.FencedDivAttributes);
+  let className = "";
+  let id: string | undefined;
+  let kvs: Record<string, string> = {};
+  if (attrsNode) {
+    const raw = ctx.source.slice(attrsNode.from, attrsNode.to).trim();
+    const parsed = extractDivClass(raw);
+    if (parsed) {
+      className = parsed.classes[0] ?? "";
+      id = parsed.id;
+      kvs = { ...parsed.keyValues };
     }
   }
 
-  return { html: htmlOut.join(""), text: textOut.join(""), hasMath };
+  // Render children (skipping the fence + attrs nodes).
+  const blocks: BlockResult[] = [];
+  let child = node.firstChild;
+  while (child) {
+    if (
+      child.name === NODE.FencedDivFence ||
+      child.name === NODE.FencedDivAttributes ||
+      child.name === "FencedDivTitle"
+    ) {
+      child = child.nextSibling;
+      continue;
+    }
+    blocks.push(renderBlock(ctx, child));
+    child = child.nextSibling;
+  }
+
+  const classes = ["cf-fenced-div"];
+  if (className) classes.push(`cf-fenced-${className.toLowerCase()}`);
+
+  let attrs = ` class="${classes.join(" ")}"`;
+  if (id) attrs += ` id="${escapeHtml(id)}"`;
+  for (const [k, v] of Object.entries(kvs)) {
+    attrs += ` data-${escapeHtml(k)}="${escapeHtml(v)}"`;
+  }
+  return {
+    html:
+      `<div${attrs}${sourceLineAttr(ctx, node.from)}>` +
+      blocks.map((b) => b.html).join("") +
+      `</div>`,
+    text: blocks.map((b) => b.text).join("\n\n"),
+    hasMath: blocks.some((b) => b.hasMath),
+  };
+}
+
+function renderFootnoteDef(ctx: WalkContext, node: SyntaxNode): BlockResult {
+  // Label child carries the `[^id]:` source.
+  const labelNode = node.getChild("FootnoteDefLabel");
+  if (!labelNode) return emptyBlock();
+  const labelRaw = ctx.source.slice(labelNode.from, labelNode.to);
+  const m = labelRaw.match(/^\[\^([^\]]+)\]:/);
+  if (!m) return emptyBlock();
+  const id = m[1];
+
+  // Body inline: render children after labelNode.
+  let html = "";
+  let text = "";
+  let hasMath = false;
+  let cursor = labelNode.to;
+  let child = labelNode.nextSibling;
+  while (child) {
+    if (child.from > cursor) {
+      const gap = ctx.source.slice(cursor, child.from);
+      html += escapeHtml(gap);
+      text += gap;
+    }
+    const r = renderInlineNode(ctx, child);
+    html += r.html;
+    text += r.text;
+    if (r.hasMath) hasMath = true;
+    cursor = child.to;
+    child = child.nextSibling;
+  }
+  if (cursor < node.to) {
+    const tail = ctx.source.slice(cursor, node.to);
+    html += escapeHtml(tail);
+    text += tail;
+  }
+
+  // Trim leading whitespace from body.
+  html = html.replace(/^\s+/, "");
+  text = text.replace(/^\s+/, "").replace(/\s+$/, "");
+
+  // Register / update footnote entry. Forward-ref may have already
+  // assigned a number; preserve it.
+  let entry = ctx.footnotesById.get(id);
+  if (!entry) {
+    entry = {
+      id,
+      number: ctx.footnotesInOrder.length + 1,
+      bodyHtml: html,
+      hasRef: false,
+    };
+    ctx.footnotesById.set(id, entry);
+    ctx.footnotesInOrder.push(entry);
+  } else {
+    entry.bodyHtml = html;
+  }
+  void text;
+
+  // FootnoteDef itself emits no inline output; the footnotes list is
+  // appended at the end of the document. Propagate hasMath so math
+  // inside a footnote body still triggers KaTeX hydration when the
+  // list renders.
+  return { html: "", text: "", hasMath };
+}
+
+function renderFootnotesList(ctx: WalkContext): string {
+  if (ctx.footnotesInOrder.length === 0) return "";
+  const items: string[] = [];
+  for (const fn of ctx.footnotesInOrder) {
+    if (!fn.hasRef && !fn.bodyHtml) continue;
+    const safeId = encodeURIComponent(fn.id);
+    const back = ` <a href="#fnref-${escapeHtml(safeId)}" class="cf-footnote-backref">↩</a>`;
+    items.push(
+      `<li id="fn-${escapeHtml(safeId)}" class="cf-footnote-item">${fn.bodyHtml}${back}</li>`,
+    );
+  }
+  if (items.length === 0) return "";
+  return `<ol class="cf-footnotes">${items.join("")}</ol>`;
+}
+
+// ---------------------------------------------------------------------------
+// Top-level walk.
+// ---------------------------------------------------------------------------
+
+function walkDocument(
+  source: string,
+  tree: Tree,
+  resolvers: Resolvers,
+  opts: RenderOptions,
+): BlockResult {
+  const ctx: WalkContext = {
+    source,
+    resolvers,
+    lineOffsets: opts.sourceLineAttribution ? buildLineOffsets(source) : null,
+    footnotesById: new Map(),
+    footnotesInOrder: [],
+  };
+
+  const root = tree.topNode;
+  const blocks: BlockResult[] = [];
+  let child = root.firstChild;
+  let topCount = 0;
+  while (child) {
+    topCount++;
+    blocks.push(renderBlock(ctx, child));
+    child = child.nextSibling;
+  }
+
+  // If the document has exactly one top-level block AND it is a Paragraph
+  // (and no math), unwrap the `<p>` to preserve the existing bare-inline
+  // shape that callers (and existing tests) rely on for short inputs.
+  let combined: BlockResult;
+  if (topCount === 1 && blocks[0].html.startsWith("<p class=\"cf-paragraph\"")) {
+    const stripped = blocks[0].html
+      .replace(/^<p class="cf-paragraph"[^>]*>/, "")
+      .replace(/<\/p>$/, "");
+    combined = { html: stripped, text: blocks[0].text, hasMath: blocks[0].hasMath };
+  } else {
+    combined = combineBlocks(blocks);
+  }
+
+  const footnotes = renderFootnotesList(ctx);
+  if (footnotes) {
+    combined = {
+      html: combined.html + footnotes,
+      text: combined.text,
+      hasMath: combined.hasMath,
+    };
+  }
+  return combined;
 }
 
 // ---------------------------------------------------------------------------
 // DOMPurify sanitization.
-//
-// Reader is Node-importable; the existing `sanitizeRenderedHtml` requires
-// a real `window`. We accept that limitation here: if a DOM window is
-// available (browser or jsdom), we run sanitization. Otherwise we skip it
-// — the reader emits only a known-safe inline tag set with all text and
-// attribute values escaped at the call site, so the sanitizer is defense
-// in depth, not the primary guard.
 // ---------------------------------------------------------------------------
 
 const ALLOWED_TAGS = [
-  "em", "strong", "del", "code", "a", "img",
+  "p", "br", "span", "div",
+  "h1", "h2", "h3", "h4", "h5", "h6",
+  "ul", "ol", "li",
+  "blockquote",
+  "pre", "code",
+  "em", "strong", "del", "mark",
+  "a", "img",
+  "hr",
+  "table", "thead", "tbody", "tr", "th", "td",
+  "sup", "sub",
+  "input",
 ];
-const ALLOWED_ATTR = ["href", "src", "alt", "title", "class"];
+const ALLOWED_ATTR = [
+  "href", "src", "alt", "title", "class", "id", "start",
+  "type", "checked", "disabled",
+  "data-math", "data-lang", "data-checked", "data-align",
+  "data-ref-key", "data-ref-mode", "data-source-line",
+  "style",
+];
+// Pandoc attribute keys can have arbitrary names — we allow any `data-*`.
+const ALLOWED_ATTR_RE = /^data-[a-z0-9-]+$/i;
 
 let _purify: ReturnType<typeof createDOMPurify> | null = null;
 let _purifyTried = false;
@@ -651,8 +1346,11 @@ function sanitize(html: string): string {
   return p.sanitize(html, {
     ALLOWED_TAGS,
     ALLOWED_ATTR,
+    ALLOW_DATA_ATTR: true,
+    ADD_ATTR: ALLOWED_ATTR,
   });
 }
+void ALLOWED_ATTR_RE;
 
 // ---------------------------------------------------------------------------
 // Public API.
@@ -661,30 +1359,52 @@ function sanitize(html: string): string {
 /**
  * Render a FORMAT.md source string to sanitized HTML.
  *
- * v1 scope: inline subset only — bold, italic, strikethrough, inline code,
- * links, autolinks, images. Block-level constructs (headings, lists,
- * tables, blockquotes, fenced divs) are flattened to their visible text.
- * Math source is preserved as plain text and `hasMath` indicates whether
- * the input contained math (so wrappers can lazy-load KaTeX in Phase 2+).
+ * Phase 2.1 scope:
+ * - Headings (h1–h6), paragraphs, bullet + ordered + task lists,
+ *   blockquotes, fenced and indented code blocks, horizontal rules,
+ *   tables (with alignment), fenced divs, footnotes.
+ * - Inline: bold, italic, strikethrough, highlight, inline code, links,
+ *   autolinks, images, footnote refs, math placeholders, citation +
+ *   crossref placeholders.
+ *
+ * Output shape:
+ * - Every emitted block-level element carries a `cf-*` class for theming.
+ *   See THEMING.md for the full list.
+ * - If the source contains a single paragraph and no other blocks, the
+ *   output is the bare inline HTML *without* a surrounding `<p>`. This
+ *   preserves the fast-path shape so short snippets (search hits,
+ *   notification bodies) don't get gratuitously wrapped. Documents with
+ *   any block structure or multiple paragraphs wrap each paragraph in
+ *   `<p class="cf-paragraph">`.
+ * - Math nodes emit `<span class="cf-math cf-math-inline" data-math="…">`
+ *   placeholders preserving the source verbatim. The Phase 2.3 React
+ *   wrapper hydrates these with KaTeX.
+ * - When `RefResolver` is absent (or it returns null), citations emit
+ *   `cf-citation-unresolved` placeholders carrying `data-ref-key`.
+ *   Crossrefs emit `cf-crossref-unresolved cf-crossref-{prefix}` similarly.
  *
  * Sanitization: when a DOM window is available (browser or jsdom), HTML
- * is passed through DOMPurify before return. The renderer itself only
- * emits a small inline-subset tag set with escaped text and attributes.
+ * is passed through DOMPurify before return. Tag and attribute allowlists
+ * are inlined; the renderer only emits a known shape with escaped text.
+ *
+ * `opts.sourceLineAttribution` (default `false`) adds `data-source-line`
+ * to every emitted block-level element with the 1-based source line of
+ * its start position. Off by default to keep output small.
  */
 export function renderToHtml(
   source: string,
   ctx?: DocumentContext,
+  opts: RenderOptions = {},
 ): { html: string; hasMath: boolean } {
   const resolvers = buildResolvers(ctx);
 
-  if (!FAST_PATH_RE.test(source)) {
-    // Fast path: no Lezer parse. Plain inline markdown only.
+  if (!FAST_PATH_RE.test(source) && !opts.sourceLineAttribution) {
     const fast = fastRenderInline(source);
     return { html: sanitize(fast.html), hasMath: false };
   }
 
   const tree = parseSource(source);
-  const result = walkTree(source, tree, resolvers);
+  const result = walkDocument(source, tree, resolvers, opts);
   return { html: sanitize(result.html), hasMath: result.hasMath };
 }
 
@@ -692,16 +1412,13 @@ export function renderToHtml(
  * Render a FORMAT.md source string to readable plain text.
  *
  * Inline markup is stripped: `**bold**` → `bold`, `[label](url)` → `label`,
- * `` `code` `` → `code`. Block markers are dropped; line breaks in source
- * are preserved. Math source is rendered verbatim (e.g. `$x^2$` becomes
- * literal `$x^2$`); Phase 2 will replace it with a placeholder.
+ * `` `code` `` → `code`. Block markers are dropped; paragraph blocks are
+ * separated by blank lines. Math source is rendered verbatim.
  *
  * `sourceToText` is provided only when the fast path was taken (linear,
  * cheap correspondence). It is `undefined` for inputs that triggered the
- * Lezer parser — building an accurate map across block flattening and
- * link-label rewrites adds complexity not justified by v1 callers. FTS
- * highlighting consumers should fall back to substring search when the
- * map is absent.
+ * Lezer parser. FTS-highlighting consumers should fall back to substring
+ * search when the map is absent.
  */
 export function renderToText(
   source: string,
@@ -715,7 +1432,7 @@ export function renderToText(
   }
 
   const tree = parseSource(source);
-  const result = walkTree(source, tree, resolvers);
+  const result = walkDocument(source, tree, resolvers, {});
   return { text: result.text };
 }
 
@@ -724,8 +1441,6 @@ function buildResolvers(ctx: DocumentContext | undefined): Resolvers {
   const fs = ctx.fileSystem;
   let resolveAssetUrl: ((path: string) => string) | undefined;
   if (fs && typeof fs.resolveAssetUrl === "function") {
-    // Only adopt if synchronous — async resolution requires the React
-    // wrapper (Phase 4).
     resolveAssetUrl = (path: string) => {
       const v = fs.resolveAssetUrl(path);
       return typeof v === "string" ? v : path;
@@ -737,4 +1452,3 @@ function buildResolvers(ctx: DocumentContext | undefined): Resolvers {
     resolveAssetUrl,
   };
 }
-
