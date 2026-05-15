@@ -693,9 +693,18 @@ function emitImage(
 // Block rendering.
 // ---------------------------------------------------------------------------
 
+type TruncateSpec = { lines: number } | { chars: number };
+
 interface RenderOptions {
   /** If true, emit `data-source-line` on every block-level element. */
   sourceLineAttribution?: boolean;
+  /** Block-boundary truncation budget. */
+  truncate?: TruncateSpec;
+}
+
+interface TruncatedInfo {
+  sourceFrom: number;
+  sourceTo: number;
 }
 
 interface BlockResult {
@@ -1243,12 +1252,90 @@ function renderFootnotesList(ctx: WalkContext): string {
 // Top-level walk.
 // ---------------------------------------------------------------------------
 
+// Count the "line cost" of a block per the truncation spec:
+//   heading=1, paragraph=1, list=item count, code fence=code line count,
+//   table=row count, math display=1, fenced div=1+nested cost, hr=1,
+//   blockquote=recurse, other=0.
+function blockLineCost(source: string, node: SyntaxNode): number {
+  const name = node.name;
+  switch (name) {
+    case NODE.ATXHeading1: case NODE.ATXHeading2: case NODE.ATXHeading3:
+    case NODE.ATXHeading4: case NODE.ATXHeading5: case NODE.ATXHeading6:
+    case NODE.SetextHeading1: case NODE.SetextHeading2:
+      return 1;
+    case NODE.Paragraph:
+      return 1;
+    case NODE.HorizontalRule:
+      return 1;
+    case NODE.DisplayMath:
+      return 1;
+    case NODE.BulletList:
+    case NODE.OrderedList: {
+      let count = 0;
+      let c = node.firstChild;
+      while (c) {
+        if (c.name === NODE.ListItem) count++;
+        c = c.nextSibling;
+      }
+      return count;
+    }
+    case NODE.FencedCode:
+    case "CodeBlock": {
+      // Count newlines in the fenced content region.
+      const marks = node.getChildren("CodeMark");
+      const info = node.getChild("CodeInfo");
+      let from = node.from;
+      let to = node.to;
+      if (marks.length >= 1) from = info ? info.to : marks[0].to;
+      if (marks.length >= 2) to = marks[marks.length - 1].from;
+      const content = source.slice(from, to).replace(/^\n/, "").replace(/\n$/, "");
+      if (content.length === 0) return 0;
+      return content.split("\n").length;
+    }
+    case "Table": {
+      let count = 0;
+      let c = node.firstChild;
+      while (c) {
+        if (c.name === "TableHeader" || c.name === "TableRow") count++;
+        c = c.nextSibling;
+      }
+      return count;
+    }
+    case NODE.FencedDiv: {
+      let nested = 0;
+      let c = node.firstChild;
+      while (c) {
+        if (
+          c.name !== NODE.FencedDivFence &&
+          c.name !== NODE.FencedDivAttributes &&
+          c.name !== "FencedDivTitle"
+        ) {
+          nested += blockLineCost(source, c);
+        }
+        c = c.nextSibling;
+      }
+      return 1 + nested;
+    }
+    case NODE.Blockquote: {
+      let nested = 0;
+      let c = node.firstChild;
+      while (c) {
+        if (c.name !== "QuoteMark") nested += blockLineCost(source, c);
+        c = c.nextSibling;
+      }
+      return nested;
+    }
+    default:
+      return 0;
+  }
+}
+
 function walkDocument(
   source: string,
   tree: Tree,
   resolvers: Resolvers,
   opts: RenderOptions,
-): BlockResult {
+): BlockResult & { truncated?: TruncatedInfo } {
   const ctx: WalkContext = {
     source,
     resolvers,
@@ -1257,27 +1344,81 @@ function walkDocument(
     footnotesInOrder: [],
   };
 
+  const truncate = opts.truncate;
+  const budgetKind: "lines" | "chars" | null = truncate
+    ? "lines" in truncate ? "lines" : "chars"
+    : null;
+  const budget = truncate
+    ? "lines" in truncate ? truncate.lines : truncate.chars
+    : Infinity;
+
   const root = tree.topNode;
   const blocks: BlockResult[] = [];
   let child = root.firstChild;
   let topCount = 0;
+  let used = 0;
+  let truncated: TruncatedInfo | undefined;
+
   while (child) {
+    if (budgetKind) {
+      // Snapshot footnote state so we can roll back if we end up not emitting.
+      const fnOrderLen = ctx.footnotesInOrder.length;
+      const fnIdSnapshot = new Map(ctx.footnotesById);
+      const rendered = renderBlock(ctx, child);
+      const cost = budgetKind === "lines"
+        ? blockLineCost(source, child)
+        : rendered.text.length;
+      if (used > 0 && used + cost > budget) {
+        // Roll back footnote side-effects, then stop before this block.
+        ctx.footnotesInOrder.length = fnOrderLen;
+        ctx.footnotesById = fnIdSnapshot;
+        truncated = { sourceFrom: child.from, sourceTo: source.length };
+        break;
+      }
+      // Either used===0 (must emit at least this block, even if it busts
+      // budget — atomic blocks) or budget still has room. Emit.
+      blocks.push(rendered);
+      used += cost;
+      topCount++;
+      child = child.nextSibling;
+      continue;
+    }
     topCount++;
     blocks.push(renderBlock(ctx, child));
     child = child.nextSibling;
   }
 
+  // Handle the case where the budget is exactly met: check if there's another
+  // block following the last emitted one — if so, mark truncated.
+  if (budgetKind && !truncated && child) {
+    truncated = { sourceFrom: child.from, sourceTo: source.length };
+  }
+
   // If the document has exactly one top-level block AND it is a Paragraph
-  // (and no math), unwrap the `<p>` to preserve the existing bare-inline
-  // shape that callers (and existing tests) rely on for short inputs.
+  // (and no math) AND we did not truncate, unwrap the `<p>` to preserve the
+  // existing bare-inline shape that callers (and existing tests) rely on for
+  // short inputs.
   let combined: BlockResult;
-  if (topCount === 1 && blocks[0].html.startsWith("<p class=\"cf-paragraph\"")) {
+  if (
+    !truncated &&
+    topCount === 1 &&
+    blocks[0].html.startsWith("<p class=\"cf-paragraph\"")
+  ) {
     const stripped = blocks[0].html
       .replace(/^<p class="cf-paragraph"[^>]*>/, "")
       .replace(/<\/p>$/, "");
     combined = { html: stripped, text: blocks[0].text, hasMath: blocks[0].hasMath };
   } else {
     combined = combineBlocks(blocks);
+  }
+
+  if (truncated) {
+    const marker = `<span class="cf-truncation-marker" data-source-from="${truncated.sourceFrom}" data-source-to="${truncated.sourceTo}"></span>`;
+    combined = {
+      html: combined.html + marker,
+      text: combined.text,
+      hasMath: combined.hasMath,
+    };
   }
 
   const footnotes = renderFootnotesList(ctx);
@@ -1288,7 +1429,7 @@ function walkDocument(
       hasMath: combined.hasMath,
     };
   }
-  return combined;
+  return { ...combined, truncated };
 }
 
 // ---------------------------------------------------------------------------
@@ -1395,17 +1536,26 @@ export function renderToHtml(
   source: string,
   ctx?: DocumentContext,
   opts: RenderOptions = {},
-): { html: string; hasMath: boolean } {
+): { html: string; hasMath: boolean; truncated?: TruncatedInfo } {
   const resolvers = buildResolvers(ctx);
 
-  if (!FAST_PATH_RE.test(source) && !opts.sourceLineAttribution) {
+  if (
+    !FAST_PATH_RE.test(source) &&
+    !opts.sourceLineAttribution &&
+    !opts.truncate
+  ) {
     const fast = fastRenderInline(source);
     return { html: sanitize(fast.html), hasMath: false };
   }
 
   const tree = parseSource(source);
   const result = walkDocument(source, tree, resolvers, opts);
-  return { html: sanitize(result.html), hasMath: result.hasMath };
+  const out: { html: string; hasMath: boolean; truncated?: TruncatedInfo } = {
+    html: sanitize(result.html),
+    hasMath: result.hasMath,
+  };
+  if (result.truncated) out.truncated = result.truncated;
+  return out;
 }
 
 /**
@@ -1423,17 +1573,22 @@ export function renderToHtml(
 export function renderToText(
   source: string,
   ctx?: DocumentContext,
-): { text: string; sourceToText?: Uint32Array } {
+  opts: { truncate?: TruncateSpec } = {},
+): { text: string; sourceToText?: Uint32Array; truncated?: TruncatedInfo } {
   const resolvers = buildResolvers(ctx);
 
-  if (!FAST_PATH_RE.test(source)) {
+  if (!FAST_PATH_RE.test(source) && !opts.truncate) {
     const fast = fastRenderInline(source);
     return { text: fast.text, sourceToText: fast.sourceToText };
   }
 
   const tree = parseSource(source);
-  const result = walkDocument(source, tree, resolvers, {});
-  return { text: result.text };
+  const result = walkDocument(source, tree, resolvers, {
+    truncate: opts.truncate,
+  });
+  const out: { text: string; truncated?: TruncatedInfo } = { text: result.text };
+  if (result.truncated) out.truncated = result.truncated;
+  return out;
 }
 
 function buildResolvers(ctx: DocumentContext | undefined): Resolvers {

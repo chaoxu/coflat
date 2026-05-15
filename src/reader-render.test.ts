@@ -325,6 +325,112 @@ describe("renderToHtml — block-level rendering (Phase 2.1)", () => {
   });
 });
 
+describe("renderToHtml — truncation (Phase 2.4)", () => {
+  it("stops before next block when lines budget exhausted (4 paragraphs, lines:2)", () => {
+    const src = "p1\n\np2\n\np3\n\np4";
+    const r = renderToHtml(src, undefined, { truncate: { lines: 2 } });
+    expect(r.truncated).toBeDefined();
+    // 2 paragraphs emitted, then marker.
+    const pCount = (r.html.match(/<p class="cf-paragraph"/g) ?? []).length;
+    expect(pCount).toBe(2);
+    expect(r.html).toContain('class="cf-truncation-marker"');
+    // sourceFrom = start of paragraph 3 = index of "p3" in src.
+    expect(r.truncated?.sourceFrom).toBe(src.indexOf("p3"));
+    expect(r.truncated?.sourceTo).toBe(src.length);
+  });
+
+  it("emits no marker when source fits under the budget", () => {
+    const src = "p1\n\np2";
+    const r = renderToHtml(src, undefined, { truncate: { lines: 5 } });
+    expect(r.truncated).toBeUndefined();
+    expect(r.html).not.toContain("cf-truncation-marker");
+  });
+
+  it("emits no marker when no truncate option is passed", () => {
+    const src = "p1\n\np2\n\np3";
+    const r = renderToHtml(src);
+    expect(r.truncated).toBeUndefined();
+    expect(r.html).not.toContain("cf-truncation-marker");
+  });
+
+  it("truncates on chars budget for a long paragraph followed by more", () => {
+    const long = "a".repeat(200);
+    const src = `${long}\n\ntail`;
+    const r = renderToHtml(src, undefined, { truncate: { chars: 50 } });
+    // First block (paragraph of 200 chars) is atomic — emitted as a whole —
+    // but the tail is dropped.
+    expect(r.truncated).toBeDefined();
+    expect(r.html).toContain("cf-truncation-marker");
+    expect(r.html).not.toContain("tail");
+  });
+
+  it("stops at a heading boundary rather than splitting it", () => {
+    const src = "p1\n\n# heading\n\np2";
+    const r = renderToHtml(src, undefined, { truncate: { lines: 1 } });
+    expect(r.truncated).toBeDefined();
+    expect(r.html).toContain('class="cf-paragraph"');
+    expect(r.html).not.toContain("<h1");
+    expect(r.truncated?.sourceFrom).toBe(src.indexOf("# heading"));
+  });
+
+  it("never splits a fenced code block (atomic)", () => {
+    const code = "```\nL1\nL2\nL3\nL4\nL5\n```";
+    const src = `${code}\n\ntail`;
+    const r = renderToHtml(src, undefined, { truncate: { lines: 2 } });
+    expect(r.truncated).toBeDefined();
+    // Code block must appear in full.
+    expect(r.html).toContain("L1");
+    expect(r.html).toContain("L5");
+    expect(r.html).not.toContain("tail");
+  });
+
+  it("never splits a math display block (atomic)", () => {
+    const src = "$$\na + b\n$$\n\ntail";
+    const r = renderToHtml(src, undefined, { truncate: { lines: 0.5 as unknown as number } });
+    // Note: lines:0 would emit nothing, so use a small > 0 budget via lines:1.
+    const r1 = renderToHtml(src, undefined, { truncate: { lines: 1 } });
+    expect(r1.truncated).toBeDefined();
+    expect(r1.html).toContain("cf-math-display");
+    expect(r1.html).not.toContain("tail");
+    void r;
+  });
+
+  it("marker has correct class and data attributes", () => {
+    const src = "p1\n\np2\n\np3";
+    const r = renderToHtml(src, undefined, { truncate: { lines: 1 } });
+    expect(r.html).toMatch(
+      /<span class="cf-truncation-marker" data-source-from="\d+" data-source-to="\d+"><\/span>/,
+    );
+    const m = r.html.match(/data-source-from="(\d+)" data-source-to="(\d+)"/);
+    expect(m).not.toBeNull();
+    expect(Number(m![1])).toBe(r.truncated?.sourceFrom);
+    expect(Number(m![2])).toBe(r.truncated?.sourceTo);
+  });
+
+  it("re-rendering source.slice(truncated.sourceFrom) yields a sane document", () => {
+    const src = "# Title\n\npara one\n\npara two\n\npara three";
+    const r = renderToHtml(src, undefined, { truncate: { lines: 2 } });
+    expect(r.truncated).toBeDefined();
+    const rest = src.slice(r.truncated!.sourceFrom);
+    const r2 = renderToHtml(rest);
+    expect(r2.html).toContain("para two");
+    expect(r2.html).toContain("para three");
+  });
+});
+
+describe("renderToText — truncation (Phase 2.4)", () => {
+  it("stops emitting at block boundary, no marker in text", () => {
+    const src = "p1\n\np2\n\np3\n\np4";
+    const r = renderToText(src, undefined, { truncate: { lines: 2 } });
+    expect(r.truncated).toBeDefined();
+    expect(r.text).not.toContain("cf-truncation-marker");
+    expect(r.text).toContain("p1");
+    expect(r.text).toContain("p2");
+    expect(r.text).not.toContain("p3");
+    expect(r.text).not.toContain("p4");
+  });
+});
+
 describe("sanitization", () => {
   it("strips script content injected via LinkResolver className", () => {
     const linkResolver: LinkResolver = {
