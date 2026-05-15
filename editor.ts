@@ -17,9 +17,11 @@ import {
 } from "./src/headless/per-file-panels";
 import { programmaticDocumentChangeAnnotation } from "./src/editor/programmatic-document-change";
 import {
+  autocompleteSourcesFacet,
   requestHandlerFacet,
   saveHandlerFacet,
   statusEventsFacet,
+  type AutocompleteSource,
   type RequestHandler,
   type SaveHandler,
   type StatusEvents,
@@ -29,6 +31,7 @@ import {
   assetUploaderExtension,
   type AssetUploader,
 } from "./src/asset-uploader";
+import { autocompleteSourceExtension } from "./src/editor/autocomplete-source-controller";
 
 export type StandaloneEditorMode = "rich" | "source";
 
@@ -70,6 +73,21 @@ export interface MountEditorOptions {
    * See `AssetUploader`.
    */
   assetUploader?: AssetUploader;
+  /**
+   * Trigger-based autocomplete sources (Phase 3.4). Each source declares
+   * a `trigger` string (e.g. "[@", "#"). On match, the library debounces
+   * (~80ms by default), calls `suggest(prefix, env)` with a cancellable
+   * AbortSignal, aggregates results from sources sharing the trigger,
+   * and forwards to {@link RequestHandler.openAutocomplete} (or the
+   * library default picker).
+   */
+  autocompleteSources?: readonly AutocompleteSource[];
+  /**
+   * Optional source-file identifier passed into
+   * {@link AutocompleteEnv.from}. Usually the path the document was
+   * loaded from.
+   */
+  from?: string;
 }
 
 export interface MountedEditor {
@@ -143,6 +161,12 @@ export function mountEditor(options: MountEditorOptions): MountedEditor {
       saveExtension(),
       ...(options.assetUploader
         ? [assetUploaderExtension(options.assetUploader)]
+        : []),
+      ...(options.autocompleteSources && options.autocompleteSources.length > 0
+        ? [
+            autocompleteSourcesFacet.of(options.autocompleteSources),
+            autocompleteSourceExtension({ from: options.from }),
+          ]
         : []),
       ...(options.extensions ?? []),
     ],

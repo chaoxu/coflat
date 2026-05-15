@@ -31,6 +31,7 @@
 
 import { Facet } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
+import { defaultOpenAutocomplete } from "./editor/default-chrome/autocomplete";
 import { defaultOpenLinkPicker } from "./editor/default-chrome/link-picker";
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -81,11 +82,72 @@ export interface AutocompleteRequest {
   prefix: string;
   cursorPos: number;
   signal: AbortSignal;
+  /** Sources whose trigger matched at this position. */
+  sources: readonly AutocompleteSource[];
+  /** Aggregated suggestions (already debounced + de-duplicated by id). */
+  suggestions: readonly Suggestion[];
 }
 
 export interface AutocompleteResult {
   insert: string;
 }
+
+/* ────────────────────────────────────────────────────────────────────────────
+ * AutocompleteSource (Phase 3.4)
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+export type SuggestionId = string;
+
+/**
+ * One picker row. `id` is the stable identity for re-render diffing.
+ * `insert` is the exact text spliced into the doc when the user selects
+ * the row; the editor replaces the trigger + prefix range with it.
+ */
+export interface Suggestion {
+  id: SuggestionId;
+  insert: string;
+  display: string;
+  description?: string;
+  /** CSS class or emoji; renderer-agnostic. */
+  icon?: string;
+}
+
+/**
+ * Environment passed to {@link AutocompleteSource.suggest}. The
+ * load-bearing field is {@code signal} — slow HTTP / cross-process
+ * calls must be cancellable.
+ */
+export interface AutocompleteEnv {
+  from?: string;
+  cursorPos: number;
+  signal: AbortSignal;
+}
+
+/**
+ * A registered autocomplete source. The library:
+ *   1. After each doc change, scans the text before the caret for known
+ *      triggers (longest match wins).
+ *   2. Cancels the previous in-flight `suggest()` via the shared
+ *      AbortController.
+ *   3. Debounces per source (default 80ms, override via
+ *      {@link AutocompleteSource.debounceMs}).
+ *   4. Calls `suggest(prefix, env)` with a fresh AbortSignal.
+ *   5. Aggregates results from sources whose trigger matched.
+ *
+ * `trigger` is intentionally an open string — hosts can register any
+ * prefix. Well-known values: "[@", "[](", "#", ":", "@".
+ */
+export interface AutocompleteSource {
+  trigger: string;
+  /** Per-source debounce; defaults to {@link DEFAULT_AUTOCOMPLETE_DEBOUNCE_MS}. */
+  debounceMs?: number;
+  suggest(
+    prefix: string,
+    env: AutocompleteEnv,
+  ): Promise<readonly Suggestion[]>;
+}
+
+export const DEFAULT_AUTOCOMPLETE_DEBOUNCE_MS = 80;
 
 /* ────────────────────────────────────────────────────────────────────────────
  * StatusEvents
@@ -188,6 +250,21 @@ export const saveHandlerFacet = Facet.define<SaveHandler, SaveHandler | null>({
   },
 });
 
+/**
+ * Aggregated list of {@link AutocompleteSource}s registered by the host.
+ * Each `of(...)` contributes a full array; the combined output is the
+ * flattened, registration-order list. The autocomplete controller reads
+ * this facet at trigger-detection time.
+ */
+export const autocompleteSourcesFacet = Facet.define<
+  readonly AutocompleteSource[],
+  readonly AutocompleteSource[]
+>({
+  combine(values) {
+    return values.flat();
+  },
+});
+
 /* ────────────────────────────────────────────────────────────────────────────
  * Internal resolver helpers
  * ──────────────────────────────────────────────────────────────────────────── */
@@ -206,6 +283,21 @@ export function resolveOpenLinkPicker(
     return handler.openLinkPicker(req);
   }
   return defaultOpenLinkPicker(view, req);
+}
+
+/**
+ * Lookup the host's `openAutocomplete` for this view; if absent, fall
+ * through to the library default picker.
+ */
+export function resolveOpenAutocomplete(
+  view: EditorView,
+  req: AutocompleteRequest,
+): Promise<AutocompleteResult | null> {
+  const handler = view.state.facet(requestHandlerFacet);
+  if (handler.openAutocomplete) {
+    return handler.openAutocomplete(req);
+  }
+  return defaultOpenAutocomplete(view, req);
 }
 
 /** Fan-out a status event to the host's callback if present. */
