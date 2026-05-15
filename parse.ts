@@ -10,6 +10,8 @@
 import { parser as baseMarkdownParser } from "@lezer/markdown";
 import type { SyntaxNodeRef } from "@lezer/common";
 
+import { parse as parseYaml, parseDocument as parseYamlDocument, stringify as stringifyYaml, isMap, isScalar } from "yaml";
+
 import { extractRawFrontmatter, markdownExtensions } from "./src/parser";
 import { CROSS_REFERENCE_PREFIXES } from "./src/constants/block-manifest";
 import { NODE } from "./src/constants/node-types";
@@ -229,4 +231,219 @@ export function extractReferences(source: string): ExtractedReference[] {
 
   out.sort((a, b) => a.from - b.from || a.to - b.to);
   return out;
+}
+
+// ---------------------------------------------------------------------------
+// Frontmatter standalone exports
+//
+// These provide a *generic* frontmatter API for tools that need to read or
+// rewrite YAML frontmatter without buying into the editor's schema-typed
+// `FrontmatterConfig`. Built on top of the same `extractRawFrontmatter`
+// boundary detector the editor uses internally so behavior agrees.
+// ---------------------------------------------------------------------------
+
+export interface ParsedFrontmatter {
+  /** Parsed YAML mapping, or `null` if no frontmatter / malformed YAML. */
+  readonly frontmatter: Record<string, unknown> | null;
+  /** Document body, with the frontmatter block removed. */
+  readonly body: string;
+  /**
+   * Byte offsets of the frontmatter block in the *source* string
+   * (from the opening `---` to just past the closing `---\n`).
+   * `null` when no frontmatter block was found.
+   */
+  readonly range: { from: number; to: number } | null;
+}
+
+/** Detect the predominant line ending of a string by scanning the first ~512 chars. */
+function detectLineEnding(s: string): "\n" | "\r\n" {
+  const sample = s.length > 512 ? s.slice(0, 512) : s;
+  let crlf = 0;
+  let lf = 0;
+  for (let i = 0; i < sample.length; i++) {
+    if (sample.charCodeAt(i) === 0x0a) {
+      if (i > 0 && sample.charCodeAt(i - 1) === 0x0d) crlf++;
+      else lf++;
+    }
+  }
+  return crlf > lf ? "\r\n" : "\n";
+}
+
+/** Keys, in source order, of a parsed YAML document's root mapping. */
+function rootKeyOrder(rawYaml: string): string[] {
+  const doc = parseYamlDocument(rawYaml);
+  if (!doc.contents || !isMap(doc.contents)) return [];
+  const keys: string[] = [];
+  for (const item of doc.contents.items) {
+    const k = item.key;
+    if (isScalar(k) && typeof k.value === "string") {
+      keys.push(k.value);
+    } else if (typeof k === "string") {
+      keys.push(k);
+    }
+  }
+  return keys;
+}
+
+/**
+ * Parse YAML frontmatter from a markdown document.
+ *
+ * Generic counterpart to the editor's schema-typed `parseFrontmatter` in
+ * `src/parser/frontmatter.ts`. Returns the raw parsed mapping (no validation),
+ * the body with the frontmatter removed, and the source range of the
+ * frontmatter block.
+ *
+ * Semantics:
+ * - No frontmatter present → `{ frontmatter: null, body: source, range: null }`.
+ * - Empty frontmatter (`---\n---\n`) → `{ frontmatter: {}, body, range }`.
+ * - Malformed YAML inside a well-formed `--- … ---` block →
+ *   `{ frontmatter: null, body, range }`. Callers can distinguish "no block"
+ *   from "invalid block" by checking `range`.
+ * - Non-mapping YAML (e.g. a top-level scalar or sequence) is treated like
+ *   malformed: `frontmatter: null` with `range` set.
+ */
+export function parseFrontmatter(source: string): ParsedFrontmatter {
+  const extracted = extractRawFrontmatter(source);
+  if (!extracted) {
+    return { frontmatter: null, body: source, range: null };
+  }
+  const range = { from: 0, to: extracted.end };
+  const body = source.slice(extracted.end);
+
+  // Empty frontmatter — yaml.parse returns null/undefined for "".
+  if (extracted.raw.trim().length === 0) {
+    return { frontmatter: {}, body, range };
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = parseYaml(extracted.raw);
+  } catch {
+    return { frontmatter: null, body, range };
+  }
+
+  if (parsed === null || parsed === undefined) {
+    return { frontmatter: {}, body, range };
+  }
+  if (
+    typeof parsed !== "object" ||
+    Array.isArray(parsed)
+  ) {
+    return { frontmatter: null, body, range };
+  }
+  return {
+    frontmatter: parsed as Record<string, unknown>,
+    body,
+    range,
+  };
+}
+
+/** Compose `frontmatter` + `body` into a single source string. */
+export function serializeFrontmatter(
+  frontmatter: Record<string, unknown>,
+  body: string,
+  opts?: { keyOrder?: readonly string[] },
+): string {
+  const eol = detectLineEnding(body);
+  const ordered = applyKeyOrder(frontmatter, opts?.keyOrder);
+
+  // Empty mapping → emit empty `---\n---\n` block (no YAML body).
+  let yamlText: string;
+  if (Object.keys(ordered).length === 0) {
+    yamlText = "";
+  } else {
+    // `yaml.stringify` always emits LF; rewrite to match the document EOL.
+    yamlText = stringifyYaml(ordered);
+    if (eol === "\r\n") {
+      yamlText = yamlText.replace(/\r?\n/g, "\r\n");
+    }
+  }
+
+  // yaml.stringify already ends with a trailing newline when there is content.
+  const block = yamlText.length === 0
+    ? `---${eol}---${eol}`
+    : `---${eol}${yamlText}---${eol}`;
+
+  return block + body;
+}
+
+/** Reorder a plain object's keys according to `keyOrder`, then insertion order. */
+function applyKeyOrder(
+  obj: Record<string, unknown>,
+  keyOrder: readonly string[] | undefined,
+): Record<string, unknown> {
+  if (!keyOrder || keyOrder.length === 0) return obj;
+  const out: Record<string, unknown> = {};
+  const seen = new Set<string>();
+  for (const key of keyOrder) {
+    if (Object.hasOwn(obj, key)) {
+      out[key] = obj[key];
+      seen.add(key);
+    }
+  }
+  for (const key of Object.keys(obj)) {
+    if (!seen.has(key)) out[key] = obj[key];
+  }
+  return out;
+}
+
+/**
+ * Read, mutate, and write a document's frontmatter.
+ *
+ * The mutator may mutate the input object in place (returning `void`/`undefined`)
+ * or return a replacement object. By default keys are emitted in the source's
+ * original order; new keys added by the mutator are appended.
+ *
+ * If `source` has no frontmatter block and the mutator produces a non-empty
+ * mapping, a frontmatter block is synthesized at the top of the document.
+ * If the mutator leaves the mapping empty *and* there was no original block,
+ * `source` is returned unchanged.
+ */
+export function updateFrontmatter(
+  source: string,
+  mutator: (fm: Record<string, unknown>) => Record<string, unknown> | void,
+): string {
+  const parsed = parseFrontmatter(source);
+  // Use parsed mapping when available; otherwise start from an empty object
+  // so the mutator can add keys to a source with no/invalid frontmatter.
+  const original = parsed.frontmatter ?? {};
+  // Preserve source order. If we have a range (i.e. there *was* a block,
+  // even malformed), try to recover key order from the raw YAML; otherwise
+  // fall back to insertion order of the parsed object.
+  let sourceOrder: string[] = [];
+  if (parsed.range && parsed.frontmatter) {
+    const raw = source.slice(0, parsed.range.to);
+    // Strip the `---` delimiters and inner content via extractRawFrontmatter
+    // for the same source — we already paid that cost above, but re-running
+    // is cheap and keeps this helper self-contained.
+    const extracted = extractRawFrontmatter(raw);
+    if (extracted) {
+      sourceOrder = rootKeyOrder(extracted.raw);
+    }
+  }
+
+  // Run the mutator. A returned object replaces; void means "mutated in place".
+  const returned = mutator(original);
+  const next: Record<string, unknown> = returned === undefined ? original : returned;
+
+  // Compute final key order: source order first (for keys still present),
+  // then any new keys in their insertion order on `next`.
+  const ordered: Record<string, unknown> = {};
+  const seen = new Set<string>();
+  for (const key of sourceOrder) {
+    if (Object.hasOwn(next, key)) {
+      ordered[key] = next[key];
+      seen.add(key);
+    }
+  }
+  for (const key of Object.keys(next)) {
+    if (!seen.has(key)) ordered[key] = next[key];
+  }
+
+  // No original block and mutator left mapping empty → no-op.
+  if (!parsed.range && Object.keys(ordered).length === 0) {
+    return source;
+  }
+
+  return serializeFrontmatter(ordered, parsed.body);
 }
