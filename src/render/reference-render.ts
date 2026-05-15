@@ -24,13 +24,15 @@ import {
   type CslProcessor,
 } from "../citations/csl-processor";
 import type { BibStore } from "../state/bib-data";
-import { CitationWidget } from "./citation-widget";
+import { CitationWidget, HostRefWidget } from "./citation-widget";
 import {
   CrossrefWidget,
   ClusteredCrossrefWidget,
   MixedClusterWidget,
   UnresolvedRefWidget,
 } from "./crossref-render";
+import { documentContextFacet } from "../document-context";
+import { sanitizeCslHtml } from "../lib/sanitize-csl-html";
 import { buildDecorations, pushWidgetDecoration } from "./decoration-core";
 import {
   type ReferenceSemantics,
@@ -90,7 +92,18 @@ export type ReferenceRenderItem =
   | { readonly kind: "mixed-cluster"; readonly from: number; readonly to: number; readonly parts: readonly ReferencePresentationMixedPart[]; readonly raw: string }
   | { readonly kind: "crossref"; readonly from: number; readonly to: number; readonly resolved: ResolvedCrossref; readonly raw: string }
   | { readonly kind: "clustered-crossref"; readonly from: number; readonly to: number; readonly parts: readonly ReferencePresentationClusteredCrossrefPart[]; readonly raw: string }
-  | { readonly kind: "unresolved"; readonly from: number; readonly to: number; readonly raw: string };
+  | { readonly kind: "unresolved"; readonly from: number; readonly to: number; readonly raw: string }
+  | {
+      readonly kind: "host-ref";
+      readonly from: number;
+      readonly to: number;
+      readonly key: string;
+      readonly mode: "bracketed" | "narrative";
+      readonly html: string;
+      readonly href?: string;
+      readonly className?: string;
+      readonly hasOnClick: boolean;
+    };
 
 function toRenderItem(
   route: ReferencePresentationRoute,
@@ -183,6 +196,12 @@ export function planReferenceRendering(
       continue;
     }
 
+    const hostItem = tryPlanHostRef(state, controller, ref);
+    if (hostItem) {
+      items.push(hostItem);
+      continue;
+    }
+
     const route = controller.planReference({
       bracketed: ref.bracketed,
       ids: ref.ids,
@@ -198,6 +217,40 @@ export function planReferenceRendering(
 }
 
 // ── Emit: map plan items to CM6 decorations ────────────────────────
+
+function tryPlanHostRef(
+  state: EditorState,
+  controller: ReturnType<typeof createEditorReferencePresentationController>,
+  ref: ReferenceSemantics,
+): ReferenceRenderItem | null {
+  const resolver = state.facet(documentContextFacet)?.refResolver;
+  if (!resolver?.resolve) return null;
+  // Spec: host RefResolver only handles single-key references. Multi-key
+  // clusters and references with locators stay on the existing path.
+  if (ref.ids.length !== 1) return null;
+  if (ref.locators.some((loc) => loc !== undefined)) return null;
+  const key = ref.ids[0];
+  // Cross-refs resolved against the in-doc label index never reach the
+  // host resolver, regardless of the id's surface shape.
+  const classification = controller.classify(key, ref.bracketed);
+  if (classification.kind === "crossref") return null;
+
+  const mode: "bracketed" | "narrative" = ref.bracketed ? "bracketed" : "narrative";
+  const result = resolver.resolve(key, mode);
+  if (!result) return null;
+  const sanitized = sanitizeCslHtml(result.content);
+  return {
+    kind: "host-ref",
+    from: ref.from,
+    to: ref.to,
+    key,
+    mode,
+    html: sanitized,
+    href: result.href,
+    className: result.className,
+    hasOnClick: typeof result.onClick === "function",
+  };
+}
 
 function emitReferenceDecorations(plan: readonly ReferenceRenderItem[]): Range<Decoration>[] {
   const sourceMarkDecoration = Decoration.mark({ class: CSS.referenceSource });
@@ -242,6 +295,23 @@ function emitReferenceDecorations(plan: readonly ReferenceRenderItem[]): Range<D
       case "unresolved":
         if (!disableReferenceWidgets) {
           pushWidgetDecoration(ranges, new UnresolvedRefWidget(item.raw), item.from, item.to);
+        }
+        break;
+      case "host-ref":
+        if (!disableReferenceWidgets) {
+          pushWidgetDecoration(
+            ranges,
+            new HostRefWidget(
+              item.html,
+              item.key,
+              item.mode,
+              item.href,
+              item.className,
+              item.hasOnClick,
+            ),
+            item.from,
+            item.to,
+          );
         }
         break;
     }

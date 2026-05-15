@@ -11,8 +11,12 @@ import {
   addMarkerReplacement,
   decorationHidden,
 } from "./decoration-core";
+import { documentContextFacet } from "../document-context";
+import { documentPathFacet } from "../lib/types";
 import {
+  buildResolvedLinkDecoration,
   getLinkDecoration,
+  isBareDocumentAnchor,
 } from "./link-handler";
 import { addInlineRevealSourceMetricsInSubtree } from "./markdown-inline-source";
 import { cursorInRange } from "./node-collection";
@@ -234,9 +238,31 @@ function handleLink(node: SyntaxNodeRef, ctx: MarkdownHandlerContext) {
     const textFrom = marks[0].to;
     const textTo = marks[1].from;
     if (textFrom < textTo) {
-      items.push(getLinkDecoration(url).range(textFrom, textTo));
+      const text = state.sliceDoc(textFrom, textTo);
+      const deco = resolveLinkDecoration(state, url, text) ?? getLinkDecoration(url);
+      items.push(deco.range(textFrom, textTo));
     }
   }
+}
+
+function resolveLinkDecoration(
+  state: MarkdownHandlerContext["state"],
+  url: string,
+  text: string,
+) {
+  if (isBareDocumentAnchor(url)) return null;
+  const ctx = state.facet(documentContextFacet);
+  const resolver = ctx?.linkResolver;
+  if (!resolver?.resolve) return null;
+  const from = state.facet(documentPathFacet) || undefined;
+  const result = resolver.resolve(url, text, { from });
+  if (!result) return null;
+  const effectiveUrl = result.href ?? url;
+  return buildResolvedLinkDecoration(effectiveUrl, {
+    className: result.className,
+    title: result.title,
+    hasOnClick: typeof result.onClick === "function",
+  });
 }
 
 function handleUrl(node: SyntaxNodeRef, ctx: MarkdownHandlerContext) {
@@ -250,7 +276,8 @@ function handleUrl(node: SyntaxNodeRef, ctx: MarkdownHandlerContext) {
     return false as const;
   }
   const url = ctx.state.sliceDoc(node.from, node.to);
-  ctx.items.push(getLinkDecoration(url).range(node.from, node.to));
+  const deco = resolveLinkDecoration(ctx.state, url, url) ?? getLinkDecoration(url);
+  ctx.items.push(deco.range(node.from, node.to));
 }
 
 function handleElement(node: SyntaxNodeRef, ctx: MarkdownHandlerContext) {

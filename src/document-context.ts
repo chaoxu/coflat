@@ -69,6 +69,8 @@ export interface DocumentContext {
   mathMacros?: Record<string, string>;
 }
 
+const EMPTY_DOCUMENT_CONTEXT: DocumentContext = Object.freeze({});
+
 /**
  * Pattern follows fileSystemFacet: at most one provider, last wins.
  */
@@ -80,5 +82,3 @@ export const documentContextFacet = Facet.define<
     return values.length > 0 ? values[values.length - 1] : EMPTY_DOCUMENT_CONTEXT;
   },
 });
-
-const EMPTY_DOCUMENT_CONTEXT: DocumentContext = Object.freeze({});
