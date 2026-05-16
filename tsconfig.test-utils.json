@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "declaration": true,
+    "emitDeclarationOnly": false,
+    "allowImportingTsExtensions": false,
+    "declarationMap": false,
+    "skipLibCheck": true,
+    "noImplicitAny": false,
+    "outDir": "./dist",
+    "rootDir": ".",
+    "module": "esnext",
+    "target": "es2022"
+  },
+  "include": ["src/test-utils.ts", "src/types/**/*.d.ts"]
+}
