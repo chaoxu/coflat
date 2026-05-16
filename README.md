@@ -74,18 +74,11 @@ import {
   CslProcessor,
   createCslCitationFormatter,
   bibDataEffect,
-  bibliographyRenderExtension,
 } from "@chaoxu/coflat-editor/citeproc";
 
 const items = parseBibTeX(await fetch("/refs.bib").then((r) => r.text()));
 const processor = await CslProcessor.create(items /*, optional CSL XML */);
-const editor = mountEditor({
-  parent: el,
-  // Opt in to bibliography section rendering. Without this, `::: Bibliography`
-  // blocks render as raw fenced divs and inline citation numbering may be
-  // wrong under numeric / disambiguating CSL styles.
-  extensions: [bibliographyRenderExtension()],
-});
+const editor = mountEditor({ parent: el });
 
 editor.view.dispatch({
   effects: bibDataEffect.of({
@@ -95,15 +88,8 @@ editor.view.dispatch({
 });
 ```
 
-The narrow `CitationFormatter` interface stored in `BibData` only requires
-`cite`, `citeNarrative`, and `revision`. Hosts that supply their own
-formatter implementation and want bibliography rendering must satisfy the
-richer `BibliographyFormatter` interface (also exported from `./citeproc`),
-which adds `bibliographyEntries`, `registerCitations`, and
-`citationRegistrationKey`.
-
-`citation-js`, the CSL/locale fixtures, and the bibliography render plugin
-only enter the runtime graph when this sub-entry is imported.
+`citation-js` and its CSL/locale fixtures only enter the runtime graph when
+this sub-entry is imported.
 
 ## Installation (Gitea registry)
 

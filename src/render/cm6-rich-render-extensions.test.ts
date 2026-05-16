@@ -1,5 +1,6 @@
 import type { Extension } from "@codemirror/state";
 import { describe, expect, it } from "vitest";
+import { bibliographyPlugin } from "./bibliography-render";
 import { checkboxRenderPlugin } from "./checkbox-render";
 import { codeBlockRenderPlugin, codeBlockStructureField } from "./code-block-render";
 import { cm6RichRenderExtensions } from "./cm6-rich-render-extensions";
@@ -44,6 +45,7 @@ describe("CM6 rich render extension composition", () => {
   it("includes the expected render-owned feature extensions", () => {
     const expectedExtensions: readonly Extension[] = [
       codeBlockRenderPlugin,
+      bibliographyPlugin,
       containerAttributesPlugin,
       richClipboardOutputFilter,
       checkboxRenderPlugin,

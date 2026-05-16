@@ -416,9 +416,9 @@ export function collectReferenceRanges(
   const { analysis, bibliography } = getReferenceRenderState(state);
   const effectiveFormatter = formatter ?? bibliography.formatter ?? null;
 
-  // Citation cluster registration moved to the citeproc bibliography
-  // extension in chunk 3c. Without that extension, inline citation numbering
-  // for numeric / disambiguating CSL styles may be wrong.
+  // Citation cluster registration is global to document order. Cache it at the
+  // (analysis, bibliography-store) boundary so ordinary navigation does not
+  // reset and replay every citation cluster.
   ensureEditorReferencePresentationCitationsRegistered(analysis, store, effectiveFormatter);
 
   return emitReferenceDecorations(

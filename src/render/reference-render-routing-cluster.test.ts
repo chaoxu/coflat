@@ -297,12 +297,6 @@ describe("collectReferenceRanges (clusters)", () => {
     if (!widget) return;
     const widgetText = (widget.toDOM() as HTMLElement).textContent;
 
-    // chunk 3c: preview rendering no longer calls registerCitations on the
-    // formatter from the main bundle. Hosts that share a processor across
-    // editor + preview must register clusters themselves (the citeproc
-    // bibliography extension does it for the editor view).
-    previewProcessor.registerCitations([{ ids: ["karger2000"] }]);
-
     const preview = document.createElement("div");
     renderPreviewBlockContentToDom(preview, doc, {
       bibliography: store,

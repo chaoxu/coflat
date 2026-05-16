@@ -1,6 +1,12 @@
 import { StateField, type EditorState, type Transaction } from "@codemirror/state";
 import type { CslJsonItem } from "../citations/csl-json";
 import { formatCitationPreview } from "../citations/citation-preview";
+import {
+  collectCitationMatches,
+  collectCitationMatchesFromAnalysis,
+  getCitationRegistrationKey,
+  type CitationCollectionOptions,
+} from "../citations/citation-matching";
 import type { CitationFormatter } from "../document-context";
 import type { BlockCounterEntry } from "../lib/types";
 import type {
@@ -391,21 +397,19 @@ export function createCatalogReferencePresentationController(
 }
 
 /**
- * Citation cluster registration moved to the citeproc bibliography extension
- * in chunk 3c. The narrow main-bundle `CitationFormatter` interface no longer
- * exposes `registerCitations` / `citationRegistrationKey`; hosts that need
- * correct numbering under numeric or disambiguating CSL styles must include
- * `bibliographyRenderExtension()` from `@chaoxu/coflat-editor/citeproc` in
- * their `mountEditor` extension list.
- *
- * Kept as an exported no-op for source compatibility with legacy callers.
+ * Ensure the current document's citation clusters have been registered with
+ * the attached `CitationFormatter` (no-op if no formatter is attached).
  */
 export function ensureEditorReferencePresentationCitationsRegistered(
-  _analysis: DocumentAnalysis,
-  _store: BibStore,
-  _formatter: CitationFormatter | null,
+  analysis: DocumentAnalysis,
+  store: BibStore,
+  formatter: CitationFormatter | null,
 ): void {
-  // intentionally empty — handled by the citeproc bibliography extension
+  if (!formatter) return;
+  const matches = collectCitationMatchesFromAnalysis(analysis, store);
+  const registrationKey = getCitationRegistrationKey(matches);
+  if (formatter.citationRegistrationKey === registrationKey) return;
+  formatter.registerCitations(matches);
 }
 
 export function createEditorReferencePresentationController(
@@ -428,10 +432,14 @@ export function createEditorReferencePresentationController(
       equationLabels: options.equationLabels,
       cite: (ids, locators) => formatter?.cite([...ids], [...locators]) ?? "",
       citeNarrative: (id) => formatter?.citeNarrative(id) ?? id,
-      registerCitations: (_references) => {
-        // Citation cluster registration was moved into the citeproc
-        // bibliography extension (chunk 3c). The narrow main-bundle
-        // `CitationFormatter` no longer exposes `registerCitations`.
+      registerCitations: (references) => {
+        if (!store || !formatter) return;
+        const catalog = getEditorDocumentReferenceCatalog(state);
+        const matches = collectCitationMatches(references, store, {
+          isLocalTarget: (id) =>
+            resolveCatalogCrossref(catalog, id, options.equationLabels) !== null,
+        });
+        formatter.registerCitations(matches);
       },
     },
   );
@@ -472,6 +480,14 @@ function resolvePreviewCrossref(
   return null;
 }
 
+function getPreviewCitationOptions(
+  options: PreviewReferencePresentationOptions,
+): CitationCollectionOptions {
+  return {
+    isLocalTarget: (id) => resolvePreviewCrossref(id, options) !== null,
+  };
+}
+
 export function createPreviewReferencePresentationController(
   options: PreviewReferencePresentationOptions,
 ): ReferencePresentationController {
@@ -488,10 +504,14 @@ export function createPreviewReferencePresentationController(
         ? formatter.citeNarrative(id)
         : id
     ),
-    registerCitations: (_references) => {
-      // Citation cluster registration moved to the citeproc bibliography
-      // extension in chunk 3c. The narrow `CitationFormatter` does not
-      // expose `registerCitations`.
+    registerCitations: (references) => {
+      if (!options.bibliography || !formatter) return;
+      const matches = collectCitationMatches(
+        references,
+        options.bibliography,
+        getPreviewCitationOptions(options),
+      );
+      formatter.registerCitations(matches);
     },
     resolveCrossref: (id) => resolvePreviewCrossref(id, options),
   });

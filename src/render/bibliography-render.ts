@@ -27,7 +27,7 @@ import {
   getAnalysisCitationRegistrationKey,
   getCitationRegistrationKey,
 } from "../citations/citation-matching";
-import type { BibliographyFormatter } from "./bibliography-formatter";
+import type { CitationFormatter } from "../document-context";
 import { type CslJsonItem } from "../citations/csl-json";
 import { CSS } from "../constants/css-classes";
 import { sanitizeCslHtml } from "../lib/sanitize-csl-html";
@@ -38,20 +38,20 @@ import {
 import { mathMacrosField } from "../state/math-macros";
 import { HOVER_DELAY_MS } from "../constants";
 import { createPreviewSurfaceBody } from "../preview-surface";
-import { renderPreviewBlockContentToDom } from "../render/preview-block-renderer";
-import { buildPreviewBlockOptions } from "../render/hover-preview-block-options";
+import { renderPreviewBlockContentToDom } from "./preview-block-renderer";
+import { buildPreviewBlockOptions } from "./hover-preview-block-options";
 import {
   createHoverPreviewContent,
   createHoverPreviewHeader,
-} from "../render/hover-preview-elements";
+} from "./hover-preview-elements";
 import {
   floatingTooltipContains,
   hideFloatingTooltip,
   showFloatingTooltip,
   type TooltipPlan,
-} from "../render/hover-tooltip";
-import { EMPTY_LOCAL_MEDIA_DEPENDENCIES } from "../render/media-preview";
-import { buildDecorations, createDecorationsField, RenderWidget } from "../render/render-core";
+} from "./hover-tooltip";
+import { EMPTY_LOCAL_MEDIA_DEPENDENCIES } from "./media-preview";
+import { buildDecorations, createDecorationsField, RenderWidget } from "./render-core";
 
 /** Widget that renders the full bibliography section. */
 export class BibliographyWidget extends RenderWidget {
@@ -331,7 +331,7 @@ interface BibliographyCacheEntry {
   readonly store: BibStore;
 }
 
-const bibliographyCache = new WeakMap<BibliographyFormatter, BibliographyCacheEntry>();
+const bibliographyCache = new WeakMap<CitationFormatter, BibliographyCacheEntry>();
 
 function getCitedIdsKey(citedIds: readonly string[]): string {
   return citedIds.join("\0");
@@ -370,22 +370,8 @@ function bibliographyShouldRebuild(tr: Transaction): boolean {
   );
 }
 
-function asBibliographyFormatter(
-  formatter: { readonly revision: number } | null | undefined,
-): BibliographyFormatter | null {
-  if (!formatter) return null;
-  const candidate = formatter as Partial<BibliographyFormatter>;
-  if (
-    typeof candidate.bibliographyEntries !== "function" ||
-    typeof candidate.registerCitations !== "function"
-  ) {
-    return null;
-  }
-  return formatter as BibliographyFormatter;
-}
-
 function buildBibliographyDecorationsFromState(state: EditorState): DecorationSet {
-  const { store, formatter: narrowFormatter, formatterRevision } = state.field(bibDataField);
+  const { store, formatter, formatterRevision } = state.field(bibDataField);
   if (store.size === 0) return Decoration.none;
 
   // Use the incrementally-maintained document analysis instead of
@@ -394,8 +380,6 @@ function buildBibliographyDecorationsFromState(state: EditorState): DecorationSe
   const citedIds = collectCitedIdsFromReferenceIndex(analysis.referenceIndex, store);
   if (citedIds.length === 0) return Decoration.none;
   const backlinks = collectCitationBacklinksFromAnalysis(analysis, store);
-
-  const formatter = asBibliographyFormatter(narrowFormatter);
 
   let cslEntries: readonly { readonly id: string; readonly html: string }[] = [];
   if (formatter) {
@@ -445,15 +429,3 @@ export const bibliographyPlugin: Extension = createDecorationsField(
   bibliographyShouldRebuild,
   true,
 );
-
-/**
- * Opt-in CM6 extension that renders `::: Bibliography` sections (and the
- * implicit document-end bibliography). Hosts pass this to `mountEditor`'s
- * `extensions` array. Without it, bibliography blocks render as raw fenced
- * divs and inline citation numbering may be wrong under numeric or
- * disambiguating CSL styles (since this extension also drives the
- * `registerCitations` loop on the attached `BibliographyFormatter`).
- */
-export function bibliographyRenderExtension(): Extension {
-  return bibliographyPlugin;
-}

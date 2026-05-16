@@ -17,7 +17,6 @@ import {
   referenceRenderDependenciesChanged,
   referenceRenderPlugin,
 } from "./reference-render";
-import { bibliographyPlugin } from "../citeproc-internal/bibliography-render";
 import { createTestView } from "../test-utils";
 import {
   createPluginView,
@@ -437,7 +436,6 @@ describe("collectReferenceRanges performance invalidation", () => {
           blockCounterField,
           bibDataField,
           referenceRenderPlugin,
-          bibliographyPlugin,
         ],
       });
       view.dispatch({ effects: bibDataEffect.of({ store, formatter: processor }) });
