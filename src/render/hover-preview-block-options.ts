@@ -13,7 +13,7 @@ export function buildPreviewBlockOptions(
   macros: Record<string, string>,
   imageUrlOverrides?: ReadonlyMap<string, string>,
 ): PreviewBlockRenderOptions {
-  const { store, cslProcessor } = view.state.field(bibDataField);
+  const { store, formatter } = view.state.field(bibDataField);
   const frontmatter = view.state.field(frontmatterField, false);
   const analysis = view.state.field(documentAnalysisField, false);
   const counterState = view.state.field(blockCounterField, false);
@@ -41,7 +41,7 @@ export function buildPreviewBlockOptions(
       math: macros,
     },
     bibliography: store.size > 0 ? store : undefined,
-    cslProcessor: store.size > 0 ? cslProcessor : undefined,
+    formatter: store.size > 0 ? formatter : undefined,
     blockCounters,
     ...(analysis ? { referenceSemantics: analysis } : {}),
     documentPath: view.state.facet(documentPathFacet),

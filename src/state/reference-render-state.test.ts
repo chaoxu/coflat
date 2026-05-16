@@ -62,7 +62,7 @@ function createReferenceStateView(doc: string): EditorView {
   view.dispatch({
     effects: bibDataEffect.of({
       store,
-      cslProcessor: new CslProcessor([karger, stein]),
+      formatter: new CslProcessor([karger, stein]),
     }),
   });
 

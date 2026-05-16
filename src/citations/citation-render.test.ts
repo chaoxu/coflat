@@ -39,7 +39,7 @@ describe("referenceRenderPlugin citation integration", () => {
       cursorPos,
       extensions: [markdown(), documentSemanticsField, bibDataField, referenceRenderPlugin],
     });
-    v.dispatch({ effects: bibDataEffect.of({ store, cslProcessor: new CslProcessor([karger, stein]) }) });
+    v.dispatch({ effects: bibDataEffect.of({ store, formatter: new CslProcessor([karger, stein]) }) });
     return v;
   }
 

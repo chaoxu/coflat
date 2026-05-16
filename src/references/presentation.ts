@@ -3,13 +3,11 @@ import type { CslJsonItem } from "../citations/csl-json";
 import { formatCitationPreview } from "../citations/citation-preview";
 import {
   collectCitationMatches,
+  collectCitationMatchesFromAnalysis,
+  getCitationRegistrationKey,
   type CitationCollectionOptions,
 } from "../citations/citation-matching";
-import { ensureCitationsRegistered } from "../citations/citation-registration";
-import {
-  registerCitationsWithProcessor,
-  type CslProcessor,
-} from "../citations/csl-processor";
+import type { CitationFormatter } from "../document-context";
 import type { BlockCounterEntry } from "../lib/types";
 import type {
   DocumentAnalysis,
@@ -128,7 +126,7 @@ interface ReferencePresentationControllerOptions {
 interface PreviewReferencePresentationOptions {
   readonly bibliography?: BibStore;
   readonly blockCounters?: ReadonlyMap<string, BlockCounterEntry>;
-  readonly cslProcessor?: CslProcessor;
+  readonly formatter?: CitationFormatter | null;
   readonly referenceSemantics?: DocumentSemantics;
 }
 
@@ -398,41 +396,50 @@ export function createCatalogReferencePresentationController(
   });
 }
 
+/**
+ * Ensure the current document's citation clusters have been registered with
+ * the attached `CitationFormatter` (no-op if no formatter is attached).
+ */
 export function ensureEditorReferencePresentationCitationsRegistered(
   analysis: DocumentAnalysis,
   store: BibStore,
-  processor: CslProcessor,
+  formatter: CitationFormatter | null,
 ): void {
-  ensureCitationsRegistered(analysis, store, processor);
+  if (!formatter) return;
+  const matches = collectCitationMatchesFromAnalysis(analysis, store);
+  const registrationKey = getCitationRegistrationKey(matches);
+  if (formatter.citationRegistrationKey === registrationKey) return;
+  formatter.registerCitations(matches);
 }
 
 export function createEditorReferencePresentationController(
   state: EditorState,
   options: {
     readonly store?: BibStore;
-    readonly cslProcessor?: CslProcessor;
+    readonly formatter?: CitationFormatter | null;
     readonly equationLabels?: ReadonlyMap<string, EquationEntry>;
   } = {},
 ): ReferencePresentationController {
   const bibliography = state.field(bibDataField, false);
   const store = options.store ?? bibliography?.store;
-  const cslProcessor = options.cslProcessor ?? bibliography?.cslProcessor;
+  const formatter =
+    options.formatter !== undefined ? options.formatter : bibliography?.formatter ?? null;
 
   return createCatalogReferencePresentationController(
     getEditorDocumentReferenceCatalog(state),
     {
       bibliography: store,
       equationLabels: options.equationLabels,
-      cite: (ids, locators) => cslProcessor?.cite([...ids], [...locators]) ?? "",
-      citeNarrative: (id) => cslProcessor?.citeNarrative(id) ?? id,
+      cite: (ids, locators) => formatter?.cite([...ids], [...locators]) ?? "",
+      citeNarrative: (id) => formatter?.citeNarrative(id) ?? id,
       registerCitations: (references) => {
-        if (!store || !cslProcessor) return;
+        if (!store || !formatter) return;
         const catalog = getEditorDocumentReferenceCatalog(state);
         const matches = collectCitationMatches(references, store, {
           isLocalTarget: (id) =>
             resolveCatalogCrossref(catalog, id, options.equationLabels) !== null,
         });
-        registerCitationsWithProcessor(matches, cslProcessor);
+        formatter.registerCitations(matches);
       },
     },
   );
@@ -484,26 +491,27 @@ function getPreviewCitationOptions(
 export function createPreviewReferencePresentationController(
   options: PreviewReferencePresentationOptions,
 ): ReferencePresentationController {
+  const formatter = options.formatter ?? null;
   return createReferencePresentationController({
     bibliography: options.bibliography,
     cite: (ids, locators) => {
-      const rendered = options.cslProcessor?.cite([...ids], [...locators]);
+      const rendered = formatter?.cite([...ids], [...locators]);
       if (rendered) return rendered;
       return `(${ids.map((id, index) => locators[index] ? `${id}, ${locators[index]}` : id).join("; ")})`;
     },
     citeNarrative: (id) => (
-      options.cslProcessor && options.bibliography?.has(id)
-        ? options.cslProcessor.citeNarrative(id)
+      formatter && options.bibliography?.has(id)
+        ? formatter.citeNarrative(id)
         : id
     ),
     registerCitations: (references) => {
-      if (!options.bibliography || !options.cslProcessor) return;
+      if (!options.bibliography || !formatter) return;
       const matches = collectCitationMatches(
         references,
         options.bibliography,
         getPreviewCitationOptions(options),
       );
-      registerCitationsWithProcessor(matches, options.cslProcessor);
+      formatter.registerCitations(matches);
     },
     resolveCrossref: (id) => resolvePreviewCrossref(id, options),
   });

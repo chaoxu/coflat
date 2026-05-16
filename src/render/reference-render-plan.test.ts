@@ -17,8 +17,8 @@ describe("planReferenceRendering", () => {
 
   function plan(doc: string, cursorPos?: number): ReferenceRenderItem[] {
     view = createView(doc, cursorPos ?? doc.length);
-    const { cslProcessor } = view.state.field(bibDataField);
-    return planReferenceRendering(view, store, cslProcessor);
+    const { formatter } = view.state.field(bibDataField);
+    return planReferenceRendering(view, store, formatter);
   }
 
   function findPlan(items: ReferenceRenderItem[], text: string): ReferenceRenderItem | undefined {

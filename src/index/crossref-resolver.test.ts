@@ -66,7 +66,7 @@ function createMathState(doc: string): EditorState {
 function withBibliography(state: EditorState): EditorState {
   return applyStateEffects(state, bibDataEffect.of({
     store: makeBibStore([CSL_FIXTURES.karger]),
-    cslProcessor: new CslProcessor([CSL_FIXTURES.karger]),
+    formatter: new CslProcessor([CSL_FIXTURES.karger]),
   }));
 }
 

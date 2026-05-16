@@ -157,7 +157,7 @@ describe("collectReferenceCompletionCandidates", () => {
           CSL_FIXTURES.karger,
           { ...CSL_FIXTURES.stein, id: "thm:main" },
         ]),
-        cslProcessor: new CslProcessor([CSL_FIXTURES.karger]),
+        formatter: new CslProcessor([CSL_FIXTURES.karger]),
       }),
     }).state;
 
@@ -191,7 +191,7 @@ describe("collectReferenceCompletionCandidates", () => {
     const state = createReferenceState("See [@").update({
       effects: bibDataEffect.of({
         store: makeBibStore([CSL_FIXTURES.karger]),
-        cslProcessor: new CslProcessor([CSL_FIXTURES.karger]),
+        formatter: new CslProcessor([CSL_FIXTURES.karger]),
       }),
     }).state;
 
@@ -218,7 +218,7 @@ describe("referenceCompletionSource", () => {
     ).update({
       effects: bibDataEffect.of({
         store: makeBibStore([CSL_FIXTURES.karger]),
-        cslProcessor: new CslProcessor([CSL_FIXTURES.karger]),
+        formatter: new CslProcessor([CSL_FIXTURES.karger]),
       }),
     }).state;
 
@@ -255,7 +255,7 @@ describe("reference autocomplete integration", () => {
     view.dispatch({
       effects: bibDataEffect.of({
         store: makeBibStore([CSL_FIXTURES.karger]),
-        cslProcessor: new CslProcessor([CSL_FIXTURES.karger]),
+        formatter: new CslProcessor([CSL_FIXTURES.karger]),
       }),
     });
     view.dispatch({
@@ -321,7 +321,7 @@ describe("reference autocomplete integration", () => {
     view.dispatch({
       effects: bibDataEffect.of({
         store: makeBibStore([CSL_FIXTURES.karger]),
-        cslProcessor: new CslProcessor([CSL_FIXTURES.karger]),
+        formatter: new CslProcessor([CSL_FIXTURES.karger]),
       }),
     });
 
@@ -344,7 +344,7 @@ describe("reference autocomplete integration", () => {
     view.dispatch({
       effects: bibDataEffect.of({
         store: makeBibStore([CSL_FIXTURES.karger]),
-        cslProcessor: new CslProcessor([CSL_FIXTURES.karger]),
+        formatter: new CslProcessor([CSL_FIXTURES.karger]),
       }),
     });
     view.dispatch({
@@ -490,7 +490,7 @@ describe("reference autocomplete integration", () => {
     view.dispatch({
       effects: bibDataEffect.of({
         store: makeBibStore([CSL_FIXTURES.karger]),
-        cslProcessor: new CslProcessor([CSL_FIXTURES.karger]),
+        formatter: new CslProcessor([CSL_FIXTURES.karger]),
       }),
     });
     view.dispatch({

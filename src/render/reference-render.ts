@@ -20,9 +20,7 @@ import { type ChangeSet, type EditorState, type Extension, type Range, type Tran
 import { CSS } from "../constants/css-classes";
 import type { ResolvedCrossref } from "../references/presentation";
 import { forEachOverlappingOrderedRange } from "../lib/range-helpers";
-import {
-  type CslProcessor,
-} from "../citations/csl-processor";
+import type { CitationFormatter } from "../document-context";
 import type { BibStore } from "../state/bib-data";
 import { CitationWidget, HostRefWidget } from "./citation-widget";
 import {
@@ -150,21 +148,21 @@ function isEditorView(value: EditorState | EditorView): value is EditorView {
 export function planReferenceRendering(
   view: EditorView,
   store: BibStore,
-  processor: CslProcessor,
+  formatter: CitationFormatter | null,
   references?: readonly ReferenceSemantics[],
 ): ReferenceRenderItem[];
 export function planReferenceRendering(
   state: EditorState,
   focused: boolean,
   store: BibStore,
-  processor: CslProcessor,
+  formatter: CitationFormatter | null,
   references?: readonly ReferenceSemantics[],
 ): ReferenceRenderItem[];
 export function planReferenceRendering(
   viewOrState: EditorView | EditorState,
   focusedOrStore: boolean | BibStore,
-  storeOrProcessor: BibStore | CslProcessor,
-  processorOrReferences?: CslProcessor | readonly ReferenceSemantics[],
+  storeOrFormatter: BibStore | CitationFormatter | null,
+  formatterOrReferences?: CitationFormatter | null | readonly ReferenceSemantics[],
   maybeReferences?: readonly ReferenceSemantics[],
 ): ReferenceRenderItem[] {
   const state = isEditorView(viewOrState) ? viewOrState.state : viewOrState;
@@ -173,19 +171,19 @@ export function planReferenceRendering(
     : focusedOrStore as boolean;
   const store = isEditorView(viewOrState)
     ? focusedOrStore as BibStore
-    : storeOrProcessor as BibStore;
-  const processor = isEditorView(viewOrState)
-    ? storeOrProcessor as CslProcessor
-    : processorOrReferences as CslProcessor;
+    : storeOrFormatter as BibStore;
+  const formatter = isEditorView(viewOrState)
+    ? storeOrFormatter as CitationFormatter | null
+    : (formatterOrReferences as CitationFormatter | null);
   const references = (
     isEditorView(viewOrState)
-      ? processorOrReferences as readonly ReferenceSemantics[] | undefined
+      ? formatterOrReferences as readonly ReferenceSemantics[] | undefined
       : maybeReferences
   ) ?? getReferenceRenderAnalysis(state).references;
 
   const controller = createEditorReferencePresentationController(state, {
     store,
-    cslProcessor: processor,
+    formatter,
   });
   const items: ReferenceRenderItem[] = [];
   const activeRef = getRevealedReferenceTarget(state, focused);
@@ -202,18 +200,74 @@ export function planReferenceRendering(
       continue;
     }
 
+    const raw = state.sliceDoc(ref.from, ref.to);
     const route = controller.planReference({
       bracketed: ref.bracketed,
       ids: ref.ids,
       locators: ref.locators,
-      raw: state.sliceDoc(ref.from, ref.to),
+      raw,
     });
-    if (route) {
-      items.push(toRenderItem(route, ref.from, ref.to));
+    if (!route) continue;
+
+    // Degraded placeholder: classified as citation but no formatter is
+    // attached to render it. Emit a host-ref-style placeholder span. For
+    // single-id clusters we record the key on the element; multi-id
+    // clusters fall back to the raw source text.
+    if (route.kind === "citation" && !formatter) {
+      items.push(buildDegradedCitationItem(ref.ids, ref.bracketed, ref.from, ref.to, raw));
+      continue;
     }
+
+    items.push(toRenderItem(route, ref.from, ref.to));
   }
 
   return items;
+}
+
+function escapeAttr(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function buildDegradedCitationItem(
+  ids: readonly string[],
+  bracketed: boolean,
+  from: number,
+  to: number,
+  raw: string,
+): ReferenceRenderItem {
+  const mode: "bracketed" | "narrative" = bracketed ? "bracketed" : "narrative";
+  // Single-key cluster: record the key as a data attribute and render the
+  // canonical `[@key]` / `@key` text. Multi-key clusters keep the raw source.
+  const singleKey = ids.length === 1 ? ids[0] : null;
+  const display = singleKey
+    ? (bracketed ? `[@${singleKey}]` : `@${singleKey}`)
+    : raw;
+  const keyAttr = singleKey ? ` data-ref-key="${escapeAttr(singleKey)}"` : "";
+  const html =
+    `<span class="cf-citation cf-citation-unresolved"`
+    + keyAttr
+    + ` data-ref-mode="${mode}">${escapeHtml(display)}</span>`;
+  return {
+    kind: "host-ref",
+    from,
+    to,
+    key: singleKey ?? "",
+    mode,
+    html,
+    hasOnClick: false,
+  };
 }
 
 // ── Emit: map plan items to CM6 decorations ────────────────────────
@@ -331,21 +385,21 @@ function emitReferenceDecorations(plan: readonly ReferenceRenderItem[]): Range<D
 export function collectReferenceRanges(
   view: EditorView,
   store: BibStore,
-  cslProcessor?: CslProcessor,
+  formatter?: CitationFormatter | null,
   references?: readonly ReferenceSemantics[],
 ): Range<Decoration>[];
 export function collectReferenceRanges(
   state: EditorState,
   focused: boolean,
   store: BibStore,
-  cslProcessor?: CslProcessor,
+  formatter?: CitationFormatter | null,
   references?: readonly ReferenceSemantics[],
 ): Range<Decoration>[];
 export function collectReferenceRanges(
   viewOrState: EditorView | EditorState,
   focusedOrStore: boolean | BibStore,
-  storeOrProcessor?: BibStore | CslProcessor,
-  cslProcessorOrReferences?: CslProcessor | readonly ReferenceSemantics[],
+  storeOrFormatter?: BibStore | CitationFormatter | null,
+  formatterOrReferences?: CitationFormatter | null | readonly ReferenceSemantics[],
   maybeReferences?: readonly ReferenceSemantics[],
 ): Range<Decoration>[] {
   const state = isEditorView(viewOrState) ? viewOrState.state : viewOrState;
@@ -354,29 +408,25 @@ export function collectReferenceRanges(
     : focusedOrStore as boolean;
   const store = isEditorView(viewOrState)
     ? focusedOrStore as BibStore
-    : storeOrProcessor as BibStore;
-  const cslProcessor = isEditorView(viewOrState)
-    ? cslProcessorOrReferences as CslProcessor | undefined
-    : cslProcessorOrReferences as CslProcessor | undefined;
-  const references = (
-    isEditorView(viewOrState)
-      ? maybeReferences
-      : maybeReferences
-  ) ?? getReferenceRenderState(state).analysis.references;
+    : storeOrFormatter as BibStore;
+  const formatter = isEditorView(viewOrState)
+    ? (storeOrFormatter as CitationFormatter | null | undefined) ?? null
+    : (formatterOrReferences as CitationFormatter | null | undefined) ?? null;
+  const references = maybeReferences ?? getReferenceRenderState(state).analysis.references;
   const { analysis, bibliography } = getReferenceRenderState(state);
-  const processor = cslProcessor ?? bibliography.cslProcessor;
+  const effectiveFormatter = formatter ?? bibliography.formatter ?? null;
 
-  // Numeric CSL registration is global to document order. Cache it at the
+  // Citation cluster registration is global to document order. Cache it at the
   // (analysis, bibliography-store) boundary so ordinary navigation does not
   // reset and replay every citation cluster.
-  ensureEditorReferencePresentationCitationsRegistered(analysis, store, processor);
+  ensureEditorReferencePresentationCitationsRegistered(analysis, store, effectiveFormatter);
 
   return emitReferenceDecorations(
     planReferenceRendering(
       state,
       focused,
       store,
-      processor,
+      effectiveFormatter,
       references,
     ),
   );
@@ -385,8 +435,8 @@ export function collectReferenceRanges(
 /** Build reference decorations from the view state. */
 function buildReferenceDecorations(state: EditorState): DecorationSet {
   const { bibliography } = getReferenceRenderState(state);
-  const { store, cslProcessor } = bibliography;
-  return buildDecorations(collectReferenceRanges(state, referenceStateFocus(state), store, cslProcessor));
+  const { store, formatter } = bibliography;
+  return buildDecorations(collectReferenceRanges(state, referenceStateFocus(state), store, formatter));
 }
 
 function collectDirtyReferences(
@@ -536,13 +586,13 @@ function collectReferenceRangesForDirtySpans(
   dirtyRanges: readonly DirtyRange[],
 ): Range<Decoration>[] {
   const { analysis, bibliography } = getReferenceRenderState(state);
-  const { store, cslProcessor } = bibliography;
+  const { store, formatter } = bibliography;
   const dirtyRefs = collectDirtyReferences(
     analysis.references,
     dirtyRanges,
   );
   return dirtyRefs.length > 0
-    ? collectReferenceRanges(state, referenceStateFocus(state), store, cslProcessor, dirtyRefs)
+    ? collectReferenceRanges(state, referenceStateFocus(state), store, formatter, dirtyRefs)
     : [];
 }
 

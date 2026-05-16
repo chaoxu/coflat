@@ -245,7 +245,7 @@ export class CslProcessor {
    * Register all citations in order so numeric styles can assign numbers.
    * Call this once with every citation cluster before calling cite().
    */
-  registerCitations(clusters: CitationCluster[]): void {
+  registerCitations(clusters: readonly CitationCluster[]): void {
     this.registeredCitationKey = null;
     const engine = this.currentEngine();
     if (!engine) return;
@@ -281,7 +281,7 @@ export class CslProcessor {
   }
 
   /** Format a parenthetical citation for the given ids, with optional locators. */
-  cite(ids: string[], locators?: (string | undefined)[]): string {
+  cite(ids: readonly string[], locators?: readonly (string | undefined)[]): string {
     const engine = this.currentEngine();
     if (!engine || ids.length === 0) return "";
     try {

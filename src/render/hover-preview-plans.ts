@@ -425,7 +425,7 @@ export function buildTooltipPlanForElement(
   const { store } = bibData;
   const presentation = createEditorReferencePresentationController(view.state, {
     store,
-    cslProcessor: bibData.cslProcessor,
+    formatter: bibData.formatter,
     equationLabels,
   });
   const classifications = ref.ids.map((id) =>

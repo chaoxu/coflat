@@ -1,8 +1,7 @@
 import { StateEffect, StateField } from "@codemirror/state";
 
-import { CslProcessor } from "../citations/csl-processor";
-
 import { type BibStore } from "../citations/csl-json";
+import type { CitationFormatter } from "../document-context";
 export { type BibStore };
 
 export type BibliographyFailureKind =
@@ -34,15 +33,27 @@ export type BibliographyStatus =
     readonly message: string;
   };
 
-/** Bibliography data stored in the editor state. */
+/**
+ * Bibliography data stored in the editor state.
+ *
+ * v0.2 chunk 3b: the `formatter` field replaced the old `cslProcessor` one.
+ * The main bundle no longer imports a concrete CSL implementation; hosts that
+ * want CSL formatting attach one via the `@chaoxu/coflat-editor/citeproc`
+ * helper.
+ */
 export interface BibData {
   store: BibStore;
-  cslProcessor: CslProcessor;
+  /**
+   * Optional citation formatter. When absent, citations render as a degraded
+   * placeholder (`<span class="cf-citation cf-citation-unresolved">…</span>`).
+   */
+  formatter?: CitationFormatter | null;
   status?: BibliographyStatus;
 }
 
 interface BibDataState extends BibData {
-  readonly processorRevision: number;
+  readonly formatter: CitationFormatter | null;
+  readonly formatterRevision: number;
   readonly status: BibliographyStatus;
 }
 
@@ -56,11 +67,10 @@ function bibDataStatus(value: BibData): BibliographyStatus {
 /** StateField that holds the current bibliography data. */
 export const bibDataField = StateField.define<BibDataState>({
   create() {
-    const cslProcessor = CslProcessor.empty();
     return {
       store: new Map(),
-      cslProcessor,
-      processorRevision: cslProcessor.revision,
+      formatter: null,
+      formatterRevision: 0,
       status: { state: "idle" },
     };
   },
@@ -68,18 +78,20 @@ export const bibDataField = StateField.define<BibDataState>({
   update(value, tr) {
     for (const effect of tr.effects) {
       if (effect.is(bibDataEffect)) {
+        const formatter = effect.value.formatter ?? null;
         return {
           ...effect.value,
+          formatter,
           status: bibDataStatus(effect.value),
-          processorRevision: effect.value.cslProcessor.revision,
+          formatterRevision: formatter?.revision ?? 0,
         };
       }
     }
 
-    if (value.processorRevision !== value.cslProcessor.revision) {
+    if (value.formatter && value.formatterRevision !== value.formatter.revision) {
       return {
         ...value,
-        processorRevision: value.cslProcessor.revision,
+        formatterRevision: value.formatter.revision,
       };
     }
 
@@ -89,8 +101,8 @@ export const bibDataField = StateField.define<BibDataState>({
   compare(a, b) {
     return (
       a.store === b.store &&
-      a.cslProcessor === b.cslProcessor &&
-      a.processorRevision === b.processorRevision &&
+      a.formatter === b.formatter &&
+      a.formatterRevision === b.formatterRevision &&
       a.status === b.status
     );
   },

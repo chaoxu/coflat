@@ -58,6 +58,39 @@ re-exported from this package — `createEditor`, `editorModeField`,
 `coflatTheme`, `createPerFilePanelApi`, etc. See `src/editor/index.ts` in
 source for the full surface.
 
+## Classic CSL citations (`./citeproc`)
+
+The main bundle no longer ships citation-js or CSL processing. Without a
+citation formatter attached, `[@key]` and `@key` render as a degraded
+placeholder (`<span class="cf-citation cf-citation-unresolved">…</span>`).
+Hosts that want IEEE / APA / Chicago-style formatted citations import the
+helper sub-entry:
+
+```ts
+import { mountEditor } from "@chaoxu/coflat-editor";
+import "@chaoxu/coflat-editor/style.css";
+import {
+  parseBibTeX,
+  CslProcessor,
+  createCslCitationFormatter,
+  bibDataEffect,
+} from "@chaoxu/coflat-editor/citeproc";
+
+const items = parseBibTeX(await fetch("/refs.bib").then((r) => r.text()));
+const processor = await CslProcessor.create(items /*, optional CSL XML */);
+const editor = mountEditor({ parent: el });
+
+editor.view.dispatch({
+  effects: bibDataEffect.of({
+    store: new Map(items.map((i) => [i.id, i])),
+    formatter: createCslCitationFormatter(processor),
+  }),
+});
+```
+
+`citation-js` and its CSL/locale fixtures only enter the runtime graph when
+this sub-entry is imported.
+
 ## Installation (Gitea registry)
 
 Add to your `.npmrc`:

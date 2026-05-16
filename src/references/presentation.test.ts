@@ -54,7 +54,7 @@ function withBibliography(
 ): EditorState {
   return applyStateEffects(state, bibDataEffect.of({
     store: makeBibStore(items),
-    cslProcessor: new CslProcessor(items),
+    formatter: new CslProcessor(items),
   }));
 }
 

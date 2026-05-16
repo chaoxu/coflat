@@ -13,7 +13,7 @@ import {
   createView,
   store,
 } from "./render/reference-render-test-utils";
-import { bibDataField } from "./state/bib-data";
+import { bibDataEffect, bibDataField } from "./state/bib-data";
 
 /**
  * Phase 0 chunk 2 wiring: with no host resolver, behavior is unchanged
@@ -80,8 +80,8 @@ describe("documentContextFacet — RefResolver wiring through planReferenceRende
   function plan(doc: string, resolver?: RefResolver) {
     view = createView(doc, doc.length);
     if (resolver) withResolver(view, resolver);
-    const { cslProcessor } = view.state.field(bibDataField);
-    return planReferenceRendering(view, store, cslProcessor);
+    const { formatter } = view.state.field(bibDataField);
+    return planReferenceRendering(view, store, formatter);
   }
 
   function findAt(items: ReturnType<typeof plan>, raw: string) {
@@ -180,5 +180,90 @@ describe("documentContextFacet — RefResolver wiring through planReferenceRende
     expect(item.html).toContain("<i>ok</i>");
     expect(item.html).not.toContain("<script");
     expect(item.html).not.toContain("javascript:");
+  });
+});
+
+describe("degraded citation placeholder — no formatter, no resolver", () => {
+  function planWithoutFormatter(doc: string, resolver?: RefResolver) {
+    const view = createView(doc, doc.length);
+    // Drop the test-utils-attached formatter; keep the bib store so the key
+    // still classifies as a citation rather than unresolved.
+    view.dispatch({
+      effects: bibDataEffect.of({ store, formatter: null }),
+    });
+    if (resolver) {
+      view.dispatch({
+        effects: StateEffect.appendConfig.of(
+          documentContextFacet.of({ refResolver: resolver }),
+        ),
+      });
+    }
+    const { formatter } = view.state.field(bibDataField);
+    return {
+      items: planReferenceRendering(view, store, formatter),
+      view,
+    };
+  }
+
+  it("bracketed single-key citation emits cf-citation-unresolved placeholder", () => {
+    const { items, view } = planWithoutFormatter("See [@karger2000].");
+    const item = items.find(
+      (it) => view.state.sliceDoc(it.from, it.to) === "[@karger2000]",
+    );
+    expect(item?.kind).toBe("host-ref");
+    if (item?.kind !== "host-ref") return;
+    expect(item.key).toBe("karger2000");
+    expect(item.mode).toBe("bracketed");
+    expect(item.html).toContain('class="cf-citation cf-citation-unresolved"');
+    expect(item.html).toContain('data-ref-key="karger2000"');
+    expect(item.html).toContain('data-ref-mode="bracketed"');
+    expect(item.html).toContain("[@karger2000]");
+    view.destroy();
+  });
+
+  it("narrative @key citation emits placeholder with narrative mode", () => {
+    const { items, view } = planWithoutFormatter("See @karger2000 here.");
+    const item = items.find(
+      (it) => view.state.sliceDoc(it.from, it.to) === "@karger2000",
+    );
+    expect(item?.kind).toBe("host-ref");
+    if (item?.kind !== "host-ref") return;
+    expect(item.mode).toBe("narrative");
+    expect(item.html).toContain('data-ref-mode="narrative"');
+    expect(item.html).toContain("@karger2000");
+    expect(item.html).not.toContain("[@");
+    view.destroy();
+  });
+
+  it("multi-key cluster falls back to raw source text in the placeholder", () => {
+    const { items, view } = planWithoutFormatter(
+      "See [@karger2000; @stein2001].",
+    );
+    const item = items.find(
+      (it) =>
+        view.state.sliceDoc(it.from, it.to) === "[@karger2000; @stein2001]",
+    );
+    expect(item?.kind).toBe("host-ref");
+    if (item?.kind !== "host-ref") return;
+    expect(item.html).toContain('class="cf-citation cf-citation-unresolved"');
+    expect(item.html).not.toContain("data-ref-key=");
+    expect(item.html).toContain("[@karger2000; @stein2001]");
+    view.destroy();
+  });
+
+  it("host RefResolver still wins over the degraded placeholder", () => {
+    const resolver: RefResolver = {
+      resolve: (key) => ({ content: `<i>${key}</i>`, className: "page-ref" }),
+    };
+    const { items, view } = planWithoutFormatter("See [@karger2000].", resolver);
+    const item = items.find(
+      (it) => view.state.sliceDoc(it.from, it.to) === "[@karger2000]",
+    );
+    expect(item?.kind).toBe("host-ref");
+    if (item?.kind !== "host-ref") return;
+    expect(item.className).toBe("page-ref");
+    expect(item.html).toContain("<i>karger2000</i>");
+    expect(item.html).not.toContain("cf-citation-unresolved");
+    view.destroy();
   });
 });

@@ -265,7 +265,7 @@ describe("inline editor citation state wiring (#406)", () => {
       parent,
       doc: "[@karger2000]",
       macros: {},
-      bibData: { store, cslProcessor },
+      bibData: { store, formatter: cslProcessor },
       onChange: () => {},
     });
 
@@ -308,7 +308,7 @@ describe("inline editor citation state wiring (#406)", () => {
       parent,
       doc: "See [@karger2000] for details",
       macros: {},
-      bibData: { store, cslProcessor },
+      bibData: { store, formatter: cslProcessor },
       onChange: () => {},
     });
 
@@ -338,7 +338,7 @@ describe("inline editor citation widget rendering (#422)", () => {
       parent,
       doc: "[@karger2000]",
       macros: {},
-      bibData: { store, cslProcessor },
+      bibData: { store, formatter: cslProcessor },
       onChange: () => {},
     });
 
@@ -425,7 +425,7 @@ describe("inline editor citation widget rendering (#422)", () => {
       parent,
       doc: "[@karger2000; @stein2001]",
       macros: {},
-      bibData: { store, cslProcessor },
+      bibData: { store, formatter: cslProcessor },
       onChange: () => {},
     });
 

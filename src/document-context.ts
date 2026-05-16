@@ -61,10 +61,67 @@ export interface RefResolver {
   } | null;
 }
 
+/**
+ * Host-supplied formatter for citation rendering.
+ *
+ * Unlike `RefResolver` (single-key, sanitized HTML), a `CitationFormatter`
+ * understands clusters of citation keys with optional locators ("knuth1984, p.
+ * 24"). Bibliography rendering and CSL-style numeric/author-date formatting go
+ * through this seam.
+ *
+ * The main editor bundle no longer ships a default citation formatter. Hosts
+ * that want classic CSL-formatted citations import the helper from
+ * `@chaoxu/coflat-editor/citeproc` (see `createCslCitationFormatter`).
+ *
+ * v1 assumption: a formatter, once attached, is stable for the editor
+ * lifetime. Mutating its internal state via `registerCitations()` is fine, but
+ * swapping formatters means a remount. The `revision` field gives the renderer
+ * a coarse-grained invalidation hook.
+ */
+export interface CitationFormatter {
+  /** Bracketed cluster: `[@a; @b, p. 5]`. */
+  cite(ids: readonly string[], locators: readonly (string | undefined)[]): string;
+  /** Narrative `@key` rendering (author 2024). */
+  citeNarrative(id: string): string;
+  /**
+   * Render the formatted bibliography entries for the cited ids. The returned
+   * list is `id`-aligned but may be shorter (entries missing from the
+   * formatter's bib are dropped).
+   */
+  bibliographyEntries(
+    citedIds: readonly string[],
+  ): readonly { readonly id: string; readonly html: string }[];
+  /**
+   * Tell the formatter about every cluster in the document so it can compute
+   * numbering and disambiguation. Implementations should be idempotent when
+   * called with the same set of clusters in the same order.
+   */
+  registerCitations(
+    clusters: readonly {
+      readonly ids: readonly string[];
+      readonly locators?: readonly (string | undefined)[];
+    }[],
+  ): void;
+  /**
+   * Cache key for the most recent `registerCitations` call. Renderers use
+   * this to skip redundant registration. May be `null` before any clusters
+   * are registered.
+   */
+  readonly citationRegistrationKey: string | null;
+  /** Monotonically increasing on style/data changes. */
+  readonly revision: number;
+}
+
 export interface DocumentContext {
   fileSystem?: FileSystem;
   linkResolver?: LinkResolver;
   refResolver?: RefResolver;
+  /**
+   * Optional citation formatter for CSL-style bracketed/narrative citations.
+   * The main editor bundle no longer ships one; import from
+   * `@chaoxu/coflat-editor/citeproc` to attach a CSL implementation.
+   */
+  citationFormatter?: CitationFormatter;
   /** Math macros for KaTeX. Usually populated from frontmatter; this is an override. */
   mathMacros?: Record<string, string>;
 }

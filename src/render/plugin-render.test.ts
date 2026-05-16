@@ -513,7 +513,7 @@ describe("blockDecorationField", () => {
       createTestState(doc),
       bibDataEffect.of({
         store: makeBibStore([CSL_FIXTURES.karger]),
-        cslProcessor: new CslProcessor([CSL_FIXTURES.karger]),
+        formatter: new CslProcessor([CSL_FIXTURES.karger]),
         status: { state: "ok", bibPath: "refs.bib" },
       }),
     );

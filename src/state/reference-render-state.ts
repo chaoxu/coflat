@@ -1,8 +1,7 @@
 import type { EditorState } from "@codemirror/state";
 
-import { type CslProcessor } from "../citations/csl-processor";
 import { getAnalysisCitationRegistrationKey } from "../citations/citation-matching";
-import type { CitationRenderData } from "../citations/citation-render-data";
+import type { CitationFormatter } from "../document-context";
 import type { BibStore } from "./bib-data";
 import { bibDataField } from "./bib-data";
 import type { BlockCounterState } from "./block-counter";
@@ -37,8 +36,8 @@ export interface ReferenceRenderState {
 
 export interface ReferenceRenderBibliographyState {
   readonly store: BibStore;
-  readonly cslProcessor: CslProcessor;
-  readonly processorRevision: number;
+  readonly formatter: CitationFormatter | null;
+  readonly formatterRevision: number;
 }
 
 export interface ReferenceRenderIndexEntry {
@@ -76,13 +75,6 @@ export interface ReferenceRenderLabelGraph {
   readonly references?: readonly unknown[];
   readonly referencesByTarget?: ReadonlyMap<string, readonly unknown[]>;
   readonly uniqueDefinitionById: ReadonlyMap<string, ReferenceRenderLabelDefinition>;
-}
-
-export interface ReferenceRenderDependencies {
-  readonly renderIndex: ReferenceRenderIndex;
-  readonly footnoteDefinitions: ReadonlyMap<string, string>;
-  readonly citations: CitationRenderData;
-  readonly labelGraph: ReferenceRenderLabelGraph;
 }
 
 interface OptionalReferenceRenderState {
@@ -227,8 +219,8 @@ const headingReferenceTargetsChanged = createChangeChecker(
 
 const bibliographyInputsChanged = createChangeChecker(
   (state) => state.field(bibDataField, false)?.store ?? null,
-  (state) => state.field(bibDataField, false)?.cslProcessor ?? null,
-  (state) => state.field(bibDataField, false)?.processorRevision ?? null,
+  (state) => state.field(bibDataField, false)?.formatter ?? null,
+  (state) => state.field(bibDataField, false)?.formatterRevision ?? null,
 );
 
 interface CitationRegistrationSnapshot {
@@ -338,7 +330,7 @@ export function getReferenceRenderDependencySignature(
       getObjectIdentityId(pluginRegistry),
     ].join("\u0001");
   }
-  const { store, cslProcessor, processorRevision } = bibliography;
+  const { store, formatter, formatterRevision } = bibliography;
 
   return [
     getDocumentAnalysisSliceRevision(analysis, "references"),
@@ -347,9 +339,9 @@ export function getReferenceRenderDependencySignature(
     getBlockNumberingKey(state),
     getObjectIdentityId(state.field(externalDocumentReferenceCatalogField, false)),
     getObjectIdentityId(store as object),
-    getObjectIdentityId(cslProcessor),
-    processorRevision,
-    cslProcessor.citationRegistrationKey ?? "",
+    getObjectIdentityId(formatter as object | null),
+    formatterRevision,
+    formatter?.citationRegistrationKey ?? "",
     getObjectIdentityId(pluginRegistry),
   ].join("\u0001");
 }
@@ -376,7 +368,7 @@ export function getTableReferenceRenderDependencySignature(
     ].join("\u0001");
   }
 
-  const { store, cslProcessor, processorRevision } = bibliography;
+  const { store, formatter, formatterRevision } = bibliography;
   const citationRegistrationKey = getAnalysisCitationRegistrationKey(analysis, store);
 
   return [
@@ -386,8 +378,8 @@ export function getTableReferenceRenderDependencySignature(
     getBlockNumberingKey(state),
     getObjectIdentityId(state.field(externalDocumentReferenceCatalogField, false)),
     getObjectIdentityId(store as object),
-    getObjectIdentityId(cslProcessor),
-    processorRevision,
+    getObjectIdentityId(formatter as object | null),
+    formatterRevision,
     getObjectIdentityId(pluginRegistry),
   ].join("\u0001");
 }

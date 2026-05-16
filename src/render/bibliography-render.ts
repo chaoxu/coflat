@@ -18,18 +18,16 @@ import {
   COMPACT_CITATION_BACKLINK_TEXT,
 } from "../citations/bibliography-backlinks";
 import { formatBibEntry, sortBibEntries } from "../citations/bibliography";
-import { ensureCitationsRegistered } from "../citations/citation-registration";
 import {
   type CitationBacklink,
   collectCitationBacklinksFromAnalysis,
+  collectCitationMatchesFromAnalysis,
   collectCitedIdsFromReferenceIndex,
   getAnalysisCitationBacklinkKey,
   getAnalysisCitationRegistrationKey,
+  getCitationRegistrationKey,
 } from "../citations/citation-matching";
-import {
-  type CslBibliographyEntry,
-  type CslProcessor,
-} from "../citations/csl-processor";
+import type { CitationFormatter } from "../document-context";
 import { type CslJsonItem } from "../citations/csl-json";
 import { CSS } from "../constants/css-classes";
 import { sanitizeCslHtml } from "../lib/sanitize-csl-html";
@@ -328,12 +326,12 @@ export function buildBibliographyDecorations(
 
 interface BibliographyCacheEntry {
   readonly citedKey: string;
-  readonly cslEntries: readonly CslBibliographyEntry[];
-  readonly processorRevision: number;
+  readonly cslEntries: readonly { readonly id: string; readonly html: string }[];
+  readonly formatterRevision: number;
   readonly store: BibStore;
 }
 
-const bibliographyCache = new WeakMap<CslProcessor, BibliographyCacheEntry>();
+const bibliographyCache = new WeakMap<CitationFormatter, BibliographyCacheEntry>();
 
 function getCitedIdsKey(citedIds: readonly string[]): string {
   return citedIds.join("\0");
@@ -356,8 +354,8 @@ export function bibliographyDependenciesChanged(
   const afterBib = afterState.field(bibDataField);
   if (
     beforeBib.store !== afterBib.store ||
-    beforeBib.cslProcessor !== afterBib.cslProcessor ||
-    beforeBib.processorRevision !== afterBib.processorRevision
+    beforeBib.formatter !== afterBib.formatter ||
+    beforeBib.formatterRevision !== afterBib.formatterRevision
   ) {
     return true;
   }
@@ -373,7 +371,7 @@ function bibliographyShouldRebuild(tr: Transaction): boolean {
 }
 
 function buildBibliographyDecorationsFromState(state: EditorState): DecorationSet {
-  const { store, cslProcessor, processorRevision } = state.field(bibDataField);
+  const { store, formatter, formatterRevision } = state.field(bibDataField);
   if (store.size === 0) return Decoration.none;
 
   // Use the incrementally-maintained document analysis instead of
@@ -383,22 +381,28 @@ function buildBibliographyDecorationsFromState(state: EditorState): DecorationSe
   if (citedIds.length === 0) return Decoration.none;
   const backlinks = collectCitationBacklinksFromAnalysis(analysis, store);
 
-  let cslEntries: readonly CslBibliographyEntry[] = [];
-  if (cslProcessor) {
+  let cslEntries: readonly { readonly id: string; readonly html: string }[] = [];
+  if (formatter) {
     const citedKey = getCitedIdsKey(citedIds);
-    const cached = bibliographyCache.get(cslProcessor);
+    const cached = bibliographyCache.get(formatter);
     if (
       !cached ||
       cached.citedKey !== citedKey ||
-      cached.processorRevision !== processorRevision ||
+      cached.formatterRevision !== formatterRevision ||
       cached.store !== store
     ) {
-      ensureCitationsRegistered(analysis, store, cslProcessor);
-      cslEntries = cslProcessor.bibliographyEntries(citedIds);
-      bibliographyCache.set(cslProcessor, {
+      // Inline registration: avoid pulling the citation-registration module
+      // (which transitively reaches CslProcessor) from the main bundle.
+      const matches = collectCitationMatchesFromAnalysis(analysis, store);
+      const registrationKey = getCitationRegistrationKey(matches);
+      if (formatter.citationRegistrationKey !== registrationKey) {
+        formatter.registerCitations(matches);
+      }
+      cslEntries = formatter.bibliographyEntries(citedIds);
+      bibliographyCache.set(formatter, {
         citedKey,
         cslEntries,
-        processorRevision,
+        formatterRevision,
         store,
       });
     } else {

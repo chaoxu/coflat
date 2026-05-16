@@ -1,6 +1,6 @@
 import { parser as baseParser } from "@lezer/markdown";
 import type { SyntaxNode } from "@lezer/common";
-import type { CslProcessor } from "../citations/csl-processor";
+import type { CitationFormatter } from "../document-context";
 import {
   BLOCK_MANIFEST_ENTRIES,
   EXCLUDED_FROM_FALLBACK,
@@ -37,7 +37,7 @@ export interface PreviewBlockRenderOptions {
   readonly macros?: Record<string, string>;
   readonly config?: FrontmatterConfig;
   readonly bibliography?: BibStore;
-  readonly cslProcessor?: CslProcessor;
+  readonly formatter?: CitationFormatter | null;
   readonly blockCounters?: ReadonlyMap<string, BlockCounterEntry>;
   readonly documentPath?: string;
   readonly imageUrlOverrides?: ReadonlyMap<string, string>;
@@ -59,7 +59,7 @@ export function renderPreviewBlockContentToDom(
   const referenceController = createPreviewReferencePresentationController({
     bibliography: options.bibliography,
     blockCounters: options.blockCounters,
-    cslProcessor: options.cslProcessor,
+    formatter: options.formatter,
     referenceSemantics,
   });
 
@@ -71,7 +71,7 @@ export function renderPreviewBlockContentToDom(
     semantics,
     referenceSemantics,
     bibliography: options.bibliography,
-    cslProcessor: options.cslProcessor,
+    formatter: options.formatter,
     blockCounters: options.blockCounters,
     documentPath: options.documentPath,
     imageUrlOverrides: options.imageUrlOverrides,

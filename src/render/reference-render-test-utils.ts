@@ -63,7 +63,7 @@ export function createView(doc: string, cursorPos?: number, focus = true): Edito
       bibDataField,
     ],
   });
-  view.dispatch({ effects: bibDataEffect.of({ store, cslProcessor: new CslProcessor([karger, stein]) }) });
+  view.dispatch({ effects: bibDataEffect.of({ store, formatter: new CslProcessor([karger, stein]) }) });
   if (focus) {
     view.dispatch({ effects: focusEffect.of(true) });
   }
@@ -87,7 +87,7 @@ export function createPluginView(doc: string, cursorPos?: number, focus = true):
       referenceRenderPlugin,
     ],
   });
-  view.dispatch({ effects: bibDataEffect.of({ store, cslProcessor: new CslProcessor([karger, stein]) }) });
+  view.dispatch({ effects: bibDataEffect.of({ store, formatter: new CslProcessor([karger, stein]) }) });
   if (focus) {
     view.dispatch({ effects: focusEffect.of(true) });
   }

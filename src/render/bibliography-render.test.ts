@@ -189,7 +189,7 @@ describe("bibliographyDependenciesChanged", () => {
       before,
       bibDataEffect.of({
         store: makeBibStore([karger]),
-        cslProcessor: new CslProcessor([karger]),
+        formatter: new CslProcessor([karger]),
       }),
     );
     expect(bibliographyDependenciesChanged(before, after)).toBe(true);

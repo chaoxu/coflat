@@ -72,7 +72,7 @@ describe("collectReferenceRanges edge-cases", () => {
     view.dispatch({
       effects: bibDataEffect.of({
         store,
-        cslProcessor: CslProcessor.empty(),
+        formatter: CslProcessor.empty(),
       }),
     });
 

@@ -411,7 +411,7 @@ describe("collectReferenceRanges performance invalidation", () => {
       view.dispatch({
         effects: bibDataEffect.of({
           store,
-          cslProcessor: new CslProcessor([karger, stein]),
+          formatter: new CslProcessor([karger, stein]),
         }),
       });
 
@@ -438,11 +438,11 @@ describe("collectReferenceRanges performance invalidation", () => {
           referenceRenderPlugin,
         ],
       });
-      view.dispatch({ effects: bibDataEffect.of({ store, cslProcessor: processor }) });
+      view.dispatch({ effects: bibDataEffect.of({ store, formatter: processor }) });
       registerSpy.mockClear();
 
       await processor.setStyle("<style>invalid</style>");
-      view.dispatch({ effects: bibDataEffect.of({ store, cslProcessor: processor }) });
+      view.dispatch({ effects: bibDataEffect.of({ store, formatter: processor }) });
 
       expect(registerSpy).toHaveBeenCalledTimes(1);
       registerSpy.mockRestore();

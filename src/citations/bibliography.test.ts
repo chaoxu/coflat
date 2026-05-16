@@ -339,7 +339,7 @@ describe("bibliographyPlugin integration", () => {
       v.dispatch({
         effects: bibDataEffect.of({
           store,
-          cslProcessor: new CslProcessor([karger, stein, alpha, equationCollision]),
+          formatter: new CslProcessor([karger, stein, alpha, equationCollision]),
         }),
       });
     }
@@ -531,10 +531,10 @@ describe("bibliographyPlugin integration", () => {
       ]);
 
       view = createBibView("See [@karger2000].", false);
-      view.dispatch({ effects: bibDataEffect.of({ store, cslProcessor: firstProcessor }) });
+      view.dispatch({ effects: bibDataEffect.of({ store, formatter: firstProcessor }) });
       expect(firstSpy).toHaveBeenCalledTimes(1);
 
-      view.dispatch({ effects: bibDataEffect.of({ store, cslProcessor: secondProcessor }) });
+      view.dispatch({ effects: bibDataEffect.of({ store, formatter: secondProcessor }) });
 
       expect(secondSpy).toHaveBeenCalledTimes(1);
       expect(view.dom.querySelector(`.${CSS.bibliographyEntry}`)?.textContent).toContain("Second processor");
@@ -545,13 +545,13 @@ describe("bibliographyPlugin integration", () => {
       const processor = await CslProcessor.create([karger, stein, alpha]);
 
       view = createBibView(doc, false);
-      view.dispatch({ effects: bibDataEffect.of({ store, cslProcessor: processor }) });
+      view.dispatch({ effects: bibDataEffect.of({ store, formatter: processor }) });
       expect(view.dom.querySelector(`.${CSS.bibliographyEntry} .csl-left-margin`)?.textContent).toBe("[1]");
 
       await processor.setStyle("<style>invalid</style>");
       view.dispatch({ selection: { anchor: 1 } });
 
-      expect(view.state.field(bibDataField).processorRevision).toBe(processor.revision);
+      expect(view.state.field(bibDataField).formatterRevision).toBe(processor.revision);
       const fallbackEntry = view.dom.querySelector(`.${CSS.bibliographyEntry}`);
       expect(fallbackEntry?.querySelector(".csl-left-margin")).toBeNull();
       expect(fallbackEntry?.textContent).toContain("[1] Karger, David R..");
@@ -559,7 +559,7 @@ describe("bibliographyPlugin integration", () => {
       await processor.setStyle(defaultCslStyle);
       view.dispatch({ selection: { anchor: 0 } });
 
-      expect(view.state.field(bibDataField).processorRevision).toBe(processor.revision);
+      expect(view.state.field(bibDataField).formatterRevision).toBe(processor.revision);
       expect(view.dom.querySelector(`.${CSS.bibliographyEntry} .csl-left-margin`)?.textContent).toBe("[1]");
     });
 
@@ -586,7 +586,7 @@ describe("bibliographyPlugin integration", () => {
       });
 
       view.dispatch({
-        effects: bibDataEffect.of({ store: sortedStore, cslProcessor: processor }),
+        effects: bibDataEffect.of({ store: sortedStore, formatter: processor }),
       });
 
       const entries = [...view.dom.querySelectorAll<HTMLElement>(`.${CSS.bibliographyEntry}`)];

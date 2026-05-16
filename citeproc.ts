@@ -3,14 +3,35 @@
  *
  * The main editor entry no longer ships citation-js / CSL processing in its
  * bundle. Hosts that want classic CSL-formatted citations import the symbols
- * below to parse `.bib` files and build a `RefResolver` that the editor's
- * `documentContextFacet` consumes.
+ * below to parse `.bib` files, build a `CslProcessor`, and attach it to the
+ * editor as a `CitationFormatter` via `documentContextFacet` or the
+ * `bibDataEffect` state effect.
  *
- * Public surface: just enough to (a) parse BibTeX into CSL-JSON, (b) format
- * a citation given a key + mode, (c) bridge into the existing internal bib
- * state for hosts still wiring the legacy bibliography render path during
- * the 0.2 transition.
+ * Minimal example:
+ *
+ * ```ts
+ * import { mountEditor } from "@chaoxu/coflat-editor";
+ * import {
+ *   parseBibTeX,
+ *   CslProcessor,
+ *   createCslCitationFormatter,
+ *   bibDataEffect,
+ * } from "@chaoxu/coflat-editor/citeproc";
+ *
+ * const items = parseBibTeX(await fetch("refs.bib").then((r) => r.text()));
+ * const processor = await CslProcessor.create(items);
+ * const editor = mountEditor({ parent: el });
+ * editor.view.dispatch({
+ *   effects: bibDataEffect.of({
+ *     store: new Map(items.map((i) => [i.id, i])),
+ *     formatter: createCslCitationFormatter(processor),
+ *   }),
+ * });
+ * ```
  */
+
+import type { CitationFormatter } from "./src/document-context";
+import { CslProcessor } from "./src/citations/csl-processor";
 
 export {
   CslProcessor,
@@ -36,7 +57,8 @@ export {
 
 // Bridge for hosts that still want the editor's internal bibliography
 // StateField (will be removed in a follow-up once cosheaf migrates to a pure
-// RefResolver). Lets a host populate the field with a CslProcessor it owns.
+// RefResolver). Lets a host populate the field with a CslProcessor it owns,
+// wrapped in a `CitationFormatter`.
 export {
   bibDataField,
   bibDataEffect,
@@ -44,3 +66,25 @@ export {
   type BibliographyStatus,
   type BibliographyFailureKind,
 } from "./src/state/bib-data";
+
+export type { CitationFormatter } from "./src/document-context";
+
+/**
+ * Wrap a `CslProcessor` so it satisfies the `CitationFormatter` contract
+ * consumed by the main editor bundle. The processor is owned by the caller;
+ * its lifetime is independent of the editor's.
+ */
+export function createCslCitationFormatter(processor: CslProcessor): CitationFormatter {
+  return {
+    cite: (ids, locators) => processor.cite([...ids], [...locators]),
+    citeNarrative: (id) => processor.citeNarrative(id),
+    bibliographyEntries: (citedIds) => processor.bibliographyEntries(citedIds),
+    registerCitations: (clusters) => processor.registerCitations(clusters),
+    get citationRegistrationKey() {
+      return processor.citationRegistrationKey;
+    },
+    get revision() {
+      return processor.revision;
+    },
+  };
+}

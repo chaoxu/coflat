@@ -172,14 +172,14 @@ describe("collectReferenceRanges (clusters)", () => {
     const doc = "See [@karger2000] and [@stein2001].";
     const processor = await CslProcessor.create([karger, stein]);
     view = createView(doc, doc.length);
-    view.dispatch({ effects: bibDataEffect.of({ store, cslProcessor: processor }) });
+    view.dispatch({ effects: bibDataEffect.of({ store, formatter: processor }) });
 
     collectReferenceRanges(view, store);
 
     const preview = document.createElement("div");
     renderPreviewBlockContentToDom(preview, "Preview [@karger2000].", {
       bibliography: store,
-      cslProcessor: processor,
+      formatter: processor,
     });
 
     const ranges = collectReferenceRanges(view, store);
@@ -223,7 +223,7 @@ describe("collectReferenceRanges (clusters)", () => {
     // Needs an initialized CSL engine so cite() returns formatted text
     const processor = await CslProcessor.create([karger, stein]);
     view = createView(doc, doc.length);
-    view.dispatch({ effects: bibDataEffect.of({ store, cslProcessor: processor }) });
+    view.dispatch({ effects: bibDataEffect.of({ store, formatter: processor }) });
     const ranges = collectReferenceRanges(view, store);
 
     const ref = ranges.find(
@@ -284,7 +284,7 @@ describe("collectReferenceRanges (clusters)", () => {
     view.dispatch({
       effects: bibDataEffect.of({
         store,
-        cslProcessor: editorProcessor,
+        formatter: editorProcessor,
       }),
     });
 
@@ -300,7 +300,7 @@ describe("collectReferenceRanges (clusters)", () => {
     const preview = document.createElement("div");
     renderPreviewBlockContentToDom(preview, doc, {
       bibliography: store,
-      cslProcessor: previewProcessor,
+      formatter: previewProcessor,
     });
 
     expect(preview.querySelector(`.${CSS.citation}`)?.textContent).toBe(widgetText);

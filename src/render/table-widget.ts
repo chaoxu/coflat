@@ -130,11 +130,11 @@ export class TableWidget extends ShellWidget implements
     if (!analysis || !bibliography) {
       return undefined;
     }
-    const { store, cslProcessor } = bibliography;
-    ensureEditorReferencePresentationCitationsRegistered(analysis, store, cslProcessor);
+    const { store, formatter } = bibliography;
+    ensureEditorReferencePresentationCitationsRegistered(analysis, store, formatter);
     return createEditorReferencePresentationController(rootView.state, {
       store,
-      cslProcessor,
+      formatter,
     });
   }
 
