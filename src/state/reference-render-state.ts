@@ -341,7 +341,6 @@ export function getReferenceRenderDependencySignature(
     getObjectIdentityId(store as object),
     getObjectIdentityId(formatter as object | null),
     formatterRevision,
-    formatter?.citationRegistrationKey ?? "",
     getObjectIdentityId(pluginRegistry),
   ].join("\u0001");
 }

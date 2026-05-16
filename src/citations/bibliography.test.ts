@@ -25,7 +25,7 @@ import {
   bibliographyDependenciesChanged,
   buildBibliographyDecorations,
   bibliographyPlugin,
-} from "../render/bibliography-render";
+} from "../citeproc-internal/bibliography-render";
 import { destroyFloatingTooltip } from "../render/hover-tooltip";
 import { bibDataEffect, bibDataField } from "../state/bib-data";
 import { documentSemanticsField } from "../state/document-analysis";

@@ -30,8 +30,11 @@
  * ```
  */
 
-import type { CitationFormatter } from "./src/document-context";
+import type { BibliographyFormatter } from "./src/citeproc-internal/bibliography-formatter";
 import { CslProcessor } from "./src/citations/csl-processor";
+
+export type { BibliographyFormatter } from "./src/citeproc-internal/bibliography-formatter";
+export { bibliographyRenderExtension } from "./src/citeproc-internal/bibliography-render";
 
 export {
   CslProcessor,
@@ -70,11 +73,13 @@ export {
 export type { CitationFormatter } from "./src/document-context";
 
 /**
- * Wrap a `CslProcessor` so it satisfies the `CitationFormatter` contract
- * consumed by the main editor bundle. The processor is owned by the caller;
- * its lifetime is independent of the editor's.
+ * Wrap a `CslProcessor` so it satisfies the `BibliographyFormatter` contract
+ * consumed by the citeproc bibliography render extension (and, by
+ * inheritance, the narrow `CitationFormatter` shape the main editor bundle
+ * stores in `BibData`). The processor is owned by the caller; its lifetime is
+ * independent of the editor's.
  */
-export function createCslCitationFormatter(processor: CslProcessor): CitationFormatter {
+export function createCslCitationFormatter(processor: CslProcessor): BibliographyFormatter {
   return {
     cite: (ids, locators) => processor.cite([...ids], [...locators]),
     citeNarrative: (id) => processor.citeNarrative(id),

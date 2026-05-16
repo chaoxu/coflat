@@ -21,6 +21,7 @@ import {
 import { createTestView, makeBibStore, makeBlockPlugin } from "../test-utils";
 import { focusEffect } from "./focus-state";
 import { referenceRenderPlugin } from "./reference-render";
+import { bibliographyPlugin } from "../citeproc-internal/bibliography-render";
 
 export const testPlugins: readonly BlockPlugin[] = [
   makeBlockPlugin({ name: "theorem", counter: "theorem", title: "Theorem" }),
@@ -61,6 +62,7 @@ export function createView(doc: string, cursorPos?: number, focus = true): Edito
       createPluginRegistryField(testPlugins),
       blockCounterField,
       bibDataField,
+      bibliographyPlugin,
     ],
   });
   view.dispatch({ effects: bibDataEffect.of({ store, formatter: new CslProcessor([karger, stein]) }) });
@@ -85,6 +87,7 @@ export function createPluginView(doc: string, cursorPos?: number, focus = true):
       blockCounterField,
       bibDataField,
       referenceRenderPlugin,
+      bibliographyPlugin,
     ],
   });
   view.dispatch({ effects: bibDataEffect.of({ store, formatter: new CslProcessor([karger, stein]) }) });
