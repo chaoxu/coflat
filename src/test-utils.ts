@@ -1,8 +1,8 @@
-import { expect, vi } from "vitest";
+import { vi } from "vitest";
 import { ensureSyntaxTree } from "@codemirror/language";
 import { EditorState, type Extension, type StateEffect } from "@codemirror/state";
 import { EditorView, type DecorationSet } from "@codemirror/view";
-import type { Parser, Tree } from "@lezer/common";
+import type { Tree } from "@lezer/common";
 import type { BlockPlugin } from "./plugins/plugin-types";
 import type { CslJsonItem } from "./core/citations/csl-json";
 import type { BibStore } from "./state/bib-data";
@@ -85,46 +85,15 @@ export function installLocalStorageMock(): { clear: () => void } {
   return { clear: () => storage.clear() };
 }
 
-export interface NodeInfo {
-  readonly name: string;
-  readonly from: number;
-  readonly to: number;
-  readonly text: string;
-}
-
-export function parseNodeNames(text: string, parser: Parser): string[] {
-  const tree = parser.parse(text);
-  const names: string[] = [];
-  tree.iterate({
-    enter(node) {
-      names.push(node.name);
-    },
-  });
-  return names;
-}
-
-export function parseNodeInfos(text: string, parser: Parser): NodeInfo[] {
-  const tree = parser.parse(text);
-  const infos: NodeInfo[] = [];
-  tree.iterate({
-    enter(node) {
-      infos.push({
-        name: node.name,
-        from: node.from,
-        to: node.to,
-        text: text.slice(node.from, node.to),
-      });
-    },
-  });
-  return infos;
-}
-
-export function findNodeInfo(infos: readonly NodeInfo[], name: string): NodeInfo {
-  const node = infos.find((candidate) => candidate.name === name);
-  expect(node, `expected to find node "${name}"`).toBeDefined();
-  if (!node) throw new Error(`unreachable: node "${name}" not found`);
-  return node;
-}
+// Pure parser-test helpers live in core/test-utils so core/ tests can use
+// them without violating the layer rule. Re-exported here for callers that
+// pull everything from this barrel.
+export {
+  parseNodeNames,
+  parseNodeInfos,
+  findNodeInfo,
+  type NodeInfo,
+} from "./core/test-utils";
 
 export function createEditorState(
   doc: string,

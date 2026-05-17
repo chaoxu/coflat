@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 // Enforce the three-layer dependency rule inside src/:
 //
-//   core/    → pure: no codemirror, no react, no dompurify, no katex,
-//              no reader/, no editor/, no top-level src/* that bypasses
-//              the layer (e.g. importing from "../editor/...").
-//   reader/  → may depend on core/; no codemirror, no react; katex must be
-//              dynamic import only (no top-level `import "katex"`).
-//   editor/  → unrestricted.
+//   core/    → pure: no codemirror, no react, no dompurify, no katex.
+//              May only relative-import within core/.
+//   reader/  → no codemirror, no react. May relative-import within reader/
+//              or to core/. katex must be dynamic import only.
+//   editor/  → unrestricted. Anything in src/ that is NOT in core/ or reader/
+//              is treated as editor-layer.
 //
 // Runs over .ts/.tsx files only. .test.* files in core/ and reader/ obey the
 // same rule (tests for pure code should be pure too).
@@ -16,25 +16,29 @@
 // promise, not just a runtime concern.
 
 import { readdirSync, readFileSync, statSync } from "node:fs";
-import { join, relative } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
 
 const ROOT = new URL("../", import.meta.url).pathname;
 const SRC = join(ROOT, "src");
 
+// For relative-path enforcement: core/ files may only relative-import
+// within core/; reader/ files only within reader/ or to core/. The check is
+// done by resolving the relative path against the file's directory and
+// verifying it lands inside one of the allowed roots.
 const FORBIDDEN_BY_LAYER = {
   core: {
     pkgs: [/^@codemirror\//, /^react$/, /^react-dom(\/|$)/, /^dompurify$/, /^katex(\/|$)/],
-    relativeBlocks: [/^\.\.?\/reader(\/|$)/, /^\.\.?\/editor(\/|$)/],
+    allowedRelativeRoots: ["core"],
   },
   reader: {
     pkgs: [/^@codemirror\//, /^react$/, /^react-dom(\/|$)/],
-    relativeBlocks: [/^\.\.?\/editor(\/|$)/],
+    allowedRelativeRoots: ["core", "reader"],
     // katex must be dynamic — top-level static import is a violation.
     staticOnly: [/^katex(\/|$)/],
   },
   editor: {
     pkgs: [],
-    relativeBlocks: [],
+    allowedRelativeRoots: null, // unrestricted
   },
 };
 
@@ -54,10 +58,22 @@ function walk(dir) {
 
 function layerOf(absPath) {
   const rel = relative(SRC, absPath);
-  if (rel.startsWith("core/") || rel === "core" || rel.startsWith("core" + "/")) return "core";
+  if (rel.startsWith("core/") || rel === "core") return "core";
   if (rel.startsWith("reader/") || rel === "reader") return "reader";
-  if (rel.startsWith("editor/") || rel === "editor") return "editor";
-  return null;
+  // Everything else inside src/ is implicitly editor-layer.
+  return "editor";
+}
+
+// Resolve a relative import against the importing file's directory, and
+// return which top-level src/ subtree (e.g. "core", "reader", "render") the
+// resolved file lives in. Returns null for imports that escape src/.
+function resolveRelativeRoot(fromFile, spec) {
+  const dir = dirname(fromFile);
+  const resolved = resolve(dir, spec);
+  const relFromSrc = relative(SRC, resolved);
+  if (relFromSrc.startsWith("..")) return null;
+  const root = relFromSrc.split("/")[0];
+  return root || "."; // "." for imports that land at src/ itself
 }
 
 function checkFile(absPath, layer) {
@@ -71,10 +87,19 @@ function checkFile(absPath, layer) {
   const dynamicImports = [];
   for (const m of src.matchAll(DYNAMIC_RE)) dynamicImports.push(m[1]);
 
+  const allowedRoots = rules.allowedRelativeRoots;
+
   for (const spec of staticImports) {
     if (spec.startsWith(".")) {
-      for (const re of rules.relativeBlocks ?? []) {
-        if (re.test(spec)) violations.push(`forbidden relative import: ${spec}`);
+      if (allowedRoots !== null && allowedRoots !== undefined) {
+        const root = resolveRelativeRoot(absPath, spec);
+        if (root === null) {
+          violations.push(`relative import escapes src/: ${spec}`);
+        } else if (!allowedRoots.includes(root)) {
+          violations.push(
+            `relative import to forbidden subtree (${root}/): ${spec} — ${layer}/ may only relative-import within ${allowedRoots.join("/")}/`,
+          );
+        }
       }
       continue;
     }
@@ -86,11 +111,19 @@ function checkFile(absPath, layer) {
     }
   }
 
-  // Dynamic imports get the relaxed treatment (e.g. reader's katex).
+  // Dynamic imports: relative same rules; packages drop the staticOnly rule
+  // (the whole point of dynamic is to allow katex).
   for (const spec of dynamicImports) {
     if (spec.startsWith(".")) {
-      for (const re of rules.relativeBlocks ?? []) {
-        if (re.test(spec)) violations.push(`forbidden dynamic relative import: ${spec}`);
+      if (allowedRoots !== null && allowedRoots !== undefined) {
+        const root = resolveRelativeRoot(absPath, spec);
+        if (root === null) {
+          violations.push(`dynamic relative import escapes src/: ${spec}`);
+        } else if (!allowedRoots.includes(root)) {
+          violations.push(
+            `dynamic relative import to forbidden subtree (${root}/): ${spec}`,
+          );
+        }
       }
       continue;
     }
@@ -105,7 +138,6 @@ function checkFile(absPath, layer) {
 let bad = 0;
 for (const file of walk(SRC)) {
   const layer = layerOf(file);
-  if (!layer) continue;
   const violations = checkFile(file, layer);
   if (violations.length > 0) {
     bad++;

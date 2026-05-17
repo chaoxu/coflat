@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import { fencedDiv, findFencedDivOpenerTrailingContent } from "./fenced-div";
 import { markdownExtensions } from "./index";
-import { findNodeInfo, parseNodeInfos, parseNodeNames, type NodeInfo } from "../../test-utils";
+import { findNodeInfo, parseNodeInfos, parseNodeNames, type NodeInfo } from "../test-utils";
 
 const fencedDivParser = parser.configure(fencedDiv);
 
