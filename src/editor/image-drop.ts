@@ -8,7 +8,7 @@
  *
  * Usage:
  *   ```ts
- *   import { imageDropExtension } from "../editor/image-drop";
+ *   import { imageDropExtension } from "./image-drop";
  *
  *   createEditor({
  *     extensions: [imageDropExtension({ saveImage })],

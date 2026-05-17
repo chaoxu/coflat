@@ -26,12 +26,12 @@ import {
   unfoldEffect,
   foldedRanges,
 } from "@codemirror/language";
-import { buildDecorations, RenderWidget } from "../render/render-core";
-import type { HeadingSemantics } from "../semantics/document";
+import { buildDecorations, RenderWidget } from "./render/render-core";
+import type { HeadingSemantics } from "./semantics/document";
 import {
   documentSemanticsField,
   getDocumentAnalysisSliceRevision,
-} from "../state/document-analysis";
+} from "./state/document-analysis";
 
 interface HeadingFoldSection {
   readonly headingFrom: number;

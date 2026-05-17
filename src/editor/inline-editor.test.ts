@@ -20,14 +20,14 @@ import {
   sharedInlineRenderExtensions,
 } from "./base-editor-extensions";
 import { createInlineEditor } from "./inline-editor";
-import { bibDataField } from "../state/bib-data";
-import { documentAnalysisField } from "../state/document-analysis";
-import { referenceRenderPlugin } from "../render/reference-render";
+import { bibDataField } from "./state/bib-data";
+import { documentAnalysisField } from "./state/document-analysis";
+import { referenceRenderPlugin } from "./render/reference-render";
 import { CSS } from "../core/constants/css-classes";
 import { CSL_FIXTURES, makeBibStore } from "../test-utils";
-import { CslProcessor } from "../citations/csl-processor";
-import { frontmatterField } from "../state/frontmatter-state";
-import type { DocumentReferenceCatalog } from "../semantics/reference-catalog";
+import { CslProcessor } from "./citations/csl-processor";
+import { frontmatterField } from "./state/frontmatter-state";
+import type { DocumentReferenceCatalog } from "./semantics/reference-catalog";
 
 // jsdom lacks ResizeObserver — provide a no-op stub.
 class ResizeObserverStub {

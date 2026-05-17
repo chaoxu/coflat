@@ -1,4 +1,4 @@
-import { recordDebugSessionEvent } from "../debug/session-recorder";
+import { recordDebugSessionEvent } from "./debug/session-recorder";
 import { type EditorView } from "@codemirror/view";
 
 export interface DebugTimelineEvent {

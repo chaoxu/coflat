@@ -19,7 +19,7 @@ export {
 export {
   frontmatterField,
   type FrontmatterState,
-} from "../state/frontmatter-state";
+} from "./state/frontmatter-state";
 export {
   frontmatterDecoration,
 } from "./frontmatter-render";

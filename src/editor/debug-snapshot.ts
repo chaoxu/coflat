@@ -1,14 +1,14 @@
 import { syntaxTree } from "@codemirror/language";
 import type { EditorView } from "@codemirror/view";
-import { getClosingFenceRanges } from "../plugins/fence-protection";
+import { getClosingFenceRanges } from "./plugins/fence-protection";
 import {
   documentAnalysisField,
   getDocumentAnalysisRevisionInfo,
-} from "../state/document-analysis";
+} from "./state/document-analysis";
 import {
   getActiveStructureEditTarget,
   type StructureEditTarget,
-} from "../state/cm-structure-edit";
+} from "./state/cm-structure-edit";
 import type {
   DebugRenderState,
   SelectionInfo,

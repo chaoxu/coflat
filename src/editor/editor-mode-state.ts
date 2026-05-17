@@ -2,7 +2,7 @@ import { syntaxHighlighting } from "@codemirror/language";
 import { StateEffect, StateField } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { classHighlighter } from "@lezer/highlight";
-import { cm6RichRenderExtensions } from "../render/cm6-rich-render-extensions";
+import { cm6RichRenderExtensions } from "./render/cm6-rich-render-extensions";
 import {
   editableCompartment,
   modeClassCompartment,

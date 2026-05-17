@@ -1,15 +1,15 @@
 import { EditorSelection, type EditorState, type SelectionRange } from "@codemirror/state";
 import { type EditorView } from "@codemirror/view";
-import { type TableRange } from "../state/table-discovery";
+import { type TableRange } from "./state/table-discovery";
 import {
   activateStructureEditAt,
   activateStructureEditTarget,
   clearStructureEditTarget,
   createStructureEditTargetAt,
   getActiveStructureEditTarget,
-} from "../state/cm-structure-edit";
-import { getClosingFenceRanges } from "../plugins/fence-protection";
-import { dispatchWidgetKeyboardEntry } from "../state/widget-keyboard-entry";
+} from "./state/cm-structure-edit";
+import { getClosingFenceRanges } from "./plugins/fence-protection";
+import { dispatchWidgetKeyboardEntry } from "./state/widget-keyboard-entry";
 import { type HiddenWidgetStop } from "./widget-stop-index";
 import { requestSelectionVisibility } from "./vertical-motion-scroll";
 

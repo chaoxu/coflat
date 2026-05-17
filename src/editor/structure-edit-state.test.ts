@@ -3,9 +3,9 @@ import { EditorState } from "@codemirror/state";
 import { describe, expect, it } from "vitest";
 
 import { markdownExtensions } from "../core/parser";
-import { documentSemanticsField } from "../state/document-analysis";
+import { documentSemanticsField } from "./state/document-analysis";
 import { applyStateEffects } from "../test-utils";
-import { frontmatterField } from "../state/frontmatter-state";
+import { frontmatterField } from "./state/frontmatter-state";
 import { programmaticDocumentChangeAnnotation } from "./programmatic-document-change";
 import {
   activeStructureEditField,
@@ -13,7 +13,7 @@ import {
   createStructureEditTargetAt,
   getActiveStructureEditTarget,
   setStructureEditTargetEffect,
-} from "../state/cm-structure-edit";
+} from "./state/cm-structure-edit";
 
 function createState(doc: string): EditorState {
   return EditorState.create({

@@ -3,9 +3,9 @@ import { ensureSyntaxTree } from "@codemirror/language";
 import { EditorState, type Extension, type StateEffect } from "@codemirror/state";
 import { EditorView, type DecorationSet } from "@codemirror/view";
 import type { Tree } from "@lezer/common";
-import type { BlockPlugin } from "./plugins/plugin-types";
+import type { BlockPlugin } from "./editor/plugins/plugin-types";
 import type { CslJsonItem } from "./core/citations/csl-json";
-import type { BibStore } from "./state/bib-data";
+import type { BibStore } from "./editor/state/bib-data";
 
 // ── CslJsonItem fixture factory ───────────────────────────────────────────────
 

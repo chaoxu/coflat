@@ -46,7 +46,7 @@ export * from "./find-replace-controller";
 export {
   collectVisibleSearchMatches,
   type SearchMatchRange,
-} from "../search/search-matches";
+} from "./search/search-matches";
 
 // ===========================================================================
 // Toggle button helper

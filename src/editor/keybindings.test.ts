@@ -2,13 +2,13 @@ import { describe, expect, it, afterEach } from "vitest";
 import { markdown } from "@codemirror/lang-markdown";
 import type { EditorView } from "@codemirror/view";
 import { markdownExtensions } from "../core/parser";
-import { fenceProtectionExtension } from "../plugins/fence-protection";
-import { blockCounterField } from "../state/block-counter";
-import { createPluginRegistryField } from "../state/plugin-registry";
-import { _blockDecorationFieldForTest as blockDecorationField } from "../render/plugin-render";
-import { documentSemanticsField } from "../state/document-analysis";
-import { editorFocusField } from "../render/render-core";
-import { mathMacrosField } from "../state/math-macros";
+import { fenceProtectionExtension } from "./plugins/fence-protection";
+import { blockCounterField } from "./state/block-counter";
+import { createPluginRegistryField } from "./state/plugin-registry";
+import { _blockDecorationFieldForTest as blockDecorationField } from "./render/plugin-render";
+import { documentSemanticsField } from "./state/document-analysis";
+import { editorFocusField } from "./render/render-core";
+import { mathMacrosField } from "./state/math-macros";
 import {
   exitCurrentBlockBelow,
   moveDownAcrossNestedClosingFences,
@@ -18,8 +18,8 @@ import {
 import {
   activeStructureEditField,
   activateStructureEditAt,
-} from "../state/cm-structure-edit";
-import { frontmatterField } from "../state/frontmatter-state";
+} from "./state/cm-structure-edit";
+import { frontmatterField } from "./state/frontmatter-state";
 import { createTestView, makeBlockPlugin } from "../test-utils";
 
 /**

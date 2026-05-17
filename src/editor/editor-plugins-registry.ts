@@ -1,7 +1,7 @@
 import type { EditorPlugin } from "./editor-plugin";
-import { focusModeExtension } from "../render/focus-mode";
-import { debugInspectorPlugin } from "../render/debug-inspector";
-import { hoverPreviewExtension } from "../render/hover-preview";
+import { focusModeExtension } from "./render/focus-mode";
+import { debugInspectorPlugin } from "./render/debug-inspector";
+import { hoverPreviewExtension } from "./render/hover-preview";
 import { spellcheckExtension } from "./spellcheck";
 import { findReplaceExtension } from "./find-replace";
 import {

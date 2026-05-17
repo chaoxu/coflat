@@ -1,1 +1,1 @@
-export { programmaticDocumentChangeAnnotation } from "../state/programmatic-document-change";
+export { programmaticDocumentChangeAnnotation } from "./state/programmatic-document-change";

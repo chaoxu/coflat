@@ -11,7 +11,7 @@
  *
  * Usage:
  *   ```ts
- *   import { imagePasteExtension } from "../editor/image-paste";
+ *   import { imagePasteExtension } from "./image-paste";
  *
  *   createEditor({
  *     extensions: [imagePasteExtension()],

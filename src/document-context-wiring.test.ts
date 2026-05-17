@@ -7,13 +7,13 @@ import {
   type RefResolver,
 } from "./document-context";
 import { documentPathFacet } from "./lib/types";
-import { isBareDocumentAnchor } from "./render/link-handler";
-import { planReferenceRendering } from "./render/reference-render";
+import { isBareDocumentAnchor } from "./editor/render/link-handler";
+import { planReferenceRendering } from "./editor/render/reference-render";
 import {
   createView,
   store,
-} from "./render/reference-render-test-utils";
-import { bibDataEffect, bibDataField } from "./state/bib-data";
+} from "./editor/render/reference-render-test-utils";
+import { bibDataEffect, bibDataField } from "./editor/state/bib-data";
 
 /**
  * Phase 0 chunk 2 wiring: with no host resolver, behavior is unchanged

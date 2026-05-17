@@ -31,7 +31,7 @@
  */
 
 import type { CitationFormatter } from "./src/document-context";
-import { CslProcessor } from "./src/citations/csl-processor";
+import { CslProcessor } from "./src/editor/citations/csl-processor";
 
 export {
   CslProcessor,
@@ -41,7 +41,7 @@ export {
   type CitationJsLoader,
   type CitationJsModules,
   setCitationJsLoaderForTest,
-} from "./src/citations/csl-processor";
+} from "./src/editor/citations/csl-processor";
 
 export {
   parseBibTeX,
@@ -65,7 +65,7 @@ export {
   type BibData,
   type BibliographyStatus,
   type BibliographyFailureKind,
-} from "./src/state/bib-data";
+} from "./src/editor/state/bib-data";
 
 export type { CitationFormatter } from "./src/document-context";
 

@@ -11,13 +11,13 @@ import type { EditorState, Extension } from "@codemirror/state";
 import { EditorView, type ViewUpdate } from "@codemirror/view";
 import {
   buildCitationPreviewContent,
-} from "../citations/citation-preview";
-import { bibDataEffect, bibDataField } from "../state/bib-data";
+} from "./citations/citation-preview";
+import { bibDataEffect, bibDataField } from "./state/bib-data";
 import { CSS } from "../core/constants/css-classes";
 import { findAncestor } from "../lib/syntax-tree-helpers";
-import { getReferencePresentationModel } from "../references/presentation";
-import { buildCrossrefCompletionPreviewContent } from "../render/hover-preview";
-import { getEditorDocumentReferenceCatalog } from "../semantics/editor-reference-catalog";
+import { getReferencePresentationModel } from "./references/presentation";
+import { buildCrossrefCompletionPreviewContent } from "./render/hover-preview";
+import { getEditorDocumentReferenceCatalog } from "./semantics/editor-reference-catalog";
 
 const CROSSREF_SECTION = { name: "Cross-references", rank: 0 } as const;
 const CITATION_SECTION = { name: "Citations", rank: 1 } as const;

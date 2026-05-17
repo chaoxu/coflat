@@ -132,7 +132,7 @@ describe("renderToHtml — slow path (Lezer)", () => {
       fileSystem: {
         // Only resolveAssetUrl is invoked; other methods unused.
         resolveAssetUrl: (path: string) => `https://cdn/${path}`,
-      } as unknown as import("../src/lib/types").FileSystem,
+      } as unknown as import("./lib/types").FileSystem,
     };
     const r = renderToHtml("![alt text](logo.png)", ctx);
     expect(r.html).toContain('src="https://cdn/logo.png"');

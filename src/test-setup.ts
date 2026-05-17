@@ -2,7 +2,7 @@ import "@testing-library/jest-dom/vitest";
 import { cleanup } from "@testing-library/react";
 import fc from "fast-check";
 import { afterEach, beforeEach, vi } from "vitest";
-import { clearDocumentAnalysisCache } from "./semantics/incremental/cached-document-analysis";
+import { clearDocumentAnalysisCache } from "./editor/semantics/incremental/cached-document-analysis";
 import { destroyAllTestViews, installLocalStorageMock } from "./test-utils";
 
 const DEFAULT_FAST_CHECK_SEED = 439;

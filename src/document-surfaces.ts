@@ -1,5 +1,5 @@
 import type { InlineRenderSurface } from "./inline-surface";
-import { renderInlineMarkdown, type InlineReferenceRenderContext } from "./render/inline-render";
+import { renderInlineMarkdown, type InlineReferenceRenderContext } from "./editor/render/inline-render";
 
 export type DocumentSurfaceMode = InlineRenderSurface | "document-body";
 

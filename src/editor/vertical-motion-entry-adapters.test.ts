@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { createTestView } from "../test-utils";
-import type { TableRange } from "../state/table-discovery";
+import type { TableRange } from "./state/table-discovery";
 import { activateTableStop } from "./vertical-motion-entry-adapters";
 
 function tableRange(from: number, to: number, startLineNumber = 1): TableRange {

@@ -1,11 +1,11 @@
 import { parser as baseParser } from "@lezer/markdown";
 import type { SyntaxNode } from "@lezer/common";
 import { markdownExtensions } from "./core/parser";
-import { MARK_NODES } from "./render/render-core";
+import { MARK_NODES } from "./editor/render/render-core";
 import {
   matchBracketedReference,
   NARRATIVE_REFERENCE_RE,
-} from "./semantics/reference-parts";
+} from "./editor/semantics/reference-parts";
 
 const inlineParser = baseParser.configure(markdownExtensions);
 

@@ -1,13 +1,13 @@
 import { Transaction, type Extension, type Text } from "@codemirror/state";
 import { type EditorView, ViewPlugin, type ViewUpdate } from "@codemirror/view";
-import type { FencedDivInfo } from "../fenced-block/model";
+import type { FencedDivInfo } from "./fenced-block/model";
 import {
   editorElementFromPoint,
   editorHitTestSnapshot,
 } from "../lib/editor-hit-test";
-import { frontmatterField } from "../state/frontmatter-state";
-import { getDebugSessionRecorderStatus } from "../debug/session-recorder";
-import { activeShellPath, type CodeShellInfo } from "../state/shell-ownership";
+import { frontmatterField } from "./state/frontmatter-state";
+import { getDebugSessionRecorderStatus } from "./debug/session-recorder";
+import { activeShellPath, type CodeShellInfo } from "./state/shell-ownership";
 import {
   getShellSurfaceSnapshot,
   shellSurfaceUpdateEvent,

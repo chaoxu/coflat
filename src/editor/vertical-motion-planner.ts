@@ -1,4 +1,4 @@
-import { type TableRange } from "../state/table-discovery";
+import { type TableRange } from "./state/table-discovery";
 import {
   type HiddenWidgetStop,
   type WidgetStopIndex,

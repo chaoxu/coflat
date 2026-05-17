@@ -1,9 +1,11 @@
 {
   "name": "@chaoxu/coflat-editor",
   "version": "0.2.0",
-  "description": "Math-aware markdown editor library extracted from coflat — CM6 + Lezer + Typora-style ViewPlugins.",
+  "description": "Math-aware markdown editor library extracted from coflat \u2014 CM6 + Lezer + Typora-style ViewPlugins.",
   "type": "module",
-  "sideEffects": ["**/*.css"],
+  "sideEffects": [
+    "**/*.css"
+  ],
   "license": "MIT",
   "packageManager": "pnpm@10.33.0",
   "files": [
@@ -38,7 +40,7 @@
     "./style.css": "./dist/editor.css"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.editor.json && vite build --config vite.editor.config.ts && rsync -aR src/**/*.d.mts dist/ && rsync -aR src/**/*.d.ts dist/ && tsc -p tsconfig.test-utils.json && cp src/test-utils.ts dist/src/test-utils.ts",
+    "build": "tsc -p tsconfig.editor.json && vite build --config vite.editor.config.ts && find src -name '*.d.mts' -print0 | xargs -0 -I{} rsync -aR {} dist/ && find src -name '*.d.ts' -print0 | xargs -0 -I{} rsync -aR {} dist/ && tsc -p tsconfig.test-utils.json && cp src/test-utils.ts dist/src/test-utils.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "publint": "publint",

@@ -15,7 +15,7 @@ import { markdownExtensions } from "../core/parser";
 import { highlightExtension } from "../core/parser/highlight";
 import { mathExtension } from "../core/parser/math-backslash";
 import { strikethroughExtension } from "../core/parser/strikethrough";
-export { sharedInlineRenderExtensions } from "../render/inline-render-extensions";
+export { sharedInlineRenderExtensions } from "./render/inline-render-extensions";
 
 export const inlineMarkdownExtensions: MarkdownExtension[] = [
   mathExtension,

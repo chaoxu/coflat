@@ -1,10 +1,10 @@
 import type { EditorView } from "@codemirror/view";
 import { rangesOverlap } from "../lib/range-helpers";
-import { frontmatterField } from "../state/frontmatter-state";
+import { frontmatterField } from "./state/frontmatter-state";
 import {
   activeShellPath,
   isFrontmatterActive,
-} from "../state/shell-ownership";
+} from "./state/shell-ownership";
 
 export interface ShellSurfaceRect {
   readonly left: number;

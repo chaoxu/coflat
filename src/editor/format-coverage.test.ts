@@ -16,16 +16,16 @@ import { describe, expect, it } from "vitest";
 import {
   collectEquationLabels,
   resolveCrossref,
-} from "../index/crossref-resolver";
+} from "./index-helpers/crossref-resolver";
 import { markdownExtensions } from "../core/parser";
-import type { BlockPlugin } from "../plugins/plugin-types";
-import { editorFocusField } from "../render/render-core";
-import { blockCounterField } from "../state/block-counter";
-import { documentSemanticsField } from "../state/document-analysis";
-import { mathMacrosField } from "../state/math-macros";
-import { createPluginRegistryField } from "../state/plugin-registry";
+import type { BlockPlugin } from "./plugins/plugin-types";
+import { editorFocusField } from "./render/render-core";
+import { blockCounterField } from "./state/block-counter";
+import { documentSemanticsField } from "./state/document-analysis";
+import { mathMacrosField } from "./state/math-macros";
+import { createPluginRegistryField } from "./state/plugin-registry";
 import { createEditorState, makeBlockPlugin } from "../test-utils";
-import { frontmatterField } from "../state/frontmatter-state";
+import { frontmatterField } from "./state/frontmatter-state";
 
 // ── Test plugins (matching FORMAT.md built-in types) ─────────────────────────
 

@@ -30,7 +30,7 @@ import {
   activateStructureEditAt,
   clearStructureEditTarget,
   type StructureEditTarget,
-} from "../state/cm-structure-edit";
+} from "./state/cm-structure-edit";
 import {
   clearDebugTimelineEvents,
   type DebugTimelineEvent,

@@ -16,7 +16,7 @@ import type {
   CfDebugBridge,
   EditorDebugBridgeGlobal,
   TauriSmokeBridge,
-} from "../debug/debug-bridge-contract.js";
+} from "../editor/debug/debug-bridge-contract.js";
 
 declare global {
   interface Window {

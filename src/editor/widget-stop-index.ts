@@ -4,17 +4,17 @@ import { type EditorView, ViewPlugin } from "@codemirror/view";
 import {
   type TableRange,
   findTablesInState,
-} from "../state/table-discovery";
-import { documentAnalysisField } from "../state/document-analysis";
-import { frontmatterField } from "../state/frontmatter-state";
+} from "./state/table-discovery";
+import { documentAnalysisField } from "./state/document-analysis";
+import { frontmatterField } from "./state/frontmatter-state";
 import {
   isStandaloneImageLine,
   readMarkdownImageContent,
-} from "../state/markdown-image";
-import { collectFencedDivs } from "../fenced-block/model";
+} from "./state/markdown-image";
+import { collectFencedDivs } from "./fenced-block/model";
 import { mergeRanges, rangesOverlap } from "../lib/range-helpers";
-import { pluginRegistryField } from "../state/plugin-registry";
-import { getPluginOrFallback } from "../state/plugin-registry-core";
+import { pluginRegistryField } from "./state/plugin-registry";
+import { getPluginOrFallback } from "./state/plugin-registry-core";
 
 export type HiddenWidgetStopKind =
   | "frontmatter"

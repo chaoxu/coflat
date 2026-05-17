@@ -6,7 +6,7 @@ import {
   createStructureEditTargetAt,
   getActiveStructureEditTarget,
   structureEditTargetContainsPos,
-} from "../state/cm-structure-edit";
+} from "./state/cm-structure-edit";
 import {
   activateHiddenWidgetStop,
   activateTableStop,

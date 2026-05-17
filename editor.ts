@@ -14,7 +14,7 @@ import {
   type OutlineEntry,
   type ScrollToLineOptions,
   type ScrollToPositionOptions,
-} from "./src/headless/per-file-panels";
+} from "./src/editor/headless/per-file-panels";
 import { programmaticDocumentChangeAnnotation } from "./src/editor/programmatic-document-change";
 import {
   autocompleteSourcesFacet,
@@ -271,7 +271,7 @@ export {
 // shells which need fine-grained control (compartments, plugins, theme,
 // project config, etc.) can import them straight from this package.
 export * from "./src/editor";
-export * from "./src/headless/per-file-panels";
+export * from "./src/editor/headless/per-file-panels";
 
 // Kitchen-sink re-exports for the coflat shell, which reaches into many
 // editor-library submodules. Cosheaf only needs the standalone API above.
@@ -284,11 +284,11 @@ export * from "./src/core/constants";
 export * from "./src/core/constants/block-manifest";
 export * from "./src/core/constants/css-classes";
 export * from "./src/core/constants/events";
-export * from "./src/debug/debug-bridge-ready";
-export * from "./src/debug/editor-runtime-contract";
-export * from "./src/debug/session-recorder";
-export * from "./src/debug/tree-view-portal-context";
-export * from "./src/debug/debug-bridge-contract-types";
+export * from "./src/editor/debug/debug-bridge-ready";
+export * from "./src/editor/debug/editor-runtime-contract";
+export * from "./src/editor/debug/session-recorder";
+export * from "./src/editor/debug/tree-view-portal-context";
+export * from "./src/editor/debug/debug-bridge-contract-types";
 export * from "./src/editor-display-mode";
 export * from "./src/editor-host-api";
 export * from "./src/asset-uploader";
@@ -301,20 +301,20 @@ export * from "./src/inline-editor";
 export * from "./src/inline-fragments";
 export * from "./src/inline-surface";
 export * from "./src/preview-surface";
-export * from "./src/filesystem/file-system-context";
-// export * from "./src/render/reference-render-test-utils"; // test utils only, imports vitest
+export * from "./src/editor/filesystem/file-system-context";
+// export * from "./src/editor/render/reference-render-test-utils"; // test utils only, imports vitest
 // export * from "./src/test-utils"; // test utils only, imports vitest
-export * from "./src/semantics/document";
+export * from "./src/editor/semantics/document";
 export * from "./src/editor/debug-lane-state";
 export * from "./src/editor/editor-plugin-metadata";
 export * from "./src/editor/image-insert";
 export * from "./src/editor/programmatic-document-change";
 export * from "./src/editor/scroll-stability";
 export * from "./src/editor/theme-config";
-export * from "./src/index";
-export * from "./src/index/indexer";
-export * from "./src/index/query-api";
-export * from "./src/latex/index";
+export * from "./src/editor/index-helpers";
+export * from "./src/editor/index-helpers/indexer";
+export * from "./src/editor/index-helpers/query-api";
+export * from "./src/editor/latex/index";
 export * from "./src/lib/context-menu";
 export * from "./src/lib/debug-types";
 export * from "./src/lib/editor-document-diff";
@@ -339,27 +339,27 @@ export * from "./src/core/parser/fenced-div";
 export * from "./src/core/parser/footnote";
 export * from "./src/core/parser/frontmatter";
 export * from "./src/core/parser/math-backslash";
-export * from "./src/plugins";
-export * from "./src/plugins/plugin-types";
-export * from "./src/render";
-export * from "./src/render/image-url-cache";
-export * from "./src/render/inline-shared";
-export * from "./src/render/pdf-preview-cache";
-export * from "./src/render/render-core";
+export * from "./src/editor/plugins";
+export * from "./src/editor/plugins/plugin-types";
+export * from "./src/editor/render";
+export * from "./src/editor/render/image-url-cache";
+export * from "./src/editor/render/inline-shared";
+export * from "./src/editor/render/pdf-preview-cache";
+export * from "./src/editor/render/render-core";
 // ./src/search doesn't exist as a barrel
 // ./src/semantics/document covered above by re-export
-export * from "./src/semantics/document-label-backlinks";
-export * from "./src/semantics/document-label-rename";
-export * from "./src/semantics/heading-ancestry-types";
-export * from "./src/semantics/incremental/cached-document-analysis";
-export * from "./src/semantics/reference-catalog";
-export * from "./src/semantics/reference-conflicts";
-export * from "./src/state/bib-data";
-export * from "./src/state/block-counter";
-export * from "./src/state/change-detection";
-export * from "./src/state/dev-settings";
-export * from "./src/state/document-analysis";
-export * from "./src/state/document-label-graph";
-export * from "./src/state/frontmatter-state";
-export * from "./src/state/math-macros";
-export * from "./src/state/plugin-registry";
+export * from "./src/editor/semantics/document-label-backlinks";
+export * from "./src/editor/semantics/document-label-rename";
+export * from "./src/editor/semantics/heading-ancestry-types";
+export * from "./src/editor/semantics/incremental/cached-document-analysis";
+export * from "./src/editor/semantics/reference-catalog";
+export * from "./src/editor/semantics/reference-conflicts";
+export * from "./src/editor/state/bib-data";
+export * from "./src/editor/state/block-counter";
+export * from "./src/editor/state/change-detection";
+export * from "./src/editor/state/dev-settings";
+export * from "./src/editor/state/document-analysis";
+export * from "./src/editor/state/document-label-graph";
+export * from "./src/editor/state/frontmatter-state";
+export * from "./src/editor/state/math-macros";
+export * from "./src/editor/state/plugin-registry";

@@ -17,15 +17,15 @@ import {
   sharedInlineRenderExtensions,
 } from "./editor/base-editor-extensions";
 import { CSS } from "./core/constants/css-classes";
-import { referenceRenderPlugin } from "./render/reference-render";
-import { documentAnalysisField } from "./state/document-analysis";
-import { type BibData, bibDataEffect, bibDataField } from "./state/bib-data";
-import { frontmatterField } from "./state/frontmatter-state";
+import { referenceRenderPlugin } from "./editor/render/reference-render";
+import { documentAnalysisField } from "./editor/state/document-analysis";
+import { type BibData, bibDataEffect, bibDataField } from "./editor/state/bib-data";
+import { frontmatterField } from "./editor/state/frontmatter-state";
 import {
   externalDocumentReferenceCatalogField,
   setExternalDocumentReferenceCatalogEffect,
-} from "./semantics/editor-reference-catalog";
-import type { DocumentReferenceCatalog } from "./semantics/reference-catalog";
+} from "./editor/semantics/editor-reference-catalog";
+import type { DocumentReferenceCatalog } from "./editor/semantics/reference-catalog";
 
 /** Options for creating a lightweight inline editor. */
 export interface InlineEditorOptions {

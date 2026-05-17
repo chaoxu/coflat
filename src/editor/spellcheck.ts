@@ -21,11 +21,11 @@ import {
   type ViewUpdate,
   ViewPlugin,
 } from "@codemirror/view";
-import { collectNodes } from "../render/node-collection";
-import { buildDecorations } from "../render/decoration-core";
-import { createBooleanToggleField } from "../render/focus-state";
-import { MATH_TYPES } from "../render/math-source";
-import { documentAnalysisField } from "../state/document-analysis";
+import { collectNodes } from "./render/node-collection";
+import { buildDecorations } from "./render/decoration-core";
+import { createBooleanToggleField } from "./render/focus-state";
+import { MATH_TYPES } from "./render/math-source";
+import { documentAnalysisField } from "./state/document-analysis";
 
 // ---------------------------------------------------------------------------
 // Constants

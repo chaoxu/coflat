@@ -15,9 +15,9 @@ import {
   DOCUMENT_SURFACE_CLASS,
   documentSurfaceClassNames,
 } from "../core/document-surface-classes";
-import { defaultPlugins } from "../plugins";
-import { cm6RichRenderExtensions } from "../render/cm6-rich-render-extensions";
-import { coreDocumentStateExtensions } from "../state/document-state-extensions";
+import { defaultPlugins } from "./plugins";
+import { cm6RichRenderExtensions } from "./render/cm6-rich-render-extensions";
+import { coreDocumentStateExtensions } from "./state/document-state-extensions";
 import {
   createMarkdownLanguageExtensions,
   createProjectConfigExtensions,

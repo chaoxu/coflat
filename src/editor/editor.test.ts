@@ -7,14 +7,14 @@ import {
   markdownEditorModes,
   setEditorMode,
 } from "./editor";
-import { frontmatterField } from "../state/frontmatter-state";
-import { documentSemanticsField } from "../state/document-analysis";
-import { documentReferenceCatalogField } from "../semantics/editor-reference-catalog";
-import { blockCounterField } from "../state/block-counter";
-import { bibDataField } from "../state/bib-data";
-import { documentLabelGraphField } from "../state/document-label-graph";
-import { imageUrlField } from "../state/image-url";
-import { pdfPreviewField } from "../state/pdf-preview";
+import { frontmatterField } from "./state/frontmatter-state";
+import { documentSemanticsField } from "./state/document-analysis";
+import { documentReferenceCatalogField } from "./semantics/editor-reference-catalog";
+import { blockCounterField } from "./state/block-counter";
+import { bibDataField } from "./state/bib-data";
+import { documentLabelGraphField } from "./state/document-label-graph";
+import { imageUrlField } from "./state/image-url";
+import { pdfPreviewField } from "./state/pdf-preview";
 
 describe("createEditor", () => {
   it("creates an editor view attached to the given parent", () => {

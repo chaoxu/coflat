@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { TableRange } from "../state/table-discovery";
+import type { TableRange } from "./state/table-discovery";
 import type { HiddenWidgetStop, WidgetStopIndex } from "./widget-stop-index";
 import {
   planVerticalMotionStop,

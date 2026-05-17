@@ -21,9 +21,9 @@ import {
 import {
   registerPlugins,
   createRegistryState,
-} from "../plugins";
-import { frontmatterField } from "../state/frontmatter-state";
-import { createPluginRegistryField } from "../state/plugin-registry";
+} from "./plugins";
+import { frontmatterField } from "./state/frontmatter-state";
+import { createPluginRegistryField } from "./state/plugin-registry";
 import { createTestView, makeBlockPlugin } from "../test-utils";
 
 vi.mock("@floating-ui/dom", async () => {

@@ -12,14 +12,14 @@ import { MODE_CHANGE_EVENT } from "../core/constants/events";
 import {
   fenceOperationAnnotation,
   getClosingFenceRanges,
-} from "../plugins/fence-protection";
-import { toggleDebugInspector } from "../render/debug-inspector";
-import { toggleFocusMode } from "../render/focus-mode";
+} from "./plugins/fence-protection";
+import { toggleDebugInspector } from "./render/debug-inspector";
+import { toggleFocusMode } from "./render/focus-mode";
 import { editorModeField, markdownEditorModes, setEditorMode } from "./editor-mode-state";
 import {
   clearStructureEditTarget,
   getActiveStructureEditTarget,
-} from "../state/cm-structure-edit";
+} from "./state/cm-structure-edit";
 import { moveVerticallyInRichView } from "./vertical-motion";
 
 /** Cycle to the next editor mode. */

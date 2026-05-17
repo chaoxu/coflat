@@ -15,7 +15,7 @@ import {
   buildPointerSelection,
   isPlainPrimaryMouseEvent,
   type PointerSelectionTarget,
-} from "../state/mouse-selection";
+} from "./state/mouse-selection";
 
 function isRichLikeMode(view: EditorView): boolean {
   return !view.dom.classList.contains(CSS.sourceMode);
