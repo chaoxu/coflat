@@ -9,10 +9,10 @@
  */
 
 import type { BlockPlugin } from "./block-plugin";
-import type { BlockConfig } from "../parser/frontmatter";
+import type { BlockConfig } from "../core/parser/frontmatter";
 import { createBlockRender } from "./block-render";
 import { capitalize, pickDefined } from "../lib/utils";
-import { EXCLUDED_FROM_FALLBACK } from "../constants/block-manifest";
+import { EXCLUDED_FROM_FALLBACK } from "../core/constants/block-manifest";
 import {
   STANDARD_PLUGIN_METADATA_KEYS,
   createStandardPlugin,

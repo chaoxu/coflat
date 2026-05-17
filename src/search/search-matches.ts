@@ -1,7 +1,7 @@
 import { getSearchQuery, searchPanelOpen } from "@codemirror/search";
 import type { EditorView } from "@codemirror/view";
 
-import { SEARCH_CONTEXT_BUFFER } from "../constants";
+import { SEARCH_CONTEXT_BUFFER } from "../core/constants";
 
 export interface SearchMatchRange {
   readonly from: number;

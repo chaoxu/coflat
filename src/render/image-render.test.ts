@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { EditorView } from "@codemirror/view";
 import { markdown } from "@codemirror/lang-markdown";
-import { CSS } from "../constants/css-classes";
-import { IMAGE_PREVIEW_RESERVED_HEIGHT_PX } from "../constants/layout";
+import { CSS } from "../core/constants/css-classes";
+import { IMAGE_PREVIEW_RESERVED_HEIGHT_PX } from "../core/constants/layout";
 import {
   ImagePreviewWidget,
   _imageDecorationFieldForTest,

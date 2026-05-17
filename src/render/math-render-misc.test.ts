@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import katex from "katex";
 import { EditorView } from "@codemirror/view";
 import { parser as lezerParser } from "@lezer/markdown";
-import { CSS } from "../constants/css-classes";
+import { CSS } from "../core/constants/css-classes";
 import {
   MathWidget,
   _snapToTokenBoundary,
@@ -13,8 +13,8 @@ import {
   renderKatexToHtml,
   stripMathDelimiters,
 } from "./math-render";
-import { mathExtension } from "../parser/math-backslash";
-import { equationLabelExtension } from "../parser/equation-label";
+import { mathExtension } from "../core/parser/math-backslash";
+import { equationLabelExtension } from "../core/parser/equation-label";
 import { renderInlineMarkdown } from "./inline-render";
 import {
   createMathView,

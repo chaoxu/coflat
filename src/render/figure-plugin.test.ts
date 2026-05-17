@@ -1,7 +1,7 @@
 import { markdown } from "@codemirror/lang-markdown";
 import { describe, expect, it } from "vitest";
 import { frontmatterField } from "../state/frontmatter-state";
-import { fencedDiv } from "../parser/fenced-div";
+import { fencedDiv } from "../core/parser/fenced-div";
 import { defaultPlugins } from "../plugins/default-plugins";
 import { blockCounterField } from "../state/block-counter";
 import { documentSemanticsField } from "../state/document-analysis";

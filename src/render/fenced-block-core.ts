@@ -9,7 +9,7 @@ import {
 } from "./decoration-core";
 import { createDecorationsField } from "./decoration-field";
 import { editorFocusField, focusEffect } from "./focus-state";
-import { CSS } from "../constants/css-classes";
+import { CSS } from "../core/constants/css-classes";
 
 export { findFencedBlockAt, type FencedBlockInfo } from "../fenced-block/model";
 

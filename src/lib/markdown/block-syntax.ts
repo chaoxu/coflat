@@ -4,9 +4,9 @@ import {
   FENCED_DIV_START_RE,
   type SourceBlockRange,
 } from "./block-scanner";
-import { findMatchingBrace } from "../../parser/char-utils";
-import { parseFencedDivAttrs as parseCanonicalFencedDivAttrs } from "../../parser/fenced-div-attrs";
-import { parseBracedId } from "../../parser/label-utils";
+import { findMatchingBrace } from "../../core/parser/char-utils";
+import { parseFencedDivAttrs as parseCanonicalFencedDivAttrs } from "../../core/parser/fenced-div-attrs";
+import { parseBracedId } from "../../core/parser/label-utils";
 
 export interface FencedDivInfo {
   readonly blockType: string;

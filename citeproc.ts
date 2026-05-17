@@ -45,7 +45,7 @@ export {
 
 export {
   parseBibTeX,
-} from "./src/citations/bibtex-parser";
+} from "./src/core/citations/bibtex-parser";
 
 export {
   type CslJsonItem,
@@ -53,7 +53,7 @@ export {
   extractFirstFamilyName,
   extractYear,
   formatCslAuthors,
-} from "./src/citations/csl-json";
+} from "./src/core/citations/csl-json";
 
 // Bridge for hosts that still want the editor's internal bibliography
 // StateField (will be removed in a follow-up once cosheaf migrates to a pure

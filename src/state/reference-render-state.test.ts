@@ -2,9 +2,9 @@ import { afterEach, describe, expect, it } from "vitest";
 import { markdown } from "@codemirror/lang-markdown";
 import { EditorView } from "@codemirror/view";
 
-import { fencedDiv } from "../parser/fenced-div";
-import { mathExtension } from "../parser/math-backslash";
-import { equationLabelExtension } from "../parser/equation-label";
+import { fencedDiv } from "../core/parser/fenced-div";
+import { mathExtension } from "../core/parser/math-backslash";
+import { equationLabelExtension } from "../core/parser/equation-label";
 import { frontmatterField } from "./frontmatter-state";
 import { documentSemanticsField } from "./document-analysis";
 import { blockCounterField } from "./block-counter";

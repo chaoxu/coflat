@@ -14,7 +14,7 @@
 import { describe, expect, it } from "vitest";
 import { markdown } from "@codemirror/lang-markdown";
 import { EditorView } from "@codemirror/view";
-import { markdownExtensions } from "../parser";
+import { markdownExtensions } from "../core/parser";
 import {
   fenceOperationAnnotation,
   fenceProtectionExtension,

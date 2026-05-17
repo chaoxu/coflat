@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
-import { type CslJsonItem } from "./bibtex-parser";
+import { type CslJsonItem } from "../core/citations/bibtex-parser";
 import {
   CslProcessor,
   parseLocator,
   registerCitationsWithProcessor,
-} from "./csl-processor";
+} from "../citations/csl-processor";
 
 describe("parseLocator", () => {
   it("parses chapter abbreviation", () => {

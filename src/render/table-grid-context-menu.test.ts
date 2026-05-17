@@ -3,7 +3,7 @@ import { forceParsing } from "@codemirror/language";
 import type { EditorView } from "@codemirror/view";
 import { afterEach, describe, expect, it } from "vitest";
 import type { ContextMenuItem } from "../lib/context-menu";
-import { markdownExtensions } from "../parser";
+import { markdownExtensions } from "../core/parser";
 import { tableDiscoveryField } from "../state/table-discovery";
 import { createTestView } from "../test-utils";
 import { findCellBounds, findTablesInState, type TableRange } from "./table-discovery";

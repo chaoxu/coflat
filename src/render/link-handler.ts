@@ -1,9 +1,9 @@
 import { Decoration, type EditorView } from "@codemirror/view";
 
-import { CSS } from "../constants/css-classes";
+import { CSS } from "../core/constants/css-classes";
 import { documentContextFacet } from "../document-context";
 import { documentPathFacet } from "../lib/types";
-import { isSafeUrl } from "../lib/url-utils";
+import { isSafeUrl } from "../core/lib/url-utils";
 import { openExternalUrl } from "../lib/open-link";
 
 const maxLinkDecorationCacheSize = 256;

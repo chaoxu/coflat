@@ -2,7 +2,7 @@ import { markdown } from "@codemirror/lang-markdown";
 import { EditorState } from "@codemirror/state";
 import { describe, expect, it } from "vitest";
 
-import { markdownExtensions } from "../parser";
+import { markdownExtensions } from "../core/parser";
 import { documentSemanticsField } from "../state/document-analysis";
 import { applyStateEffects } from "../test-utils";
 import { frontmatterField } from "../state/frontmatter-state";

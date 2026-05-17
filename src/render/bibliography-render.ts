@@ -28,15 +28,15 @@ import {
   getCitationRegistrationKey,
 } from "../citations/citation-matching";
 import type { CitationFormatter } from "../document-context";
-import { type CslJsonItem } from "../citations/csl-json";
-import { CSS } from "../constants/css-classes";
+import { type CslJsonItem } from "../core/citations/csl-json";
+import { CSS } from "../core/constants/css-classes";
 import { sanitizeCslHtml } from "../lib/sanitize-csl-html";
 import { type BibStore, bibDataEffect, bibDataField } from "../state/bib-data";
 import {
   documentAnalysisField,
 } from "../state/document-analysis";
 import { mathMacrosField } from "../state/math-macros";
-import { HOVER_DELAY_MS } from "../constants";
+import { HOVER_DELAY_MS } from "../core/constants";
 import { createPreviewSurfaceBody } from "../preview-surface";
 import { renderPreviewBlockContentToDom } from "./preview-block-renderer";
 import { buildPreviewBlockOptions } from "./hover-preview-block-options";

@@ -2,7 +2,7 @@ import type { Tree } from "@lezer/common";
 import {
   extractRawFrontmatter,
   parseFrontmatter,
-} from "../parser/frontmatter";
+} from "../core/parser/frontmatter";
 import { parse as parseYaml } from "yaml";
 import type { DocumentAnalysis, TextSource } from "../semantics/document-model";
 import {

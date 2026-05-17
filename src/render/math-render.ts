@@ -8,7 +8,7 @@ import {
   type DecorationSet,
   EditorView,
 } from "@codemirror/view";
-import { CSS } from "../constants/css-classes";
+import { CSS } from "../core/constants/css-classes";
 import { documentAnalysisField } from "../state/document-analysis";
 import {
   getEquationNumbersCacheKey,

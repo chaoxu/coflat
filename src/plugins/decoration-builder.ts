@@ -1,6 +1,6 @@
 import type { EditorState, Range } from "@codemirror/state";
 import { Decoration } from "@codemirror/view";
-import { CSS } from "../constants/css-classes";
+import { CSS } from "../core/constants/css-classes";
 import type { FencedDivInfo } from "../fenced-block/model";
 import { pushPluginHiddenDecoration } from "./plugin-render-adapter";
 

@@ -3,7 +3,7 @@ import {
   extractReferenceCluster,
   NARRATIVE_REFERENCE_GLOBAL_RE,
   type ReferenceClusterParts,
-} from "../lib/reference-grammar";
+} from "../core/lib/reference-grammar";
 
 export type { ReferenceClusterParts };
 

@@ -17,7 +17,7 @@ import {
   type ViewUpdate,
 } from "@codemirror/view";
 import { type ChangeSet, type EditorState, type Extension, type Range, type Transaction } from "@codemirror/state";
-import { CSS } from "../constants/css-classes";
+import { CSS } from "../core/constants/css-classes";
 import type { ResolvedCrossref } from "../references/presentation";
 import { forEachOverlappingOrderedRange } from "../lib/range-helpers";
 import type { CitationFormatter } from "../document-context";

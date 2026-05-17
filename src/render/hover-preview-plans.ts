@@ -1,5 +1,5 @@
 import { type EditorView } from "@codemirror/view";
-import { CSS } from "../constants";
+import { CSS } from "../core/constants";
 import {
   createEditorReferencePresentationController,
   type ReferenceClassification,

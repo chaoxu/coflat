@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import { EditorState } from "@codemirror/state";
 import { markdown } from "@codemirror/lang-markdown";
-import { fencedDiv } from "../parser/fenced-div";
-import { mathExtension } from "../parser/math-backslash";
-import { equationLabelExtension } from "../parser/equation-label";
+import { fencedDiv } from "../core/parser/fenced-div";
+import { mathExtension } from "../core/parser/math-backslash";
+import { equationLabelExtension } from "../core/parser/equation-label";
 import { frontmatterField } from "../state/frontmatter-state";
 import { blockCounterField } from "../state/block-counter";
 import { createPluginRegistryField } from "../state/plugin-registry";

@@ -1,5 +1,5 @@
 import type { SyntaxNode } from "@lezer/common";
-import { NODE } from "../constants/node-types";
+import { NODE } from "../core/constants/node-types";
 
 interface NamedSyntaxNode {
   readonly name: string;

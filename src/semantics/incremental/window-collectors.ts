@@ -1,11 +1,11 @@
 import type { SyntaxNode, SyntaxNodeRef } from "@lezer/common";
-import { NODE } from "../../constants/node-types";
+import { NODE } from "../../core/constants/node-types";
 import {
   isDisplayMath,
   isFencedDivFence,
 } from "../../lib/syntax-tree-helpers";
-import { extractDivClass } from "../../parser/fenced-div-attrs";
-import { readBracedLabelId } from "../../parser/label-utils";
+import { extractDivClass } from "../../core/parser/fenced-div-attrs";
+import { readBracedLabelId } from "../../core/parser/label-utils";
 import type {
   EquationSemantics,
   FencedDivSemantics,

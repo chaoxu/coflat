@@ -25,8 +25,8 @@ import {
   hasLineClassAt,
   hasMarkClassInRange,
 } from "../test-utils";
-import { CSS } from "../constants/css-classes";
-import { markdownExtensions } from "../parser";
+import { CSS } from "../core/constants/css-classes";
+import { markdownExtensions } from "../core/parser";
 
 /** Create an EditorView with the markdown render plugin at the given cursor position. */
 function createView(doc: string, cursorPos?: number): EditorView {

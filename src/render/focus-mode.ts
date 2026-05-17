@@ -13,7 +13,7 @@ import {
   type ViewUpdate,
 } from "@codemirror/view";
 import { type EditorState, type Extension, StateEffect } from "@codemirror/state";
-import { CSS } from "../constants/css-classes";
+import { CSS } from "../core/constants/css-classes";
 import { createBooleanToggleField } from "./focus-state";
 import {
   dirtyRangesFromChanges,

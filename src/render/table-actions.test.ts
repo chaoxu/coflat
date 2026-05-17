@@ -2,7 +2,7 @@ import { markdown } from "@codemirror/lang-markdown";
 import { forceParsing } from "@codemirror/language";
 import type { EditorView } from "@codemirror/view";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { markdownExtensions } from "../parser";
+import { markdownExtensions } from "../core/parser";
 import { createTestView } from "../test-utils";
 import { tableDiscoveryField } from "../state/table-discovery";
 import { findCellBounds, findTablesInState } from "./table-discovery";

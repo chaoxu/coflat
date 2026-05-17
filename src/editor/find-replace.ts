@@ -25,7 +25,7 @@ import {
   type Panel,
   type ViewUpdate,
 } from "@codemirror/view";
-import { CSS } from "../constants";
+import { CSS } from "../core/constants";
 import {
   closeSearch,
   nextSearchMatch,

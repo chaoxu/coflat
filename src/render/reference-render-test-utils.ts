@@ -2,16 +2,16 @@ import { markdown } from "@codemirror/lang-markdown";
 import type { ChangeSpec, EditorState } from "@codemirror/state";
 import { EditorView, type ViewUpdate } from "@codemirror/view";
 import { expect } from "vitest";
-import type { CslJsonItem } from "../citations/csl-json";
+import type { CslJsonItem } from "../core/citations/csl-json";
 import { bibDataEffect, bibDataField } from "../state/bib-data";
 import { CslProcessor } from "../citations/csl-processor";
 import { frontmatterField } from "../state/frontmatter-state";
 import {
   activeStructureEditField,
 } from "../state/cm-structure-edit";
-import { equationLabelExtension } from "../parser/equation-label";
-import { fencedDiv } from "../parser/fenced-div";
-import { mathExtension } from "../parser/math-backslash";
+import { equationLabelExtension } from "../core/parser/equation-label";
+import { fencedDiv } from "../core/parser/fenced-div";
+import { mathExtension } from "../core/parser/math-backslash";
 import type { BlockPlugin } from "../plugins/plugin-types";
 import { blockCounterField } from "../state/block-counter";
 import { documentSemanticsField } from "../state/document-analysis";

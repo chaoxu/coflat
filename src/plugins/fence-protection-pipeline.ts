@@ -6,7 +6,7 @@ import type {
 import type {
   FencedBlockInfo,
 } from "../fenced-block/model";
-import { countColons } from "../parser";
+import { countColons } from "../core/parser";
 import { forEachOverlappingOrderedRange } from "../lib/range-helpers";
 
 export interface FenceRange {

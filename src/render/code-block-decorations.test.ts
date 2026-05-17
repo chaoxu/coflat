@@ -24,8 +24,8 @@ import {
   docChangeTouchesCodeBlockContent,
 } from "./code-block-decorations";
 import { editorFocusField, focusEffect } from "./focus-state";
-import { CSS } from "../constants/css-classes";
-import { markdownExtensions } from "../parser";
+import { CSS } from "../core/constants/css-classes";
+import { markdownExtensions } from "../core/parser";
 import { activeStructureEditField } from "../state/cm-structure-edit";
 import {
   codeBlockStructureField,

@@ -1,7 +1,7 @@
 import { describe, expect, it, afterEach } from "vitest";
 import type { EditorView } from "@codemirror/view";
 import { markdown } from "@codemirror/lang-markdown";
-import { mathExtension } from "../parser/math-backslash";
+import { mathExtension } from "../core/parser/math-backslash";
 import { frontmatterField } from "../state/frontmatter-state";
 import { projectConfigFacet } from "../project-config";
 import { getMathMacros, mathMacrosField } from "../state/math-macros";

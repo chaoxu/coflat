@@ -8,7 +8,7 @@ import {
   NARRATIVE_REFERENCE_IMPORT_RE,
   NARRATIVE_REFERENCE_SHORTCUT_RE,
   parseReferenceClusterBody,
-} from "./reference-grammar";
+} from "../core/lib/reference-grammar";
 
 const BRACKETED_REFERENCE_CANDIDATE_GLOBAL_RE = /\[(?:[^\]\n\\]|\\.)*?@[^\]\n]*\]/g;
 

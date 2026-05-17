@@ -3,7 +3,7 @@ import {
   findTableCellSpans,
   findTablePipePositions,
   scanTableInlineSpan,
-} from "./table-inline-span";
+} from "../core/lib/table-inline-span";
 
 describe("scanTableInlineSpan", () => {
   it("never returns past text.length for incomplete trailing spans", () => {

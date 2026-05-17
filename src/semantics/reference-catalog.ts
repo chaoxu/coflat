@@ -1,5 +1,5 @@
 import type { ChangeDesc } from "@codemirror/state";
-import type { CrossrefReferenceEntry } from "../references/model";
+import type { CrossrefReferenceEntry } from "../core/references/model";
 import type {
   DocumentAnalysis,
   ReferenceSemantics,
@@ -8,7 +8,7 @@ import {
   formatBlockReferenceLabel,
   formatEquationReferenceLabel,
   formatHeadingReferenceLabel,
-} from "../references/format";
+} from "../core/references/format";
 
 export {
   formatBlockReferenceLabel,

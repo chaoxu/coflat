@@ -16,7 +16,7 @@ import {
   type FencedBlockInfo,
   type FencedDivInfo,
 } from "../fenced-block/model";
-import { EXCLUDED_FROM_FALLBACK } from "../constants/block-manifest";
+import { EXCLUDED_FROM_FALLBACK } from "../core/constants/block-manifest";
 import {
   codeBlockStructureField,
   collectCodeBlocks,

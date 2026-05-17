@@ -1,4 +1,4 @@
-import type { FrontmatterConfig } from "../parser/frontmatter";
+import type { FrontmatterConfig } from "../core/parser/frontmatter";
 
 export const LATEX_PANDOC_FROM: string;
 export const LATEX_TEMPLATE_NAMES: ReadonlySet<string>;

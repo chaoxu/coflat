@@ -6,11 +6,11 @@
  * STYLED_BLOCK_NAMES (derived from BLOCK_MANIFEST in src/constants/).
  */
 
-import { STYLED_BLOCK_NAMES } from "../constants/block-manifest";
+import { STYLED_BLOCK_NAMES } from "../core/constants/block-manifest";
 import {
   IMAGE_MAX_HEIGHT,
   IMAGE_PREVIEW_RESERVED_HEIGHT,
-} from "../constants/layout";
+} from "../core/constants/layout";
 
 /** Auto-generate per-block-type accent override rules from the manifest. */
 function buildAccentRules(): Record<string, Record<string, string>> {

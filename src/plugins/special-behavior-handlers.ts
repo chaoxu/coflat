@@ -1,5 +1,5 @@
 import type { EditorState } from "@codemirror/state";
-import type { SpecialBehavior } from "../constants/block-manifest";
+import type { SpecialBehavior } from "../core/constants/block-manifest";
 import type { FencedDivInfo } from "../fenced-block/model";
 import { DecorationBuilder } from "./decoration-builder";
 

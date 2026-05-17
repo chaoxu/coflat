@@ -1,7 +1,7 @@
 import { EditorState, type Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { CSS } from "../constants";
+import { CSS } from "../core/constants";
 import {
   createMarkdownLanguageExtensions,
 } from "../editor/base-editor-extensions";

@@ -12,14 +12,14 @@ import type { SyntaxNodeRef } from "@lezer/common";
 
 import { parse as parseYaml, parseDocument as parseYamlDocument, stringify as stringifyYaml, isMap, isScalar } from "yaml";
 
-import { extractRawFrontmatter, markdownExtensions } from "./src/parser";
-import { CROSS_REFERENCE_PREFIXES } from "./src/constants/block-manifest";
-import { NODE } from "./src/constants/node-types";
+import { extractRawFrontmatter, markdownExtensions } from "./src/core/parser";
+import { CROSS_REFERENCE_PREFIXES } from "./src/core/constants/block-manifest";
+import { NODE } from "./src/core/constants/node-types";
 import {
   BRACKETED_REFERENCE_EXACT_RE,
   NARRATIVE_REFERENCE_GLOBAL_RE,
   parseReferenceClusterBody,
-} from "./src/lib/reference-grammar";
+} from "./src/core/lib/reference-grammar";
 
 export type ReferenceKind = "link" | "image" | "ref" | "crossref";
 

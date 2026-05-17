@@ -3,7 +3,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
-import { BLOCK_MANIFEST_ENTRIES } from "../constants/block-manifest";
+import { BLOCK_MANIFEST_ENTRIES } from "../core/constants/block-manifest";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const LUA_MANIFEST = readFileSync(resolve(__dirname, "syntax-manifest.lua"), "utf8");

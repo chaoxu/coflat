@@ -1,14 +1,14 @@
 import { describe, expect, it, afterEach, vi } from "vitest";
 import { EditorView } from "@codemirror/view";
 import { markdown } from "@codemirror/lang-markdown";
-import { type CslJsonItem } from "./bibtex-parser";
-import { CslProcessor } from "./csl-processor";
-import { CSS } from "../constants/css-classes";
+import { type CslJsonItem } from "../core/citations/bibtex-parser";
+import { CslProcessor } from "../citations/csl-processor";
+import { CSS } from "../core/constants/css-classes";
 import chicagoAuthorDateStyle from "./chicago-author-date.csl?raw";
 import defaultCslStyle from "./ieee.csl?raw";
-import { equationLabelExtension } from "../parser/equation-label";
-import { fencedDiv } from "../parser/fenced-div";
-import { mathExtension } from "../parser/math-backslash";
+import { equationLabelExtension } from "../core/parser/equation-label";
+import { fencedDiv } from "../core/parser/fenced-div";
+import { mathExtension } from "../core/parser/math-backslash";
 import {
   createMockEditorView,
   createTestView,

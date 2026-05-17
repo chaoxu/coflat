@@ -8,7 +8,7 @@ import { syntaxTree } from "@codemirror/language";
 import { EditorSelection, type EditorState, type Extension, Prec } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
 import type { SyntaxNode } from "@lezer/common";
-import { MODE_CHANGE_EVENT } from "../constants/events";
+import { MODE_CHANGE_EVENT } from "../core/constants/events";
 import {
   fenceOperationAnnotation,
   getClosingFenceRanges,

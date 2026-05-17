@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import type { CitationIdLookup } from "./citation-matching";
+import type { CitationIdLookup } from "../citations/citation-matching";
 import {
   collectCitationBacklinkIndexFromReferences,
   collectCitationBacklinksFromTokens,
-} from "./citation-matching";
+} from "../citations/citation-matching";
 
 const store: CitationIdLookup = {
   has: (id) => id === "alpha" || id === "beta",

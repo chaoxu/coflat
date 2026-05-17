@@ -10,7 +10,7 @@ import { describe, expect, it } from "vitest";
 import { Compartment, EditorState } from "@codemirror/state";
 import { Decoration } from "@codemirror/view";
 import { markdown } from "@codemirror/lang-markdown";
-import { markdownExtensions } from "../parser";
+import { markdownExtensions } from "../core/parser";
 import {
   _blockDecorationFieldForTest as blockDecorationField,
   _blockDecorationInputsChangedForTest as blockDecorationInputsChanged,
@@ -42,7 +42,7 @@ import {
   makeBibStore,
   makeBlockPlugin,
 } from "../test-utils";
-import { CSS } from "../constants/css-classes";
+import { CSS } from "../core/constants/css-classes";
 import { defaultPlugins } from "../plugins/default-plugins";
 import { withCm6BlockPlugin } from "../state/cm6-block-plugin";
 import { bibDataEffect, bibDataField } from "../state/bib-data";

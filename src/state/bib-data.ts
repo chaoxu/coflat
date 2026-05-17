@@ -1,6 +1,6 @@
 import { StateEffect, StateField } from "@codemirror/state";
 
-import { type BibStore } from "../citations/csl-json";
+import { type BibStore } from "../core/citations/csl-json";
 import type { CitationFormatter } from "../document-context";
 export { type BibStore };
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { markdown } from "@codemirror/lang-markdown";
-import { markdownExtensions } from "../parser";
+import { markdownExtensions } from "../core/parser";
 import { createEditorState, ensureFullSyntaxTree } from "../test-utils";
 import { fenceAncestorUpgradeExtension } from "./fence-ancestor-upgrade";
 import { fenceCountMirrorExtension } from "./fence-count-mirror";

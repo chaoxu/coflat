@@ -1,5 +1,5 @@
 import { type EditorState } from "@codemirror/state";
-import type { NumberingScheme } from "../parser/frontmatter";
+import type { NumberingScheme } from "../core/parser/frontmatter";
 import type { FencedDivSemantics } from "../semantics/document";
 import {
   computeBlockNumberingKey,

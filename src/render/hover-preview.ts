@@ -13,7 +13,7 @@
 
 import { type Extension } from "@codemirror/state";
 import { ViewPlugin } from "@codemirror/view";
-import { HOVER_DELAY_MS } from "../constants";
+import { HOVER_DELAY_MS } from "../core/constants";
 import { blockCounterField } from "../state/block-counter";
 import { imageUrlField } from "../state/image-url";
 import { mathMacrosField } from "../state/math-macros";

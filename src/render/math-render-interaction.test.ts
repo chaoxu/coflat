@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { EditorView } from "@codemirror/view";
-import { CSS } from "../constants/css-classes";
+import { CSS } from "../core/constants/css-classes";
 import {
   collectMathRanges,
   _mathDecorationFieldForTest as mathDecorationField,

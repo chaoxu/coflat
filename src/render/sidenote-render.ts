@@ -36,7 +36,7 @@ import {
   ViewPlugin,
   type ViewUpdate,
 } from "@codemirror/view";
-import { CSS } from "../constants/css-classes";
+import { CSS } from "../core/constants/css-classes";
 import {
   type FootnoteSemantics,
   numberFootnotes,

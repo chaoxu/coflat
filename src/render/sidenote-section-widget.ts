@@ -1,5 +1,5 @@
 import { type EditorView } from "@codemirror/view";
-import { CSS } from "../constants/css-classes";
+import { CSS } from "../core/constants/css-classes";
 import { renderDocumentFragmentToDom } from "../document-surfaces";
 import { sidenotesCollapsedEffect } from "./sidenote-state";
 import { RenderWidget, serializeMacros } from "./source-widget";

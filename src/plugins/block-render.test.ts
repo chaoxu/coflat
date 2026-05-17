@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { CSS } from "../constants/css-classes";
+import { CSS } from "../core/constants/css-classes";
 import { formatBlockHeader, createBlockRender } from "./block-render";
 
 describe("formatBlockHeader", () => {

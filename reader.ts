@@ -17,15 +17,15 @@ import { parser as baseMarkdownParser } from "@lezer/markdown";
 import type { SyntaxNode, Tree } from "@lezer/common";
 import createDOMPurify from "dompurify";
 
-import { htmlRenderExtensions } from "./src/parser";
-import { NODE } from "./src/constants/node-types";
-import { isSafeUrl } from "./src/lib/url-utils";
+import { htmlRenderExtensions } from "./src/core/parser";
+import { NODE } from "./src/core/constants/node-types";
+import { isSafeUrl } from "./src/core/lib/url-utils";
 import {
   BRACKETED_REFERENCE_EXACT_RE,
   parseReferenceClusterBody,
-} from "./src/lib/reference-grammar";
-import { CROSS_REFERENCE_PREFIXES } from "./src/constants/block-manifest";
-import { extractDivClass } from "./src/parser/fenced-div-attrs";
+} from "./src/core/lib/reference-grammar";
+import { CROSS_REFERENCE_PREFIXES } from "./src/core/constants/block-manifest";
+import { extractDivClass } from "./src/core/parser/fenced-div-attrs";
 import type {
   DocumentContext,
   LinkResolver,

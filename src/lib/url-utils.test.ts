@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isSafeUrl } from "./url-utils";
+import { isSafeUrl } from "../core/lib/url-utils";
 
 describe("isSafeUrl", () => {
   // ── Allowed schemes ──────────────────────────────────────────────────────

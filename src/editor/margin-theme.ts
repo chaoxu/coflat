@@ -1,9 +1,9 @@
-import { monoFont } from "../constants/editor-constants";
+import { monoFont } from "../core/constants/editor-constants";
 import {
   SIDENOTE_NUMBER_MARGIN_RIGHT,
   SIDENOTE_OFFSET,
   SIDENOTE_WIDTH,
-} from "../constants/layout";
+} from "../core/constants/layout";
 
 /**
  * Margin and overlay styles: sidenotes (reference, definition, number,

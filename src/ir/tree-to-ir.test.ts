@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { parser as baseParser } from "@lezer/markdown";
-import { markdownExtensions } from "../parser";
+import { markdownExtensions } from "../core/parser";
 import { treeToIR } from "./tree-to-ir";
 import type { DocumentIR } from "./types";
 

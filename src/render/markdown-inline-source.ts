@@ -2,7 +2,7 @@ import { Decoration, type EditorView } from "@codemirror/view";
 import type { Range } from "@codemirror/state";
 import type { SyntaxNode } from "@lezer/common";
 
-import { CSS } from "../constants/css-classes";
+import { CSS } from "../core/constants/css-classes";
 import { cursorInRange } from "./node-collection";
 
 const sourceDelimiterDecoration = Decoration.mark({ class: CSS.sourceDelimiter });

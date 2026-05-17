@@ -1,6 +1,6 @@
 import type { EditorSelection } from "@codemirror/state";
 import { EditorView, type ViewUpdate } from "@codemirror/view";
-import { CSS } from "../constants/css-classes";
+import { CSS } from "../core/constants/css-classes";
 import {
   clampToLineBounds,
   coarseHitTestPositionAndSide,

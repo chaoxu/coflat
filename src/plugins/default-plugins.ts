@@ -7,7 +7,7 @@
  */
 
 import type { BlockPlugin } from "./plugin-types";
-import { BLOCK_MANIFEST_ENTRIES } from "../constants/block-manifest";
+import { BLOCK_MANIFEST_ENTRIES } from "../core/constants/block-manifest";
 import { pluginFromManifest } from "./plugin-factory";
 
 /** All default block plugins, generated from BLOCK_MANIFEST. */

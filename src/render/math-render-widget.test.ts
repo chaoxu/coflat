@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { CSS } from "../constants/css-classes";
+import { CSS } from "../core/constants/css-classes";
 import { MathWidget, renderKatex, renderKatexToHtml } from "./math-render";
 import { createMockEditorView } from "../test-utils";
 import { widgetSourceMap } from "./render-utils";

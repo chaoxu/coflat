@@ -1,5 +1,5 @@
 import createDOMPurify from "dompurify";
-import { isSafeUrl } from "./url-utils";
+import { isSafeUrl } from "../core/lib/url-utils";
 
 /**
  * Allowlist of HTML element names safe for CSL-formatted bibliography output.

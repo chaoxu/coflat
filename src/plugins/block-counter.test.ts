@@ -11,7 +11,7 @@ import {
   emptyCounterState,
 } from "./block-counter";
 import { markdown } from "@codemirror/lang-markdown";
-import { fencedDiv } from "../parser/fenced-div";
+import { fencedDiv } from "../core/parser/fenced-div";
 import { frontmatterField } from "../state/frontmatter-state";
 import {
   documentSemanticsField,

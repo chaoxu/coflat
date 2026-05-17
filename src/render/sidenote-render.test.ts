@@ -5,9 +5,9 @@ import {
   EditorView,
   type ViewPlugin,
 } from "@codemirror/view";
-import { CSS } from "../constants/css-classes";
+import { CSS } from "../core/constants/css-classes";
 import { markdown } from "@codemirror/lang-markdown";
-import { footnoteExtension } from "../parser/footnote";
+import { footnoteExtension } from "../core/parser/footnote";
 import { frontmatterField } from "../state/frontmatter-state";
 import { mathMacrosField } from "../state/math-macros";
 import {

@@ -1,7 +1,7 @@
 import {
   MAX_PERF_OPERATIONS,
   MAX_PERF_RECORDS,
-} from "../constants";
+} from "../core/constants";
 
 export type PerfSource = "frontend" | "backend";
 

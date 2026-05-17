@@ -1,11 +1,11 @@
 import type { EditorState, Range } from "@codemirror/state";
 import { Decoration, WidgetType } from "@codemirror/view";
 import type { SyntaxNodeRef } from "@lezer/common";
-import { CSS } from "../constants/css-classes";
+import { CSS } from "../core/constants/css-classes";
 import {
   DOCUMENT_SURFACE_CLASS,
   documentSurfaceClassNames,
-} from "../document-surface-classes";
+} from "../core/document-surface-classes";
 import { findTrailingHeadingAttributes } from "../semantics/heading-ancestry";
 import {
   addMarkerReplacement,

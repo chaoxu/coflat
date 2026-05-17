@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { ReferenceEntry, ReferenceIndexModel } from "./model";
+import type { ReferenceEntry, ReferenceIndexModel } from "../core/references/model";
 
 describe("ReferenceIndexModel", () => {
   it("constructs one entry of each reference type", () => {

@@ -7,7 +7,7 @@
  *   | Cell   | Cell   |
  */
 
-import { findTablePipePositions } from "../lib/table-inline-span";
+import { findTablePipePositions } from "../core/lib/table-inline-span";
 
 /** Column alignment as detected from the separator row. */
 export type Alignment = "left" | "center" | "right" | "none";

@@ -1,7 +1,7 @@
 import { EditorState, type Range } from "@codemirror/state";
 import { Decoration } from "@codemirror/view";
 import { describe, expect, it } from "vitest";
-import { CSS } from "../constants/css-classes";
+import { CSS } from "../core/constants/css-classes";
 import type { FencedDivInfo } from "../fenced-block/model";
 import {
   getDecorationSpecs,

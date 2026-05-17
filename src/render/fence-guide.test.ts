@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { EditorState } from "@codemirror/state";
 import { markdown } from "@codemirror/lang-markdown";
-import { markdownExtensions } from "../parser";
+import { markdownExtensions } from "../core/parser";
 import {
   _computeActivePath_forTest as computeActivePath,
   _fenceGuideField_forTest as fenceGuideField,

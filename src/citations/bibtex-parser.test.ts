@@ -6,7 +6,7 @@ import {
   formatCslAuthors,
   cleanBibtex,
   clearBibParseCache,
-} from "./bibtex-parser";
+} from "../core/citations/bibtex-parser";
 
 describe("parseBibTeX", () => {
   it("parses a single article entry", () => {

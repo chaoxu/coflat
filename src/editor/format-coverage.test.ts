@@ -17,7 +17,7 @@ import {
   collectEquationLabels,
   resolveCrossref,
 } from "../index/crossref-resolver";
-import { markdownExtensions } from "../parser";
+import { markdownExtensions } from "../core/parser";
 import type { BlockPlugin } from "../plugins/plugin-types";
 import { editorFocusField } from "../render/render-core";
 import { blockCounterField } from "../state/block-counter";

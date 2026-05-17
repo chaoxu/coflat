@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { type CslJsonItem } from "./bibtex-parser";
+import { type CslJsonItem } from "../core/citations/bibtex-parser";
 import { findCitations } from "./citation-finder";
 import { makeBibStore } from "../test-utils";
 

@@ -1,7 +1,7 @@
 import { describe, expect, it, afterEach } from "vitest";
 import { markdown } from "@codemirror/lang-markdown";
 import type { EditorView } from "@codemirror/view";
-import { markdownExtensions } from "../parser";
+import { markdownExtensions } from "../core/parser";
 import { fenceProtectionExtension } from "../plugins/fence-protection";
 import { blockCounterField } from "../state/block-counter";
 import { createPluginRegistryField } from "../state/plugin-registry";

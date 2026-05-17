@@ -5,7 +5,7 @@ import {
   type ChangeDesc,
   type EditorState,
 } from "@codemirror/state";
-import type { NumberingScheme } from "../parser/frontmatter";
+import type { NumberingScheme } from "../core/parser/frontmatter";
 import { computeBlockNumbersFromFencedDivs } from "../state/block-counter-core";
 import { getPluginOrFallback } from "../state/plugin-registry-core";
 import { docChangeTouchesFencedDivStructure } from "../fenced-block/model";

@@ -11,10 +11,10 @@ import {
   type ProjectConfig,
   type ProjectConfigStatus,
 } from "../project-config";
-import { markdownExtensions } from "../parser";
-import { highlightExtension } from "../parser/highlight";
-import { mathExtension } from "../parser/math-backslash";
-import { strikethroughExtension } from "../parser/strikethrough";
+import { markdownExtensions } from "../core/parser";
+import { highlightExtension } from "../core/parser/highlight";
+import { mathExtension } from "../core/parser/math-backslash";
+import { strikethroughExtension } from "../core/parser/strikethrough";
 export { sharedInlineRenderExtensions } from "../render/inline-render-extensions";
 
 export const inlineMarkdownExtensions: MarkdownExtension[] = [

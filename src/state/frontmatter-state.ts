@@ -16,10 +16,10 @@ import {
   type FrontmatterConfig,
   type FrontmatterResult,
   type FrontmatterStatus,
-} from "../parser/frontmatter";
+} from "../core/parser/frontmatter";
 import { mergeConfigs, projectConfigFacet } from "../project-config";
 
-export { type FrontmatterConfig, type NumberingScheme } from "../parser/frontmatter";
+export { type FrontmatterConfig, type NumberingScheme } from "../core/parser/frontmatter";
 
 /** State stored in the frontmatter field. */
 export interface FrontmatterState {

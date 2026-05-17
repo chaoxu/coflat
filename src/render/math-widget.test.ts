@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import katex from "katex";
-import { CSS } from "../constants/css-classes";
+import { CSS } from "../core/constants/css-classes";
 import { createMockEditorView } from "../test-utils";
 import { renderInlineMarkdown } from "./inline-render";
 import { renderKatexToHtml } from "./inline-shared";

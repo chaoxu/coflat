@@ -6,7 +6,7 @@
  * looks up the registry to decide how to display each fenced div.
  */
 
-import type { CaptionPosition, HeaderPosition, SpecialBehavior } from "../constants/block-manifest";
+import type { CaptionPosition, HeaderPosition, SpecialBehavior } from "../core/constants/block-manifest";
 
 /** Attributes extracted from a fenced div and enriched with numbering info. */
 export interface BlockAttrs {

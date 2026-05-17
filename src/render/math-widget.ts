@@ -1,10 +1,10 @@
 import type { EditorState } from "@codemirror/state";
 import { type EditorView, WidgetType } from "@codemirror/view";
-import { CSS } from "../constants/css-classes";
+import { CSS } from "../core/constants/css-classes";
 import {
   DOCUMENT_SURFACE_CLASS,
   documentSurfaceClassNames,
-} from "../document-surface-classes";
+} from "../core/document-surface-classes";
 import { isPlainPrimaryMouseEvent } from "../state/mouse-selection";
 import { documentAnalysisField } from "../state/document-analysis";
 import type { MathSemantics } from "../semantics/document";

@@ -1,4 +1,4 @@
-import { contentFont, monoFont } from "../constants/editor-constants";
+import { contentFont, monoFont } from "../core/constants/editor-constants";
 
 const inlineSourceTypography = {
   fontFamily: monoFont,

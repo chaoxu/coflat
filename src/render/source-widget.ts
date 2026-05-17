@@ -1,5 +1,5 @@
 import { type EditorView, WidgetType } from "@codemirror/view";
-import { CSS } from "../constants/css-classes";
+import { CSS } from "../core/constants/css-classes";
 import type { VisibleSearchState } from "../search/search-matches";
 import { activeFencedDepthAtRange } from "../state/shell-ownership";
 import { activateStructureEditAt } from "../state/cm-structure-edit";

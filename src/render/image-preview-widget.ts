@@ -2,8 +2,8 @@ import {
   type EditorView,
   WidgetType,
 } from "@codemirror/view";
-import { CSS } from "../constants/css-classes";
-import { IMAGE_PREVIEW_RESERVED_HEIGHT_PX } from "../constants/layout";
+import { CSS } from "../core/constants/css-classes";
+import { IMAGE_PREVIEW_RESERVED_HEIGHT_PX } from "../core/constants/layout";
 import {
   LazyWidgetBase,
   type LazyWidgetHeightSpec,

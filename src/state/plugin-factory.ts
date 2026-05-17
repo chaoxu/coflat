@@ -6,7 +6,7 @@
  */
 
 import type { BlockPlugin } from "./block-plugin";
-import type { BlockManifestEntry, CaptionPosition, HeaderPosition, SpecialBehavior } from "../constants/block-manifest";
+import type { BlockManifestEntry, CaptionPosition, HeaderPosition, SpecialBehavior } from "../core/constants/block-manifest";
 import { createBlockRender } from "./block-render";
 import { capitalize, pickDefined } from "../lib/utils";
 

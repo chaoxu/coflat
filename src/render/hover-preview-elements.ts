@@ -1,4 +1,4 @@
-import { CSS } from "../constants";
+import { CSS } from "../core/constants";
 import { renderDocumentFragmentToDom } from "../document-surfaces";
 import {
   createPreviewSurfaceContent,

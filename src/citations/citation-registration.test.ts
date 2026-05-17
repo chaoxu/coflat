@@ -1,9 +1,9 @@
 import { markdown } from "@codemirror/lang-markdown";
 import { describe, expect, it, vi } from "vitest";
 import { frontmatterField } from "../state/frontmatter-state";
-import { equationLabelExtension } from "../parser/equation-label";
-import { fencedDiv } from "../parser/fenced-div";
-import { mathExtension } from "../parser/math-backslash";
+import { equationLabelExtension } from "../core/parser/equation-label";
+import { fencedDiv } from "../core/parser/fenced-div";
+import { mathExtension } from "../core/parser/math-backslash";
 import { createPluginRegistryField } from "../state/plugin-registry";
 import { blockCounterField } from "../state/block-counter";
 import { documentSemanticsField } from "../state/document-analysis";
@@ -16,9 +16,9 @@ import type { DocumentAnalysis } from "../semantics/document";
 import {
   collectCitationMatchesFromAnalysis,
   getAnalysisCitationRegistrationKey,
-} from "./citation-matching";
+} from "../citations/citation-matching";
 import { ensureCitationsRegistered } from "./citation-registration";
-import type { CslProcessor } from "./csl-processor";
+import type { CslProcessor } from "../citations/csl-processor";
 
 const store = makeBibStore([
   { id: "thm-main", type: "book", title: "Theorem as citation" },

@@ -3,8 +3,8 @@ import { markdown } from "@codemirror/lang-markdown";
 import { EditorState } from "@codemirror/state";
 import type { SyntaxNode } from "@lezer/common";
 import { describe, expect, it } from "vitest";
-import { NODE } from "../constants/node-types";
-import { markdownExtensions } from "../parser";
+import { NODE } from "../core/constants/node-types";
+import { markdownExtensions } from "../core/parser";
 import {
   findAncestor,
   findAncestorByName,

@@ -1,4 +1,4 @@
-import type { FormatEventDetail } from "../constants/events";
+import type { FormatEventDetail } from "../core/constants/events";
 import type { EditorMode } from "../editor-display-mode";
 import type {
   DebugDocumentState,

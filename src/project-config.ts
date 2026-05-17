@@ -7,8 +7,8 @@
 
 import { Facet } from "@codemirror/state";
 import type { FileSystem } from "./lib/types";
-import type { FrontmatterConfig } from "./parser/frontmatter";
-import { parseFrontmatter } from "./parser/frontmatter";
+import type { FrontmatterConfig } from "./core/parser/frontmatter";
+import { parseFrontmatter } from "./core/parser/frontmatter";
 
 /** Project-level configuration. Derived from FrontmatterConfig, minus title (always per-file). */
 export type ProjectConfig = Omit<FrontmatterConfig, "title">;

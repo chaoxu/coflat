@@ -4,7 +4,7 @@ import {
   CONTENT_PADDING_X,
   CONTENT_PADDING_Y,
   MARGIN_RIGHT_CALC,
-} from "../constants/layout";
+} from "../core/constants/layout";
 
 /**
  * Base editor chrome styles: container, content area, gutters, cursor,

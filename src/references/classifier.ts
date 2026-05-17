@@ -10,7 +10,7 @@ import {
   formatBlockReferenceLabel,
   formatEquationReferenceLabel,
   formatHeadingReferenceLabel,
-} from "./format";
+} from "../core/references/format";
 import type {
   CitationReferenceEntry,
   CrossrefReferenceEntry,
@@ -18,7 +18,7 @@ import type {
   ReferenceTarget,
   ReferenceEntry,
   ReferenceIndexModel,
-} from "./model";
+} from "../core/references/model";
 import {
   findAttributeIdSpan,
   findBracketedOccurrenceSpan,

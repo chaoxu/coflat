@@ -1,4 +1,4 @@
-import type { ReferenceIndexModel } from "../references/model";
+import type { ReferenceIndexModel } from "../core/references/model";
 import type {
   DocumentAnalysis,
   ReferenceSemantics,

@@ -10,7 +10,7 @@
 import { describe, expect, it, afterEach, vi } from "vitest";
 import { markdown } from "@codemirror/lang-markdown";
 import { EditorView } from "@codemirror/view";
-import { markdownExtensions } from "../parser";
+import { markdownExtensions } from "../core/parser";
 import {
   blockTypePickerExtension,
   isPickerVisible,

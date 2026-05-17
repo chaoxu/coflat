@@ -16,7 +16,7 @@ import {
   inlineMarkdownExtensions,
   sharedInlineRenderExtensions,
 } from "./editor/base-editor-extensions";
-import { CSS } from "./constants/css-classes";
+import { CSS } from "./core/constants/css-classes";
 import { referenceRenderPlugin } from "./render/reference-render";
 import { documentAnalysisField } from "./state/document-analysis";
 import { type BibData, bibDataEffect, bibDataField } from "./state/bib-data";

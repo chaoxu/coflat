@@ -3,7 +3,7 @@ import {
   ViewPlugin,
   type ViewUpdate,
 } from "@codemirror/view";
-import { findTablePipePositions } from "../lib/table-inline-span";
+import { findTablePipePositions } from "../core/lib/table-inline-span";
 import {
   findTablesInState,
   tableDiscoveryPendingParseField,

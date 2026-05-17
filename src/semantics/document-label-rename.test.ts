@@ -2,7 +2,7 @@ import { EditorSelection, EditorState } from "@codemirror/state";
 import { markdown } from "@codemirror/lang-markdown";
 import { describe, expect, it } from "vitest";
 import { frontmatterField } from "../state/frontmatter-state";
-import { markdownExtensions } from "../parser";
+import { markdownExtensions } from "../core/parser";
 import {
   defaultPlugins,
 } from "../plugins";

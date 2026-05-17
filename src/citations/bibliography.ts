@@ -1,7 +1,7 @@
-import { type CslJsonItem, extractFirstFamilyName, extractYear, formatCslAuthors } from "./csl-json";
+import { type CslJsonItem, extractFirstFamilyName, extractYear, formatCslAuthors } from "../core/citations/csl-json";
 import {
   type CitationBacklink,
-} from "./csl-processor";
+} from "../citations/csl-processor";
 import { findNextInlineMathSource } from "../lib/inline-math-source";
 import { sanitizeCslHtml } from "../lib/sanitize-csl-html";
 import { type BibStore } from "../state/bib-data";

@@ -1,6 +1,6 @@
 import { type EditorState, StateField, type Transaction } from "@codemirror/state";
 
-import type { NumberingScheme } from "../parser/frontmatter";
+import type { NumberingScheme } from "../core/parser/frontmatter";
 import { docChangeTouchesFencedDivStructure } from "../fenced-block/model";
 import {
   computeBlockNumberingKeyFromFencedDivs,

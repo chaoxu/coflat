@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { CSS } from "./constants";
+import { CSS } from "./core/constants";
 import {
   createPreviewSurfaceBody,
   createPreviewSurfaceContent,

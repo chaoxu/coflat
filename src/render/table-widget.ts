@@ -2,7 +2,7 @@ import { EditorView } from "@codemirror/view";
 import {
   DOCUMENT_SURFACE_CLASS,
   documentSurfaceClassNames,
-} from "../document-surface-classes";
+} from "../core/document-surface-classes";
 import type { InlineReferenceRenderContext } from "./inline-render";
 import type { TableRange } from "./table-discovery";
 import type { ParsedTable } from "./table-utils";

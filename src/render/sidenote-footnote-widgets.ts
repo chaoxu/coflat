@@ -1,5 +1,5 @@
 import { type EditorView, WidgetType } from "@codemirror/view";
-import { CSS } from "../constants/css-classes";
+import { CSS } from "../core/constants/css-classes";
 import { renderDocumentFragmentToDom } from "../document-surfaces";
 import {
   footnoteInlineToggleEffect,

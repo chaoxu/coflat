@@ -2,11 +2,11 @@ import type { ChangeDesc } from "@codemirror/state";
 import {
   BLOCK_MANIFEST_BY_NAME,
   EXCLUDED_FROM_FALLBACK,
-} from "../constants/block-manifest";
+} from "../core/constants/block-manifest";
 import type {
   BlockConfig,
   NumberingScheme,
-} from "../parser/frontmatter";
+} from "../core/parser/frontmatter";
 import type { FencedDivSemantics } from "./document-model";
 
 /** Minimal block metadata needed for semantic numbering. */

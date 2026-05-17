@@ -6,7 +6,7 @@
  * a native handler instead.
  */
 
-import { isSafeUrl } from "./url-utils";
+import { isSafeUrl } from "../core/lib/url-utils";
 
 /** Custom URL opener injected by the host (e.g. Tauri app shell). */
 let customUrlOpener: ((url: string) => Promise<boolean>) | null = null;

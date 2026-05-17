@@ -6,10 +6,10 @@ import {
   type DecorationSet,
   EditorView,
 } from "@codemirror/view";
-import { COPY_RESET_MS } from "../constants";
-import { CSS } from "../constants/css-classes";
+import { COPY_RESET_MS } from "../core/constants";
+import { CSS } from "../core/constants/css-classes";
 import { markdown } from "@codemirror/lang-markdown";
-import { markdownExtensions } from "../parser";
+import { markdownExtensions } from "../core/parser";
 import { editorFocusField, focusEffect } from "./render-utils";
 import {
   activeStructureEditField,

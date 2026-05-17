@@ -8,7 +8,7 @@
 import { EditorState, type Extension, type Range } from "@codemirror/state";
 import { Decoration, DecorationSet } from "@codemirror/view";
 import { renderDocumentFragmentToDom } from "../document-surfaces";
-import { CSS } from "../constants/css-classes";
+import { CSS } from "../core/constants/css-classes";
 
 import { frontmatterField } from "../state/frontmatter-state";
 import {

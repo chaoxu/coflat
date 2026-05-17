@@ -2,7 +2,7 @@ import { search } from "@codemirror/search";
 import { EditorView } from "@codemirror/view";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { CSS } from "../constants/css-classes";
+import { CSS } from "../core/constants/css-classes";
 import { createTestView } from "../test-utils";
 import {
   collectVisibleSearchMatches,

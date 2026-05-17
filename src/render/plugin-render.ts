@@ -18,7 +18,7 @@ import { EditorState, type Extension, type Transaction } from "@codemirror/state
 import {
   type DecorationSet,
 } from "@codemirror/view";
-import { CSS } from "../constants/css-classes";
+import { CSS } from "../core/constants/css-classes";
 import { activeFencedOpenFenceStarts } from "../state/shell-ownership";
 import {
   hasStructureEditEffect,

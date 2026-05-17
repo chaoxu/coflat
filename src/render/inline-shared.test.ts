@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import katex from "katex";
-import { isSafeUrl } from "../lib/url-utils";
+import { isSafeUrl } from "../core/lib/url-utils";
 import { buildKatexOptions } from "../lib/katex-options";
 import {
   MARK_NODES,

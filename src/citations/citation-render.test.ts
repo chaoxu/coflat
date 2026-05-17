@@ -1,9 +1,9 @@
 import { describe, expect, it, afterEach } from "vitest";
 import { EditorView } from "@codemirror/view";
 import { markdown } from "@codemirror/lang-markdown";
-import { type CslJsonItem } from "./bibtex-parser";
+import { type CslJsonItem } from "../core/citations/bibtex-parser";
 import { createTestView, makeBibStore } from "../test-utils";
-import { CslProcessor } from "./csl-processor";
+import { CslProcessor } from "../citations/csl-processor";
 import { referenceRenderPlugin } from "../render/reference-render";
 import { bibDataEffect, bibDataField } from "../state/bib-data";
 import { documentSemanticsField } from "../state/document-analysis";

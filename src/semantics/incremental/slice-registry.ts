@@ -3,7 +3,7 @@ import type {
   DocumentAnalysis,
   FencedDivSemantics,
 } from "../document-model";
-import type { ReferenceIndexModel } from "../../references/model";
+import type { ReferenceIndexModel } from "../../core/references/model";
 import type { EquationSlice } from "./slices/equation-slice";
 import type { FootnoteSlice } from "./slices/footnote-slice";
 import type { HeadingSlice } from "./slices/heading-slice";

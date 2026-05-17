@@ -12,8 +12,8 @@ import {
 } from "@codemirror/view";
 import { __iconNode as checkIconNode } from "lucide-react/dist/esm/icons/check.js";
 import { __iconNode as copyIconNode } from "lucide-react/dist/esm/icons/copy.js";
-import { COPY_RESET_MS } from "../constants";
-import { CSS } from "../constants/css-classes";
+import { COPY_RESET_MS } from "../core/constants";
+import { CSS } from "../core/constants/css-classes";
 import {
   activeCodeBlock,
   activeCodeBlockOpenFenceStarts,

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { parser as lezerParser } from "@lezer/markdown";
 import type { SyntaxNode } from "@lezer/common";
-import { equationLabelExtension } from "../parser/equation-label";
-import { mathExtension } from "../parser/math-backslash";
+import { equationLabelExtension } from "../core/parser/equation-label";
+import { mathExtension } from "../core/parser/math-backslash";
 import {
   _snapToTokenBoundary,
   getDisplayMathContentEnd,

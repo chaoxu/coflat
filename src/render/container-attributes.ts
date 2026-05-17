@@ -27,7 +27,7 @@ import {
 import { documentSemanticsField } from "../state/document-analysis";
 import { buildDecorations } from "./decoration-core";
 import { SyntaxParseScheduler } from "./syntax-parse-scheduler";
-import { DOCUMENT_SURFACE_CLASS } from "../document-surface-classes";
+import { DOCUMENT_SURFACE_CLASS } from "../core/document-surface-classes";
 
 /**
  * Maps Lezer syntax node type names to HTML tag names.

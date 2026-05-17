@@ -6,15 +6,15 @@ import {
   EXCLUDED_FROM_FALLBACK,
   getManifestBlockTitle,
   type BlockManifestEntry,
-} from "../constants/block-manifest";
-import { CSS } from "../constants/css-classes";
+} from "../core/constants/block-manifest";
+import { CSS } from "../core/constants/css-classes";
 import type { BlockCounterEntry } from "../lib/types";
 import {
   extractRawFrontmatter,
   htmlRenderExtensions,
   type FrontmatterConfig,
-} from "../parser";
-import { readBracedLabelId } from "../parser/label-utils";
+} from "../core/parser";
+import { readBracedLabelId } from "../core/parser/label-utils";
 import {
   analyzeDocumentSemantics,
   stringTextSource,

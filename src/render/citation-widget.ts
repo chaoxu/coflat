@@ -1,6 +1,6 @@
 import type { WidgetType } from "@codemirror/view";
-import { CSS } from "../constants/css-classes";
-import { isSafeUrl } from "../lib/url-utils";
+import { CSS } from "../core/constants/css-classes";
+import { isSafeUrl } from "../core/lib/url-utils";
 import { ReferenceWidget, SimpleTextReferenceWidget } from "./render-core";
 
 /**

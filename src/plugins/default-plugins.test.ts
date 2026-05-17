@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import { markdown } from "@codemirror/lang-markdown";
-import { fencedDiv } from "../parser/fenced-div";
+import { fencedDiv } from "../core/parser/fenced-div";
 import { documentSemanticsField } from "../state/document-analysis";
-import { CSS } from "../constants/css-classes";
+import { CSS } from "../core/constants/css-classes";
 import { createEditorState } from "../test-utils";
 
 import {
@@ -15,7 +15,7 @@ import { computeBlockNumbers } from "./block-counter";
 import { formatBlockHeader, createBlockRender } from "./block-render";
 import { defaultPlugins, theoremFamilyPlugins } from "./default-plugins";
 import { QED_SYMBOL } from "./proof-plugin";
-import { BLOCK_MANIFEST, EXCLUDED_FROM_FALLBACK } from "../constants/block-manifest";
+import { BLOCK_MANIFEST, EXCLUDED_FROM_FALLBACK } from "../core/constants/block-manifest";
 
 /** Look up a default plugin by name. */
 function pluginByName(name: string) {

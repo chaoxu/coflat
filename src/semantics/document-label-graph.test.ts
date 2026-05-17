@@ -9,7 +9,7 @@ import {
   prepareDocumentLabelRename as preparePlainDocumentLabelRename,
   resolveDocumentLabelBacklinks as resolvePlainDocumentLabelBacklinks,
 } from "../lib/markdown/label-actions";
-import { markdownExtensions } from "../parser";
+import { markdownExtensions } from "../core/parser";
 import {
   defaultPlugins,
 } from "../plugins";

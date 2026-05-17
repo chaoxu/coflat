@@ -8,7 +8,7 @@
  */
 
 import { getDocumentAnalysis } from "../semantics/incremental/cached-document-analysis";
-import type { CitationIdLookup } from "./citation-matching";
+import type { CitationIdLookup } from "../citations/citation-matching";
 
 /**
  * Match for a citation reference found in the document text.

@@ -2,8 +2,8 @@ import { expect } from "vitest";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { markdown } from "@codemirror/lang-markdown";
-import { mathExtension } from "../parser/math-backslash";
-import { equationLabelExtension } from "../parser/equation-label";
+import { mathExtension } from "../core/parser/math-backslash";
+import { equationLabelExtension } from "../core/parser/equation-label";
 import { collectMathRanges, mathRenderPlugin } from "./math-render";
 import { frontmatterField } from "../state/frontmatter-state";
 import { mathMacrosField } from "../state/math-macros";
@@ -15,7 +15,7 @@ import {
   createStructureEditTargetAt,
   setStructureEditTargetEffect,
 } from "../state/cm-structure-edit";
-import { CSS } from "../constants/css-classes";
+import { CSS } from "../core/constants/css-classes";
 
 /** Count only widget (replace) decorations, ignoring mark decorations like cf-math-source. */
 export function countWidgets(ranges: ReturnType<typeof collectMathRanges>): number {

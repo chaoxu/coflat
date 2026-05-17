@@ -13,7 +13,7 @@ import {
   type FencedBlockInfo,
 } from "./fenced-block-core";
 import type { Range } from "@codemirror/state";
-import { CSS } from "../constants/css-classes";
+import { CSS } from "../core/constants/css-classes";
 
 /** Helper to build a simple FencedBlockInfo for a multi-line block. */
 function makeBlock(doc: string, openLine: number, closeLine: number): FencedBlockInfo {

@@ -1,5 +1,5 @@
 import type { Text } from "@codemirror/state";
-import type { CitationBacklink } from "./csl-processor";
+import type { CitationBacklink } from "../citations/csl-processor";
 
 const CITATION_BACKLINK_CONTEXT_MAX_LENGTH = 140;
 

@@ -3,11 +3,11 @@ import { type BibStore } from "../state/bib-data";
 import {
   type CslProcessor,
   registerCitationsWithProcessor,
-} from "./csl-processor";
+} from "../citations/csl-processor";
 import {
   collectCitationMatchesFromAnalysis,
   getCitationRegistrationKey,
-} from "./citation-matching";
+} from "../citations/citation-matching";
 
 /**
  * Ensure citations from the current document analysis are registered with the

@@ -4,7 +4,7 @@ import type {
   DisplayMathBlockInfo,
   FencedDivInfo,
 } from "../fenced-block/model";
-import { countColons } from "../parser";
+import { countColons } from "../core/parser";
 import type { CodeBlockInfo } from "../state/code-block-structure";
 import type { FenceRange } from "./fence-protection-pipeline";
 

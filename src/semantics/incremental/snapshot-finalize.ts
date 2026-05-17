@@ -2,7 +2,7 @@ import type { Tree } from "@lezer/common";
 import {
   classifyReferenceIndex,
 } from "../../references/classifier";
-import type { ReferenceIndexModel } from "../../references/model";
+import type { ReferenceIndexModel } from "../../core/references/model";
 import type {
   DocumentAnalysis,
   FencedDivSemantics,

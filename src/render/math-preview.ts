@@ -13,7 +13,7 @@ import {
   ViewPlugin,
 } from "@codemirror/view";
 import { type Extension } from "@codemirror/state";
-import { CSS } from "../constants";
+import { CSS } from "../core/constants";
 import { mathMacrosField } from "../state/math-macros";
 import { resolveClickToSourcePos } from "./math-interactions";
 import { findActiveMath } from "./math-source";

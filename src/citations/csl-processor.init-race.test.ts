@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { CitationJsModules, CitationJsLoader } from "./csl-processor";
+import type { CitationJsModules, CitationJsLoader } from "../citations/csl-processor";
 
 beforeEach(() => {
   vi.resetModules();
@@ -30,7 +30,7 @@ describe("CslProcessor init races", () => {
       },
     }) as unknown as CitationJsModules;
 
-    const { CslProcessor, setCitationJsLoaderForTest } = await import("./csl-processor");
+    const { CslProcessor, setCitationJsLoaderForTest } = await import("../citations/csl-processor");
     setCitationJsLoaderForTest(loader);
     const processor = await CslProcessor.create([
       {
@@ -75,7 +75,7 @@ describe("CslProcessor init races", () => {
       } as unknown as CitationJsModules;
     };
 
-    const { CslProcessor, setCitationJsLoaderForTest } = await import("./csl-processor");
+    const { CslProcessor, setCitationJsLoaderForTest } = await import("../citations/csl-processor");
     setCitationJsLoaderForTest(loader);
     const processor = new CslProcessor([
       { id: "alpha2020", type: "article-journal" },
@@ -119,7 +119,7 @@ describe("CslProcessor init races", () => {
       } as unknown as CitationJsModules;
     };
 
-    const { CslProcessor, setCitationJsLoaderForTest } = await import("./csl-processor");
+    const { CslProcessor, setCitationJsLoaderForTest } = await import("../citations/csl-processor");
     setCitationJsLoaderForTest(loader);
     const processor = new CslProcessor([
       { id: "alpha2020", type: "article-journal" },

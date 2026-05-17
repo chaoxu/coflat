@@ -5,7 +5,7 @@ import {
   EditorView,
 } from "@codemirror/view";
 import { afterEach, describe, expect, it } from "vitest";
-import { markdownExtensions } from "../parser";
+import { markdownExtensions } from "../core/parser";
 import {
   createTestView,
   getDecorationSpecs,

@@ -2,7 +2,7 @@ import { markdown } from "@codemirror/lang-markdown";
 import { EditorState, type ChangeSpec } from "@codemirror/state";
 import { describe, expect, it } from "vitest";
 
-import { markdownExtensions } from "../../../parser";
+import { markdownExtensions } from "../../../core/parser";
 import { ensureFullSyntaxTree } from "../../../test-utils";
 import { editorStateTextSource } from "../../../state/document-analysis";
 import { buildSemanticDelta } from "../semantic-delta";

@@ -77,7 +77,7 @@ export {
   uiFont,
   contentFont,
   monoFont,
-} from "../constants/editor-constants";
+} from "../core/constants/editor-constants";
 export { imagePasteExtension, type ImagePasteConfig } from "./image-paste";
 export { fileToDataUrl } from "./image-save";
 export { imageDropExtension, type ImageDropConfig } from "./image-drop";

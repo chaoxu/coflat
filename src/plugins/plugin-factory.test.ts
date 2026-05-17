@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { BLOCK_MANIFEST_ENTRIES } from "../constants/block-manifest";
-import { CSS } from "../constants/css-classes";
+import { BLOCK_MANIFEST_ENTRIES } from "../core/constants/block-manifest";
+import { CSS } from "../core/constants/css-classes";
 import { createStandardPlugin, pluginFromManifest } from "./plugin-factory";
 
 describe("createStandardPlugin", () => {

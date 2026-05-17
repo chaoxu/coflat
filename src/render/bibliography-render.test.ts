@@ -8,10 +8,10 @@ import {
   buildBibliographyDecorations,
 } from "./bibliography-render";
 import { type CitationBacklink } from "../citations/citation-matching";
-import { type CslJsonItem } from "../citations/csl-json";
+import { type CslJsonItem } from "../core/citations/csl-json";
 import { CslProcessor } from "../citations/csl-processor";
-import { CSS } from "../constants/css-classes";
-import { markdownExtensions } from "../parser";
+import { CSS } from "../core/constants/css-classes";
+import { markdownExtensions } from "../core/parser";
 import { bibDataEffect, bibDataField } from "../state/bib-data";
 import { documentAnalysisField } from "../state/document-analysis";
 import { applyStateEffects, createEditorState, makeBibStore } from "../test-utils";

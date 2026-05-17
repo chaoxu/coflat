@@ -280,10 +280,10 @@ export * from "./src/headless/per-file-panels";
 // `@chaoxu/coflat-editor/citeproc` sub-entry so the main bundle no longer
 // transitively depends on citation-js. Hosts that need them import from
 // there explicitly.
-export * from "./src/constants";
-export * from "./src/constants/block-manifest";
-export * from "./src/constants/css-classes";
-export * from "./src/constants/events";
+export * from "./src/core/constants";
+export * from "./src/core/constants/block-manifest";
+export * from "./src/core/constants/css-classes";
+export * from "./src/core/constants/events";
 export * from "./src/debug/debug-bridge-ready";
 export * from "./src/debug/editor-runtime-contract";
 export * from "./src/debug/session-recorder";
@@ -296,7 +296,7 @@ export * from "./src/product";
 export * from "./src/project-config";
 export * from "./src/theme-contract";
 export * from "./src/document-surfaces";
-export * from "./src/document-surface-classes";
+export * from "./src/core/document-surface-classes";
 export * from "./src/inline-editor";
 export * from "./src/inline-fragments";
 export * from "./src/inline-surface";
@@ -333,12 +333,12 @@ export * from "./src/lib/tauri";
 export * from "./src/lib/types";
 // ./src/lib/ui/context-menu conflicts with ./src/lib/context-menu (same symbol names; picked the latter)
 export * from "./src/lib/utils";
-export * from "./src/parser";
-export * from "./src/parser/equation-label";
-export * from "./src/parser/fenced-div";
-export * from "./src/parser/footnote";
-export * from "./src/parser/frontmatter";
-export * from "./src/parser/math-backslash";
+export * from "./src/core/parser";
+export * from "./src/core/parser/equation-label";
+export * from "./src/core/parser/fenced-div";
+export * from "./src/core/parser/footnote";
+export * from "./src/core/parser/frontmatter";
+export * from "./src/core/parser/math-backslash";
 export * from "./src/plugins";
 export * from "./src/plugins/plugin-types";
 export * from "./src/render";

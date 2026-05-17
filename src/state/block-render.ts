@@ -7,7 +7,7 @@
  */
 
 import type { BlockAttrs, BlockDecorationSpec } from "./block-plugin";
-import { CSS } from "../constants/css-classes";
+import { CSS } from "../core/constants/css-classes";
 
 /**
  * Build a standard block header label string (widget text only).

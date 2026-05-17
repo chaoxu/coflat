@@ -38,8 +38,8 @@ import {
   documentSemanticsField,
   getDocumentAnalysisSliceRevision,
 } from "../state/document-analysis";
-import { NODE } from "../constants/node-types";
-import { CSS } from "../constants/css-classes";
+import { NODE } from "../core/constants/node-types";
+import { CSS } from "../core/constants/css-classes";
 import { findAncestorByName } from "../lib/syntax-tree-helpers";
 import {
   containsRange,

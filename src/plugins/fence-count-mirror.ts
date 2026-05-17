@@ -23,7 +23,7 @@ import {
 } from "@codemirror/state";
 import { syntaxTree } from "@codemirror/language";
 import type { SyntaxNode } from "@lezer/common";
-import { countColons } from "../parser/fenced-div";
+import { countColons } from "../core/parser/fenced-div";
 import { fenceOperationAnnotation } from "./fence-protection";
 import { programmaticDocumentChangeAnnotation } from "../state/programmatic-document-change";
 

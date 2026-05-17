@@ -1,5 +1,5 @@
-import type { CslJsonItem } from "./csl-json";
-import { CSS } from "../constants/css-classes";
+import type { CslJsonItem } from "../core/citations/csl-json";
+import { CSS } from "../core/constants/css-classes";
 import { formatBibEntry } from "./bibliography";
 
 export interface CitationPreviewContent {

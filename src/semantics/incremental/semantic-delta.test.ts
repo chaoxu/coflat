@@ -1,7 +1,7 @@
 import { Compartment, EditorState } from "@codemirror/state";
 import { markdown } from "@codemirror/lang-markdown";
 import { describe, expect, it } from "vitest";
-import { strikethroughExtension } from "../../parser";
+import { strikethroughExtension } from "../../core/parser";
 import {
   buildSemanticDelta,
   semanticGlobalInvalidationAnnotation,

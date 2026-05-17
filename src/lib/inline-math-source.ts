@@ -2,7 +2,7 @@ import {
   isBackslashEscaped,
   isPandocDollarMathCloser,
   isPandocDollarMathOpener,
-} from "./pandoc-dollar-math";
+} from "../core/lib/pandoc-dollar-math";
 
 export type InlineMathDelimiter = "dollar" | "paren";
 

@@ -1,6 +1,6 @@
 import { parser as baseParser } from "@lezer/markdown";
 import type { SyntaxNode } from "@lezer/common";
-import { markdownExtensions } from "./parser";
+import { markdownExtensions } from "./core/parser";
 import { MARK_NODES } from "./render/render-core";
 import {
   matchBracketedReference,

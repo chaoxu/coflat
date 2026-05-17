@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { buildCitationBacklinkMap } from "./bibliography";
-import type { BibStore, CslJsonItem } from "./csl-json";
+import type { BibStore, CslJsonItem } from "../core/citations/csl-json";
 import {
   collectCitationBacklinksFromAnalysis,
   collectCitationBacklinksFromTokens,
@@ -13,9 +13,9 @@ import {
   type CitationBacklink,
   type CitationCollectionOptions,
   type CitationReferenceToken,
-} from "./citation-matching";
-import { CslProcessor } from "./csl-processor";
-import type { FrontmatterConfig } from "../parser/frontmatter";
+} from "../citations/citation-matching";
+import { CslProcessor } from "../citations/csl-processor";
+import type { FrontmatterConfig } from "../core/parser/frontmatter";
 import type { DocumentAnalysis } from "../semantics/document";
 import { analyzeMarkdownSemantics } from "../semantics/markdown-analysis";
 
@@ -39,7 +39,7 @@ export interface LoadedBibliography {
 const EMPTY_STORE: BibStore = new Map<string, CslJsonItem>();
 
 async function parseBibTeXLazy(content: string): Promise<CslJsonItem[]> {
-  const { parseBibTeX } = await import("./bibtex-parser");
+  const { parseBibTeX } = await import("../core/citations/bibtex-parser");
   return parseBibTeX(content);
 }
 

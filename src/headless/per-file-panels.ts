@@ -1,7 +1,7 @@
 import type { Extension, Text } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 
-import { isFrontmatterDelimiterLine } from "../parser/frontmatter";
+import { isFrontmatterDelimiterLine } from "../core/parser/frontmatter";
 import { documentSemanticsField } from "../state/document-analysis";
 import type { DocumentAnalysis } from "../semantics/document";
 

@@ -1,5 +1,5 @@
-import { isIdentChar, isSpaceTab } from "../parser/char-utils";
-import { readBracedLabelId } from "../parser/label-utils";
+import { isIdentChar, isSpaceTab } from "../core/parser/char-utils";
+import { readBracedLabelId } from "../core/parser/label-utils";
 import { findTrailingHeadingAttributes } from "../semantics/heading-attributes";
 
 export interface TokenSpan {

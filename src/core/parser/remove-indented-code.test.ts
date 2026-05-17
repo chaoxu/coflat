@@ -2,7 +2,7 @@ import { parser } from "@lezer/markdown";
 import { describe, expect, it } from "vitest";
 
 import { removeIndentedCode } from "./remove-indented-code";
-import { parseNodeNames } from "../test-utils";
+import { parseNodeNames } from "../../test-utils";
 
 /** Collect all node type names from parsing `text`. */
 function nodeNames(text: string, configured = true): string[] {

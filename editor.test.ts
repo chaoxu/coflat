@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { DOCUMENT_SURFACE_CLASS } from "./src/document-surface-classes";
+import { DOCUMENT_SURFACE_CLASS } from "./src/core/document-surface-classes";
 import { mountEditor } from "./editor";
 
 describe("mountEditor", () => {

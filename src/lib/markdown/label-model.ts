@@ -1,5 +1,5 @@
 import type { DocumentLabelReference } from "./label-parser";
-import { REFERENCE_ID_SOURCE } from "../reference-grammar";
+import { REFERENCE_ID_SOURCE } from "../../core/lib/reference-grammar";
 export type { DocumentLabelReference } from "./label-parser";
 
 const EMPTY_DEFINITIONS: readonly DocumentLabelDefinition[] = [];
