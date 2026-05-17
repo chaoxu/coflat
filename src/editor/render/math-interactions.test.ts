@@ -5,7 +5,7 @@ import { CSS } from "../../core/constants/css-classes";
 import { frontmatterField } from "../state/frontmatter-state";
 import { equationLabelExtension } from "../../core/parser/equation-label";
 import { mathExtension } from "../../core/parser/math-backslash";
-import { createTestView } from "../../test-utils";
+import { createTestView } from "../test-utils";
 import { mathRenderPlugin } from "./math-render";
 import { clearKatexCache } from "./math-widget";
 import { documentSemanticsField } from "../state/document-analysis";

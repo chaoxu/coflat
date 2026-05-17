@@ -23,7 +23,7 @@ import {
   forEachOverlappingOrderedRange,
   getMergedRangeCoverage,
   rangesOverlap,
-} from "../../lib/range-helpers";
+} from "../lib/range-helpers";
 import { documentSemanticsField } from "../state/document-analysis";
 import { buildDecorations } from "./decoration-core";
 import { SyntaxParseScheduler } from "./syntax-parse-scheduler";

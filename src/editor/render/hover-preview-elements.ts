@@ -1,9 +1,9 @@
 import { CSS } from "../../core/constants";
-import { renderDocumentFragmentToDom } from "../../document-surfaces";
+import { renderDocumentFragmentToDom } from "../document-surfaces";
 import {
   createPreviewSurfaceContent,
   createPreviewSurfaceHeader,
-} from "../../preview-surface";
+} from "../preview-surface";
 
 export function createHoverPreviewHeader(
   text: string,

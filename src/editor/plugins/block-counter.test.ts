@@ -22,7 +22,7 @@ import {
   createPluginRegistryField,
   pluginRegistryField,
 } from "../state/plugin-registry";
-import { createEditorState, makeBlockPlugin } from "../../test-utils";
+import { createEditorState, makeBlockPlugin } from "../test-utils";
 
 /** Create an EditorState with the fenced div parser and a given document. */
 function createState(doc: string) {

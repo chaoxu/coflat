@@ -35,7 +35,7 @@ export {
   ImagePreviewWidget,
   imageRenderPlugin,
 } from "./image-render";
-export { isPdfTarget } from "../../lib/pdf-target";
+export { isPdfTarget } from "../lib/pdf-target";
 export {
   pdfPreviewField,
   pdfPreviewEffect,

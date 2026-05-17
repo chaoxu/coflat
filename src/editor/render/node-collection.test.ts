@@ -6,7 +6,7 @@ import { decorationHidden } from "./decoration-core";
 import {
   createEditorState,
   createTestView,
-} from "../../test-utils";
+} from "../test-utils";
 
 describe("collectNodes", () => {
   let view: EditorView | undefined;

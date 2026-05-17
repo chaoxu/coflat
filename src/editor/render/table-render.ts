@@ -29,7 +29,7 @@ import {
   getTableReferenceRenderDependencySignature,
   tableReferenceRenderDependenciesChanged,
 } from "../state/reference-render-state";
-import { preciseHitTestPosition } from "../../lib/editor-hit-test";
+import { preciseHitTestPosition } from "../lib/editor-hit-test";
 import {
   findTableAtCursor,
   findTablesInState,

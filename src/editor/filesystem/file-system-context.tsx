@@ -1,6 +1,6 @@
 import { createContext, useContext } from "react";
 
-import type { FileSystem } from "../../lib/types";
+import type { FileSystem } from "../lib/types";
 
 const FileSystemContext = createContext<FileSystem | null>(null);
 

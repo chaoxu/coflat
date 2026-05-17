@@ -1,5 +1,5 @@
-import { resolveMarkdownReferencePathFromDocument } from "../../lib/markdown-reference-paths";
-import { isRelativeFilePath } from "../../lib/pdf-target";
+import { resolveMarkdownReferencePathFromDocument } from "../lib/markdown-reference-paths";
+import { isRelativeFilePath } from "../lib/pdf-target";
 
 export interface PreviewImageOverrideContext {
   readonly documentPath?: string;

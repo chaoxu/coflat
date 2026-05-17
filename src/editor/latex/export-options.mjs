@@ -1,7 +1,7 @@
 import { parse as parseYaml } from "yaml";
 
 import exportContract from "./export-contract.json" with { type: "json" };
-import { isFrontmatterDelimiterLine } from "../../lib/frontmatter-delimiter.js";
+import { isFrontmatterDelimiterLine } from "../lib/frontmatter-delimiter.js";
 
 export const EXPORT_CONTRACT = exportContract;
 export const LATEX_PANDOC_FROM = exportContract.pandoc_from;

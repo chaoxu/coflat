@@ -10,7 +10,7 @@ import {
 } from "./section-counter";
 import { documentSemanticsField } from "../state/document-analysis";
 import { semanticGlobalInvalidationAnnotation } from "../semantics/incremental/semantic-delta";
-import { ensureFullSyntaxTree } from "../../test-utils";
+import { ensureFullSyntaxTree } from "../test-utils";
 
 /** Create an EditorState with the markdown parser and a given document. */
 function createState(doc: string): EditorState {

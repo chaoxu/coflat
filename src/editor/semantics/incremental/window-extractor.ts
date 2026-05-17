@@ -1,6 +1,6 @@
 import type { Tree } from "@lezer/common";
 import { NODE } from "../../../core/constants/node-types";
-import { scanReferenceTokens } from "../../../lib/reference-tokens";
+import { scanReferenceTokens } from "../../lib/reference-tokens";
 import type { FencedDivSemantics, MathSemantics, ReferenceSemantics, TextSource } from "../document-model";
 import {
   collectFencedDiv,

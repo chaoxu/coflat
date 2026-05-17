@@ -12,7 +12,7 @@ import {
   resolveDocumentLabelRenameTargetInGraph,
   type DocumentLabelRenamePlan as SharedDocumentLabelRenamePlan,
   type DocumentLabelRenameTargetLookup,
-} from "../../lib/markdown/label-model";
+} from "../lib/markdown/label-model";
 
 export interface DocumentLabelRenameTarget {
   readonly definition: DocumentLabelDefinition;

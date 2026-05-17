@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { markdown } from "@codemirror/lang-markdown";
 import { markdownExtensions } from "../../core/parser";
 import { documentSemanticsField } from "../state/document-analysis";
-import { createEditorState } from "../../test-utils";
+import { createEditorState } from "../test-utils";
 import { openerTrailingProtection } from "./opener-trailing-protection";
 
 function makeState(doc: string) {

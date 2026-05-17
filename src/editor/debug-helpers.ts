@@ -39,7 +39,7 @@ import type { ShellSurfaceSnapshot } from "./shell-surface-model";
 import type {
   DebugRenderState,
   SelectionInfo,
-} from "../lib/debug-types";
+} from "./lib/debug-types";
 import {
   collectDebugFenceStatuses,
   collectDebugTreeDivs,
@@ -62,7 +62,7 @@ export type {
   DebugRenderState,
   SelectionInfo,
   VisibleRawFencedOpener,
-} from "../lib/debug-types";
+} from "./lib/debug-types";
 export type { DebugSnapshot } from "./debug-snapshot";
 
 export interface DebugHelpers {

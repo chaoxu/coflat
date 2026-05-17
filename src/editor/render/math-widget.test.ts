@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import katex from "katex";
 import { CSS } from "../../core/constants/css-classes";
-import { createMockEditorView } from "../../test-utils";
+import { createMockEditorView } from "../test-utils";
 import { renderInlineMarkdown } from "./inline-render";
 import { renderKatexToHtml } from "./inline-shared";
 import { MathWidget, clearKatexCache, renderKatex } from "./math-widget";

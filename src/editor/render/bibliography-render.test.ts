@@ -14,7 +14,7 @@ import { CSS } from "../../core/constants/css-classes";
 import { markdownExtensions } from "../../core/parser";
 import { bibDataEffect, bibDataField } from "../state/bib-data";
 import { documentAnalysisField } from "../state/document-analysis";
-import { applyStateEffects, createEditorState, makeBibStore } from "../../test-utils";
+import { applyStateEffects, createEditorState, makeBibStore } from "../test-utils";
 
 const karger: CslJsonItem = {
   id: "karger2000",

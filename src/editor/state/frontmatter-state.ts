@@ -17,7 +17,7 @@ import {
   type FrontmatterResult,
   type FrontmatterStatus,
 } from "../../core/parser/frontmatter";
-import { mergeConfigs, projectConfigFacet } from "../../project-config";
+import { mergeConfigs, projectConfigFacet } from "../project-config";
 
 export { type FrontmatterConfig, type NumberingScheme } from "../../core/parser/frontmatter";
 

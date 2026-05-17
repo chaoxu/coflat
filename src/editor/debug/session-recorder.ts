@@ -1,10 +1,10 @@
-import type { EditorMode } from "../../editor-display-mode";
+import type { EditorMode } from "../editor-display-mode";
 import type {
   DebugDocumentState,
   DebugRenderState,
   SelectionInfo,
   StructureEditTarget,
-} from "../../lib/debug-types";
+} from "../lib/debug-types";
 
 const DEBUG_SESSION_STORAGE_KEY = "coflat-debug-session-id";
 const DEBUG_SESSION_EVENTS_STORAGE_KEY = "coflat-debug-session-events";

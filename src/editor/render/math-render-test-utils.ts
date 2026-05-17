@@ -7,7 +7,7 @@ import { equationLabelExtension } from "../../core/parser/equation-label";
 import { collectMathRanges, mathRenderPlugin } from "./math-render";
 import { frontmatterField } from "../state/frontmatter-state";
 import { mathMacrosField } from "../state/math-macros";
-import { createTestView } from "../../test-utils";
+import { createTestView } from "../test-utils";
 import { focusEffect } from "./render-utils";
 import { documentSemanticsField } from "../state/document-analysis";
 import {

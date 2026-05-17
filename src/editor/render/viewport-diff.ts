@@ -6,7 +6,7 @@ import {
   rangeIntersectsDocumentRanges,
   snapshotDocumentRanges,
   type DocumentRange,
-} from "../../lib/document-ranges";
+} from "../lib/document-ranges";
 
 /** A snapshot of a visible document range (matches CM6 visibleRanges shape). */
 export type VisibleRange = DocumentRange;

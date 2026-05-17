@@ -14,7 +14,7 @@ import {
   ViewPlugin,
 } from "@codemirror/view";
 import { buildDecorations } from "./decoration-core";
-import { measureSync } from "../../lib/perf";
+import { measureSync } from "../lib/perf";
 import {
   diffVisibleRanges,
   isPositionInRanges,

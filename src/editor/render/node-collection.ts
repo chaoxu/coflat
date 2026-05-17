@@ -2,7 +2,7 @@ import { syntaxTree } from "@codemirror/language";
 import type { Range, EditorState } from "@codemirror/state";
 import type { Decoration, EditorView } from "@codemirror/view";
 import type { SyntaxNodeRef } from "@lezer/common";
-import { containsRange } from "../../lib/range-helpers";
+import { containsRange } from "../lib/range-helpers";
 import type { VisibleRange } from "./viewport-diff";
 
 /**

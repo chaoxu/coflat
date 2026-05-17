@@ -3,7 +3,7 @@ import {
   defaultContentFontStack,
   defaultUIFontStack,
 } from "../core/constants/editor-constants";
-import { themeTypographyTokens } from "../theme-contract";
+import { themeTypographyTokens } from "./theme-contract";
 
 /**
  * Theme presets: typed typography configurations for the editor and app chrome.

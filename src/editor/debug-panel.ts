@@ -4,7 +4,7 @@ import type { FencedDivInfo } from "./fenced-block/model";
 import {
   editorElementFromPoint,
   editorHitTestSnapshot,
-} from "../lib/editor-hit-test";
+} from "./lib/editor-hit-test";
 import { frontmatterField } from "./state/frontmatter-state";
 import { getDebugSessionRecorderStatus } from "./debug/session-recorder";
 import { activeShellPath, type CodeShellInfo } from "./state/shell-ownership";

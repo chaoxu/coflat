@@ -6,7 +6,7 @@ import {
   createMarkdownLanguageExtensions,
 } from "../base-editor-extensions";
 import { frontmatterField } from "../state/frontmatter-state";
-import { documentPathFacet } from "../../lib/types";
+import { documentPathFacet } from "../lib/types";
 import {
   defaultPlugins,
 } from "../plugins";

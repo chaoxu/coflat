@@ -6,7 +6,7 @@ import {
   isPlainPrimaryMouseEvent,
 } from "../state/mouse-selection";
 import { documentAnalysisField } from "../state/document-analysis";
-import { rangesIntersect } from "../../lib/range-helpers";
+import { rangesIntersect } from "../lib/range-helpers";
 import { _snapToTokenBoundary } from "./math-source";
 import { editorFocusField } from "./focus-state";
 import { isFocusedInlineRevealTarget } from "./inline-reveal-policy";

@@ -4,11 +4,11 @@ import { markdown } from "@codemirror/lang-markdown";
 import { CSS } from "../../core/constants/css-classes";
 import { fencedDiv } from "../../core/parser/fenced-div";
 import { frontmatterField } from "../state/frontmatter-state";
-import { projectConfigFacet } from "../../project-config";
+import { projectConfigFacet } from "../project-config";
 import type { BlockConfig } from "../../core/parser/frontmatter";
 import type { BlockPlugin } from "./plugin-types";
 import { getCm6RenderDecorations, withCm6BlockPlugin } from "../state/cm6-block-plugin";
-import { createEditorState as createTestEditorState, makeBlockPlugin } from "../../test-utils";
+import { createEditorState as createTestEditorState, makeBlockPlugin } from "../test-utils";
 import {
   createRegistryState,
   registerPlugin,

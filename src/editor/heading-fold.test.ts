@@ -7,7 +7,7 @@ import {
   foldService,
 } from "@codemirror/language";
 import type { EditorView } from "@codemirror/view";
-import { createTestView } from "../test-utils";
+import { createTestView } from "./test-utils";
 import {
   _headingFoldFieldForTest as headingFoldField,
   headingFold,

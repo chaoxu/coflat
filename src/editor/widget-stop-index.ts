@@ -12,7 +12,7 @@ import {
   readMarkdownImageContent,
 } from "./state/markdown-image";
 import { collectFencedDivs } from "./fenced-block/model";
-import { mergeRanges, rangesOverlap } from "../lib/range-helpers";
+import { mergeRanges, rangesOverlap } from "./lib/range-helpers";
 import { pluginRegistryField } from "./state/plugin-registry";
 import { getPluginOrFallback } from "./state/plugin-registry-core";
 

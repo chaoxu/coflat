@@ -4,7 +4,7 @@ import {
   type FencedBlockInfo,
   mapFencedBlockInfo,
 } from "../fenced-block/model";
-import { mergeRanges, rangesOverlap } from "../../lib/range-helpers";
+import { mergeRanges, rangesOverlap } from "../lib/range-helpers";
 
 export interface CodeBlockInfo extends FencedBlockInfo {
   /** Start of the FencedCode node (opening fence line start). */

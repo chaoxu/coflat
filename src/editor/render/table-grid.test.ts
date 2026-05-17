@@ -11,7 +11,7 @@ import {
   getTableDeleteRange,
   tableGridExtension,
 } from "./table-grid";
-import { createTestView, ensureFullSyntaxTree } from "../../test-utils";
+import { createTestView, ensureFullSyntaxTree } from "../test-utils";
 
 const DOC = [
   "before",

@@ -12,7 +12,7 @@ import {
   createMockEditorView,
   ensureFullSyntaxTree,
   getDecorationSpecs,
-} from "../../test-utils";
+} from "../test-utils";
 import { editorFocusField } from "./render-utils";
 import { _tableDecorationFieldForTest as tableDecorationField } from "./table-render";
 import type { ParsedTable } from "./table-utils";

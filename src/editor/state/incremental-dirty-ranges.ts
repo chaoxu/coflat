@@ -7,7 +7,7 @@ import {
   rangeIntersectsDocumentRanges,
   type DocumentRange,
   type DocumentRangeExpander,
-} from "../../lib/document-ranges";
+} from "../lib/document-ranges";
 
 export type DirtyRange = DocumentRange;
 export type DirtyRangeExpander = DocumentRangeExpander;

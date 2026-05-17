@@ -45,7 +45,7 @@ import {
 import { createChangeChecker } from "../state/change-detection";
 import { programmaticDocumentChangeAnnotation } from "../state/programmatic-document-change";
 import { planSemanticSensitiveUpdate } from "./view-plugin-factories";
-import { measureSync } from "../../lib/perf";
+import { measureSync } from "../lib/perf";
 import {
   collectActiveMathDirtyRanges,
   collectDirtyMathRegions,

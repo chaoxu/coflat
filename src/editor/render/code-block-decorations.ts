@@ -18,7 +18,7 @@ import {
   activeCodeBlock,
   activeCodeBlockOpenFenceStarts,
 } from "../state/shell-ownership";
-import { isFencedCode } from "../../lib/syntax-tree-helpers";
+import { isFencedCode } from "../lib/syntax-tree-helpers";
 import {
   activateStructureEditAt,
   hasStructureEditEffect,

@@ -19,7 +19,7 @@ import type { EditorView } from "@codemirror/view";
 import type {
   LinkPickerRequest,
   LinkPickerResult,
-} from "../../editor-host-api";
+} from "../editor-host-api";
 
 const PICKER_CLASS = "cf-default-picker";
 const INPUT_CLASS = "cf-default-picker__input";

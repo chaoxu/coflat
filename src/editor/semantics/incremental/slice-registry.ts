@@ -1,4 +1,4 @@
-import { compareRangesByFromThenTo } from "../../../lib/range-order";
+import { compareRangesByFromThenTo } from "../../lib/range-order";
 import type {
   DocumentAnalysis,
   FencedDivSemantics,

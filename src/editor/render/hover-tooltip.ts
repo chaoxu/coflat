@@ -1,7 +1,7 @@
 import { autoUpdate, computePosition, flip, offset, shift } from "@floating-ui/dom";
 
 import { CSS } from "../../core/constants";
-import { createPreviewSurfaceShell } from "../../preview-surface";
+import { createPreviewSurfaceShell } from "../preview-surface";
 import {
   EMPTY_LOCAL_MEDIA_DEPENDENCIES,
   type LocalMediaDependencies,

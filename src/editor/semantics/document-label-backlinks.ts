@@ -11,7 +11,7 @@ import {
   resolveDocumentLabelBacklinkTargetInGraph,
   resolveDocumentLabelSelectionTargetInGraph,
   type DocumentLabelBacklinkTargetLookup,
-} from "../../lib/markdown/label-model";
+} from "../lib/markdown/label-model";
 
 export interface DocumentLabelBacklinkItem {
   readonly from: number;

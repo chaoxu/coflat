@@ -20,7 +20,7 @@ import type { EditorView } from "@codemirror/view";
 
 import * as imageSave from "./image-save";
 import { insertImageFromPicker } from "./image-insert";
-import { createTestView } from "../test-utils";
+import { createTestView } from "./test-utils";
 
 const views: EditorView[] = [];
 

@@ -7,7 +7,7 @@ import {
   enterInListItem,
   outdentListItem,
 } from "./list-outliner";
-import { createTestView } from "../test-utils";
+import { createTestView } from "./test-utils";
 
 describe("backspaceAtListItemStart", () => {
   let view: EditorView | undefined;

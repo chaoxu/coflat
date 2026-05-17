@@ -9,7 +9,7 @@ import {
   handleImageInsert,
   insertImageMarkdown,
 } from "./image-save";
-import { createTestView } from "../test-utils";
+import { createTestView } from "./test-utils";
 import type { EditorView } from "@codemirror/view";
 
 const views: EditorView[] = [];

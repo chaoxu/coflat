@@ -5,7 +5,7 @@ import {
   WidgetType,
 } from "@codemirror/view";
 import { CSS } from "../../../core/constants/css-classes";
-import { renderDocumentFragmentToDom } from "../../../document-surfaces";
+import { renderDocumentFragmentToDom } from "../../document-surfaces";
 import type { FencedDivInfo } from "../../fenced-block/model";
 import {
   getFencedDivRevealFrom,

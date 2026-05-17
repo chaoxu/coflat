@@ -41,7 +41,7 @@ import {
   hasMarkClassInRange,
   makeBibStore,
   makeBlockPlugin,
-} from "../../test-utils";
+} from "../test-utils";
 import { CSS } from "../../core/constants/css-classes";
 import { defaultPlugins } from "../plugins/default-plugins";
 import { withCm6BlockPlugin } from "../state/cm6-block-plugin";

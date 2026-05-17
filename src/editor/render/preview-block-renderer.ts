@@ -1,6 +1,6 @@
 import { parser as baseParser } from "@lezer/markdown";
 import type { SyntaxNode } from "@lezer/common";
-import type { CitationFormatter } from "../../document-context";
+import type { CitationFormatter } from "../document-context";
 import {
   BLOCK_MANIFEST_ENTRIES,
   EXCLUDED_FROM_FALLBACK,
@@ -8,7 +8,7 @@ import {
   type BlockManifestEntry,
 } from "../../core/constants/block-manifest";
 import { CSS } from "../../core/constants/css-classes";
-import type { BlockCounterEntry } from "../../lib/types";
+import type { BlockCounterEntry } from "../lib/types";
 import {
   extractRawFrontmatter,
   htmlRenderExtensions,

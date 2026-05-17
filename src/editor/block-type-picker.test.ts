@@ -24,7 +24,7 @@ import {
 } from "./plugins";
 import { frontmatterField } from "./state/frontmatter-state";
 import { createPluginRegistryField } from "./state/plugin-registry";
-import { createTestView, makeBlockPlugin } from "../test-utils";
+import { createTestView, makeBlockPlugin } from "./test-utils";
 
 vi.mock("@floating-ui/dom", async () => {
   const actual = await vi.importActual<typeof import("@floating-ui/dom")>("@floating-ui/dom");

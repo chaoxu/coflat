@@ -30,7 +30,7 @@
  * ```
  */
 
-import type { CitationFormatter } from "./src/document-context";
+import type { CitationFormatter } from "./src/editor/document-context";
 import { CslProcessor } from "./src/editor/citations/csl-processor";
 
 export {
@@ -67,7 +67,7 @@ export {
   type BibliographyFailureKind,
 } from "./src/editor/state/bib-data";
 
-export type { CitationFormatter } from "./src/document-context";
+export type { CitationFormatter } from "./src/editor/document-context";
 
 /**
  * Wrap a `CslProcessor` so it satisfies the `CitationFormatter` contract

@@ -3,7 +3,7 @@ import { parse as parseYaml, stringify as yamlStringify } from "yaml";
 import {
   FRONTMATTER_DELIMITER,
   isFrontmatterDelimiterLine,
-} from "../../lib/frontmatter-delimiter.js";
+} from "../lib/frontmatter-delimiter.js";
 
 /**
  * Move a fenced-div opener's trailing inline title into a `title="..."`

@@ -1,6 +1,6 @@
 import type { EditorView } from "@codemirror/view";
-import { readImageFileAsDataUrl } from "../../lib/image-data-url";
-import type { FileSystem } from "../../lib/types";
+import { readImageFileAsDataUrl } from "../lib/image-data-url";
+import type { FileSystem } from "../lib/types";
 import {
   imageUrlEffect,
   imageUrlField,

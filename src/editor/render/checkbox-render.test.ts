@@ -9,7 +9,7 @@ import { markdownExtensions } from "../../core/parser";
 import {
   createTestView,
   getDecorationSpecs,
-} from "../../test-utils";
+} from "../test-utils";
 import {
   CheckboxWidget,
   checkboxRenderPlugin,

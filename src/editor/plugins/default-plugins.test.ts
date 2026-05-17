@@ -4,7 +4,7 @@ import { markdown } from "@codemirror/lang-markdown";
 import { fencedDiv } from "../../core/parser/fenced-div";
 import { documentSemanticsField } from "../state/document-analysis";
 import { CSS } from "../../core/constants/css-classes";
-import { createEditorState } from "../../test-utils";
+import { createEditorState } from "../test-utils";
 
 import {
   createRegistryState,

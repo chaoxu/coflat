@@ -27,7 +27,7 @@ import {
   type DocumentLabelKind,
   type DocumentLabelReference,
   type DocumentLabelRenameValidation,
-} from "../../lib/markdown/label-model";
+} from "../lib/markdown/label-model";
 
 export type {
   DocumentLabelDefinition,

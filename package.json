@@ -34,13 +34,13 @@
       "import": "./dist/citeproc.mjs"
     },
     "./test-utils": {
-      "types": "./dist/src/test-utils.d.ts",
-      "import": "./dist/src/test-utils.js"
+      "types": "./dist/src/editor/test-utils.d.ts",
+      "import": "./dist/src/editor/test-utils.js"
     },
     "./style.css": "./dist/editor.css"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.editor.json && vite build --config vite.editor.config.ts && find src -name '*.d.mts' -print0 | xargs -0 -I{} rsync -aR {} dist/ && find src -name '*.d.ts' -print0 | xargs -0 -I{} rsync -aR {} dist/ && tsc -p tsconfig.test-utils.json && cp src/test-utils.ts dist/src/test-utils.ts",
+    "build": "tsc -p tsconfig.editor.json && vite build --config vite.editor.config.ts && find src -name '*.d.mts' -print0 | xargs -0 -I{} rsync -aR {} dist/ && find src -name '*.d.ts' -print0 | xargs -0 -I{} rsync -aR {} dist/ && tsc -p tsconfig.test-utils.json && cp src/editor/test-utils.ts dist/src/editor/test-utils.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "publint": "publint",

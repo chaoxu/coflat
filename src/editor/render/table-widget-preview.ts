@@ -1,4 +1,4 @@
-import { findInlineNeutralAnchor } from "../../inline-fragments";
+import { findInlineNeutralAnchor } from "../inline-fragments";
 import { isReferenceWidgetTarget } from "./reference-widget";
 import {
   renderInlineMarkdown,

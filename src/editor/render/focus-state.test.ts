@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { StateEffect } from "@codemirror/state";
 import { createBooleanToggleField } from "./focus-state";
-import { applyStateEffects, createEditorState } from "../../test-utils";
+import { applyStateEffects, createEditorState } from "../test-utils";
 
 describe("createBooleanToggleField", () => {
   it("starts with the initial value (default false)", () => {

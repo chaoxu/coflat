@@ -1,6 +1,6 @@
 import { EditorView } from "@codemirror/view";
-import { preciseHitTestPosition } from "../../lib/editor-hit-test";
-import { containsPos } from "../../lib/range-helpers";
+import { preciseHitTestPosition } from "../lib/editor-hit-test";
+import { containsPos } from "../lib/range-helpers";
 import { getCellBounds } from "./table-cell-geometry";
 import { findPipePositions } from "./table-discovery";
 

@@ -3,7 +3,7 @@ import { forceParsing } from "@codemirror/language";
 import type { EditorView } from "@codemirror/view";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { markdownExtensions } from "../../core/parser";
-import { createTestView } from "../../test-utils";
+import { createTestView } from "../test-utils";
 import { tableDiscoveryField } from "../state/table-discovery";
 import { findCellBounds, findTablesInState } from "./table-discovery";
 import {
@@ -30,7 +30,7 @@ const { contextMenus } = vi.hoisted(() => ({
   contextMenus: [] as CapturedMenu[],
 }));
 
-vi.mock("../../lib/context-menu", () => ({
+vi.mock("../lib/context-menu", () => ({
   ContextMenu: class {
     constructor(items: CapturedMenuItem[], x: number, y: number) {
       contextMenus.push({ items, x, y });

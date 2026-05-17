@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { EditorView } from "@codemirror/view";
 import type { ParsedTable } from "./table-utils";
-import { createMockEditorView } from "../../test-utils";
+import { createMockEditorView } from "../test-utils";
 
 class ResizeObserverStub {
   observe() {}
@@ -23,7 +23,7 @@ const createInlineEditorControllerMock = vi.fn<
   (options: unknown) => MockInlineController
 >();
 
-vi.mock("../../inline-editor", () => ({
+vi.mock("../inline-editor", () => ({
   createInlineEditorController: (options: unknown) =>
     createInlineEditorControllerMock(options),
 }));

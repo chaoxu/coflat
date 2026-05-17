@@ -3,7 +3,7 @@ import { EditorState } from "@codemirror/state";
 import { describe, expect, it } from "vitest";
 
 import { markdownExtensions } from "../../../core/parser";
-import { ensureFullSyntaxTree } from "../../../test-utils";
+import { ensureFullSyntaxTree } from "../../test-utils";
 import { editorStateTextSource } from "../../state/document-analysis";
 import { getEquationNumbersCacheKey, type DocumentAnalysis } from "../document";
 import { buildSemanticDelta } from "./semantic-delta";

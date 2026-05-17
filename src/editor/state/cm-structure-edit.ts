@@ -12,7 +12,7 @@ import {
   getFencedDivRevealFrom,
   getFencedDivRevealTo,
 } from "../fenced-block/model";
-import { containsPos, containsRange } from "../../lib/range-helpers";
+import { containsPos, containsRange } from "../lib/range-helpers";
 import type {
   FootnoteDefinition,
 } from "../semantics/document";
@@ -28,7 +28,7 @@ import type {
   FootnoteLabelStructureEditTarget,
   FrontmatterStructureEditTarget,
   StructureEditTarget,
-} from "../../lib/debug-types";
+} from "../lib/debug-types";
 export type {
   CodeFenceStructureEditTarget,
   DisplayMathStructureEditTarget,
@@ -36,7 +36,7 @@ export type {
   FootnoteLabelStructureEditTarget,
   FrontmatterStructureEditTarget,
   StructureEditTarget,
-} from "../../lib/debug-types";
+} from "../lib/debug-types";
 
 export const setStructureEditTargetEffect =
   StateEffect.define<StructureEditTarget | null>();

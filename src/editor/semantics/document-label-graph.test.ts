@@ -4,11 +4,11 @@ import { describe, expect, it } from "vitest";
 import { frontmatterField } from "../state/frontmatter-state";
 import {
   buildDocumentLabelGraph as buildPlainDocumentLabelGraph,
-} from "../../lib/markdown/label-graph";
+} from "../lib/markdown/label-graph";
 import {
   prepareDocumentLabelRename as preparePlainDocumentLabelRename,
   resolveDocumentLabelBacklinks as resolvePlainDocumentLabelBacklinks,
-} from "../../lib/markdown/label-actions";
+} from "../lib/markdown/label-actions";
 import { markdownExtensions } from "../../core/parser";
 import {
   defaultPlugins,

@@ -11,8 +11,8 @@ import {
   addMarkerReplacement,
   decorationHidden,
 } from "./decoration-core";
-import { documentContextFacet } from "../../document-context";
-import { documentPathFacet } from "../../lib/types";
+import { documentContextFacet } from "../document-context";
+import { documentPathFacet } from "../lib/types";
 import {
   buildResolvedLinkDecoration,
   getLinkDecoration,

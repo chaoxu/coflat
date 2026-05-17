@@ -1,5 +1,5 @@
 import type { FormatEventDetail } from "../../core/constants/events";
-import type { EditorMode } from "../../editor-display-mode";
+import type { EditorMode } from "../editor-display-mode";
 import type {
   DebugDocumentState,
   FileWatcherStatus,
@@ -7,8 +7,8 @@ import type {
   ScrollGuardEvent,
   SidebarTab,
   WatcherHealthEvent,
-} from "../../lib/debug-types";
-export type { DebugDocumentState } from "../../lib/debug-types";
+} from "../lib/debug-types";
+export type { DebugDocumentState } from "../lib/debug-types";
 import type {
   DebugSessionCapture,
   DebugSessionExport,

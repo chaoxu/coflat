@@ -7,7 +7,7 @@ import { blockCounterField } from "../state/block-counter";
 import { documentSemanticsField } from "../state/document-analysis";
 import { mathMacrosField } from "../state/math-macros";
 import { createPluginRegistryField } from "../state/plugin-registry";
-import { createTestView, getDecorationSpecs } from "../../test-utils";
+import { createTestView, getDecorationSpecs } from "../test-utils";
 import { _blockDecorationFieldForTest, blockRenderPlugin } from "./plugin-render";
 
 function requireDefaultPlugin(name: string) {

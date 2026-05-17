@@ -7,7 +7,7 @@ import { equationLabelExtension } from "../../core/parser/equation-label";
 import { frontmatterField } from "../state/frontmatter-state";
 import { documentSemanticsField } from "../state/document-analysis";
 import { activeStructureEditField } from "../state/cm-structure-edit";
-import { createMockEditorView } from "../../test-utils";
+import { createMockEditorView } from "../test-utils";
 import { mathRenderPlugin, _mathDecorationFieldForTest as mathDecorationField } from "./math-render";
 import { _docChangeAffectsVisibleMathWidgetsForTest as docChangeAffectsVisibleMathWidgets } from "./math-metadata";
 

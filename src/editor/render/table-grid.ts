@@ -35,7 +35,7 @@ import {
   type TableRange,
 } from "./table-discovery";
 import { tableDiscoveryField } from "../state/table-discovery";
-import { rangesIntersect } from "../../lib/range-helpers";
+import { rangesIntersect } from "../lib/range-helpers";
 import { programmaticDocumentChangeAnnotation } from "../state/programmatic-document-change";
 import {
   formatTable,

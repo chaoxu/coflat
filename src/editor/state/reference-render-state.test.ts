@@ -17,7 +17,7 @@ import {
   createTestView,
   makeBibStore,
   makeBlockPlugin,
-} from "../../test-utils";
+} from "../test-utils";
 import {
   getTableReferenceRenderDependencySignature,
   tableReferenceRenderDependenciesChanged,

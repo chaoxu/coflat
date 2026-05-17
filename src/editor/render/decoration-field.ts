@@ -11,7 +11,7 @@ import {
 } from "@codemirror/view";
 import { createChangeChecker } from "../state/change-detection";
 import { focusEffect } from "./focus-state";
-import { measureSync } from "../../lib/perf";
+import { measureSync } from "../lib/perf";
 import {
   type DecorationLifecycleContext,
   type DecorationRangeBounds,

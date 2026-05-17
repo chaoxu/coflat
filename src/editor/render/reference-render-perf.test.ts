@@ -17,7 +17,7 @@ import {
   referenceRenderDependenciesChanged,
   referenceRenderPlugin,
 } from "./reference-render";
-import { createTestView } from "../../test-utils";
+import { createTestView } from "../test-utils";
 import {
   createPluginView,
   karger,

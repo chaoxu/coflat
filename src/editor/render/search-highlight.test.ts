@@ -4,7 +4,7 @@ import { CSS } from "../../core/constants/css-classes";
 import { Decoration, EditorView, WidgetType } from "@codemirror/view";
 import { search } from "@codemirror/search";
 
-import { createTestView } from "../../test-utils";
+import { createTestView } from "../test-utils";
 import {
   nextSearchMatch,
   openFindSearch,
@@ -15,7 +15,7 @@ import {
   MathWidget,
   searchHighlightPlugin,
   shouldUpdateSearchHighlights,
-} from "./";
+} from ".";
 import { RenderWidget } from "./source-widget";
 
 const views: EditorView[] = [];

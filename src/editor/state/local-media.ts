@@ -1,7 +1,7 @@
 import type { EditorState } from "@codemirror/state";
-import { resolveMarkdownReferencePathFromDocument } from "../../lib/markdown-reference-paths";
-import { isPdfTarget, isRelativeFilePath } from "../../lib/pdf-target";
-import { documentPathFacet } from "../../lib/types";
+import { resolveMarkdownReferencePathFromDocument } from "../lib/markdown-reference-paths";
+import { isPdfTarget, isRelativeFilePath } from "../lib/pdf-target";
+import { documentPathFacet } from "../lib/types";
 
 export type LocalMediaCacheKind = "image" | "pdf";
 

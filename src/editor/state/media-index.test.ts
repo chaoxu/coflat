@@ -1,7 +1,7 @@
 import { markdown } from "@codemirror/lang-markdown";
 import { Compartment, EditorState } from "@codemirror/state";
 import { describe, expect, it } from "vitest";
-import { documentPathFacet } from "../../lib/types";
+import { documentPathFacet } from "../lib/types";
 import {
   collectChangedLocalMediaPathsFromIndex,
   localMediaReferenceRangesForResolvedPaths,

@@ -15,7 +15,7 @@ import {
   createEditorState,
   getDecorationSpecs,
   makeBibStore,
-} from "../../test-utils";
+} from "../test-utils";
 import {
   formatBibEntry,
   sortBibEntries,

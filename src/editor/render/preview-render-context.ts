@@ -1,5 +1,5 @@
-import type { CitationFormatter } from "../../document-context";
-import type { BlockCounterEntry } from "../../lib/types";
+import type { CitationFormatter } from "../document-context";
+import type { BlockCounterEntry } from "../lib/types";
 import type { DocumentSemantics } from "../semantics/document";
 import type { BibStore } from "../state/bib-data";
 import type { InlineReferenceRenderContext } from "./inline-render";

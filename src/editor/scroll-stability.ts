@@ -1,5 +1,5 @@
 import { type EditorView, ViewPlugin, type ViewUpdate } from "@codemirror/view";
-import type { ScrollGuardEvent } from "../lib/debug-types";
+import type { ScrollGuardEvent } from "./lib/debug-types";
 
 const LARGE_HEIGHT_CORRECTION_THRESHOLD = 256;
 const MAX_SCROLL_GUARD_EVENTS = 100;

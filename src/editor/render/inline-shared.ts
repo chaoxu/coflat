@@ -9,12 +9,12 @@
 
 import createDOMPurify from "dompurify";
 import katex from "katex";
-import { buildKatexOptions } from "../../lib/katex-options";
+import { buildKatexOptions } from "../lib/katex-options";
 import { isSafeUrl } from "../../core/lib/url-utils";
 
 // Re-export from canonical shared locations
-export { buildKatexOptions } from "../../lib/katex-options";
-export { sanitizeCslHtml } from "../../lib/sanitize-csl-html";
+export { buildKatexOptions } from "../lib/katex-options";
+export { sanitizeCslHtml } from "../lib/sanitize-csl-html";
 export { isSafeUrl } from "../../core/lib/url-utils";
 
 // ── Mark nodes ──────────────────────────────────────────────────────────────

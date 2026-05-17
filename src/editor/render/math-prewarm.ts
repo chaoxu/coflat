@@ -5,8 +5,8 @@ import { documentAnalysisField } from "../state/document-analysis";
 import { clearKatexHtmlCache, renderKatexToHtml } from "./inline-shared";
 import { mathMacrosField } from "../state/math-macros";
 import { serializeMacros } from "./source-widget";
-import { rangesOverlap } from "../../lib/range-helpers";
-import { measureSync } from "../../lib/perf";
+import { rangesOverlap } from "../lib/range-helpers";
+import { measureSync } from "../lib/perf";
 
 function scheduleIdle(callback: (deadline?: IdleDeadline) => void): void {
   if (typeof requestIdleCallback === "function") {

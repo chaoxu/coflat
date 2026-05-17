@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { search } from "@codemirror/search";
 import { EditorView } from "@codemirror/view";
-import { createTestView } from "../../test-utils";
+import { createTestView } from "../test-utils";
 import {
   nextSearchMatch,
   openFindSearch,

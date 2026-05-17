@@ -4,7 +4,7 @@ import { bibDataEffect } from "../state/bib-data";
 import { CslProcessor } from "../citations/csl-processor";
 import { CSS } from "../../core/constants/css-classes";
 import { collectReferenceRanges } from "./reference-render";
-import { makeBibStore } from "../../test-utils";
+import { makeBibStore } from "../test-utils";
 import {
   createView,
   expectPresent,

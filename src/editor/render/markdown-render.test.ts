@@ -24,7 +24,7 @@ import {
   getDecorationSpecs,
   hasLineClassAt,
   hasMarkClassInRange,
-} from "../../test-utils";
+} from "../test-utils";
 import { CSS } from "../../core/constants/css-classes";
 import { markdownExtensions } from "../../core/parser";
 

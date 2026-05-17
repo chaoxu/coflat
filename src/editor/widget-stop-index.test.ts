@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { type TableRange } from "./state/table-discovery";
-import { createTestView } from "../test-utils";
+import { createTestView } from "./test-utils";
 import { createMarkdownLanguageExtensions } from "./base-editor-extensions";
 import {
   type HiddenWidgetStop,

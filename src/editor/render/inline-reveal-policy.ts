@@ -1,6 +1,6 @@
 import type { SelectionRange } from "@codemirror/state";
-import { containsRange } from "../../lib/range-helpers";
-import { forEachOverlappingOrderedRange } from "../../lib/range-helpers";
+import { containsRange } from "../lib/range-helpers";
+import { forEachOverlappingOrderedRange } from "../lib/range-helpers";
 
 export interface InlineRevealTarget {
   readonly from: number;

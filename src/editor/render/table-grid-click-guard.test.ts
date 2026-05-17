@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { EditorView } from "@codemirror/view";
 import { createMarkdownLanguageExtensions } from "../base-editor-extensions";
-import { createTestView } from "../../test-utils";
+import { createTestView } from "../test-utils";
 import { tableGridExtension } from "./table-grid";
 import { guardTableGridMousePosition } from "./table-grid-click-guard";
 

@@ -11,7 +11,7 @@ import {
   createEditorState,
   makeBibStore,
   makeBlockPlugin,
-} from "../../test-utils";
+} from "../test-utils";
 import type { DocumentAnalysis } from "../semantics/document";
 import {
   collectCitationMatchesFromAnalysis,

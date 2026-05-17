@@ -13,7 +13,7 @@ import {
   toggleSpellcheck,
 } from "./spellcheck";
 import { documentAnalysisField } from "./state/document-analysis";
-import { createTestView } from "../test-utils";
+import { createTestView } from "./test-utils";
 
 interface SpellcheckPluginValue {
   decorations: DecorationSet;

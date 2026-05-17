@@ -32,7 +32,7 @@ import {
   getDecorationSpecs,
   hasBlockReplacementClassAt,
   hasLineClassAt,
-} from "../../test-utils";
+} from "../test-utils";
 import { _updateCodeBlockStructureCacheForTest as updateCodeBlockStructureCache } from "../state/code-block-structure";
 
 function createTestState(doc: string, cursorPos = 0, focused = false) {

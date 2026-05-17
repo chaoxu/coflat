@@ -3,11 +3,11 @@ import type { EditorView } from "@codemirror/view";
 import { markdown } from "@codemirror/lang-markdown";
 import { mathExtension } from "../../core/parser/math-backslash";
 import { frontmatterField } from "../state/frontmatter-state";
-import { projectConfigFacet } from "../../project-config";
+import { projectConfigFacet } from "../project-config";
 import { getMathMacros, mathMacrosField } from "../state/math-macros";
 import { collectMathRanges } from "./math-render";
 import { MathWidget } from "./math-widget";
-import { createTestView } from "../../test-utils";
+import { createTestView } from "../test-utils";
 import { documentSemanticsField } from "../state/document-analysis";
 
 /** Create an EditorView with frontmatter and math parser extensions. */

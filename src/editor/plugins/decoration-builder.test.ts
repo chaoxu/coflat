@@ -6,7 +6,7 @@ import type { FencedDivInfo } from "../fenced-block/model";
 import {
   getDecorationSpecs,
   hasLineClassAt,
-} from "../../test-utils";
+} from "../test-utils";
 import { DecorationBuilder } from "./decoration-builder";
 import { applySpecialBehavior } from "./special-behavior-handlers";
 

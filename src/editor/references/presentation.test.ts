@@ -17,7 +17,7 @@ import {
   CSL_FIXTURES,
   makeBibStore,
   makeBlockPlugin,
-} from "../../test-utils";
+} from "../test-utils";
 import type { DocumentReferenceCatalog } from "../semantics/reference-catalog";
 import {
   createCatalogReferencePresentationController,

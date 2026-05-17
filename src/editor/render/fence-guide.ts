@@ -40,12 +40,12 @@ import {
 } from "../state/document-analysis";
 import { NODE } from "../../core/constants/node-types";
 import { CSS } from "../../core/constants/css-classes";
-import { findAncestorByName } from "../../lib/syntax-tree-helpers";
+import { findAncestorByName } from "../lib/syntax-tree-helpers";
 import {
   containsRange,
   toRanges,
   type RangeLike,
-} from "../../lib/range-helpers";
+} from "../lib/range-helpers";
 import {
   clearActiveFenceGuideClasses,
   resolveLiveWidgetSourceRange,

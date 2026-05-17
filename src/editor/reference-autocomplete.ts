@@ -14,7 +14,7 @@ import {
 } from "./citations/citation-preview";
 import { bibDataEffect, bibDataField } from "./state/bib-data";
 import { CSS } from "../core/constants/css-classes";
-import { findAncestor } from "../lib/syntax-tree-helpers";
+import { findAncestor } from "./lib/syntax-tree-helpers";
 import { getReferencePresentationModel } from "./references/presentation";
 import { buildCrossrefCompletionPreviewContent } from "./render/hover-preview";
 import { getEditorDocumentReferenceCatalog } from "./semantics/editor-reference-catalog";

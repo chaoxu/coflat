@@ -8,12 +8,12 @@ import {
   _imageDecorationFieldForTest,
   imageRenderPlugin,
 } from "./image-render";
-import { resolveMarkdownReferencePathFromDocument } from "../../lib/markdown-reference-paths";
-import { isPdfTarget, isRelativeFilePath } from "../../lib/pdf-target";
-import { documentPathFacet } from "../../lib/types";
+import { resolveMarkdownReferencePathFromDocument } from "../lib/markdown-reference-paths";
+import { isPdfTarget, isRelativeFilePath } from "../lib/pdf-target";
+import { documentPathFacet } from "../lib/types";
 import { imageUrlEffect, imageUrlField } from "../state/image-url";
 import { pdfPreviewEffect, pdfPreviewField } from "../state/pdf-preview";
-import { createTestView, getDecorationSpecs } from "../../test-utils";
+import { createTestView, getDecorationSpecs } from "../test-utils";
 import * as mediaPreview from "./media-preview";
 import { focusEffect } from "./focus-state";
 

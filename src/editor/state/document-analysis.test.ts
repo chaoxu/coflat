@@ -3,8 +3,8 @@ import { beforeEach, describe, expect, it } from "vitest";
 import {
   clearFrontendPerf,
   getFrontendPerfSnapshot,
-} from "../../lib/perf";
-import { createEditorState } from "../../test-utils";
+} from "../lib/perf";
+import { createEditorState } from "../test-utils";
 import {
   documentAnalysisField,
   editorStateTextSource,

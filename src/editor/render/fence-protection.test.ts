@@ -40,7 +40,7 @@ import {
   createEditorState,
   createTestView,
   makeBlockPlugin,
-} from "../../test-utils";
+} from "../test-utils";
 
 /**
  * Create an EditorState with fence protection filters active.

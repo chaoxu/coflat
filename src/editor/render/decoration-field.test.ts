@@ -21,11 +21,11 @@ import {
   createEditorState,
   createTestView,
   getDecorationSpecs,
-} from "../../test-utils";
+} from "../test-utils";
 import {
   clearFrontendPerf,
   getFrontendPerfSnapshot,
-} from "../../lib/perf";
+} from "../lib/perf";
 import { programmaticDocumentChangeAnnotation } from "../state/programmatic-document-change";
 
 describe("createDecorationsField", () => {

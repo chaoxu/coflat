@@ -18,7 +18,7 @@ import { documentSemanticsField } from "../state/document-analysis";
 import {
   createPluginRegistryField,
 } from "../state/plugin-registry";
-import { createTestView, makeBibStore, makeBlockPlugin } from "../../test-utils";
+import { createTestView, makeBibStore, makeBlockPlugin } from "../test-utils";
 import { focusEffect } from "./focus-state";
 import { referenceRenderPlugin } from "./reference-render";
 

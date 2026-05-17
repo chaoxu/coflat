@@ -19,7 +19,7 @@ import {
   createEditorState,
   makeBibStore,
   makeBlockPlugin,
-} from "../../test-utils";
+} from "../test-utils";
 import {
   classifyReference,
   collectEquationLabels,

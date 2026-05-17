@@ -10,12 +10,12 @@
  */
 
 import { EditorView } from "@codemirror/view";
-import type { FileSystem } from "../lib/types";
+import type { FileSystem } from "./lib/types";
 import {
   relativeMarkdownReferencePathFromDocument,
   resolveMarkdownReferencePathFromDocument,
-} from "../lib/markdown-reference-paths";
-import { isTauri } from "../lib/tauri";
+} from "./lib/markdown-reference-paths";
+import { isTauri } from "./lib/tauri";
 
 /** Supported image MIME types and their default file extensions. */
 export const IMAGE_MIME_EXT: Record<string, string> = {

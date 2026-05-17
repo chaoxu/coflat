@@ -1,7 +1,7 @@
 import type { EditorState } from "@codemirror/state";
 
 import { getAnalysisCitationRegistrationKey } from "../citations/citation-matching";
-import type { CitationFormatter } from "../../document-context";
+import type { CitationFormatter } from "../document-context";
 import type { BibStore } from "./bib-data";
 import { bibDataField } from "./bib-data";
 import type { BlockCounterState } from "./block-counter";

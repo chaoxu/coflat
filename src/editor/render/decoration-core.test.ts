@@ -9,7 +9,7 @@ import {
   pushWidgetDecoration,
 } from "./decoration-core";
 import { RenderWidget } from "./source-widget";
-import { getDecorationSpecs } from "../../test-utils";
+import { getDecorationSpecs } from "../test-utils";
 
 class TestWidget extends RenderWidget {
   constructor(readonly label: string) {

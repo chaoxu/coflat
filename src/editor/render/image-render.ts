@@ -55,7 +55,7 @@ import {
   ImagePreviewWidget,
   mediaPreviewWidget,
 } from "./image-preview-widget";
-import { measureSync } from "../../lib/perf";
+import { measureSync } from "../lib/perf";
 
 const INITIAL_IMAGE_PREVIEW_SCAN_LIMIT = 20_000;
 const IMAGE_PREVIEW_PREFETCH_MARGIN = 4_000;

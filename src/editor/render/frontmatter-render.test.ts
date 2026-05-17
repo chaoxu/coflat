@@ -8,7 +8,7 @@ import {
   createStructureEditTargetAt,
   setStructureEditTargetEffect,
 } from "../state/cm-structure-edit";
-import { applyStateEffects } from "../../test-utils";
+import { applyStateEffects } from "../test-utils";
 
 function createState(doc: string): EditorState {
   return EditorState.create({

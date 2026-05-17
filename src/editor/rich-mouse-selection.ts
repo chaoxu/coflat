@@ -10,7 +10,7 @@ import {
   lineBoundsForElement,
   lineElementAtPoint,
   type EditorLineBounds,
-} from "../lib/editor-hit-test";
+} from "./lib/editor-hit-test";
 import {
   buildPointerSelection,
   isPlainPrimaryMouseEvent,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { Decoration } from "@codemirror/view";
-import { createEditorState } from "../../test-utils";
+import { createEditorState } from "../test-utils";
 import {
   isCursorOnOpenFence,
   isCursorOnCloseFence,

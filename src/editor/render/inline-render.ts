@@ -6,7 +6,7 @@
  */
 
 import type { SyntaxNode } from "@lezer/common";
-import type { InlineRenderSurface } from "../../inline-surface";
+import type { InlineRenderSurface } from "../inline-surface";
 import { CSS } from "../../core/constants/css-classes";
 import {
   ClusteredCrossrefWidget,
@@ -19,7 +19,7 @@ import {
   buildInlineFragments,
   type InlineFragment,
   parseInlineFragments,
-} from "../../inline-fragments";
+} from "../inline-fragments";
 import { isSafeUrl } from "../../core/lib/url-utils";
 import {
   planReferencePresentation,

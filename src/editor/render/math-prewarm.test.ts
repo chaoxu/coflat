@@ -4,7 +4,7 @@ import type { EditorView } from "@codemirror/view";
 import { createMarkdownLanguageExtensions } from "../base-editor-extensions";
 import { documentAnalysisField } from "../state/document-analysis";
 import { mathMacrosField } from "../state/math-macros";
-import { createTestView } from "../../test-utils";
+import { createTestView } from "../test-utils";
 import { clearKatexHtmlCache, renderKatexToHtml } from "./inline-shared";
 import { mathPrewarmPlugin } from "./math-prewarm";
 

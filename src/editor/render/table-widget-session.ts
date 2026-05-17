@@ -1,5 +1,5 @@
 import type { EditorView } from "@codemirror/view";
-import type { InlineEditorController } from "../../inline-editor";
+import type { InlineEditorController } from "../inline-editor";
 import type { TableRange } from "./table-discovery";
 import type { TableBoundaryHandoffDirection } from "./table-widget-navigation";
 

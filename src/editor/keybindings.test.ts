@@ -20,7 +20,7 @@ import {
   activateStructureEditAt,
 } from "./state/cm-structure-edit";
 import { frontmatterField } from "./state/frontmatter-state";
-import { createTestView, makeBlockPlugin } from "../test-utils";
+import { createTestView, makeBlockPlugin } from "./test-utils";
 
 /**
  * Create a minimal EditorView with the given doc and selection.

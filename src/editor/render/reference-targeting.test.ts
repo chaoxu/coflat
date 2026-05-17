@@ -8,7 +8,7 @@ import { mathExtension } from "../../core/parser/math-backslash";
 import { documentSemanticsField } from "../state/document-analysis";
 import { CrossrefWidget } from "./crossref-render";
 import { findRenderedReference } from "./reference-targeting";
-import { createTestView } from "../../test-utils";
+import { createTestView } from "../test-utils";
 
 function createReferenceView(doc: string): EditorView {
   return createTestView(doc, {

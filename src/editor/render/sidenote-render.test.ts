@@ -34,7 +34,7 @@ import {
   createStructureEditTargetAt,
   setStructureEditTargetEffect,
 } from "../state/cm-structure-edit";
-import { createMockEditorView, createTestView, getDecorationSpecs } from "../../test-utils";
+import { createMockEditorView, createTestView, getDecorationSpecs } from "../test-utils";
 
 /** Create an EditorState with footnote parsing and all fields needed by sidenote decorations. */
 function createState(doc: string, cursorPos?: number): EditorState {

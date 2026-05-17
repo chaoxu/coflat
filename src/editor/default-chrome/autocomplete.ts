@@ -21,7 +21,7 @@ import type { EditorView } from "@codemirror/view";
 import type {
   AutocompleteRequest,
   AutocompleteResult,
-} from "../../editor-host-api";
+} from "../editor-host-api";
 
 const PICKER_CLASS = "cf-default-autocomplete";
 const ITEM_CLASS = "cf-default-autocomplete__item";

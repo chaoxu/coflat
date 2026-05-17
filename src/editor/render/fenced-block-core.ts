@@ -2,7 +2,7 @@ import { type EditorState, type Line, type Range, type StateField, type Transact
 import { type DecorationSet, Decoration, EditorView, WidgetType } from "@codemirror/view";
 import { syntaxTree, syntaxTreeAvailable } from "@codemirror/language";
 import type { FencedBlockInfo } from "../fenced-block/model";
-import { containsPos } from "../../lib/range-helpers";
+import { containsPos } from "../lib/range-helpers";
 import {
   buildDecorations,
   decorationHidden,

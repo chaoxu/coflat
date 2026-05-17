@@ -13,7 +13,7 @@ import type {
   DebugRenderState,
   SelectionInfo,
   VisibleRawFencedOpener,
-} from "../lib/debug-types";
+} from "./lib/debug-types";
 import {
   measureShellSurfaceSnapshot,
   type ShellSurfaceSnapshot,

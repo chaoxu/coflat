@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach } from "vitest";
 import { EditorView } from "@codemirror/view";
 import { focusModeExtension, toggleFocusMode } from "./focus-mode";
 import { CSS } from "../../core/constants/css-classes";
-import { createTestView } from "../../test-utils";
+import { createTestView } from "../test-utils";
 
 let view: EditorView | undefined;
 

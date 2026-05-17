@@ -1,6 +1,6 @@
 import type { EditorView } from "@codemirror/view";
-import { createInlineEditorController } from "../../inline-editor";
-import { coarseHitTestPosition, preciseHitTestPosition } from "../../lib/editor-hit-test";
+import { createInlineEditorController } from "../inline-editor";
+import { coarseHitTestPosition, preciseHitTestPosition } from "../lib/editor-hit-test";
 import { getEditorDocumentReferenceCatalog } from "../semantics/editor-reference-catalog";
 import { bibDataField } from "../state/bib-data";
 import type { InlineReferenceRenderContext } from "./inline-render";

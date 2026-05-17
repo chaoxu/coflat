@@ -19,8 +19,8 @@ import {
 import { type ChangeSet, type EditorState, type Extension, type Range, type Transaction } from "@codemirror/state";
 import { CSS } from "../../core/constants/css-classes";
 import type { ResolvedCrossref } from "../references/presentation";
-import { forEachOverlappingOrderedRange } from "../../lib/range-helpers";
-import type { CitationFormatter } from "../../document-context";
+import { forEachOverlappingOrderedRange } from "../lib/range-helpers";
+import type { CitationFormatter } from "../document-context";
 import type { BibStore } from "../state/bib-data";
 import { CitationWidget, HostRefWidget } from "./citation-widget";
 import {
@@ -29,8 +29,8 @@ import {
   MixedClusterWidget,
   UnresolvedRefWidget,
 } from "./crossref-render";
-import { documentContextFacet } from "../../document-context";
-import { sanitizeCslHtml } from "../../lib/sanitize-csl-html";
+import { documentContextFacet } from "../document-context";
+import { sanitizeCslHtml } from "../lib/sanitize-csl-html";
 import { buildDecorations, pushWidgetDecoration } from "./decoration-core";
 import {
   type ReferenceSemantics,

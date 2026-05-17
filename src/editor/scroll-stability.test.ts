@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   createTestView,
   destroyAllTestViews,
-} from "../test-utils";
+} from "./test-utils";
 import {
   computeScrollGuardPadding,
   guardDownwardHeightCollapse,

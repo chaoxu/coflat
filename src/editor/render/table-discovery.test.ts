@@ -2,7 +2,7 @@ import { EditorState, StateEffect } from "@codemirror/state";
 import { markdown } from "@codemirror/lang-markdown";
 import { describe, expect, it } from "vitest";
 import { markdownExtensions } from "../../core/parser";
-import { ensureFullSyntaxTree } from "../../test-utils";
+import { ensureFullSyntaxTree } from "../test-utils";
 import {
   computePendingTableParse,
   computePendingTableParseTarget,

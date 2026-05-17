@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import type { InlineRenderSurface } from "../../inline-surface";
+import type { InlineRenderSurface } from "../inline-surface";
 import {
   renderInlineMarkdown,
   splitByInlineMath,

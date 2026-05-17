@@ -21,12 +21,12 @@ import {
   createEditorState,
   createTestView,
   getDecorationSpecs,
-} from "../../test-utils";
+} from "../test-utils";
 import { programmaticDocumentChangeAnnotation } from "../state/programmatic-document-change";
 import {
   clearFrontendPerf,
   getFrontendPerfSnapshot,
-} from "../../lib/perf";
+} from "../lib/perf";
 
 /**
  * Build a minimal ViewUpdate stub for testing shouldUpdate predicates.

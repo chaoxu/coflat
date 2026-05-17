@@ -26,7 +26,7 @@ import {
   resolveOpenAutocomplete,
   type AutocompleteSource,
   type Suggestion,
-} from "../editor-host-api";
+} from "./editor-host-api";
 
 interface ActiveSession {
   trigger: string;

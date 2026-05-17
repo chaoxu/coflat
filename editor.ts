@@ -25,12 +25,12 @@ import {
   type RequestHandler,
   type SaveHandler,
   type StatusEvents,
-} from "./src/editor-host-api";
-import { createSaveController, saveExtension } from "./src/save-handler";
+} from "./src/editor/editor-host-api";
+import { createSaveController, saveExtension } from "./src/editor/save-handler";
 import {
   assetUploaderExtension,
   type AssetUploader,
-} from "./src/asset-uploader";
+} from "./src/editor/asset-uploader";
 import { autocompleteSourceExtension } from "./src/editor/autocomplete-source-controller";
 
 export type StandaloneEditorMode = "rich" | "source";
@@ -289,21 +289,21 @@ export * from "./src/editor/debug/editor-runtime-contract";
 export * from "./src/editor/debug/session-recorder";
 export * from "./src/editor/debug/tree-view-portal-context";
 export * from "./src/editor/debug/debug-bridge-contract-types";
-export * from "./src/editor-display-mode";
-export * from "./src/editor-host-api";
-export * from "./src/asset-uploader";
-export * from "./src/product";
-export * from "./src/project-config";
-export * from "./src/theme-contract";
-export * from "./src/document-surfaces";
+export * from "./src/editor/editor-display-mode";
+export * from "./src/editor/editor-host-api";
+export * from "./src/editor/asset-uploader";
+export * from "./src/editor/product";
+export * from "./src/editor/project-config";
+export * from "./src/editor/theme-contract";
+export * from "./src/editor/document-surfaces";
 export * from "./src/core/document-surface-classes";
-export * from "./src/inline-editor";
-export * from "./src/inline-fragments";
-export * from "./src/inline-surface";
-export * from "./src/preview-surface";
+export * from "./src/editor/inline-editor";
+export * from "./src/editor/inline-fragments";
+export * from "./src/editor/inline-surface";
+export * from "./src/editor/preview-surface";
 export * from "./src/editor/filesystem/file-system-context";
 // export * from "./src/editor/render/reference-render-test-utils"; // test utils only, imports vitest
-// export * from "./src/test-utils"; // test utils only, imports vitest
+// export * from "./src/editor/test-utils"; // test utils only, imports vitest
 export * from "./src/editor/semantics/document";
 export * from "./src/editor/debug-lane-state";
 export * from "./src/editor/editor-plugin-metadata";
@@ -315,24 +315,24 @@ export * from "./src/editor/index-helpers";
 export * from "./src/editor/index-helpers/indexer";
 export * from "./src/editor/index-helpers/query-api";
 export * from "./src/editor/latex/index";
-export * from "./src/lib/context-menu";
-export * from "./src/lib/debug-types";
-export * from "./src/lib/editor-document-diff";
-export * from "./src/lib/file-tree-model";
-export * from "./src/lib/katex-options";
-export * from "./src/lib/markdown-reference-paths";
+export * from "./src/editor/lib/context-menu";
+export * from "./src/editor/lib/debug-types";
+export * from "./src/editor/lib/editor-document-diff";
+export * from "./src/editor/lib/file-tree-model";
+export * from "./src/editor/lib/katex-options";
+export * from "./src/editor/lib/markdown-reference-paths";
 // ./src/lib/markdown/heading-syntax covered by ./src/semantics/document
-// export * from "./src/lib/markdown/headings"; // conflicts with ./src/semantics/document on findTrailingHeadingAttributes, hasUnnumberedHeadingAttributes
-export * from "./src/lib/markdown/index";
-export * from "./src/lib/markdown/label-parser";
-export * from "./src/lib/markdown/text-lines";
-export * from "./src/lib/open-link";
-export * from "./src/lib/perf";
-export * from "./src/lib/project-file-paths";
-export * from "./src/lib/tauri";
-export * from "./src/lib/types";
+// export * from "./src/editor/lib/markdown/headings"; // conflicts with ./src/semantics/document on findTrailingHeadingAttributes, hasUnnumberedHeadingAttributes
+export * from "./src/editor/lib/markdown/index";
+export * from "./src/editor/lib/markdown/label-parser";
+export * from "./src/editor/lib/markdown/text-lines";
+export * from "./src/editor/lib/open-link";
+export * from "./src/editor/lib/perf";
+export * from "./src/editor/lib/project-file-paths";
+export * from "./src/editor/lib/tauri";
+export * from "./src/editor/lib/types";
 // ./src/lib/ui/context-menu conflicts with ./src/lib/context-menu (same symbol names; picked the latter)
-export * from "./src/lib/utils";
+export * from "./src/editor/lib/utils";
 export * from "./src/core/parser";
 export * from "./src/core/parser/equation-label";
 export * from "./src/core/parser/fenced-div";

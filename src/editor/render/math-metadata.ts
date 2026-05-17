@@ -1,7 +1,7 @@
 import { type DecorationSet, type EditorView, ViewPlugin, type ViewUpdate } from "@codemirror/view";
 import { type Extension, type StateField } from "@codemirror/state";
 import { CSS } from "../../core/constants/css-classes";
-import { rangesIntersect } from "../../lib/range-helpers";
+import { rangesIntersect } from "../lib/range-helpers";
 import { MathWidget } from "./math-widget";
 import {
   clearActiveFenceGuideClasses,

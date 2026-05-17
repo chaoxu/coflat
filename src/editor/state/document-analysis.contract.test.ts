@@ -1,7 +1,7 @@
 import { markdown } from "@codemirror/lang-markdown";
 import { describe, expect, it } from "vitest";
 import { markdownExtensions } from "../../core/parser";
-import { createEditorState } from "../../test-utils";
+import { createEditorState } from "../test-utils";
 import {
   documentAnalysisField,
   documentAnalysisFromSnapshot,

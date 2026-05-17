@@ -10,7 +10,7 @@ import { fenceGuidePlugin } from "./fence-guide";
 import { imageRenderPlugin } from "./image-render";
 import { mathRenderPlugin } from "./math-render";
 import { tableRenderPlugin } from "./table-render";
-import { createTestView } from "../../test-utils";
+import { createTestView } from "../test-utils";
 import { CSS } from "../../core/constants/css-classes";
 import { blockRenderPlugin } from "./plugin-render";
 import { blockCounterField } from "../state/block-counter";

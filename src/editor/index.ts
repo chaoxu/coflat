@@ -43,7 +43,7 @@ export {
   projectConfigStatusFacet,
   parseProjectConfig,
   mergeConfigs,
-} from "../project-config";
+} from "./project-config";
 export {
   createDebugHelpers,
   type DebugHelpers,

@@ -1,5 +1,5 @@
-import type { EditorMode } from "../../editor-display-mode";
-import { isTauri } from "../../lib/tauri";
+import type { EditorMode } from "../editor-display-mode";
+import { isTauri } from "../lib/tauri";
 
 export const TAURI_RENDER_DIAGNOSTICS_KEY = "cf-tauri-render-diagnostics";
 const ROOT_CM_EDITOR_SELECTOR = ".cm-editor.cf-doc-surface";

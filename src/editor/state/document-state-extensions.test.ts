@@ -2,7 +2,7 @@ import { markdown } from "@codemirror/lang-markdown";
 import { describe, expect, it } from "vitest";
 import { markdownExtensions } from "../../core/parser";
 import { getPlugin } from "../plugins/plugin-registry";
-import { createEditorState, makeBlockPlugin } from "../../test-utils";
+import { createEditorState, makeBlockPlugin } from "../test-utils";
 import { blockCounterField } from "./block-counter";
 import {
   documentAnalysisField,

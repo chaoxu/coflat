@@ -1,5 +1,5 @@
 import type { EditorView } from "@codemirror/view";
-import { rangesOverlap } from "../lib/range-helpers";
+import { rangesOverlap } from "./lib/range-helpers";
 import { frontmatterField } from "./state/frontmatter-state";
 import {
   activeShellPath,

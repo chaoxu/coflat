@@ -14,7 +14,7 @@ import {
   type DocumentAnalysisSliceRevisions,
 } from "../semantics/incremental/engine";
 import { buildSemanticDelta } from "../semantics/incremental/semantic-delta";
-import { measureSync } from "../../lib/perf";
+import { measureSync } from "../lib/perf";
 
 const MATERIALIZE_TEXT_AFTER_SLICE_CALLS = 8;
 

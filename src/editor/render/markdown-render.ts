@@ -15,7 +15,7 @@ import {
   buildDecorations,
 } from "./decoration-core";
 import { createLifecycleDecorationStateField } from "./decoration-field";
-import { containsRange } from "../../lib/range-helpers";
+import { containsRange } from "../lib/range-helpers";
 import {
   clearLinkDecorationCacheForTest,
   linkDecorationCacheSizeForTest,

@@ -6,9 +6,9 @@ import {
   _mathDecorationFieldForTest as mathDecorationField,
   clearKatexCache,
 } from "./math-render";
-import { getDecorationSpecs } from "../../test-utils";
+import { getDecorationSpecs } from "../test-utils";
 import { focusEffect, widgetSourceMap } from "./render-utils";
-import { clearFrontendPerf, getFrontendPerfSnapshot } from "../../lib/perf";
+import { clearFrontendPerf, getFrontendPerfSnapshot } from "../lib/perf";
 import {
   countMarksWithClass,
   countSourceMarks,

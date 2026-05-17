@@ -6,7 +6,7 @@ import {
   _mathDecorationFieldForTest as mathDecorationField,
   clearKatexCache,
 } from "./math-render";
-import { getDecorationSpecs } from "../../test-utils";
+import { getDecorationSpecs } from "../test-utils";
 import { widgetSourceMap } from "./render-utils";
 import { documentSemanticsField } from "../state/document-analysis";
 import {

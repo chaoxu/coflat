@@ -8,7 +8,7 @@ import {
   StateField,
   type Transaction,
 } from "@codemirror/state";
-import { measureSync } from "../../lib/perf";
+import { measureSync } from "../lib/perf";
 import {
   dirtyRangesFromChanges,
   expandChangeRangeToLines,

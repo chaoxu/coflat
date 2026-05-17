@@ -16,7 +16,7 @@ function copyEditorCss(): Plugin {
     name: "copy-editor-css",
     closeBundle() {
       const katexCss = readFileSync("node_modules/katex/dist/katex.min.css", "utf8");
-      const editorCss = readFileSync("src/editor-theme.css", "utf8");
+      const editorCss = readFileSync("src/editor/editor-theme.css", "utf8");
       writeFileSync("dist/editor.css", `${katexCss}\n${editorCss}`);
       cpSync("node_modules/katex/dist/fonts", "dist/fonts", { recursive: true });
     },
