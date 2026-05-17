@@ -31,7 +31,7 @@ import type {
   LinkResolver,
   RefResolver,
 } from "./src/document-context";
-import { noteLezerInvocation } from "./src/reader-internal";
+import { noteLezerInvocation } from "./src/reader/reader-internal";
 
 export type {
   DocumentContext,

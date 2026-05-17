@@ -4,7 +4,7 @@ import type { LinkResolver } from "../reader";
 import {
   getLezerInvocationCount,
   resetLezerInvocationCount,
-} from "./reader-internal";
+} from "./reader/reader-internal";
 
 beforeEach(() => {
   resetLezerInvocationCount();
