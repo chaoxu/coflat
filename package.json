@@ -1,6 +1,6 @@
 {
   "name": "@chaoxu/coflat-editor",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Math-aware markdown editor library extracted from coflat \u2014 CM6 + Lezer + Typora-style ViewPlugins.",
   "type": "module",
   "sideEffects": [
@@ -54,7 +54,7 @@
     "e2e:install": "playwright install --with-deps chromium"
   },
   "publishConfig": {
-    "registry": "http://localhost:3001/api/packages/chaoxu/npm/"
+    "registry": "http://jupiter:3001/api/packages/chaoxu/npm/"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
