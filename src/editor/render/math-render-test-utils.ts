@@ -8,8 +8,8 @@ import { collectMathRanges, mathRenderPlugin } from "./math-render";
 import { frontmatterField } from "../state/frontmatter-state";
 import { mathMacrosField } from "../state/math-macros";
 import { createTestView } from "../test-utils";
-import { focusEffect } from "./render-utils";
-import { documentSemanticsField } from "../state/document-analysis";
+import { focusEffect } from "./render-core";
+import { documentAnalysisField } from "../state/document-analysis";
 import {
   activeStructureEditField,
   createStructureEditTargetAt,
@@ -41,7 +41,7 @@ export function createMathView(doc: string, cursorPos?: number): EditorView {
       markdown({ extensions: [mathExtension, equationLabelExtension] }),
       frontmatterField,
       activeStructureEditField,
-      documentSemanticsField,
+      documentAnalysisField,
       mathMacrosField,
     ],
   });
@@ -63,7 +63,7 @@ export function createMathViewWithLabels(doc: string, cursorPos?: number): Edito
       markdown({ extensions: [mathExtension, equationLabelExtension] }),
       frontmatterField,
       activeStructureEditField,
-      documentSemanticsField,
+      documentAnalysisField,
       mathMacrosField,
     ],
   });
@@ -77,7 +77,7 @@ export function createMathRenderState(doc: string, cursorPos = 0): EditorState {
       markdown({ extensions: [mathExtension, equationLabelExtension] }),
       frontmatterField,
       activeStructureEditField,
-      documentSemanticsField,
+      documentAnalysisField,
       mathRenderPlugin,
     ],
   });
@@ -90,7 +90,7 @@ export function createMathRenderView(doc: string, cursorPos = 0): EditorView {
       markdown({ extensions: [mathExtension, equationLabelExtension] }),
       frontmatterField,
       activeStructureEditField,
-      documentSemanticsField,
+      documentAnalysisField,
       mathRenderPlugin,
     ],
   });

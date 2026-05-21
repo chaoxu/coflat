@@ -7,6 +7,12 @@ function makeRoot(html: string): HTMLElement {
   return root;
 }
 
+function requireMathPlaceholder(root: HTMLElement): HTMLElement {
+  const placeholder = root.querySelector<HTMLElement>("[data-math]");
+  if (!placeholder) throw new Error("expected math placeholder");
+  return placeholder;
+}
+
 describe("hydrateMath", () => {
   it("resolves immediately and does not load KaTeX when no math is present", async () => {
     const root = makeRoot("<p>plain paragraph, no math here</p>");
@@ -24,7 +30,7 @@ describe("hydrateMath", () => {
     const root = makeRoot(html);
     const placeholder = root.querySelector<HTMLElement>("[data-math]");
     expect(placeholder).not.toBeNull();
-    expect(placeholder?.classList.contains("cf-math-inline")).toBe(true);
+    expect(placeholder?.classList.contains("cf-doc-inline-math")).toBe(true);
 
     await hydrateMath(root);
 
@@ -34,11 +40,11 @@ describe("hydrateMath", () => {
     expect(placeholder?.classList.contains("cf-math-error")).toBe(false);
   });
 
-  it("uses displayMode for cf-math-display placeholders", async () => {
+  it("uses displayMode for cf-doc-display-math placeholders", async () => {
     const { html } = renderToHtml("$$y=mx+b$$");
     const root = makeRoot(html);
     const placeholder = root.querySelector<HTMLElement>("[data-math]");
-    expect(placeholder?.classList.contains("cf-math-display")).toBe(true);
+    expect(placeholder?.classList.contains("cf-doc-display-math")).toBe(true);
 
     await hydrateMath(root);
 
@@ -49,7 +55,7 @@ describe("hydrateMath", () => {
 
   it("on invalid LaTeX, keeps original text and adds error markers", async () => {
     const root = makeRoot(
-      `<p><span class="cf-math cf-math-inline" data-math="\\invalidcmd{">$\\invalidcmd{$</span></p>`,
+      `<p><span class="cf-doc-inline-math" data-math="\\invalidcmd{">$\\invalidcmd{$</span></p>`,
     );
     const placeholder = root.querySelector<HTMLElement>("[data-math]");
     const originalText = placeholder?.textContent;
@@ -66,7 +72,7 @@ describe("hydrateMath", () => {
   it("is idempotent: a second call does not re-render", async () => {
     const { html } = renderToHtml("$a^2+b^2=c^2$");
     const root = makeRoot(html);
-    const placeholder = root.querySelector<HTMLElement>("[data-math]")!;
+    const placeholder = requireMathPlaceholder(root);
 
     await hydrateMath(root);
     const afterFirst = placeholder.innerHTML;
@@ -84,16 +90,16 @@ describe("hydrateMath", () => {
     // `\myfoo` is not a built-in KaTeX command. Without the macro it errors;
     // with the macro it expands to `\mathbb{R}` and renders successfully.
     const root = makeRoot(
-      `<p><span class="cf-math cf-math-inline" data-math="\\myfoo">$\\myfoo$</span></p>`,
+      `<p><span class="cf-doc-inline-math" data-math="\\myfoo">$\\myfoo$</span></p>`,
     );
-    const placeholder = root.querySelector<HTMLElement>("[data-math]")!;
+    const placeholder = requireMathPlaceholder(root);
     await hydrateMath(root);
     expect(placeholder.classList.contains("cf-math-error")).toBe(true);
 
     const root2 = makeRoot(
-      `<p><span class="cf-math cf-math-inline" data-math="\\myfoo">$\\myfoo$</span></p>`,
+      `<p><span class="cf-doc-inline-math" data-math="\\myfoo">$\\myfoo$</span></p>`,
     );
-    const placeholder2 = root2.querySelector<HTMLElement>("[data-math]")!;
+    const placeholder2 = requireMathPlaceholder(root2);
     await hydrateMath(root2, { mathMacros: { "\\myfoo": "\\mathbb{R}" } });
     expect(placeholder2.classList.contains("cf-math-error")).toBe(false);
     expect(placeholder2.getAttribute("data-math-hydrated")).toBe("true");

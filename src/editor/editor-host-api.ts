@@ -1,8 +1,8 @@
 /**
  * Editor host API — the intent surface.
  *
- * Phase 3.1 (issue #13) introduces two seams that hosts use to take
- * over editor-instance UI without replacing the editor itself:
+ * Hosts use these seams to take over editor-instance UI and lifecycle
+ * behavior without replacing the editor itself:
  *
  *  - {@link RequestHandler}: request/response intents. The editor calls
  *    a method, the host returns a result (or `null` for user cancel).
@@ -13,20 +13,14 @@
  *    dirty-state, asset-upload progress. The host listens; nothing
  *    waits on a return value.
  *
- * Commands and keymaps are intentionally out of scope here; they will
- * land in a future `CommandRegistry` chunk.
+ * Commands and keymaps are intentionally out of scope here.
  *
  * The two interfaces are exposed as separate facets — `requestHandlerFacet`
  * and `statusEventsFacet` — so editor-instance behavior is decoupled
  * from the shared, read-mostly `DocumentContext` (see `document-context.ts`).
  *
- * Specific intents are wired by their respective chunks:
- *   3.2 — save lifecycle on `StatusEvents`
- *   3.3 — upload toast on `RequestHandler`, upload events on `StatusEvents`
- *   3.4 — autocomplete + link-picker sources on `RequestHandler`
- *
- * This chunk ships the link-picker intent end-to-end with a vanilla-DOM
- * default chrome so the surface is exercised.
+ * Save, asset upload, autocomplete, and link-picker behavior all use
+ * these facets.
  */
 
 import { Facet } from "@codemirror/state";
@@ -49,9 +43,7 @@ import { defaultOpenLinkPicker } from "./default-chrome/link-picker";
  */
 export interface RequestHandler {
   openLinkPicker?(req: LinkPickerRequest): Promise<LinkPickerResult | null>;
-  /** Reserved for asset-upload chrome (Phase 3.3 may wire it). */
   showUploadToast?(req: UploadToastRequest): Promise<void>;
-  /** Reserved for autocomplete (Phase 3.4 may wire it). */
   openAutocomplete?(req: AutocompleteRequest): Promise<AutocompleteResult | null>;
 }
 
@@ -60,7 +52,7 @@ export interface LinkPickerRequest {
   prefix: string;
   cursorPos: number;
   signal: AbortSignal;
-  /** Sources to query — Phase 3.4 fills this in. */
+  /** Sources to query for this link/autocomplete request. */
   sources: readonly unknown[];
 }
 
@@ -93,7 +85,7 @@ export interface AutocompleteResult {
 }
 
 /* ────────────────────────────────────────────────────────────────────────────
- * AutocompleteSource (Phase 3.4)
+ * AutocompleteSource
  * ──────────────────────────────────────────────────────────────────────────── */
 
 export type SuggestionId = string;
@@ -157,19 +149,17 @@ export const DEFAULT_AUTOCOMPLETE_DEBOUNCE_MS = 80;
  * Fire-and-forget lifecycle events. Hosts subscribe by supplying any
  * subset of the callbacks; missing callbacks are simply skipped.
  *
- * Specific events are emitted by future chunks — this chunk only
- * declares the surface and wires it through `statusEventsFacet`.
  */
 export interface StatusEvents {
-  /** Save lifecycle — Phase 3.2 fires these. */
+  /** Save lifecycle. */
   onSaveStart?(): void;
   onSaveSucceeded?(): void;
   onSaveFailed?(e: { error: string }): void;
 
-  /** Dirty/saved tracking — Phase 3.2 fires these. */
+  /** Dirty/saved tracking. */
   onDirtyChange?(dirty: boolean): void;
 
-  /** Asset upload — Phase 3.3 fires these. */
+  /** Asset upload. */
   onAssetUploading?(e: { placeholderId: string; file: File; progress?: number }): void;
   onAssetUploadSucceeded?(e: { placeholderId: string; path: string }): void;
   onAssetUploadFailed?(e: { placeholderId: string; error: string }): void;

@@ -106,7 +106,7 @@ export {
 } from "./decoration-field";
 
 // ── inline-shared.ts ─────────────────────────────────────────────────────────
-export { MARK_NODES, isSafeUrl, buildKatexOptions, sanitizeCslHtml } from "./inline-shared";
+export { MARK_NODES } from "./inline-shared";
 
 // ── fenced-block-core.ts (all exports) ───────────────────────────────────────
 export {

@@ -23,6 +23,21 @@ function readPackageJson(): PackageManifest {
 }
 
 describe("package editor export", () => {
+  it("keeps the public package surface explicit", () => {
+    const packageJson = readPackageJson();
+
+    expect(Object.keys(packageJson.exports ?? {}).sort()).toEqual([
+      ".",
+      "./citeproc",
+      "./parse",
+      "./reader",
+      "./reader/worker",
+      "./style.css",
+      "./test-utils",
+      "./themes/blueprint-book.css",
+    ]);
+  });
+
   it("publishes the standalone editor from generated dist output", () => {
     const packageJson = readPackageJson();
     const editorExport = packageJson.exports?.["."];
@@ -44,6 +59,16 @@ describe("package editor export", () => {
     });
   });
 
+  it("publishes the reader sub-entry from generated dist output", () => {
+    const packageJson = readPackageJson();
+    const readerExport = packageJson.exports?.["./reader"];
+
+    expect(readerExport).toEqual({
+      types: "./dist/reader.d.ts",
+      import: "./dist/reader.mjs",
+    });
+  });
+
   it("publishes the reader worker sub-entry from generated dist output", () => {
     const packageJson = readPackageJson();
     const workerExport = packageJson.exports?.["./reader/worker"];
@@ -54,6 +79,26 @@ describe("package editor export", () => {
     });
   });
 
+  it("publishes the parse sub-entry from generated dist output", () => {
+    const packageJson = readPackageJson();
+    const parseExport = packageJson.exports?.["./parse"];
+
+    expect(parseExport).toEqual({
+      types: "./dist/parse.d.ts",
+      import: "./dist/parse.mjs",
+    });
+  });
+
+  it("publishes test helpers from a top-level generated test-utils entry", () => {
+    const packageJson = readPackageJson();
+    const testUtilsExport = packageJson.exports?.["./test-utils"];
+
+    expect(testUtilsExport).toEqual({
+      types: "./dist/test-utils.d.ts",
+      import: "./dist/test-utils.js",
+    });
+  });
+
   it("publishes the standalone editor stylesheet", () => {
     const packageJson = readPackageJson();
     const cssExport = packageJson.exports?.["./style.css"];
@@ -61,13 +106,24 @@ describe("package editor export", () => {
     expect(cssExport).toBe("./dist/editor.css");
   });
 
+  it("publishes optional theme stylesheets as explicit subpath exports", () => {
+    const packageJson = readPackageJson();
+
+    expect(packageJson.exports?.["./themes/blueprint-book.css"]).toBe(
+      "./dist/themes/blueprint-book.css",
+    );
+  });
+
   it("preserves the extracted editor package scripts", () => {
     const packageJson = readPackageJson();
 
     expect(packageJson.name).toBe("@chaoxu/coflat-editor");
     expect(packageJson.packageManager).toBe("pnpm@10.33.0");
+    expect(packageJson.scripts?.build).toContain("rm -rf dist");
     expect(packageJson.scripts?.build).toContain("tsc -p tsconfig.editor.json");
     expect(packageJson.scripts?.build).toContain("vite build --config vite.editor.config.ts");
+    expect(packageJson.scripts?.build).toContain("tsc -p tsconfig.test-utils.json");
+    expect(packageJson.scripts?.build).not.toContain("cp src/editor/test-utils.ts");
     expect(packageJson.scripts?.typecheck).toBe("tsc --noEmit");
     expect(packageJson.scripts?.test).toBe("vitest run");
     expect(packageJson.scripts?.prepack).toBe("pnpm build && pnpm publint");

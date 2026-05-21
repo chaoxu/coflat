@@ -27,7 +27,7 @@ import {
   getAnalysisCitationRegistrationKey,
   getCitationRegistrationKey,
 } from "../citations/citation-matching";
-import type { CitationFormatter } from "../document-context";
+import type { CitationFormatter } from "../../core/document-context-types";
 import { type CslJsonItem } from "../../core/citations/csl-json";
 import { CSS } from "../../core/constants/css-classes";
 import { sanitizeCslHtml } from "../lib/sanitize-csl-html";

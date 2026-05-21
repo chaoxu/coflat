@@ -7,7 +7,7 @@ import {
   _fenceGuideField_forTest as fenceGuideField,
   fenceGuidePlugin,
 } from "./fence-guide";
-import { focusEffect } from "./render-utils";
+import { focusEffect } from "./render-core";
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 

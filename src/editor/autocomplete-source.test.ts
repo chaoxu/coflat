@@ -1,5 +1,5 @@
 /**
- * Phase 3.4 (#12) — AutocompleteSource controller tests.
+ * AutocompleteSource controller tests.
  *
  * Covers the public surface: `mountEditor` + `AutocompleteSource` +
  * `RequestHandler.openAutocomplete`. Uses jsdom for the mount and fake
@@ -26,7 +26,7 @@ import {
 
 const cleanups: Array<() => void> = [];
 afterEach(() => {
-  while (cleanups.length) cleanups.pop()!();
+  while (cleanups.length) cleanups.pop()?.();
   // Drain any leaked default-picker overlays.
   for (const node of Array.from(
     document.querySelectorAll(".cf-default-autocomplete"),
@@ -346,7 +346,8 @@ describe("autocompleteSource default chrome", () => {
 
     const overlay = document.querySelector(".cf-default-autocomplete");
     expect(overlay).toBeTruthy();
-    const items = overlay!.querySelectorAll(".cf-default-autocomplete__item");
+    const items = overlay?.querySelectorAll(".cf-default-autocomplete__item");
+    if (!items) throw new Error("expected autocomplete items");
     expect(items.length).toBe(2);
     expect(items[0].textContent).toContain("Xerxes");
     expect(

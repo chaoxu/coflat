@@ -148,7 +148,7 @@ for (const file of walk(SRC)) {
 }
 
 if (bad > 0) {
-  console.error(`\n${bad} file(s) violate the layer-boundary rule. See src/core/index.ts for the rule.`);
+  console.error(`\n${bad} file(s) violate the layer-boundary rule. See README.md "Package architecture" for the rule.`);
   process.exit(1);
 }
 console.log("Layer boundary clean.");

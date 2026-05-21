@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { widgetSourceMap } from "../render-utils";
+import { widgetSourceMap } from "../render-core";
 import {
   BlockCaptionWidget,
   BlockHeaderWidget,

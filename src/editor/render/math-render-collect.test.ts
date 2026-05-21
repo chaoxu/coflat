@@ -7,7 +7,7 @@ import {
   clearKatexCache,
 } from "./math-render";
 import { getDecorationSpecs } from "../test-utils";
-import { focusEffect, widgetSourceMap } from "./render-utils";
+import { focusEffect, widgetSourceMap } from "./render-core";
 import { clearFrontendPerf, getFrontendPerfSnapshot } from "../lib/perf";
 import {
   countMarksWithClass,

@@ -106,14 +106,13 @@ export interface WorkerReader {
 // Worker-side: install the message handler if we're running in a worker.
 // ---------------------------------------------------------------------------
 
-declare const WorkerGlobalScope: { prototype: object } | undefined;
+declare const WorkerGlobalScope: { new (): object; prototype: object } | undefined;
 
 function isWorkerContext(): boolean {
   return (
     typeof WorkerGlobalScope !== "undefined" &&
     typeof self !== "undefined" &&
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    self instanceof (WorkerGlobalScope as any)
+    self instanceof WorkerGlobalScope
   );
 }
 
@@ -261,6 +260,6 @@ function spawnDefaultWorker(workerUrl: URL | string | undefined): WorkerLike {
     );
   }
   const url =
-    workerUrl ?? new URL("./reader-worker.mjs", import.meta.url);
+    workerUrl ?? new URL(/* @vite-ignore */ "./reader-worker.mjs", import.meta.url);
   return new Worker(url, { type: "module" }) as unknown as WorkerLike;
 }

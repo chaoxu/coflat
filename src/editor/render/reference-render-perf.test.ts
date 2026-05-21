@@ -6,7 +6,7 @@ import { bibDataEffect, bibDataField } from "../state/bib-data";
 import { CslProcessor } from "../citations/csl-processor";
 import { CSS } from "../../core/constants/css-classes";
 import { blockCounterField } from "../state/block-counter";
-import { documentSemanticsField } from "../state/document-analysis";
+import { documentAnalysisField } from "../state/document-analysis";
 import { pluginRegistryField, createPluginRegistryField } from "../state/plugin-registry";
 import { fencedDiv } from "../../core/parser/fenced-div";
 import { mathExtension } from "../../core/parser/math-backslash";
@@ -241,8 +241,8 @@ describe("collectReferenceRanges performance invalidation", () => {
 
       const beforeView = createPluginView(originalDoc, 0);
       const afterView = createPluginView(nextDoc, 0);
-      const beforeAnalysis = beforeView.state.field(documentSemanticsField);
-      const afterAnalysis = afterView.state.field(documentSemanticsField);
+      const beforeAnalysis = beforeView.state.field(documentAnalysisField);
+      const afterAnalysis = afterView.state.field(documentAnalysisField);
 
       (
         afterAnalysis as {
@@ -262,7 +262,7 @@ describe("collectReferenceRanges performance invalidation", () => {
         baseState: EditorState,
       ): EditorState => ({
         field(field: unknown) {
-          if (field === documentSemanticsField) return analysis;
+          if (field === documentAnalysisField) return analysis;
           if (field === blockCounterField) return baseState.field(blockCounterField);
           if (field === pluginRegistryField) return baseState.field(pluginRegistryField);
           if (field === bibDataField) return baseState.field(bibDataField);
@@ -431,7 +431,7 @@ describe("collectReferenceRanges performance invalidation", () => {
             extensions: [fencedDiv, mathExtension, equationLabelExtension],
           }),
           frontmatterField,
-          documentSemanticsField,
+          documentAnalysisField,
           createPluginRegistryField(testPlugins),
           blockCounterField,
           bibDataField,

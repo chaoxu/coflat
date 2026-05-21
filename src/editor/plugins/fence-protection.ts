@@ -13,13 +13,11 @@
  *
  * Provides:
  * - `fenceOperationAnnotation` — bypass annotation for programmatic edits
- * - `getProtectedDivs` — collect fenced divs eligible for protection
  * - `getClosingFenceRanges` — closing fence line ranges (divs + code blocks + math)
  * - `getOpeningFenceColonRanges` — opening fence colon-prefix ranges (divs only)
  * - `getOpeningFenceBacktickRanges` — opening fence backtick-prefix ranges (code blocks only)
  * - `getOpeningMathDelimiterRanges` — opening math delimiter ranges (display math only)
  * - `fenceProtectionExtension` — unified CM6 extension with one transaction pipeline
- * - compatibility filter exports used by focused tests and narrow consumers
  * - `pairedMathEntry` — auto-insert closing delimiter when typing $$ or \[
  * - `closingFenceAtomicRanges` — cursor skips over hidden closing fences
  */
@@ -31,23 +29,15 @@ import {
   type Transaction,
 } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
-import type { FencedDivInfo } from "../fenced-block/model";
 import {
   type FenceChangeSpec,
   type FenceRange,
 } from "./fence-protection-pipeline";
 import {
-  createClosingFenceProtection,
-  createEmptyMathBlockBackspaceCleanup,
   createFenceProtectionTransactionFilter,
-  createOpeningFenceBacktickProtection,
-  createOpeningFenceColonProtection,
-  createOpeningFenceDeletionCleanup,
-  createOpeningFenceMathProtection,
 } from "./fence-transaction-filters";
 import { createPairedMathEntry } from "./fence-math-entry";
 import {
-  collectAllFencedBlocks,
   docChangeCouldAffectDisplayMathFences,
   fenceProtectionCacheField,
   getFenceProtectionCache,
@@ -77,16 +67,6 @@ function annotateFenceRewrite(
 }
 
 /**
- * Return fenced divs that should have their fences protected.
- * Filters out single-line divs, excluded classes (include), and
- * unregistered block types. Shared by all fence range collectors
- * to avoid repeated collectFencedDivs + filtering per transaction.
- */
-export function getProtectedDivs(state: EditorState): readonly FencedDivInfo[] {
-  return getFenceProtectionCache(state).protectedDivs;
-}
-
-/**
  * Collect closing fence line ranges for protection from fenced divs,
  * fenced code blocks, and display math. All multi-line code blocks and
  * display math blocks are protected unconditionally (they have no
@@ -106,74 +86,10 @@ export function getOpeningFenceBacktickRanges(state: EditorState): readonly Fenc
   return getFenceProtectionCache(state).openingFenceBacktickRanges;
 }
 
-/**
- * Transaction filter that auto-removes the closing fence when an opening fence
- * line is fully deleted. Kept as a compatibility export for focused tests;
- * `fenceProtectionExtension` runs the unified pipeline instead of stacking
- * this filter with other independent protections.
- */
-export const openingFenceDeletionCleanup = createOpeningFenceDeletionCleanup({
-  shouldBypassFenceProtection,
-  annotateFenceRewrite,
-  getAllFencedBlocks: collectAllFencedBlocks,
-});
-
-/**
- * Transaction filter that protects closing fence lines from accidental deletion.
- *
- * Covers both fenced divs and fenced code blocks. Blocks any edit that touches
- * only the closing fence line content. Whole-block deletion (selection covering
- * the entire fenced block) is still allowed so that Cmd+A + Delete works.
- */
-export const closingFenceProtection = createClosingFenceProtection({
-  shouldBypassFenceProtection,
-  getClosingFenceRanges,
-});
-
-/**
- * Transaction filter that protects opening fence colon prefixes from accidental edits.
- *
- * In rich mode, users interact with the widget label, not the raw colons.
- * Edits that touch only the colon prefix (:::) are blocked to prevent
- * nesting invariant violations. Edits to attributes ({.theorem}) and
- * title text are unaffected. Whole-block deletion is still allowed.
- *
- * Applies to fenced divs only — code blocks use backtick fences which
- * have no colon prefix.
- */
-export const openingFenceColonProtection = createOpeningFenceColonProtection({
-  shouldBypassFenceProtection,
-  getOpeningFenceColonRanges,
-});
-
-/**
- * Transaction filter that protects opening code-fence backtick prefixes.
- *
- * Mirrors openingFenceColonProtection for fenced divs: edits that target only
- * the opening ``` prefix are blocked, while language/info-string edits and
- * whole-block deletion remain allowed.
- */
-export const openingFenceBacktickProtection = createOpeningFenceBacktickProtection({
-  shouldBypassFenceProtection,
-  getOpeningFenceBacktickRanges,
-});
-
 /** Collect opening math delimiter ranges for protection (display math only). */
 export function getOpeningMathDelimiterRanges(state: EditorState): readonly FenceRange[] {
   return getFenceProtectionCache(state).openingMathDelimiterRanges;
 }
-
-/**
- * Transaction filter that protects opening display math delimiter prefixes.
- *
- * Mirrors openingFenceColonProtection for fenced divs: edits that target only
- * the opening $$ or \[ prefix are blocked, while whole-block deletion remains
- * allowed.
- */
-export const openingFenceMathProtection = createOpeningFenceMathProtection({
-  shouldBypassFenceProtection,
-  getOpeningMathDelimiterRanges,
-});
 
 /**
  * Atomic ranges for closing fence lines so the cursor skips over them.
@@ -183,7 +99,7 @@ export const openingFenceMathProtection = createOpeningFenceMathProtection({
  * jumps from the last content line to the start of the next block or paragraph
  * without stopping on the fence.
  */
-export const closingFenceAtomicRanges = EditorView.atomicRanges.of((view) => {
+const closingFenceAtomicRanges = EditorView.atomicRanges.of((view) => {
   return getFenceProtectionCache(view.state).closingFenceAtomicRanges;
 });
 
@@ -195,25 +111,7 @@ export const closingFenceAtomicRanges = EditorView.atomicRanges.of((view) => {
  * Skips auto-insert if the next non-blank line already contains the matching
  * closing delimiter (bracket-match skip).
  */
-export const pairedMathEntry = createPairedMathEntry(fenceOperationAnnotation);
-
-/**
- * Transaction filter that removes an empty display math block when a backspace
- * joins the blank content line with the opening delimiter.
- *
- * After pairedMathEntry creates `$$\n\n$$`, pressing Backspace on the empty
- * content line would normally just delete the newline, producing `$$\n$$` with
- * the closing delimiter orphaned. This filter detects that pattern — a single-
- * character newline deletion where the line above is a math opening delimiter
- * and all content below (until the closing delimiter) is blank — and expands
- * the deletion to remove the entire block.
- *
- * Works for both `$$` and `\[`/`\]` delimiter styles.
- */
-export const emptyMathBlockBackspaceCleanup = createEmptyMathBlockBackspaceCleanup({
-  shouldBypassFenceProtection,
-  annotateFenceRewrite,
-});
+const pairedMathEntry = createPairedMathEntry(fenceOperationAnnotation);
 
 const fenceProtectionTransactionFilter = createFenceProtectionTransactionFilter({
   shouldBypassFenceProtection,

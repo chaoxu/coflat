@@ -4,7 +4,7 @@ import { frontmatterField } from "../state/frontmatter-state";
 import { fencedDiv } from "../../core/parser/fenced-div";
 import { defaultPlugins } from "../plugins/default-plugins";
 import { blockCounterField } from "../state/block-counter";
-import { documentSemanticsField } from "../state/document-analysis";
+import { documentAnalysisField } from "../state/document-analysis";
 import { mathMacrosField } from "../state/math-macros";
 import { createPluginRegistryField } from "../state/plugin-registry";
 import { createTestView, getDecorationSpecs } from "../test-utils";
@@ -28,7 +28,7 @@ function createView(doc: string, cursorPos?: number) {
     extensions: [
       markdown({ extensions: [fencedDiv] }),
       frontmatterField,
-      documentSemanticsField,
+      documentAnalysisField,
       createPluginRegistryField(testPlugins),
       blockCounterField,
       mathMacrosField,
@@ -52,7 +52,7 @@ describe("figure plugin", () => {
       id: "fig-1",
     });
     expect(spec.header).toBe("Figure 1");
-    expect(spec.className).toContain("cf-block-figure");
+    expect(spec.className).toContain("cf-doc-block--figure");
   });
 
   it("applies block decorations to a fenced figure", () => {
@@ -64,7 +64,7 @@ describe("figure plugin", () => {
     const view = createView(doc, 0);
     const decoSet = view.state.field(_blockDecorationFieldForTest);
     const specs = getDecorationSpecs(decoSet);
-    const blockSpecs = specs.filter((s) => typeof s.class === "string" && s.class.includes("cf-block-figure"));
+    const blockSpecs = specs.filter((s) => typeof s.class === "string" && s.class.includes("cf-doc-block--figure"));
     expect(blockSpecs.length).toBeGreaterThan(0);
     view.destroy();
   });
@@ -141,6 +141,6 @@ describe("table block plugin", () => {
       id: "tbl-1",
     });
     expect(spec.header).toBe("Table 1");
-    expect(spec.className).toContain("cf-block-table");
+    expect(spec.className).toContain("cf-doc-block--table");
   });
 });

@@ -16,7 +16,7 @@ import {
 function buildAccentRules(): Record<string, Record<string, string>> {
   const rules: Record<string, Record<string, string>> = {};
   for (const name of STYLED_BLOCK_NAMES) {
-    const selector = `.cf-block-${name} .cf-block-header, .cf-block-${name}.cf-block-header`;
+    const selector = `.cf-doc-block--${name} .cf-block-header, .cf-doc-block--${name}.cf-block-header`;
     rules[selector] = { borderLeftColor: `var(--cf-block-${name}-accent)` };
   }
   return rules;
@@ -26,7 +26,7 @@ function buildAccentRules(): Record<string, Record<string, string>> {
 function buildBodyStyleRules(): Record<string, Record<string, string>> {
   const rules: Record<string, Record<string, string>> = {};
   for (const name of STYLED_BLOCK_NAMES) {
-    rules[`.cf-block-${name}`] = { fontStyle: `var(--cf-block-${name}-style)` };
+    rules[`.cf-doc-block--${name}`] = { fontStyle: `var(--cf-block-${name}-style)` };
   }
   return rules;
 }
@@ -61,11 +61,11 @@ export const blockThemeStyles: Record<string, Record<string, string>> = {
   ".cf-block-caption .cf-block-header-rendered::after": {
     content: "var(--cf-block-title-separator)",
   },
-  ".cf-block-proof .cf-block-header-rendered": {
+  ".cf-doc-block--proof .cf-block-header-rendered": {
     fontStyle: "italic",
     fontWeight: "400",
   },
-  ".cf-block-proof .cf-block-header-rendered::after": {
+  ".cf-doc-block--proof .cf-block-header-rendered::after": {
     content: '". "',
   },
 
@@ -165,7 +165,7 @@ export const blockThemeStyles: Record<string, Record<string, string>> = {
     maxWidth: "100%",
     maxHeight: IMAGE_MAX_HEIGHT,
   },
-  ".cf-block-figure .cf-image-wrapper": {
+  ".cf-doc-block--figure .cf-image-wrapper": {
     display: "block",
     width: "fit-content",
     maxWidth: "100%",
@@ -189,7 +189,7 @@ export const blockThemeStyles: Record<string, Record<string, string>> = {
   ".cf-table-widget": {
     margin: "var(--cf-spacing-sm) 0",
   },
-  ".cf-block-table .cf-table-widget": {
+  ".cf-doc-block--table .cf-table-widget": {
     width: "fit-content",
     maxWidth: "100%",
     margin: "var(--cf-spacing-sm) auto",
@@ -200,7 +200,7 @@ export const blockThemeStyles: Record<string, Record<string, string>> = {
     width: "100%",
     fontSize: "var(--cf-table-font-size, 0.9em)",
   },
-  ".cf-block-table .cf-table-widget table": {
+  ".cf-doc-block--table .cf-table-widget table": {
     width: "auto",
     maxWidth: "100%",
   },

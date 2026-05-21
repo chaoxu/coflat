@@ -6,12 +6,23 @@
  * pointing at a top-level file.
  */
 export {
+  COFLAT_READER_CLASS,
+  COFLAT_READER_DOCUMENT_CLASS,
+  COFLAT_READER_SHELL_CLASS,
+  COFLAT_READER_TOC_CLASS,
+  COFLAT_THEME_SCOPE_CLASS,
+  blueprintBookThemeManifest,
   renderToHtml,
   renderToText,
   mapDomRangeToSource,
   hydrateMath,
   type HydrateMathOptions,
+  type BlockCounterEntry,
+  type ConditionalWriteResult,
   type DocumentContext,
+  type FileEntry,
+  type FileSystem,
   type LinkResolver,
   type RefResolver,
 } from "./src/reader/reader";
+export type { CoflatThemeManifest, CoflatThemeTarget } from "./src/core/theme-manifest";

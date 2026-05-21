@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { markdown } from "@codemirror/lang-markdown";
 import { fencedDiv } from "../../core/parser/fenced-div";
-import { documentSemanticsField } from "../state/document-analysis";
+import { documentAnalysisField } from "../state/document-analysis";
 import { CSS } from "../../core/constants/css-classes";
 import { createEditorState } from "../test-utils";
 
@@ -29,7 +29,7 @@ function createState(doc: string) {
   return createEditorState(doc, {
     extensions: [
       markdown({ extensions: [fencedDiv] }),
-      documentSemanticsField,
+      documentAnalysisField,
     ],
   });
 }

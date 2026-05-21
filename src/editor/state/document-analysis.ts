@@ -103,9 +103,6 @@ function updateDocumentAnalysisForTransaction(
  * document/tree change. All CM6 renderers (section numbers, sidenotes,
  * block rendering, block counters) read from this field instead of
  * independently walking the syntax tree.
- *
- * non-CM6 preview renderers stay CM6-free and call
- * `analyzeDocumentSemantics()` directly.
  */
 export const documentAnalysisField = StateField.define<DocumentAnalysisSnapshot>({
   create(state) {
@@ -118,8 +115,6 @@ export const documentAnalysisField = StateField.define<DocumentAnalysisSnapshot>
     return updateDocumentAnalysisForTransaction(value, tr);
   },
 });
-
-export const documentSemanticsField = documentAnalysisField;
 
 export function documentAnalysisFromSnapshot(
   snapshot: DocumentAnalysisSnapshot | null | undefined,

@@ -1,8 +1,8 @@
-import { cpSync, readFileSync, writeFileSync } from "node:fs";
+import { cpSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { visualizer } from "rollup-plugin-visualizer";
 import type { Plugin } from "vite";
 import { defineConfig } from "vite";
-import { visualizer } from "rollup-plugin-visualizer";
 import {
   EDITOR_FORBIDDEN_EXTERNAL_DEPENDENCIES,
   isEditorBuildDependency,
@@ -18,6 +18,8 @@ function copyEditorCss(): Plugin {
       const katexCss = readFileSync("node_modules/katex/dist/katex.min.css", "utf8");
       const editorCss = readFileSync("src/editor/editor-theme.css", "utf8");
       writeFileSync("dist/editor.css", `${katexCss}\n${editorCss}`);
+      mkdirSync("dist/themes", { recursive: true });
+      cpSync("src/themes/blueprint-book.css", "dist/themes/blueprint-book.css");
       cpSync("node_modules/katex/dist/fonts", "dist/fonts", { recursive: true });
     },
   };
@@ -26,7 +28,6 @@ function copyEditorCss(): Plugin {
 export default defineConfig(({ mode }) => ({
   plugins: [
     copyEditorCss(),
-    // Run `npm run build:analyze` to generate dist/stats.html bundle treemap
     mode === "analyze" &&
       visualizer({
         filename: "dist/stats.html",

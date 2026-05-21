@@ -27,7 +27,7 @@ import {
 import { _blockDecorationFieldForTest as blockDecorationField } from "./plugin-render";
 import { blockCounterField } from "../state/block-counter";
 import { createPluginRegistryField } from "../state/plugin-registry";
-import { documentSemanticsField } from "../state/document-analysis";
+import { documentAnalysisField } from "../state/document-analysis";
 import { mathMacrosField } from "../state/math-macros";
 import { editorFocusField } from "./render-core";
 import { _codeBlockStructureFieldForTest as codeBlockStructureField } from "./code-block-render";
@@ -55,7 +55,7 @@ function createProtectedState(
       markdown({ extensions: markdownExtensions }),
       frontmatterField,
       activeStructureEditField,
-      documentSemanticsField,
+      documentAnalysisField,
       mathMacrosField,
       createPluginRegistryField(plugins),
       blockCounterField,
@@ -73,7 +73,7 @@ function createProtectedView(doc: string, cursorPos = 0) {
       markdown({ extensions: markdownExtensions }),
       frontmatterField,
       activeStructureEditField,
-      documentSemanticsField,
+      documentAnalysisField,
       mathMacrosField,
       createPluginRegistryField([makeBlockPlugin({ name: "theorem" })]),
       blockCounterField,
@@ -617,7 +617,7 @@ function createMathProtectedState(doc: string) {
     extensions: [
       markdown({ extensions: markdownExtensions }),
       frontmatterField,
-      documentSemanticsField,
+      documentAnalysisField,
       mathMacrosField,
       fenceProtectionExtension,
     ],

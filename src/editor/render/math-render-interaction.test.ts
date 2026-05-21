@@ -7,8 +7,8 @@ import {
   clearKatexCache,
 } from "./math-render";
 import { getDecorationSpecs } from "../test-utils";
-import { widgetSourceMap } from "./render-utils";
-import { documentSemanticsField } from "../state/document-analysis";
+import { widgetSourceMap } from "./render-core";
+import { documentAnalysisField } from "../state/document-analysis";
 import {
   activateDisplayMathSourceView,
   countWidgets,
@@ -37,7 +37,7 @@ describe("live math widget metadata", () => {
       changes: { from: insertPos, to: insertPos, insert: "$x$ and " },
     });
 
-    const regions = currentView.state.field(documentSemanticsField).mathRegions;
+    const regions = currentView.state.field(documentAnalysisField).mathRegions;
     expect(
       regions.map((region) => ({
         latex: region.latex,

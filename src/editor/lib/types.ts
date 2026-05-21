@@ -1,21 +1,12 @@
 /**
  * CM6 Facets that distribute filesystem-related values to render plugins.
  *
- * The pure type definitions (FileEntry, FileSystem, ConditionalWriteResult,
- * BlockCounterEntry) live in src/core/lib/file-system-types.ts. This file
- * re-exports them for backwards-compatible imports and adds the CM6 Facet
- * machinery that requires @codemirror/state.
+ * The pure type definitions live in src/core/lib/file-system-types.ts. This
+ * file adds the CM6 Facet machinery that requires @codemirror/state.
  */
 
 import { Facet } from "@codemirror/state";
 import type { FileSystem } from "../../core/lib/file-system-types";
-
-export type {
-  FileEntry,
-  ConditionalWriteResult,
-  BlockCounterEntry,
-  FileSystem,
-} from "../../core/lib/file-system-types";
 
 /**
  * CM6 Facet that provides a FileSystem instance to render plugins.

@@ -55,6 +55,8 @@
   /* Accent — black, one color */
   --cf-accent: #18181b;
   --cf-accent-fg: #ffffff;
+  --cf-color-link: var(--cf-accent);
+  --cf-color-code-bg: var(--cf-hover);
   --cf-active-shell-border: #dc2626;
   --cf-active-shell-fill: rgba(220, 38, 38, 0.10);
   --cf-active-shell-border-width: 2px;
@@ -193,6 +195,8 @@
   --cf-code-tag: #fda4af;
   --cf-accent: #fafafa;
   --cf-accent-fg: #09090b;
+  --cf-color-link: var(--cf-accent);
+  --cf-color-code-bg: var(--cf-hover);
   --cf-active-shell-border: #ef4444;
   --cf-active-shell-fill: rgba(239, 68, 68, 0.16);
   --cf-active-shell-border-width: 2px;
@@ -307,6 +311,91 @@
   font-size: var(--cf-base-font-size, 16px);
   line-height: var(--cf-line-height, 1.5);
   text-align: left;
+}
+
+.cf-theme-scope {
+  color: var(--cf-fg);
+  background: var(--cf-bg);
+}
+
+.cf-reader-shell,
+.cf-reader-document {
+  box-sizing: border-box;
+  color: var(--cf-fg);
+  background: var(--cf-bg);
+}
+
+.cf-reader {
+  box-sizing: border-box;
+  max-width: var(--cf-content-max-width, 800px);
+  margin-inline: auto;
+  padding: var(--cf-doc-content-padding-block-start, 24px) var(--cf-doc-content-padding-inline, 48px) var(--cf-doc-content-padding-block-end, 64px);
+}
+
+.cf-reader-toc {
+  box-sizing: border-box;
+  color: var(--cf-muted);
+  font-family: var(--cf-ui-font, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif);
+  font-size: var(--cf-ui-font-size-base, 14px);
+}
+
+.cf-reader a,
+.cf-reader .cf-doc-link {
+  color: var(--cf-color-link, var(--cf-accent));
+}
+
+.cf-reader .cf-doc-heading {
+  margin: var(--cf-doc-heading-margin, 0.8em 0 0.4em);
+}
+
+.cf-reader .cf-doc-paragraph {
+  margin: var(--cf-doc-paragraph-margin, 0.5em 0);
+}
+
+.cf-reader .cf-doc-code-token {
+  font-family: var(--cf-code-font, Monaco, "DejaVu Sans Mono", Consolas, monospace);
+  font-size: 0.85em;
+  background: var(--cf-color-code-bg, var(--cf-hover));
+  border-radius: var(--cf-border-radius);
+  padding: 0.1em 0.25em;
+}
+
+.cf-reader .cf-doc-code-block {
+  margin: var(--cf-doc-code-block-margin, 1em 0);
+  overflow-x: auto;
+  background: var(--cf-color-code-bg, var(--cf-subtle));
+  border: var(--cf-border-width, 1px) solid var(--cf-border);
+  border-radius: var(--cf-border-radius-lg);
+  padding: 0.75em 1em;
+}
+
+.cf-reader .cf-doc-code-block code {
+  font-family: var(--cf-code-font, Monaco, "DejaVu Sans Mono", Consolas, monospace);
+}
+
+.cf-reader .cf-doc-blockquote {
+  margin: var(--cf-doc-blockquote-margin, 1em 0);
+  border-left: 3px solid var(--cf-blockquote-border);
+  padding-left: 1em;
+  color: var(--cf-blockquote-color);
+}
+
+.cf-reader .cf-doc-table-block {
+  margin: 1em 0;
+  border-collapse: collapse;
+  font-size: var(--cf-table-font-size, 0.9em);
+}
+
+.cf-reader .cf-doc-table-cell {
+  border: var(--cf-border-width, 1px) solid var(--cf-table-border);
+  padding: var(--cf-table-cell-padding);
+  line-height: var(--cf-table-line-height, 1.5);
+}
+
+.cf-reader .cf-doc-table-header {
+  border-bottom: var(--cf-border-width-accent, 2px) solid var(--cf-table-header-border);
+  background: var(--cf-subtle);
+  font-weight: 600;
 }
 
 /* ── CodeMirror 6 static runtime contract ─────────────────────────────────────
@@ -687,7 +776,7 @@
   margin-bottom: 0;
 }
 
-.cf-preview-surface-body .cf-math-display {
+.cf-preview-surface-body .cf-doc-display-math {
   margin: 0;
   text-align: center;
 }
@@ -1097,42 +1186,43 @@
 }
 
 /* ── Fenced div blocks (theorem, proof, etc.) — shared by rich previews ──
- * Unscoped cf-block-* rules produced by both CM6 decorations (rich mode)
+ * Unscoped cf-doc-block--* rules produced by both CM6 decorations (rich mode)
  * and CM6-owned preview surfaces. In rich mode, CM6's
  * EditorView.theme auto-generates equivalent font-style rules under
  * .cm-editor scope; these globals serve non-editor preview DOM.
  * Margin and proof ::after use :not(.cm-line) to avoid affecting CM6 lines. */
-.cf-block-theorem { font-style: var(--cf-block-theorem-style); }
-.cf-block-lemma { font-style: var(--cf-block-lemma-style); }
-.cf-block-corollary { font-style: var(--cf-block-corollary-style); }
-.cf-block-proposition { font-style: var(--cf-block-proposition-style); }
-.cf-block-conjecture { font-style: var(--cf-block-conjecture-style); }
-.cf-block-definition { font-style: var(--cf-block-definition-style); }
-.cf-block-problem { font-style: var(--cf-block-problem-style); }
-.cf-block-example { font-style: var(--cf-block-example-style); }
-.cf-block-remark, .cf-block-note { font-style: var(--cf-block-remark-style); }
-.cf-block-proof { font-style: var(--cf-block-proof-style); }
-.cf-block-algorithm { font-style: var(--cf-block-algorithm-style); }
-.cf-block-figure { font-style: var(--cf-block-figure-style); }
-.cf-block-table { font-style: var(--cf-block-table-style); }
+.cf-doc-block--theorem { font-style: var(--cf-block-theorem-style); }
+.cf-doc-block--lemma { font-style: var(--cf-block-lemma-style); }
+.cf-doc-block--corollary { font-style: var(--cf-block-corollary-style); }
+.cf-doc-block--proposition { font-style: var(--cf-block-proposition-style); }
+.cf-doc-block--conjecture { font-style: var(--cf-block-conjecture-style); }
+.cf-doc-block--definition { font-style: var(--cf-block-definition-style); }
+.cf-doc-block--problem { font-style: var(--cf-block-problem-style); }
+.cf-doc-block--example { font-style: var(--cf-block-example-style); }
+.cf-doc-block--remark,
+.cf-doc-block--note { font-style: var(--cf-block-remark-style); }
+.cf-doc-block--proof { font-style: var(--cf-block-proof-style); }
+.cf-doc-block--algorithm { font-style: var(--cf-block-algorithm-style); }
+.cf-doc-block--figure { font-style: var(--cf-block-figure-style); }
+.cf-doc-block--table { font-style: var(--cf-block-table-style); }
 
 /* Block margin — only on wrapper divs outside CM6, not on
- * CM6 .cm-line elements that carry the same cf-block-* class names.
- * All block divs carry the shared "cf-block" base class. */
-.cf-block:not(.cm-line) {
+ * CM6 .cm-line elements that carry the same cf-doc-block--* class names.
+ * All block divs carry the shared "cf-doc-block" base class. */
+.cf-doc-block:not(.cm-line) {
   margin: var(--cf-block-margin);
 }
 
 /* Proof needs position: relative for the ::after tombstone (outside CM6 only). */
-.cf-block-proof:not(.cm-line) {
+.cf-doc-block--proof:not(.cm-line) {
   position: relative;
 }
 
 /* QED tombstone at end of proof — outside CM6 only.
  * Rich mode uses .cf-block-qed via CM6 line decoration on the last content
  * line instead. The :not(.cm-line) guard prevents this from firing on
- * CM6 line elements that carry the cf-block-proof class. */
-.cf-block-proof:not(.cm-line)::after {
+ * CM6 line elements that carry the cf-doc-block--proof class. */
+.cf-doc-block--proof:not(.cm-line)::after {
   content: var(--cf-proof-marker);
   color: var(--cf-proof-marker-color);
   font-size: var(--cf-proof-marker-size);
@@ -1149,22 +1239,22 @@
   content: var(--cf-block-title-separator);
 }
 
-.cf-block-proof .cf-block-header-rendered {
+.cf-doc-block--proof .cf-block-header-rendered {
   font-style: italic;
   font-weight: 400;
 }
 
-.cf-block-proof .cf-block-header-rendered::after {
+.cf-doc-block--proof .cf-block-header-rendered::after {
   content: ". ";
 }
 
-.cf-block-figure img {
+.cf-doc-block--figure img {
   display: block;
   margin-inline: auto;
   max-width: 100%;
 }
 
-.cf-block-table table {
+.cf-doc-block--table table {
   width: auto;
   margin-inline: auto;
   max-width: 100%;
@@ -1200,8 +1290,8 @@
  *   Editor: cf-citation-narrative <-> Preview: narrative cites inline
  *   Editor: cf-math-error         <-> Preview: .math-error
  *   Editor: cf-block-header-rendered <-> Preview: strong.cf-block-header-rendered
- *   Editor: cf-block-{type}       <-> Preview: div.cf-block-{type}
- *   Editor: cf-math-display       <-> Preview: div.cf-math-display
+ *   Editor: cf-doc-block--{type}  <-> Preview: div.cf-doc-block--{type}
+ *   Editor: cf-doc-display-math   <-> Preview: div.cf-doc-display-math
  *   Editor: cf-bold               <-> Preview: strong.cf-bold
  *   Editor: cf-italic             <-> Preview: em.cf-italic
  *   Editor: cf-strikethrough      <-> Preview: del.cf-strikethrough

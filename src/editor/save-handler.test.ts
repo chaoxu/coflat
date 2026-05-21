@@ -1,5 +1,5 @@
 /**
- * Phase 3.2 (#10) — SaveHandler integration tests.
+ * SaveHandler integration tests.
  *
  * Exercises the public surface (`mountEditor` + `SaveHandler` +
  * `StatusEvents`) — these are the seams hosts depend on, so we test
@@ -78,7 +78,7 @@ function makeHarness(opts: { autosaveDebounceMs?: number } = {}): Harness {
 
 const cleanups: Array<() => void> = [];
 afterEach(() => {
-  while (cleanups.length) cleanups.pop()!();
+  while (cleanups.length) cleanups.pop()?.();
 });
 
 describe("SaveHandler dirty tracking", () => {

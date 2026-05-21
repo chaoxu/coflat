@@ -1,4 +1,4 @@
-// Selective re-exports to avoid conflicts with semantics/document
+// Selective markdown helper exports.
 export {
   parseHeadingLine,
   parseHeadingText,

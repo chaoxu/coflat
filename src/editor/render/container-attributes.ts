@@ -24,7 +24,7 @@ import {
   getMergedRangeCoverage,
   rangesOverlap,
 } from "../lib/range-helpers";
-import { documentSemanticsField } from "../state/document-analysis";
+import { documentAnalysisField } from "../state/document-analysis";
 import { buildDecorations } from "./decoration-core";
 import { SyntaxParseScheduler } from "./syntax-parse-scheduler";
 import { DOCUMENT_SURFACE_CLASS } from "../../core/document-surface-classes";
@@ -101,7 +101,7 @@ function collectLineTagsInRange(
   rangeTo: number,
 ): Map<number, string> {
   const lineTagMap = new Map<number, string>();
-  const semantics = state.field(documentSemanticsField, false);
+  const semantics = state.field(documentAnalysisField, false);
   const range = { from: rangeFrom, to: rangeTo };
 
   if (semantics) {

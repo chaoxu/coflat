@@ -1,0 +1,187 @@
+/* Optional reader/editor theme inspired by Lean blueprint pages.
+ *
+ * Hosts import this file explicitly and apply `.cf-theme-blueprint-book` to a
+ * `.cf-theme-scope` root. Coflat does not auto-load or globally apply it.
+ */
+
+.cf-theme-blueprint-book {
+  --cf-ui-font: "Lucida Grande", Arial, Helvetica, sans-serif;
+  --cf-content-font: KaTeX_Main, "Times New Roman", Times, serif;
+  --cf-code-font: Monaco, "DejaVu Sans Mono", Consolas, monospace;
+  --cf-bg: #ffffff;
+  --cf-bg-secondary: #ffffff;
+  --cf-fg: #24292e;
+  --cf-muted: #5c6976;
+  --cf-border: #e8e8e8;
+  --cf-subtle: #f7f7f7;
+  --cf-hover: #e6e6e6;
+  --cf-active: #d8d8d8;
+  --cf-accent: #24292e;
+  --cf-accent-fg: #ffffff;
+  --cf-color-link: #24292e;
+  --cf-color-code-bg: #f7f7f7;
+  --cf-base-font-size: 16px;
+  --cf-line-height: 1.4;
+  --cf-content-max-width: 75ch;
+  --cf-doc-content-padding-block-start: 16px;
+  --cf-doc-content-padding-block-end: 40px;
+  --cf-doc-content-padding-inline: 16px;
+  --cf-doc-paragraph-margin: 0.5rem 0;
+  --cf-doc-heading-margin: 0.9rem 0 0.5rem;
+  --cf-doc-list-margin: 0.6rem 0;
+  --cf-doc-list-item-margin: 0.15rem 0;
+  --cf-doc-code-block-margin: 0.9rem 0;
+  --cf-doc-blockquote-margin: 0.9rem 0;
+  --cf-h1-size: 2rem;
+  --cf-h1-weight: 400;
+  --cf-h1-style: normal;
+  --cf-h2-size: 1.5rem;
+  --cf-h2-weight: 400;
+  --cf-h2-style: normal;
+  --cf-h3-size: 1rem;
+  --cf-h3-weight: 700;
+  --cf-h3-style: normal;
+  --cf-h4-size: 1rem;
+  --cf-h4-weight: 700;
+  --cf-h4-style: normal;
+  --cf-h5-size: 0.95rem;
+  --cf-h5-weight: 700;
+  --cf-h5-style: normal;
+  --cf-h6-size: 0.9rem;
+  --cf-h6-weight: 700;
+  --cf-h6-style: normal;
+  --cf-block-header-accent: #24292e;
+  --cf-block-header-border-width: 0px;
+  --cf-block-title-weight: 700;
+  --cf-block-title-separator: ".\00a0";
+  --cf-block-margin: 0.85rem 0;
+  --cf-block-theorem-style: italic;
+  --cf-block-lemma-style: italic;
+  --cf-block-corollary-style: italic;
+  --cf-block-proposition-style: italic;
+  --cf-block-conjecture-style: italic;
+  --cf-block-definition-style: normal;
+  --cf-block-proof-style: normal;
+  --cf-proof-marker: "\220E";
+  --cf-border-radius: 1px;
+  --cf-border-radius-lg: 2px;
+}
+
+.cf-theme-blueprint-book.cf-reader-shell,
+.cf-theme-blueprint-book .cf-reader-shell {
+  display: grid;
+  min-height: 100%;
+  grid-template-columns: minmax(0, 1fr);
+  background: var(--cf-bg);
+}
+
+.cf-theme-blueprint-book .cf-reader-document {
+  min-width: 0;
+}
+
+.cf-theme-blueprint-book .cf-reader {
+  padding-block: 1rem 2.5rem;
+}
+
+.cf-theme-blueprint-book .cf-reader-toc {
+  display: none;
+  overflow: auto;
+  border-right: 1px solid #f2f2f2;
+  padding: 0 1rem 1rem 0;
+  background: #ffffff;
+}
+
+.cf-theme-blueprint-book .cf-reader-toc a {
+  display: block;
+  padding: 0.45rem 0.5rem 0.45rem 0.8rem;
+  color: #464f59;
+  text-decoration: none;
+}
+
+.cf-theme-blueprint-book .cf-reader-toc a:hover {
+  background: #e6e6e6;
+}
+
+.cf-theme-blueprint-book .cf-reader a {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
+.cf-theme-blueprint-book .cf-reader .cf-doc-heading--h1 {
+  font-size: var(--cf-h1-size);
+  font-style: var(--cf-h1-style);
+  font-weight: var(--cf-h1-weight);
+}
+
+.cf-theme-blueprint-book .cf-reader .cf-doc-heading--h2 {
+  font-size: var(--cf-h2-size);
+  font-style: var(--cf-h2-style);
+  font-weight: var(--cf-h2-weight);
+}
+
+.cf-theme-blueprint-book .cf-reader :where(.cf-doc-heading--h3, .cf-doc-heading--h4, .cf-doc-heading--h5, .cf-doc-heading--h6) {
+  font-size: 1rem;
+  font-style: normal;
+  font-weight: 700;
+}
+
+.cf-theme-blueprint-book .cf-reader .cf-doc-heading--h1 {
+  line-height: 1;
+  margin-block: 1rem;
+  text-align: center;
+}
+
+.cf-theme-blueprint-book .cf-reader .cf-doc-heading--h2 {
+  line-height: 1.2;
+  margin-block: 0.8rem 0.5rem;
+}
+
+.cf-theme-blueprint-book .cf-reader .cf-doc-heading--h3,
+.cf-theme-blueprint-book .cf-reader .cf-doc-heading--h4 {
+  margin-block: 0.67rem 0.4rem;
+}
+
+.cf-theme-blueprint-book .cf-reader .cf-doc-block,
+.cf-theme-blueprint-book .cf-doc-block:not(.cm-line) {
+  margin: var(--cf-block-margin);
+}
+
+.cf-theme-blueprint-book .cf-reader .cf-doc-block--theorem,
+.cf-theme-blueprint-book .cf-reader .cf-doc-block--proposition,
+.cf-theme-blueprint-book .cf-reader .cf-doc-block--lemma,
+.cf-theme-blueprint-book .cf-reader .cf-doc-block--corollary,
+.cf-theme-blueprint-book .cf-reader .cf-doc-block--conjecture {
+  border-left: 0.12rem solid currentColor;
+  padding-left: 1rem;
+  font-style: italic;
+}
+
+.cf-theme-blueprint-book .cf-reader .cf-doc-block--proof,
+.cf-theme-blueprint-book .cf-doc-block--proof:not(.cm-line) {
+  border-left: 0.08rem solid #808080;
+  padding-left: 1rem;
+}
+
+.cf-theme-blueprint-book .cf-reader .cf-doc-block--definition,
+.cf-theme-blueprint-book .cf-reader .cf-doc-block--example,
+.cf-theme-blueprint-book .cf-reader .cf-doc-block--remark {
+  font-style: normal;
+}
+
+.cf-theme-blueprint-book .cf-reader .cf-doc-code-block {
+  border-radius: 1px;
+}
+
+@media (min-width: 1024px) {
+  .cf-theme-blueprint-book.cf-reader-shell,
+  .cf-theme-blueprint-book .cf-reader-shell {
+    grid-template-columns: 25ch minmax(0, 1fr);
+    column-gap: 1rem;
+  }
+
+  .cf-theme-blueprint-book .cf-reader-toc {
+    display: block;
+  }
+}

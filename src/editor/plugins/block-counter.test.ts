@@ -14,7 +14,7 @@ import { markdown } from "@codemirror/lang-markdown";
 import { fencedDiv } from "../../core/parser/fenced-div";
 import { frontmatterField } from "../state/frontmatter-state";
 import {
-  documentSemanticsField,
+  documentAnalysisField,
   getDocumentAnalysisSliceRevision,
 } from "../state/document-analysis";
 import { blockCounterField } from "../state/block-counter";
@@ -29,7 +29,7 @@ function createState(doc: string) {
   return createEditorState(doc, {
     extensions: [
       markdown({ extensions: [fencedDiv] }),
-      documentSemanticsField,
+      documentAnalysisField,
     ],
   });
 }
@@ -526,20 +526,20 @@ describe("blockCounterField", () => {
       extensions: [
         markdown({ extensions: [fencedDiv] }),
         frontmatterField,
-        documentSemanticsField,
+        documentAnalysisField,
         createPluginRegistryField([makeBlockPlugin({ name: "theorem" })]),
         blockCounterField,
       ],
     });
     const counter1 = state.field(blockCounterField);
-    const semantics1 = state.field(documentSemanticsField);
+    const semantics1 = state.field(documentAnalysisField);
 
     const headingStart = doc.indexOf("One");
     const tr = state.update({
       changes: { from: headingStart, to: headingStart + 3, insert: "Two" },
     });
     const counter2 = tr.state.field(blockCounterField);
-    const semantics2 = tr.state.field(documentSemanticsField);
+    const semantics2 = tr.state.field(documentAnalysisField);
 
     expect(semantics2).not.toBe(semantics1);
     expect(getDocumentAnalysisSliceRevision(semantics2, "fencedDivs")).toBe(
@@ -560,7 +560,7 @@ describe("blockCounterField", () => {
       extensions: [
         markdown({ extensions: [fencedDiv] }),
         frontmatterField,
-        documentSemanticsField,
+        documentAnalysisField,
         builtinCompartment.of(
           createPluginRegistryField([makeBlockPlugin({ name: "theorem" })]),
         ),
@@ -568,7 +568,7 @@ describe("blockCounterField", () => {
       ],
     });
     const counter1 = state.field(blockCounterField);
-    const semantics1 = state.field(documentSemanticsField);
+    const semantics1 = state.field(documentAnalysisField);
     const registry1 = state.field(pluginRegistryField);
 
     const tr = state.update({
@@ -581,7 +581,7 @@ describe("blockCounterField", () => {
     const counter2 = tr.state.field(blockCounterField);
 
     expect(counter1.blocks).toHaveLength(1);
-    expect(tr.state.field(documentSemanticsField)).toBe(semantics1);
+    expect(tr.state.field(documentAnalysisField)).toBe(semantics1);
     expect(tr.state.field(pluginRegistryField)).not.toBe(registry1);
     expect(counter2).not.toBe(counter1);
     expect(counter2.blocks).toHaveLength(0);
@@ -609,7 +609,7 @@ describe("blockCounterField", () => {
       extensions: [
         markdown({ extensions: [fencedDiv] }),
         frontmatterField,
-        documentSemanticsField,
+        documentAnalysisField,
         createPluginRegistryField([
           makeBlockPlugin({ name: "theorem", counter: "theorem" }),
           makeBlockPlugin({ name: "definition" }),
@@ -640,7 +640,7 @@ describe("blockCounterField", () => {
       extensions: [
         markdown({ extensions: [fencedDiv] }),
         frontmatterField,
-        documentSemanticsField,
+        documentAnalysisField,
         createPluginRegistryField([makeBlockPlugin({ name: "theorem" })]),
         blockCounterField,
       ],

@@ -2,11 +2,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import katex from "katex";
 import { isSafeUrl } from "../../core/lib/url-utils";
 import { buildKatexOptions } from "../lib/katex-options";
+import { sanitizeCslHtml } from "../lib/sanitize-csl-html";
 import {
   MARK_NODES,
   clearKatexHtmlCache,
   renderKatexToHtml,
-  sanitizeCslHtml,
   sanitizeRenderedHtml,
 } from "./inline-shared";
 

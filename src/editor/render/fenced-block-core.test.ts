@@ -356,7 +356,7 @@ describe("addCollapsedStructureLine widget", () => {
     addCollapsedStructureLine(
       state,
       openLine,
-      "cf-doc-block cf-block cf-block-figure",
+      "cf-doc-block cf-doc-block--figure",
       items,
     );
     expect(items).toHaveLength(1);

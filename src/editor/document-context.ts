@@ -1,15 +1,11 @@
 /**
  * Shared document context consumed by both the reader and the editor.
  *
- * The pure type definitions (LinkResolver, RefResolver, CitationFormatter,
- * DocumentContext, EMPTY_DOCUMENT_CONTEXT) live in
- * src/core/document-context-types.ts. This file re-exports them for
- * backwards-compatible imports and adds the CM6 Facet machinery that
- * requires @codemirror/state.
+ * The pure type definitions live in src/core/document-context-types.ts. This
+ * file adds the CM6 Facet machinery that requires @codemirror/state.
  *
- * v1 assumes context is immutable for the render lifetime — hosts that
- * need to change resolvers (new bib loaded, new page added) remount
- * their instances. Reactivity (`version` / `subscribe`) is a follow-up.
+ * Context is immutable for the render lifetime. Hosts that need to change
+ * resolvers remount their instances with a new context.
  *
  * See READER.md for the design rationale.
  */
@@ -19,14 +15,6 @@ import {
   EMPTY_DOCUMENT_CONTEXT,
   type DocumentContext,
 } from "../core/document-context-types";
-
-export type {
-  LinkResolver,
-  RefResolver,
-  CitationFormatter,
-  DocumentContext,
-} from "../core/document-context-types";
-export { EMPTY_DOCUMENT_CONTEXT } from "../core/document-context-types";
 
 /**
  * Pattern follows fileSystemFacet: at most one provider, last wins.

@@ -28,7 +28,7 @@ import {
 } from "../render/bibliography-render";
 import { destroyFloatingTooltip } from "../render/hover-tooltip";
 import { bibDataEffect, bibDataField } from "../state/bib-data";
-import { documentSemanticsField } from "../state/document-analysis";
+import { documentAnalysisField } from "../state/document-analysis";
 
 const karger: CslJsonItem = {
   id: "karger2000",
@@ -330,7 +330,7 @@ describe("bibliographyPlugin integration", () => {
         markdown({
           extensions: [fencedDiv, mathExtension, equationLabelExtension],
         }),
-        documentSemanticsField,
+        documentAnalysisField,
         bibDataField,
         bibliographyPlugin,
       ],
@@ -579,7 +579,7 @@ describe("bibliographyPlugin integration", () => {
           markdown({
             extensions: [fencedDiv, mathExtension, equationLabelExtension],
           }),
-          documentSemanticsField,
+          documentAnalysisField,
           bibDataField,
           bibliographyPlugin,
         ],

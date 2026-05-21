@@ -6,7 +6,7 @@ import { fencedDiv } from "../../core/parser/fenced-div";
 import { mathExtension } from "../../core/parser/math-backslash";
 import { equationLabelExtension } from "../../core/parser/equation-label";
 import { frontmatterField } from "./frontmatter-state";
-import { documentSemanticsField } from "./document-analysis";
+import { documentAnalysisField } from "./document-analysis";
 import { blockCounterField } from "./block-counter";
 import { createPluginRegistryField } from "./plugin-registry";
 import type { BlockPlugin } from "./block-plugin";
@@ -52,7 +52,7 @@ function createReferenceStateView(doc: string): EditorView {
         extensions: [fencedDiv, mathExtension, equationLabelExtension],
       }),
       frontmatterField,
-      documentSemanticsField,
+      documentAnalysisField,
       createPluginRegistryField(testPlugins),
       blockCounterField,
       bibDataField,

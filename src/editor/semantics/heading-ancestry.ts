@@ -11,7 +11,7 @@ import {
   hasUnnumberedHeadingAttributes,
 } from "./document";
 import type { DocumentAnalysis } from "./document";
-import { documentSemanticsField } from "../state/document-analysis";
+import { documentAnalysisField } from "../state/document-analysis";
 
 /** A single heading entry extracted from the document. */
 export interface HeadingEntry {
@@ -52,7 +52,7 @@ export function headingEntriesFromAnalysis(
  * Returns entries sorted by document position.
  */
 export function extractHeadings(state: EditorState): HeadingEntry[] {
-  return headingEntriesFromAnalysis(state.field(documentSemanticsField));
+  return headingEntriesFromAnalysis(state.field(documentAnalysisField));
 }
 
 /**

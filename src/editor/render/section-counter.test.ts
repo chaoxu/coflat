@@ -8,7 +8,7 @@ import {
   sectionNumberField,
   sectionNumberPlugin,
 } from "./section-counter";
-import { documentSemanticsField } from "../state/document-analysis";
+import { documentAnalysisField } from "../state/document-analysis";
 import { semanticGlobalInvalidationAnnotation } from "../semantics/incremental/semantic-delta";
 import { ensureFullSyntaxTree } from "../test-utils";
 
@@ -16,7 +16,7 @@ import { ensureFullSyntaxTree } from "../test-utils";
 function createState(doc: string): EditorState {
   return EditorState.create({
     doc,
-    extensions: [markdown(), documentSemanticsField],
+    extensions: [markdown(), documentAnalysisField],
   });
 }
 
@@ -263,7 +263,7 @@ describe("sectionNumberPlugin", () => {
       annotations: semanticGlobalInvalidationAnnotation.of(true),
     }).state;
 
-    expect(parsedState.field(documentSemanticsField).headings.map((heading) => heading.number)).toEqual([
+    expect(parsedState.field(documentAnalysisField).headings.map((heading) => heading.number)).toEqual([
       "1",
       "1.1",
     ]);

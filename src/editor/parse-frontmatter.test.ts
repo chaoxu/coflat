@@ -50,7 +50,8 @@ describe("serializeFrontmatter", () => {
     const src = "---\ntitle: Hello\nauthor: Chao\n---\n\n# Body\n";
     const parsed = parseFrontmatter(src);
     expect(parsed.frontmatter).not.toBeNull();
-    const out = serializeFrontmatter(parsed.frontmatter!, parsed.body);
+    if (!parsed.frontmatter) throw new Error("expected parsed frontmatter");
+    const out = serializeFrontmatter(parsed.frontmatter, parsed.body);
     expect(out).toBe(src);
   });
 

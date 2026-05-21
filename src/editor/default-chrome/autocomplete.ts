@@ -1,5 +1,5 @@
 /**
- * Default chrome for `RequestHandler.openAutocomplete` (Phase 3.4).
+ * Default chrome for `RequestHandler.openAutocomplete`.
  *
  * Vanilla DOM (no React) so the editor core can call this in any host
  * — including non-React shells. Hosts that want their own UI override

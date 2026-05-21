@@ -16,7 +16,7 @@ import fc from "fast-check";
 import { syntaxTree } from "@codemirror/language";
 import { type DecorationSet, EditorView } from "@codemirror/view";
 import { createEditor, editorModeField, setEditorMode, type EditorMode } from "./editor";
-import { documentSemanticsField } from "./state/document-analysis";
+import { documentAnalysisField } from "./state/document-analysis";
 
 // ── Seed documents ───────────────────────────────────────────────────────────
 
@@ -323,7 +323,7 @@ function checkInvariants(view: EditorView, stepIndex: number, op: EditOp): void 
   });
 
   // Semantics field is accessible and internally consistent
-  const semantics = state.field(documentSemanticsField);
+  const semantics = state.field(documentAnalysisField);
   for (const heading of semantics.headings) {
     if (heading.from < 0 || heading.from > docLen) {
       throw new Error(

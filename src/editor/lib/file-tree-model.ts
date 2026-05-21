@@ -1,4 +1,4 @@
-import type { FileEntry } from "./types";
+import type { FileEntry } from "../../core/lib/file-system-types";
 
 export const FILE_TREE_ROOT_ITEM_ID = "__cf-file-tree-root__";
 

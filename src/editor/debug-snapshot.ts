@@ -224,7 +224,7 @@ export function measureDebugRenderState(view: EditorView): DebugRenderState {
     ).filter(inView).length,
     tables: Array.from(view.dom.querySelectorAll(".cf-table-widget")).filter(inView).length,
     figures: Array.from(
-      view.dom.querySelectorAll(".cf-block-figure, .cf-image-wrapper"),
+      view.dom.querySelectorAll(".cf-doc-block--figure, .cf-image-wrapper"),
     ).filter(inView).length,
     visibleRawFencedOpeners: collectVisibleRawFencedOpeners(view),
   };

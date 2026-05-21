@@ -4,12 +4,14 @@ import { blockThemeStyles } from "./block-theme";
 describe("blockThemeStyles", () => {
   it("generates representative accent and body-style rules from the block manifest", () => {
     expect(
-      blockThemeStyles[".cf-block-theorem .cf-block-header, .cf-block-theorem.cf-block-header"],
+      blockThemeStyles[
+        ".cf-doc-block--theorem .cf-block-header, .cf-doc-block--theorem.cf-block-header"
+      ],
     ).toEqual({
       borderLeftColor: "var(--cf-block-theorem-accent)",
     });
 
-    expect(blockThemeStyles[".cf-block-figure"]).toEqual({
+    expect(blockThemeStyles[".cf-doc-block--figure"]).toEqual({
       fontStyle: "var(--cf-block-figure-style)",
     });
 
@@ -36,12 +38,12 @@ describe("blockThemeStyles", () => {
       content: "var(--cf-block-title-separator)",
     });
 
-    expect(blockThemeStyles[".cf-block-proof .cf-block-header-rendered"]).toEqual({
+    expect(blockThemeStyles[".cf-doc-block--proof .cf-block-header-rendered"]).toEqual({
       fontStyle: "italic",
       fontWeight: "400",
     });
 
-    expect(blockThemeStyles[".cf-block-proof .cf-block-header-rendered::after"]).toEqual({
+    expect(blockThemeStyles[".cf-doc-block--proof .cf-block-header-rendered::after"]).toEqual({
       content: '". "',
     });
 
@@ -58,7 +60,7 @@ describe("blockThemeStyles", () => {
       margin: "var(--cf-spacing-sm) 0",
     });
 
-    expect(blockThemeStyles[".cf-block-table .cf-table-widget"]).toEqual({
+    expect(blockThemeStyles[".cf-doc-block--table .cf-table-widget"]).toEqual({
       width: "fit-content",
       maxWidth: "100%",
       margin: "var(--cf-spacing-sm) auto",

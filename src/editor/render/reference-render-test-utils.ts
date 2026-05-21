@@ -14,7 +14,7 @@ import { fencedDiv } from "../../core/parser/fenced-div";
 import { mathExtension } from "../../core/parser/math-backslash";
 import type { BlockPlugin } from "../plugins/plugin-types";
 import { blockCounterField } from "../state/block-counter";
-import { documentSemanticsField } from "../state/document-analysis";
+import { documentAnalysisField } from "../state/document-analysis";
 import {
   createPluginRegistryField,
 } from "../state/plugin-registry";
@@ -57,7 +57,7 @@ export function createView(doc: string, cursorPos?: number, focus = true): Edito
       }),
       frontmatterField,
       activeStructureEditField,
-      documentSemanticsField,
+      documentAnalysisField,
       createPluginRegistryField(testPlugins),
       blockCounterField,
       bibDataField,
@@ -80,7 +80,7 @@ export function createPluginView(doc: string, cursorPos?: number, focus = true):
       }),
       frontmatterField,
       activeStructureEditField,
-      documentSemanticsField,
+      documentAnalysisField,
       createPluginRegistryField(testPlugins),
       blockCounterField,
       bibDataField,

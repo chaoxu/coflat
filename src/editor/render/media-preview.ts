@@ -8,7 +8,8 @@
  */
 import type { EditorState } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
-import { fileSystemFacet, type FileSystem } from "../lib/types";
+import type { FileSystem } from "../../core/lib/file-system-types";
+import { fileSystemFacet } from "../lib/types";
 import { imageUrlField, type ImageUrlEntry } from "../state/image-url";
 import {
   classifyLocalMediaTarget,

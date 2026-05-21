@@ -21,10 +21,10 @@ import {
 } from "./plugin-adapters/chrome";
 import { blockCounterField } from "../state/block-counter";
 import { createPluginRegistryField } from "../state/plugin-registry";
-import { documentSemanticsField } from "../state/document-analysis";
+import { documentAnalysisField } from "../state/document-analysis";
 import { mathMacrosField } from "../state/math-macros";
 import { editorFocusField, focusEffect } from "./render-core";
-import { widgetSourceMap } from "./render-utils";
+import { widgetSourceMap } from "./render-core";
 import { frontmatterField } from "../state/frontmatter-state";
 import {
   activeStructureEditField,
@@ -56,7 +56,7 @@ function createTestState(doc: string, cursorPos = 0, focused = false) {
       markdown({ extensions: markdownExtensions }),
       frontmatterField,
       activeStructureEditField,
-      documentSemanticsField,
+      documentAnalysisField,
       mathMacrosField,
       bibDataField,
       createPluginRegistryField([]),
@@ -88,7 +88,7 @@ function createTestStateWithPlugins(
       markdown({ extensions: markdownExtensions }),
       frontmatterField,
       activeStructureEditField,
-      documentSemanticsField,
+      documentAnalysisField,
       mathMacrosField,
       bibDataField,
       createPluginRegistryField(plugins),
@@ -233,7 +233,7 @@ describe("blockDecorationField", () => {
         markdown({ extensions: markdownExtensions }),
         frontmatterField,
         activeStructureEditField,
-        documentSemanticsField,
+        documentAnalysisField,
         mathMacrosField,
         registryCompartment.of(
           createPluginRegistryField([

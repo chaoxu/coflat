@@ -1,4 +1,4 @@
-import type { FileSystem } from "./types";
+import type { FileSystem } from "../../core/lib/file-system-types";
 import { uint8ArrayToBase64 } from "./utils";
 
 const IMAGE_MIME_BY_EXT: Readonly<Record<string, string>> = {

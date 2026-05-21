@@ -3,7 +3,7 @@ import { EditorState } from "@codemirror/state";
 import { describe, expect, it } from "vitest";
 
 import { markdownExtensions } from "../core/parser";
-import { documentSemanticsField } from "./state/document-analysis";
+import { documentAnalysisField } from "./state/document-analysis";
 import { applyStateEffects } from "./test-utils";
 import { frontmatterField } from "./state/frontmatter-state";
 import { programmaticDocumentChangeAnnotation } from "./programmatic-document-change";
@@ -22,7 +22,7 @@ function createState(doc: string): EditorState {
       markdown({ extensions: markdownExtensions }),
       frontmatterField,
       activeStructureEditField,
-      documentSemanticsField,
+      documentAnalysisField,
     ],
   });
 }

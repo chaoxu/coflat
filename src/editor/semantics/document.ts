@@ -63,7 +63,7 @@ function isFootnoteSlice(value: FootnoteSemantics): value is FootnoteSlice {
 }
 
 // ---------------------------------------------------------------------------
-// Public per-category analyzers (thin wrappers for backward compatibility)
+// Public per-category analyzers.
 // ---------------------------------------------------------------------------
 
 export function analyzeHeadings(doc: TextSource, tree: Tree): HeadingSemantics[] {

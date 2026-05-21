@@ -1,5 +1,5 @@
 /**
- * Phase 3.3 (#11) — AssetUploader integration tests.
+ * AssetUploader integration tests.
  *
  * Exercises the public surface (`mountEditor` + `AssetUploader` +
  * `StatusEvents`) end-to-end through paste and drop DOM events.
@@ -140,7 +140,7 @@ function fireDrop(parent: HTMLElement, files: File[]): void {
 
 const cleanups: Array<() => void> = [];
 afterEach(() => {
-  while (cleanups.length) cleanups.pop()!();
+  while (cleanups.length) cleanups.pop()?.();
 });
 
 function track(h: Harness): void {

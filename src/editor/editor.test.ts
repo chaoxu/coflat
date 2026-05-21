@@ -8,7 +8,7 @@ import {
   setEditorMode,
 } from "./editor";
 import { frontmatterField } from "./state/frontmatter-state";
-import { documentSemanticsField } from "./state/document-analysis";
+import { documentAnalysisField } from "./state/document-analysis";
 import { documentReferenceCatalogField } from "./semantics/editor-reference-catalog";
 import { blockCounterField } from "./state/block-counter";
 import { bibDataField } from "./state/bib-data";
@@ -107,7 +107,7 @@ describe("extension bundle composition", () => {
 
     // Each field is queryable — proves the bundle installed them in order
     expect(view.state.field(frontmatterField)).toBeDefined();
-    expect(view.state.field(documentSemanticsField)).toBeDefined();
+    expect(view.state.field(documentAnalysisField)).toBeDefined();
     expect(view.state.field(blockCounterField)).toBeDefined();
     expect(view.state.field(documentReferenceCatalogField)).toBeDefined();
     expect(view.state.field(documentLabelGraphField)).toBeDefined();

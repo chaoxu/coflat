@@ -115,7 +115,7 @@ The layout is package-extraction ready: if a consumer ever needs the
 parser without the editor, or the reader without CodeMirror, the layers
 extract cleanly into `@chaoxu/coflat-format`, `@chaoxu/coflat-reader`,
 and `@chaoxu/coflat-editor` as separate npm packages. Until then, one
-package with five sub-path exports is enough.
+package with explicit sub-path exports is enough.
 
 ## Stable contracts
 
@@ -170,6 +170,29 @@ may be added in minor versions.
 The reader also exposes `mapDomRangeToSource(range, sourceToText)` for
 the reverse direction (DOM range → source offsets). The signature is
 stable.
+
+### Scoped reader/editor themes
+
+Coflat owns stable `cf-*` classes and `--cf-*` CSS variables, but hosts
+own theme management. Apply themes on a scoped container so separate
+documents can use separate themes:
+
+```html
+<div class="cf-theme-scope my-theme">
+  <div class="cf-reader">...</div>
+</div>
+```
+
+Hosts can load their own CSS or use optional package themes:
+
+```ts
+import "@chaoxu/coflat-editor/style.css";
+import "@chaoxu/coflat-editor/themes/blueprint-book.css";
+```
+
+The exported `CoflatThemeManifest` type describes external theme
+metadata. See `THEMING.md` for the root classes, manifest shape, and the
+bundled `blueprintBookThemeManifest`.
 
 ## Building a minimal editor host
 

@@ -21,7 +21,7 @@ import { markdownExtensions } from "../core/parser";
 import type { BlockPlugin } from "./plugins/plugin-types";
 import { editorFocusField } from "./render/render-core";
 import { blockCounterField } from "./state/block-counter";
-import { documentSemanticsField } from "./state/document-analysis";
+import { documentAnalysisField } from "./state/document-analysis";
 import { mathMacrosField } from "./state/math-macros";
 import { createPluginRegistryField } from "./state/plugin-registry";
 import { createEditorState, makeBlockPlugin } from "./test-utils";
@@ -153,7 +153,7 @@ function createTestState(doc: string): EditorState {
     extensions: [
       markdown({ extensions: markdownExtensions }),
       frontmatterField,
-      documentSemanticsField,
+      documentAnalysisField,
       mathMacrosField,
       createPluginRegistryField(testPlugins),
       blockCounterField,
@@ -286,7 +286,7 @@ describe("FORMAT.md coverage: Headings", () => {
   });
 
   it("extracts heading semantics with correct levels", () => {
-    const semantics = masterState.field(documentSemanticsField);
+    const semantics = masterState.field(documentAnalysisField);
     const levels = semantics.headings.map((h) => h.level);
     expect(levels).toContain(1);
     expect(levels).toContain(2);
@@ -297,14 +297,14 @@ describe("FORMAT.md coverage: Headings", () => {
   });
 
   it("detects unnumbered heading via {-}", () => {
-    const semantics = masterState.field(documentSemanticsField);
+    const semantics = masterState.field(documentAnalysisField);
     const bg = semantics.headings.find((h) => h.text === "Background");
     expect(bg).toBeDefined();
     expect(bg?.unnumbered).toBe(true);
   });
 
   it("assigns numbers to numbered headings", () => {
-    const semantics = masterState.field(documentSemanticsField);
+    const semantics = masterState.field(documentAnalysisField);
     const intro = semantics.headings.find((h) => h.text === "Introduction");
     expect(intro).toBeDefined();
     expect(intro?.number).not.toBe("");
@@ -313,7 +313,7 @@ describe("FORMAT.md coverage: Headings", () => {
   it("handles {.unnumbered} attribute form", () => {
     const doc = "# Heading {.unnumbered}\n\nContent.";
     const state = createTestState(doc);
-    const semantics = state.field(documentSemanticsField);
+    const semantics = state.field(documentAnalysisField);
     expect(semantics.headings[0].unnumbered).toBe(true);
   });
 });
@@ -376,7 +376,7 @@ describe("FORMAT.md coverage: Equation Labels", () => {
   });
 
   it("extracts equation semantics with id and number", () => {
-    const semantics = masterState.field(documentSemanticsField);
+    const semantics = masterState.field(documentAnalysisField);
     const eq = semantics.equationById.get("eq:einstein");
     expect(eq).toBeDefined();
     expect(eq?.number).toBe(1);
@@ -413,7 +413,7 @@ describe("FORMAT.md coverage: Fenced Divs", () => {
   });
 
   it("extracts fenced div semantics with primary class", () => {
-    const semantics = masterState.field(documentSemanticsField);
+    const semantics = masterState.field(documentAnalysisField);
     const types = semantics.fencedDivs.map((d) => d.primaryClass);
     expect(types).toContain("theorem");
     expect(types).toContain("lemma");
@@ -423,14 +423,14 @@ describe("FORMAT.md coverage: Fenced Divs", () => {
   });
 
   it("extracts fenced div id attribute", () => {
-    const semantics = masterState.field(documentSemanticsField);
+    const semantics = masterState.field(documentAnalysisField);
     const mainThm = semantics.fencedDivs.find((d) => d.id === "thm:main");
     expect(mainThm).toBeDefined();
     expect(mainThm?.primaryClass).toBe("theorem");
   });
 
   it("extracts fenced div title", () => {
-    const semantics = masterState.field(documentSemanticsField);
+    const semantics = masterState.field(documentAnalysisField);
     const mainThm = semantics.fencedDivs.find((d) => d.id === "thm:main");
     expect(mainThm).toBeDefined();
     expect(mainThm?.title).toBe("Main Result");
@@ -439,18 +439,18 @@ describe("FORMAT.md coverage: Fenced Divs", () => {
   it("rejects non-canonical self-closing fenced divs", () => {
     const doc = "::: {.theorem} Short statement. :::";
     const state = createTestState(doc);
-    const semantics = state.field(documentSemanticsField);
+    const semantics = state.field(documentAnalysisField);
     expect(semantics.fencedDivs).toHaveLength(0);
   });
 
   it("does not expose self-closing fenced divs in FORMAT coverage", () => {
-    const semantics = masterState.field(documentSemanticsField);
+    const semantics = masterState.field(documentAnalysisField);
     const selfClosing = semantics.fencedDivs.find((d) => d.isSelfClosing);
     expect(selfClosing).toBeUndefined();
   });
 
   it("handles nested fenced divs (more colons for outer)", () => {
-    const semantics = masterState.field(documentSemanticsField);
+    const semantics = masterState.field(documentAnalysisField);
     // The nested example has an outer theorem and inner proof
     const proofs = semantics.fencedDivs.filter((d) => d.primaryClass === "proof");
     expect(proofs.length).toBeGreaterThanOrEqual(2);
@@ -459,7 +459,7 @@ describe("FORMAT.md coverage: Fenced Divs", () => {
   it("parses class-only fenced-div shorthand", () => {
     const doc = "::: theorem\nContent.\n:::";
     const state = createTestState(doc);
-    const semantics = state.field(documentSemanticsField);
+    const semantics = state.field(documentAnalysisField);
     expect(semantics.fencedDivs).toHaveLength(1);
     expect(semantics.fencedDivs[0].primaryClass).toBe("theorem");
     expect(semantics.fencedDivs[0].title).toBeUndefined();
@@ -468,7 +468,7 @@ describe("FORMAT.md coverage: Fenced Divs", () => {
   it("rejects non-canonical trailing titles on fenced-div openers", () => {
     const doc = "::: {.theorem} Main Result\nContent.\n:::";
     const state = createTestState(doc);
-    const semantics = state.field(documentSemanticsField);
+    const semantics = state.field(documentAnalysisField);
     expect(semantics.fencedDivs).toHaveLength(0);
   });
 });
@@ -575,7 +575,7 @@ describe("FORMAT.md coverage: Lists", () => {
 
 describe("FORMAT.md coverage: Blockquotes (fenced div form)", () => {
   it("parses blockquote as a FencedDiv with .blockquote class", () => {
-    const semantics = masterState.field(documentSemanticsField);
+    const semantics = masterState.field(documentAnalysisField);
     const bq = semantics.fencedDivs.find((d) => d.primaryClass === "blockquote");
     expect(bq).toBeDefined();
   });
@@ -622,7 +622,7 @@ describe("FORMAT.md coverage: Cross-References", () => {
   });
 
   it("extracts reference semantics from document analysis", () => {
-    const semantics = masterState.field(documentSemanticsField);
+    const semantics = masterState.field(documentAnalysisField);
     expect(semantics.references.length).toBeGreaterThanOrEqual(1);
     const ref = semantics.references.find((r) => r.ids.includes("thm:main"));
     expect(ref).toBeDefined();
@@ -640,13 +640,13 @@ describe("FORMAT.md coverage: Footnotes", () => {
   });
 
   it("extracts footnote semantics (refs and defs)", () => {
-    const semantics = masterState.field(documentSemanticsField);
+    const semantics = masterState.field(documentAnalysisField);
     expect(semantics.footnotes.refs.length).toBeGreaterThanOrEqual(1);
     expect(semantics.footnotes.defs.has("1")).toBe(true);
   });
 
   it("footnote definition content includes math", () => {
-    const semantics = masterState.field(documentSemanticsField);
+    const semantics = masterState.field(documentAnalysisField);
     const def = semantics.footnotes.defs.get("1");
     expect(def).toBeDefined();
     expect(def?.content).toContain("$x^2$");
@@ -655,7 +655,7 @@ describe("FORMAT.md coverage: Footnotes", () => {
   it("supports string footnote ids", () => {
     const doc = "Text[^myid].\n\n[^myid]: Definition here.";
     const state = createTestState(doc);
-    const semantics = state.field(documentSemanticsField);
+    const semantics = state.field(documentAnalysisField);
     expect(semantics.footnotes.refs).toHaveLength(1);
     expect(semantics.footnotes.refs[0].id).toBe("myid");
     expect(semantics.footnotes.defs.has("myid")).toBe(true);
@@ -739,13 +739,13 @@ describe("FORMAT.md coverage: Removed Features", () => {
   it("single-line self-closing fenced divs stay outside canonical semantics", () => {
     const doc = "::: {.proof} QED. :::";
     const state = createTestState(doc);
-    expect(state.field(documentSemanticsField).fencedDivs).toHaveLength(0);
+    expect(state.field(documentAnalysisField).fencedDivs).toHaveLength(0);
   });
 
   it("trailing fenced-div titles stay outside canonical semantics", () => {
     const doc = "::: {.theorem} Trailing title\nStatement.\n:::";
     const state = createTestState(doc);
-    expect(state.field(documentSemanticsField).fencedDivs).toHaveLength(0);
+    expect(state.field(documentAnalysisField).fencedDivs).toHaveLength(0);
   });
 
   it("raw LaTeX equation labels are not canonical Coflat equation labels", () => {
@@ -753,7 +753,7 @@ describe("FORMAT.md coverage: Removed Features", () => {
     const names = getNodeNames(state);
     expect(names).not.toContain("EquationLabel");
     expect(collectEquationLabels(state).has("eq:raw")).toBe(false);
-    expect(state.field(documentSemanticsField).equationById.has("eq:raw")).toBe(false);
+    expect(state.field(documentAnalysisField).equationById.has("eq:raw")).toBe(false);
   });
 
   it("grid tables are not parsed into the live semantic table model", () => {
@@ -772,7 +772,7 @@ describe("FORMAT.md coverage: Unknown Fenced Div Classes", () => {
   it("unknown fenced div classes are parsed as ordinary fenced divs", () => {
     const doc = "::: {.custom-widget}\nBody\n:::";
     const state = createTestState(doc);
-    const semantics = state.field(documentSemanticsField);
+    const semantics = state.field(documentAnalysisField);
     expect(semantics.fencedDivs).toHaveLength(1);
     expect(semantics.fencedDivs[0].primaryClass).toBe("custom-widget");
   });
@@ -782,7 +782,7 @@ describe("FORMAT.md coverage: Fenced Div Key-Value Attributes", () => {
   it("parses key=value attributes in fenced div header", () => {
     const doc = '::: {.theorem #thm:kv title="Override"}\nContent.\n:::';
     const state = createTestState(doc);
-    const semantics = state.field(documentSemanticsField);
+    const semantics = state.field(documentAnalysisField);
     expect(semantics.fencedDivs).toHaveLength(1);
     expect(semantics.fencedDivs[0].id).toBe("thm:kv");
     expect(semantics.fencedDivs[0].primaryClass).toBe("theorem");
@@ -791,7 +791,7 @@ describe("FORMAT.md coverage: Fenced Div Key-Value Attributes", () => {
   it("handles multiple classes (first is primary type)", () => {
     const doc = "::: {.theorem .important}\nContent.\n:::";
     const state = createTestState(doc);
-    const semantics = state.field(documentSemanticsField);
+    const semantics = state.field(documentAnalysisField);
     expect(semantics.fencedDivs[0].primaryClass).toBe("theorem");
     expect(semantics.fencedDivs[0].classes).toContain("important");
   });

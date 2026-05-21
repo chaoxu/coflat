@@ -7,7 +7,7 @@ import { equationLabelExtension } from "../../core/parser/equation-label";
 import { frontmatterField } from "../state/frontmatter-state";
 import { createPluginRegistryField } from "../state/plugin-registry";
 import { blockCounterField } from "../state/block-counter";
-import { documentSemanticsField } from "../state/document-analysis";
+import { documentAnalysisField } from "../state/document-analysis";
 import { documentReferenceCatalogField } from "../semantics/editor-reference-catalog";
 import { bibDataEffect, bibDataField } from "../state/bib-data";
 import { CslProcessor } from "../citations/csl-processor";
@@ -36,7 +36,7 @@ function createState(doc: string): EditorState {
         extensions: [fencedDiv, mathExtension, equationLabelExtension],
       }),
       frontmatterField,
-      documentSemanticsField,
+      documentAnalysisField,
       createPluginRegistryField([
         makeBlockPlugin({ name: "theorem", counter: "theorem", title: "Theorem" }),
       ]),

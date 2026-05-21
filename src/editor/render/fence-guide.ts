@@ -35,7 +35,7 @@ import {
   focusTracker,
 } from "./focus-state";
 import {
-  documentSemanticsField,
+  documentAnalysisField,
   getDocumentAnalysisSliceRevision,
 } from "../state/document-analysis";
 import { NODE } from "../../core/constants/node-types";
@@ -54,7 +54,7 @@ import {
 
 /** Collect all FencedDiv ranges from the syntax tree. */
 function collectFencedDivRanges(state: EditorState): RangeLike[] {
-  return toRanges(state.field(documentSemanticsField).fencedDivs);
+  return toRanges(state.field(documentAnalysisField).fencedDivs);
 }
 
 /**
@@ -193,10 +193,10 @@ const fenceGuideWidgetView = ViewPlugin.fromClass(class {
 
     const fencedDivsChanged =
       getDocumentAnalysisSliceRevision(
-        update.state.field(documentSemanticsField),
+        update.state.field(documentAnalysisField),
         "fencedDivs",
       ) !== getDocumentAnalysisSliceRevision(
-        update.startState.field(documentSemanticsField),
+        update.startState.field(documentAnalysisField),
         "fencedDivs",
       );
     const needsSync =
@@ -308,7 +308,7 @@ const fenceGuideField = StateField.define<FenceGuideState>({
 
 /** CM6 extension that draws vertical nesting guides for fenced divs (editing only). */
 export const fenceGuidePlugin: Extension = [
-  documentSemanticsField,
+  documentAnalysisField,
   editorFocusField,
   focusTracker,
   fenceGuideField,

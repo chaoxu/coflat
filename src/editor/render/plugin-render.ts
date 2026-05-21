@@ -39,7 +39,7 @@ import {
   focusTracker,
 } from "./focus-state";
 import {
-  documentSemanticsField,
+  documentAnalysisField,
   getDocumentAnalysisSliceRevision,
 } from "../state/document-analysis";
 import { type BlockCounterState, blockCounterField } from "../state/block-counter";
@@ -78,7 +78,7 @@ function sameNumberSet(
 }
 
 function getFencedDivRenderRevision(state: EditorState): number {
-  const semantics = state.field(documentSemanticsField, false);
+  const semantics = state.field(documentAnalysisField, false);
   return semantics ? getDocumentAnalysisSliceRevision(semantics, "fencedDivs") : -1;
 }
 
@@ -351,7 +351,7 @@ export {
 
 /** CM6 extension that renders fenced divs using the block plugin system. */
 export const blockRenderPlugin: Extension = [
-  documentSemanticsField,
+  documentAnalysisField,
   editorFocusField,
   focusTracker,
   blockDecorationField,

@@ -6,7 +6,7 @@ import { fencedDiv } from "../../core/parser/fenced-div";
 import { mathExtension } from "../../core/parser/math-backslash";
 import { createPluginRegistryField } from "../state/plugin-registry";
 import { blockCounterField } from "../state/block-counter";
-import { documentSemanticsField } from "../state/document-analysis";
+import { documentAnalysisField } from "../state/document-analysis";
 import {
   createEditorState,
   makeBibStore,
@@ -34,13 +34,13 @@ function analyze(doc: string): DocumentAnalysis {
         extensions: [fencedDiv, mathExtension, equationLabelExtension],
       }),
       frontmatterField,
-      documentSemanticsField,
+      documentAnalysisField,
       createPluginRegistryField([
         makeBlockPlugin({ name: "theorem", counter: "theorem", title: "Theorem" }),
       ]),
       blockCounterField,
     ],
-  }).field(documentSemanticsField);
+  }).field(documentAnalysisField);
 }
 
 describe("citation registration precedence", () => {

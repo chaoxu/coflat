@@ -10,8 +10,9 @@ import { DOCUMENT_SURFACE_CLASS } from "../document-surface-classes";
 
 /** CSS class name builders and constants for block decorations. */
 export const CSS = {
-  /** Block wrapper: "cf-block cf-block-{type}" */
-  block: (type: string) => `${DOCUMENT_SURFACE_CLASS.block} cf-block cf-block-${type}`,
+  /** Block wrapper: "cf-doc-block cf-doc-block--{type}" */
+  block: (type: string) =>
+    `${DOCUMENT_SURFACE_CLASS.block} ${DOCUMENT_SURFACE_CLASS.blockType(type)}`,
 
   /** Always-on stable-shell debug outline for the active block/frontmatter. */
   activeShell: "cf-active-shell",

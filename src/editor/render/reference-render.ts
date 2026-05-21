@@ -20,7 +20,7 @@ import { type ChangeSet, type EditorState, type Extension, type Range, type Tran
 import { CSS } from "../../core/constants/css-classes";
 import type { ResolvedCrossref } from "../references/presentation";
 import { forEachOverlappingOrderedRange } from "../lib/range-helpers";
-import type { CitationFormatter } from "../document-context";
+import type { CitationFormatter } from "../../core/document-context-types";
 import type { BibStore } from "../state/bib-data";
 import { CitationWidget, HostRefWidget } from "./citation-widget";
 import {

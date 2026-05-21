@@ -1,6 +1,6 @@
 import { EditorState } from "@codemirror/state";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { FileSystem } from "../lib/types";
+import type { FileSystem } from "../../core/lib/file-system-types";
 import { documentPathFacet, fileSystemFacet } from "../lib/types";
 import { imageUrlEffect, imageUrlField } from "../state/image-url";
 import { pdfPreviewEffect, pdfPreviewField } from "../state/pdf-preview";

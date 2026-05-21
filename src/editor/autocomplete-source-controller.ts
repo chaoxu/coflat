@@ -1,6 +1,4 @@
 /**
- * Phase 3.4 (#12) — AutocompleteSource controller.
- *
  * Watches doc/selection changes, performs trigger detection against the
  * registered {@link AutocompleteSource}s, debounces per source, calls
  * `suggest()` with an AbortSignal, then forwards the aggregated

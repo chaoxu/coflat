@@ -6,7 +6,7 @@ import { createTestView, makeBibStore } from "../test-utils";
 import { CslProcessor } from "./csl-processor";
 import { referenceRenderPlugin } from "../render/reference-render";
 import { bibDataEffect, bibDataField } from "../state/bib-data";
-import { documentSemanticsField } from "../state/document-analysis";
+import { documentAnalysisField } from "../state/document-analysis";
 
 const karger: CslJsonItem = {
   id: "karger2000",
@@ -37,7 +37,7 @@ describe("referenceRenderPlugin citation integration", () => {
   function createRefView(doc: string, cursorPos?: number): EditorView {
     const v = createTestView(doc, {
       cursorPos,
-      extensions: [markdown(), documentSemanticsField, bibDataField, referenceRenderPlugin],
+      extensions: [markdown(), documentAnalysisField, bibDataField, referenceRenderPlugin],
     });
     v.dispatch({ effects: bibDataEffect.of({ store, formatter: new CslProcessor([karger, stein]) }) });
     return v;

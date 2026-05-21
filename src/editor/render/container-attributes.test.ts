@@ -4,7 +4,7 @@ import * as language from "@codemirror/language";
 import type { Decoration } from "@codemirror/view";
 import { EditorView } from "@codemirror/view";
 import { markdown } from "@codemirror/lang-markdown";
-import { documentSemanticsField } from "../state/document-analysis";
+import { documentAnalysisField } from "../state/document-analysis";
 import {
   _computeContainerDirtyRegionForTest,
   containerAttributesField,
@@ -15,7 +15,7 @@ import {
 function createState(doc: string): EditorState {
   return EditorState.create({
     doc,
-    extensions: [markdown(), documentSemanticsField, containerAttributesField],
+    extensions: [markdown(), documentAnalysisField, containerAttributesField],
   });
 }
 
@@ -25,7 +25,7 @@ function createView(doc: string): { view: EditorView; parent: HTMLElement } {
   const view = new EditorView({
     state: EditorState.create({
       doc,
-      extensions: [markdown(), documentSemanticsField, containerAttributesPlugin],
+      extensions: [markdown(), documentAnalysisField, containerAttributesPlugin],
     }),
     parent,
   });

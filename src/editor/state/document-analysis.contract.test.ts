@@ -5,27 +5,9 @@ import { createEditorState } from "../test-utils";
 import {
   documentAnalysisField,
   documentAnalysisFromSnapshot,
-  documentSemanticsField,
 } from "./document-analysis";
 
 describe("document analysis state contract", () => {
-  it("keeps the legacy semantics field alias pointed at the canonical analysis field", () => {
-    const state = createEditorState("# Intro {#sec:intro}\n", {
-      extensions: [
-        markdown({ extensions: markdownExtensions }),
-        documentAnalysisField,
-      ],
-    });
-    const snapshot = state.field(documentAnalysisField);
-
-    expect(state.field(documentSemanticsField)).toBe(snapshot);
-    expect(documentAnalysisFromSnapshot(snapshot)).toBe(snapshot.analysis);
-    expect(snapshot.headingByFrom.get(0)).toMatchObject({
-      id: "sec:intro",
-      text: "Intro",
-    });
-  });
-
   it("publishes the shared semantic slices needed by renderers and crossrefs", () => {
     const doc = [
       "# Intro {#sec:intro}",
@@ -44,6 +26,7 @@ describe("document analysis state contract", () => {
     });
     const snapshot = state.field(documentAnalysisField);
 
+    expect(documentAnalysisFromSnapshot(snapshot)).toBe(snapshot.analysis);
     expect(snapshot.headings).toHaveLength(1);
     expect(snapshot.equationById.get("eq:one")).toMatchObject({ number: 1 });
     expect(snapshot.referenceIndex.get("sec:intro")).toMatchObject({

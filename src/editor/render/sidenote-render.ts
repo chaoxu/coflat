@@ -48,7 +48,7 @@ import {
   isFootnoteLabelStructureEditActive,
 } from "../state/cm-structure-edit";
 import {
-  documentSemanticsField,
+  documentAnalysisField,
   getDocumentAnalysisSliceRevision,
 } from "../state/document-analysis";
 import { mathMacrosField } from "../state/math-macros";
@@ -88,12 +88,12 @@ export {
 
 /** Collect footnote references and definitions from the shared semantics field. */
 export function collectFootnotes(state: EditorState): FootnoteSemantics {
-  return state.field(documentSemanticsField).footnotes;
+  return state.field(documentAnalysisField).footnotes;
 }
 
 const footnoteSliceChanged = createChangeChecker(
-  (state) => state.field(documentSemanticsField).footnotes,
-  (state) => getDocumentAnalysisSliceRevision(state.field(documentSemanticsField), "footnotes"),
+  (state) => state.field(documentAnalysisField).footnotes,
+  (state) => getDocumentAnalysisSliceRevision(state.field(documentAnalysisField), "footnotes"),
 );
 
 const EMPTY_MACROS: Record<string, string> = {};
@@ -360,7 +360,7 @@ const footnoteSectionPlugin = ViewPlugin.fromClass(FootnoteSectionPlugin, {
 /** CM6 extension that renders footnote refs as superscripts and hides defs.
  *  Sidenote content is rendered by the React SidenoteMargin component. */
 export const sidenoteRenderPlugin: Extension = [
-  documentSemanticsField,
+  documentAnalysisField,
   editorFocusField,
   focusTracker,
   sidenotesCollapsedField,

@@ -6,7 +6,7 @@ import { fenceProtectionExtension } from "./plugins/fence-protection";
 import { blockCounterField } from "./state/block-counter";
 import { createPluginRegistryField } from "./state/plugin-registry";
 import { _blockDecorationFieldForTest as blockDecorationField } from "./render/plugin-render";
-import { documentSemanticsField } from "./state/document-analysis";
+import { documentAnalysisField } from "./state/document-analysis";
 import { editorFocusField } from "./render/render-core";
 import { mathMacrosField } from "./state/math-macros";
 import {
@@ -56,7 +56,7 @@ function makeFencedView(
       markdown({ extensions: markdownExtensions }),
       frontmatterField,
       activeStructureEditField,
-      documentSemanticsField,
+      documentAnalysisField,
       mathMacrosField,
       createPluginRegistryField(plugins),
       blockCounterField,

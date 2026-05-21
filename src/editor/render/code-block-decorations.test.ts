@@ -169,9 +169,10 @@ describe("computeCodeBlockDirtyRegion", () => {
     ensureSyntaxTree(tr.state, tr.state.doc.length, 5000);
     const dirty = computeCodeBlockDirtyRegion(tr);
     expect(dirty).not.toBeNull();
+    if (!dirty) throw new Error("expected dirty code block region");
     // The dirty region should fully encompass the (now-mapped) code block.
-    expect(dirty!.filterFrom).toBeLessThanOrEqual(blockStart);
-    expect(dirty!.filterTo).toBeGreaterThanOrEqual(
+    expect(dirty.filterFrom).toBeLessThanOrEqual(blockStart);
+    expect(dirty.filterTo).toBeGreaterThanOrEqual(
       tr.changes.mapPos(doc.indexOf("```", blockStart + 3) + 3),
     );
   });

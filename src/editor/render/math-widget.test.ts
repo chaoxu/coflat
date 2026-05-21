@@ -5,7 +5,7 @@ import { createMockEditorView } from "../test-utils";
 import { renderInlineMarkdown } from "./inline-render";
 import { renderKatexToHtml } from "./inline-shared";
 import { MathWidget, clearKatexCache, renderKatex } from "./math-widget";
-import { widgetSourceMap } from "./render-utils";
+import { widgetSourceMap } from "./render-core";
 
 describe("MathWidget (inline)", () => {
   it("creates a span with cf-math-inline class", () => {

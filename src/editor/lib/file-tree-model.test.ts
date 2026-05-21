@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { FileEntry } from "./types";
+import type { FileEntry } from "../../core/lib/file-system-types";
 import {
   buildFileTreeIndex,
   FILE_TREE_ROOT_ITEM_ID,

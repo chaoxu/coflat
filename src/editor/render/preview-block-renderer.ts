@@ -1,6 +1,6 @@
 import { parser as baseParser } from "@lezer/markdown";
 import type { SyntaxNode } from "@lezer/common";
-import type { CitationFormatter } from "../document-context";
+import type { CitationFormatter } from "../../core/document-context-types";
 import {
   BLOCK_MANIFEST_ENTRIES,
   EXCLUDED_FROM_FALLBACK,
@@ -8,7 +8,7 @@ import {
   type BlockManifestEntry,
 } from "../../core/constants/block-manifest";
 import { CSS } from "../../core/constants/css-classes";
-import type { BlockCounterEntry } from "../lib/types";
+import type { BlockCounterEntry } from "../../core/lib/file-system-types";
 import {
   extractRawFrontmatter,
   htmlRenderExtensions,
@@ -365,7 +365,7 @@ function renderFencedDiv(
 
   const block = document.createElement("div");
   for (const className of classes) {
-    block.classList.add("cf-block", `cf-block-${className}`);
+    block.classList.add(...CSS.block(className).split(" "));
   }
   if (id) {
     block.id = id;

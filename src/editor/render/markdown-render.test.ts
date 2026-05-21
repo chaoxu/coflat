@@ -17,7 +17,7 @@ import {
   cursorInRange,
   createSimpleViewPlugin,
   focusEffect,
-} from "./render-utils";
+} from "./render-core";
 import {
   createEditorState,
   createTestView,

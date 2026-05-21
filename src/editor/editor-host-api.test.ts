@@ -1,5 +1,5 @@
 /**
- * Phase 3.1 (#13) — intent surface tests.
+ * intent surface tests.
  *
  * Covers:
  *  1. Host `RequestHandler.openLinkPicker` receives the request when supplied.
@@ -62,7 +62,7 @@ async function flushMicrotasks(): Promise<void> {
 
 const cleanups: Array<() => void> = [];
 afterEach(() => {
-  while (cleanups.length) cleanups.pop()!();
+  while (cleanups.length) cleanups.pop()?.();
   // Drain any leaked default-picker overlays so tests don't interfere.
   for (const node of Array.from(document.querySelectorAll(".cf-default-picker"))) {
     node.remove();
@@ -101,14 +101,15 @@ describe("RequestHandler facet", () => {
     await flushMicrotasks();
     const overlay = document.querySelector(".cf-default-picker");
     expect(overlay).toBeTruthy();
-    const input = overlay!.querySelector("input.cf-default-picker__input") as
+    const input = overlay?.querySelector("input.cf-default-picker__input") as
       | HTMLInputElement
       | null;
     expect(input).toBeTruthy();
+    if (!input) throw new Error("expected default picker input");
 
     // Type and press Enter to resolve.
-    input!.value = "https://typed.example/";
-    input!.dispatchEvent(
+    input.value = "https://typed.example/";
+    input.dispatchEvent(
       new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
     );
 

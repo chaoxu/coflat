@@ -1,5 +1,6 @@
 import type { EditorView } from "@codemirror/view";
-import { documentPathFacet, type BlockCounterEntry } from "../lib/types";
+import type { BlockCounterEntry } from "../../core/lib/file-system-types";
+import { documentPathFacet } from "../lib/types";
 import { blockCounterField } from "../state/block-counter";
 import { bibDataField } from "../state/bib-data";
 import { documentAnalysisField } from "../state/document-analysis";

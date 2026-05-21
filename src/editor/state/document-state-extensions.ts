@@ -3,7 +3,7 @@ import type { BlockPlugin } from "./block-plugin";
 import { bibDataField } from "./bib-data";
 import { blockCounterField } from "./block-counter";
 import { activeStructureEditField } from "./cm-structure-edit";
-import { documentSemanticsField } from "./document-analysis";
+import { documentAnalysisField } from "./document-analysis";
 import { documentLabelGraphField } from "./document-label-graph";
 import { frontmatterField } from "./frontmatter-state";
 import { imageUrlField } from "./image-url";
@@ -21,7 +21,7 @@ export function coreDocumentStateExtensions(
   return [
     frontmatterField,
     activeStructureEditField,
-    documentSemanticsField,
+    documentAnalysisField,
     createPluginRegistryField(defaultPlugins),
     blockCounterField,
     editorBlockReferenceTargetInputsField,

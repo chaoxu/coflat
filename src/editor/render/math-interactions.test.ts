@@ -8,7 +8,7 @@ import { mathExtension } from "../../core/parser/math-backslash";
 import { createTestView } from "../test-utils";
 import { mathRenderPlugin } from "./math-render";
 import { clearKatexCache } from "./math-widget";
-import { documentSemanticsField } from "../state/document-analysis";
+import { documentAnalysisField } from "../state/document-analysis";
 
 function createMathRenderView(doc: string, cursorPos = 0): EditorView {
   return createTestView(doc, {
@@ -16,7 +16,7 @@ function createMathRenderView(doc: string, cursorPos = 0): EditorView {
     extensions: [
       markdown({ extensions: [mathExtension, equationLabelExtension] }),
       frontmatterField,
-      documentSemanticsField,
+      documentAnalysisField,
       mathRenderPlugin,
     ],
   });

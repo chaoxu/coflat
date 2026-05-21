@@ -25,7 +25,7 @@ import {
 } from "../state/code-block-structure";
 import { createChangeChecker } from "../state/change-detection";
 import {
-  documentSemanticsField,
+  documentAnalysisField,
   getDocumentAnalysisSliceRevision,
 } from "../state/document-analysis";
 import { pluginRegistryField } from "../state/plugin-registry";
@@ -69,7 +69,7 @@ interface FenceProtectionInputs {
 function currentFenceProtectionSourceState(
   state: EditorState,
 ): FenceProtectionCacheSourceState {
-  const semantics = state.field(documentSemanticsField, false);
+  const semantics = state.field(documentAnalysisField, false);
   const codeBlockStructure = state.field(codeBlockStructureField, false);
   return {
     registry: state.field(pluginRegistryField, false) ?? null,
@@ -136,8 +136,8 @@ function didSemanticsSliceChange(
   nextState: EditorState,
   slice: "fencedDivs",
 ): boolean {
-  const startSemantics = startState.field(documentSemanticsField, false);
-  const nextSemantics = nextState.field(documentSemanticsField, false);
+  const startSemantics = startState.field(documentAnalysisField, false);
+  const nextSemantics = nextState.field(documentAnalysisField, false);
   if (!startSemantics || !nextSemantics) return startSemantics !== nextSemantics;
   return getDocumentAnalysisSliceRevision(startSemantics, slice)
     !== getDocumentAnalysisSliceRevision(nextSemantics, slice);
@@ -353,7 +353,7 @@ function isFenceProtectionCacheCurrent(
   state: EditorState,
   value: FenceProtectionCache,
 ): boolean {
-  const semantics = state.field(documentSemanticsField, false);
+  const semantics = state.field(documentAnalysisField, false);
   const currentFencedDivsRevision = semantics
     ? getDocumentAnalysisSliceRevision(semantics, "fencedDivs")
     : null;
@@ -379,8 +379,7 @@ export function getFenceProtectionCache(state: EditorState): FenceProtectionCach
 
 /**
  * Collect all fenced blocks (fenced divs, code blocks, and display math) for
- * opening-fence deletion cleanup. Uses the shared fence-protection cache
- * (not getProtectedDivs) because cleanup should apply to ALL fenced blocks,
+ * opening-fence deletion cleanup. Cleanup applies to every fenced block,
  * including unregistered/custom types.
  */
 export function collectAllFencedBlocks(state: EditorState): readonly FencedBlockInfo[] {

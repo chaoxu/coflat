@@ -1,5 +1,5 @@
 /**
- * Phase 2.6 — `sourcePositions` emission + `mapDomRangeToSource`.
+ * `sourcePositions` emission + `mapDomRangeToSource`.
  *
  * Covers:
  *  - Block + inline mark + text source-position attribute emission.
@@ -14,8 +14,8 @@ describe("renderToHtml — sourcePositions emission", () => {
     // Lezer block-level emission only triggers when source has block structure.
     const src = "# heading\n\nhello world";
     const r = renderToHtml(src, undefined, { sourcePositions: true });
-    expect(r.html).toMatch(/<h1 class="cf-heading-1"[^>]*data-source-from="0"[^>]*data-source-to="9"/);
-    expect(r.html).toMatch(/<p class="cf-paragraph"[^>]*data-source-from="11"[^>]*data-source-to="22"/);
+    expect(r.html).toMatch(/<h1 class="cf-doc-heading cf-doc-heading--h1"[^>]*data-source-from="0"[^>]*data-source-to="9"/);
+    expect(r.html).toMatch(/<p class="cf-doc-paragraph"[^>]*data-source-from="11"[^>]*data-source-to="22"/);
   });
 
   it("emits source positions on <strong>", () => {
@@ -30,7 +30,7 @@ describe("renderToHtml — sourcePositions emission", () => {
     const src = "use `xs` now";
     const r = renderToHtml(src, undefined, { sourcePositions: true });
     expect(r.html).toContain(
-      '<code class="cf-code-inline" data-source-from="4" data-source-to="8">',
+      '<code class="cf-doc-code-token" data-source-from="4" data-source-to="8">',
     );
   });
 
@@ -54,7 +54,7 @@ describe("renderToHtml — sourcePositions emission", () => {
     const src = "the $x^2$ thing";
     const r = renderToHtml(src, undefined, { sourcePositions: true });
     expect(r.html).toMatch(
-      /<span class="cf-math cf-math-inline" data-math="[^"]+" data-source-from="4" data-source-to="9">/,
+      /<span class="cf-doc-inline-math" data-math="[^"]+" data-source-from="4" data-source-to="9">/,
     );
   });
 
@@ -85,6 +85,21 @@ function mount(html: string): HTMLElement {
   container.innerHTML = html;
   document.body.appendChild(container);
   return container;
+}
+
+function requireElement<T extends Element>(
+  root: ParentNode,
+  selector: string,
+): T {
+  const el = root.querySelector<T>(selector);
+  if (!el) throw new Error(`selector ${selector} not found`);
+  return el;
+}
+
+function requireFirstText(node: Node, label: string): Text {
+  const text = node.firstChild;
+  if (!(text instanceof Text)) throw new Error(`${label} first child is not text`);
+  return text;
 }
 
 function rangeOverText(
@@ -141,8 +156,10 @@ describe("mapDomRangeToSource", () => {
     const baseOff = lead.length;
     const { html } = renderToHtml(src, undefined, { sourcePositions: true });
     const container = mount(html);
-    const strongText = container.querySelector("strong span.cf-text")!
-      .firstChild as Text;
+    const strongText = requireFirstText(
+      requireElement(container, "strong span.cf-text"),
+      "strong text span",
+    );
     const plainSpans = container.querySelectorAll("p > span.cf-text");
     const trailing = plainSpans[plainSpans.length - 1].firstChild as Text;
     const range = document.createRange();
@@ -169,7 +186,7 @@ describe("mapDomRangeToSource", () => {
   it("returns null when no sourcePositions attrs are present", () => {
     const { html } = renderToHtml("# h\n\nhello world");
     const container = mount(html);
-    const tn = container.querySelector("p")!.firstChild as Text;
+    const tn = requireFirstText(requireElement(container, "p"), "paragraph");
     const range = document.createRange();
     range.setStart(tn, 0);
     range.setEnd(tn, 5);
@@ -180,8 +197,8 @@ describe("mapDomRangeToSource", () => {
     const src = "the $x^2$ end";
     const { html } = renderToHtml(src, undefined, { sourcePositions: true });
     const container = mount(html);
-    const math = container.querySelector("span.cf-math")!;
-    const tn = math.firstChild as Text;
+    const math = requireElement(container, "span.cf-doc-inline-math");
+    const tn = requireFirstText(math, "math span");
     const range = document.createRange();
     range.setStart(tn, 1);
     range.setEnd(tn, 3);
@@ -194,12 +211,12 @@ describe("mapDomRangeToSource", () => {
     const src = "the $x^2$ end";
     const { html } = renderToHtml(src, undefined, { sourcePositions: true });
     const container = mount(html);
-    const math = container.querySelector("span.cf-math") as HTMLElement;
+    const math = requireElement<HTMLElement>(container, "span.cf-doc-inline-math");
     // Simulate hydration by replacing innerHTML with a nested structure
     // whose text bears no relation to the LaTeX source.
     math.innerHTML = '<span class="katex"><span>x</span><sup>2</sup></span>';
     math.setAttribute("data-math-hydrated", "true");
-    const inner = math.querySelector("sup")!.firstChild as Text;
+    const inner = requireFirstText(requireElement(math, "sup"), "sup");
     const range = document.createRange();
     range.setStart(inner, 0);
     range.setEnd(inner, 1);
@@ -210,7 +227,7 @@ describe("mapDomRangeToSource", () => {
     const src = "abc def";
     const { html } = renderToHtml(src, undefined, { sourcePositions: true });
     const container = mount(html);
-    const tn = container.querySelector("span.cf-text")!.firstChild as Text;
+    const tn = requireFirstText(requireElement(container, "span.cf-text"), "text span");
     const range = document.createRange();
     // Build a backwards range manually via setStart/setEnd.
     range.setStart(tn, 5);

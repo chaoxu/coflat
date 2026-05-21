@@ -7,8 +7,8 @@ import {
   getCitationRegistrationKey,
   type CitationCollectionOptions,
 } from "../citations/citation-matching";
-import type { CitationFormatter } from "../document-context";
-import type { BlockCounterEntry } from "../lib/types";
+import type { CitationFormatter } from "../../core/document-context-types";
+import type { BlockCounterEntry } from "../../core/lib/file-system-types";
 import type {
   DocumentAnalysis,
   DocumentSemantics,

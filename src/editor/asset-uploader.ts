@@ -1,6 +1,4 @@
 /**
- * Phase 3.3 (#11) — AssetUploader wiring.
- *
  * Hosts plug in an {@link AssetUploader} to handle paste/drop of files in
  * the editor. The library:
  *   1. Captures `paste` and `drop` events on the editor's content DOM.
@@ -93,7 +91,7 @@ function escapeMarkdownPath(path: string): string {
 
 function escapeAlt(alt: string): string {
   // Square brackets and newlines would break the alt text.
-  return alt.replace(/[\[\]\n]/g, " ").trim();
+  return alt.replace(/[[\]\n]/g, " ").trim();
 }
 
 const PLACEHOLDER_ALT = "uploading…";

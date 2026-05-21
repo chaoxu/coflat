@@ -10,7 +10,7 @@ import { COPY_RESET_MS } from "../../core/constants";
 import { CSS } from "../../core/constants/css-classes";
 import { markdown } from "@codemirror/lang-markdown";
 import { markdownExtensions } from "../../core/parser";
-import { editorFocusField, focusEffect } from "./render-utils";
+import { editorFocusField, focusEffect } from "./render-core";
 import {
   activeStructureEditField,
   createStructureEditTargetAt,
@@ -25,7 +25,7 @@ import {
   _docChangeTouchesCodeBlockContentForTest as docChangeTouchesCodeBlockContent,
   _incrementalCodeBlockUpdateForTest as incrementalCodeBlockUpdate,
 } from "./code-block-render";
-import { closingFenceProtection } from "../plugins/fence-protection";
+import { fenceProtectionExtension } from "../plugins/fence-protection";
 import {
   applyStateEffects,
   createEditorState,
@@ -497,15 +497,14 @@ describe("copy button widget", () => {
 // ---------------------------------------------------------------------------
 
 /**
- * Create an EditorState with the unified closing fence protection filter active.
+ * Create an EditorState with the unified fence protection extension active.
  * Includes the markdown parser so FencedCode nodes are recognized.
- * Uses the unified closingFenceProtection from fence-protection.ts (#441).
  */
 function createProtectedState(doc: string) {
   return createEditorState(doc, {
     extensions: [
       markdown({ extensions: markdownExtensions }),
-      closingFenceProtection,
+      fenceProtectionExtension,
     ],
   });
 }

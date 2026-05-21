@@ -29,7 +29,7 @@ import {
 import { buildDecorations, RenderWidget } from "./render/render-core";
 import type { HeadingSemantics } from "./semantics/document";
 import {
-  documentSemanticsField,
+  documentAnalysisField,
   getDocumentAnalysisSliceRevision,
 } from "./state/document-analysis";
 
@@ -309,7 +309,7 @@ function buildFoldToggles(
 }
 
 function createHeadingFoldState(state: EditorState): HeadingFoldState {
-  const headings = state.field(documentSemanticsField).headings;
+  const headings = state.field(documentAnalysisField).headings;
   const boundaryIndices = buildHeadingBoundaryIndices(headings);
   const sectionsByHeadingIndex = buildHeadingFoldSections(
     state,
@@ -374,8 +374,8 @@ function updateFoldToggles(
 const headingFoldField = StateField.define<HeadingFoldState>({
   create: createHeadingFoldState,
   update(value, tr) {
-    const before = tr.startState.field(documentSemanticsField);
-    const after = tr.state.field(documentSemanticsField);
+    const before = tr.startState.field(documentAnalysisField);
+    const after = tr.state.field(documentAnalysisField);
     const headingsChanged = getDocumentAnalysisSliceRevision(before, "headings")
       !== getDocumentAnalysisSliceRevision(after, "headings");
 
@@ -466,7 +466,7 @@ const headingFoldField = StateField.define<HeadingFoldState>({
 
 /** CM6 extension for heading-based folding with inline toggles. */
 export const headingFold: Extension = [
-  documentSemanticsField,
+  documentAnalysisField,
   headingFoldService,
   headingFoldField,
   keymap.of(foldKeymap),

@@ -5,7 +5,7 @@ import { markdown } from "@codemirror/lang-markdown";
 import { mathExtension } from "../../core/parser/math-backslash";
 import { equationLabelExtension } from "../../core/parser/equation-label";
 import { frontmatterField } from "../state/frontmatter-state";
-import { documentSemanticsField } from "../state/document-analysis";
+import { documentAnalysisField } from "../state/document-analysis";
 import { activeStructureEditField } from "../state/cm-structure-edit";
 import { createMockEditorView } from "../test-utils";
 import { mathRenderPlugin, _mathDecorationFieldForTest as mathDecorationField } from "./math-render";
@@ -18,7 +18,7 @@ function createMathState(doc: string): EditorState {
       markdown({ extensions: [mathExtension, equationLabelExtension] }),
       frontmatterField,
       activeStructureEditField,
-      documentSemanticsField,
+      documentAnalysisField,
       mathRenderPlugin,
     ],
   });

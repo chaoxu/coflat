@@ -9,7 +9,7 @@ import {
   type BlockCounterState,
 } from "./block-counter-core";
 import {
-  documentSemanticsField,
+  documentAnalysisField,
   getDocumentAnalysisSliceRevision,
 } from "./document-analysis";
 import { createChangeChecker } from "./change-detection";
@@ -27,7 +27,7 @@ function getEffectiveNumbering(state: EditorState): NumberingScheme {
 }
 
 const fencedDivsRevisionChanged = createChangeChecker((state) =>
-  getDocumentAnalysisSliceRevision(state.field(documentSemanticsField), "fencedDivs")
+  getDocumentAnalysisSliceRevision(state.field(documentAnalysisField), "fencedDivs")
 );
 
 const blockCounterConfigChanged = createChangeChecker(
@@ -53,7 +53,7 @@ function shouldRecomputeBlockNumbers(tr: Transaction): boolean {
 
 function nextBlockNumberingKey(tr: Transaction): string {
   return computeBlockNumberingKeyFromFencedDivs(
-    tr.state.field(documentSemanticsField).fencedDivs,
+    tr.state.field(documentAnalysisField).fencedDivs,
     tr.state.field(pluginRegistryField),
     getEffectiveNumbering(tr.state),
   );

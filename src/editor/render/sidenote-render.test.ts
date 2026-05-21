@@ -11,7 +11,7 @@ import { footnoteExtension } from "../../core/parser/footnote";
 import { frontmatterField } from "../state/frontmatter-state";
 import { mathMacrosField } from "../state/math-macros";
 import {
-  documentSemanticsField,
+  documentAnalysisField,
   getDocumentAnalysisSliceRevision,
 } from "../state/document-analysis";
 import { renderInlineMarkdown } from "./inline-render";
@@ -28,7 +28,7 @@ import {
   footnoteInlineToggleEffect,
   footnoteInlineExpandedField,
 } from "./sidenote-render";
-import { editorFocusField, focusEffect } from "./render-utils";
+import { editorFocusField, focusEffect } from "./render-core";
 import {
   activeStructureEditField,
   createStructureEditTargetAt,
@@ -45,7 +45,7 @@ function createState(doc: string, cursorPos?: number): EditorState {
       markdown({ extensions: [footnoteExtension] }),
       frontmatterField,
       mathMacrosField,
-      documentSemanticsField,
+      documentAnalysisField,
       activeStructureEditField,
     ],
   });
@@ -60,7 +60,7 @@ function createFullState(doc: string, cursorPos?: number): EditorState {
       markdown({ extensions: [footnoteExtension] }),
       frontmatterField,
       mathMacrosField,
-      documentSemanticsField,
+      documentAnalysisField,
       activeStructureEditField,
       sidenotesCollapsedField,
       footnoteInlineExpandedField,
@@ -76,7 +76,7 @@ function createDecoratedState(doc: string, cursorPos = 0): EditorState {
       markdown({ extensions: [footnoteExtension] }),
       frontmatterField,
       mathMacrosField,
-      documentSemanticsField,
+      documentAnalysisField,
       activeStructureEditField,
       editorFocusField,
       sidenotesCollapsedField,
@@ -132,7 +132,7 @@ function createFootnoteSectionView(doc: string): EditorView {
       markdown({ extensions: [footnoteExtension] }),
       frontmatterField,
       mathMacrosField,
-      documentSemanticsField,
+      documentAnalysisField,
       sidenotesCollapsedField,
       footnoteSectionPlugin,
     ],
@@ -335,7 +335,7 @@ describe("buildSidenoteDecorations — collapsed mode", () => {
         markdown({ extensions: [footnoteExtension] }),
         frontmatterField,
         mathMacrosField,
-        documentSemanticsField,
+        documentAnalysisField,
         sidenotesCollapsedField,
       ],
     });
@@ -368,7 +368,7 @@ describe("buildSidenoteDecorations — collapsed mode", () => {
         markdown({ extensions: [footnoteExtension] }),
         frontmatterField,
         mathMacrosField,
-        documentSemanticsField,
+        documentAnalysisField,
         sidenotesCollapsedField,
       ],
     });
@@ -401,7 +401,7 @@ describe("buildSidenoteDecorations — collapsed mode", () => {
         markdown({ extensions: [footnoteExtension] }),
         frontmatterField,
         mathMacrosField,
-        documentSemanticsField,
+        documentAnalysisField,
         sidenotesCollapsedField,
       ],
     });
@@ -445,7 +445,7 @@ describe("sidenote decoration invalidation", () => {
       "# Old heading",
     ].join("\n");
     const state = createDecoratedState(doc);
-    const beforeAnalysis = state.field(documentSemanticsField);
+    const beforeAnalysis = state.field(documentAnalysisField);
     const beforeDecorations = state.field(sidenoteDecorationField);
     const headingText = doc.indexOf("Old");
 
@@ -457,7 +457,7 @@ describe("sidenote decoration invalidation", () => {
       },
     }).state;
 
-    const afterAnalysis = next.field(documentSemanticsField);
+    const afterAnalysis = next.field(documentAnalysisField);
     expect(afterAnalysis).not.toBe(beforeAnalysis);
     expect(getDocumentAnalysisSliceRevision(afterAnalysis, "footnotes")).toBe(
       getDocumentAnalysisSliceRevision(beforeAnalysis, "footnotes"),
@@ -580,7 +580,7 @@ describe("footnote section invalidation", () => {
     ].join("\n");
     const v = createFootnoteSectionView(doc);
     v.dispatch({ effects: sidenotesCollapsedEffect.of(true) });
-    const beforeAnalysis = v.state.field(documentSemanticsField);
+    const beforeAnalysis = v.state.field(documentAnalysisField);
     const beforeDecorations = getFootnoteSectionPlugin(v).decorations;
     const headingText = doc.indexOf("Old");
 
@@ -592,7 +592,7 @@ describe("footnote section invalidation", () => {
       },
     });
 
-    const afterAnalysis = v.state.field(documentSemanticsField);
+    const afterAnalysis = v.state.field(documentAnalysisField);
     expect(getDocumentAnalysisSliceRevision(afterAnalysis, "footnotes")).toBe(
       getDocumentAnalysisSliceRevision(beforeAnalysis, "footnotes"),
     );

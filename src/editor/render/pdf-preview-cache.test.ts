@@ -17,7 +17,7 @@
 
 import { EditorState } from "@codemirror/state";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { FileSystem } from "../lib/types";
+import type { FileSystem } from "../../core/lib/file-system-types";
 import {
   ERROR_COOLDOWN_MS,
   pdfPreviewEffect,

@@ -6,7 +6,7 @@
  */
 
 import { Facet } from "@codemirror/state";
-import type { FileSystem } from "./lib/types";
+import type { FileSystem } from "../core/lib/file-system-types";
 import type { FrontmatterConfig } from "../core/parser/frontmatter";
 import { parseFrontmatter } from "../core/parser/frontmatter";
 

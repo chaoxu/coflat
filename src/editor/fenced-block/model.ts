@@ -2,7 +2,7 @@ import type { ChangeDesc, EditorState } from "@codemirror/state";
 import type { FencedDivSemantics } from "../semantics/document";
 import { compareRangesByFromThenTo } from "../lib/range-order";
 import { containsPos } from "../lib/range-helpers";
-import { documentSemanticsField } from "../state/document-analysis";
+import { documentAnalysisField } from "../state/document-analysis";
 
 export interface FencedBlockPositionMapper {
   mapPos(pos: number, assoc?: number): number;
@@ -68,7 +68,7 @@ function mapOptionalPos(
  * (e.g. in minimal test configurations).
  */
 export function collectFencedDivs(state: EditorState): FencedDivInfo[] {
-  const semantics = state.field(documentSemanticsField, false);
+  const semantics = state.field(documentAnalysisField, false);
   if (!semantics) return [];
   const cached = fencedDivInfoCache.get(semantics as object);
   if (cached) return cached;
@@ -85,7 +85,7 @@ export function collectFencedDivs(state: EditorState): FencedDivInfo[] {
 export function collectFencedDivStructureRanges(
   state: EditorState,
 ): readonly { readonly from: number; readonly to: number }[] {
-  const semantics = state.field(documentSemanticsField, false);
+  const semantics = state.field(documentAnalysisField, false);
   if (!semantics) return [];
   const cached = fencedDivStructureRangeCache.get(semantics as object);
   if (cached) return cached;
@@ -144,7 +144,7 @@ export function docChangeTouchesFencedDivStructure(
 
 /**
  * Collect multi-line display math blocks as FencedBlockInfo for protection.
- * Reads from documentSemanticsField.mathRegions, filtering for isDisplay.
+ * Reads from documentAnalysisField.mathRegions, filtering for isDisplay.
  * The opening fence is the $$ or \[ line; the closing fence is the $$ or \] line.
  *
  * `closeFenceTo` is set to the end of the delimiter characters only (not any
@@ -152,7 +152,7 @@ export function docChangeTouchesFencedDivStructure(
  * delimiter itself and leave the label editable.
  */
 export function collectDisplayMathBlocks(state: EditorState): DisplayMathBlockInfo[] {
-  const semantics = state.field(documentSemanticsField, false);
+  const semantics = state.field(documentAnalysisField, false);
   if (!semantics) return [];
 
   const results: DisplayMathBlockInfo[] = [];

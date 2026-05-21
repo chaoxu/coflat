@@ -78,6 +78,30 @@ export {
   contentFont,
   monoFont,
 } from "../core/constants/editor-constants";
+export {
+  requestHandlerFacet,
+  statusEventsFacet,
+  saveHandlerFacet,
+  autocompleteSourcesFacet,
+  type RequestHandler,
+  type StatusEvents,
+  type SaveHandler,
+  type AutocompleteSource,
+  type AutocompleteEnv,
+  type Suggestion,
+  type SuggestionId,
+  type LinkPickerRequest,
+  type LinkPickerResult,
+  type UploadToastRequest,
+  type AutocompleteRequest,
+  type AutocompleteResult,
+  DEFAULT_AUTOCOMPLETE_DEBOUNCE_MS,
+  DEFAULT_AUTOSAVE_DEBOUNCE_MS,
+} from "./editor-host-api";
+export {
+  assetUploaderExtension,
+  type AssetUploader,
+} from "./asset-uploader";
 export { imagePasteExtension, type ImagePasteConfig } from "./image-paste";
 export { fileToDataUrl } from "./image-save";
 export { imageDropExtension, type ImageDropConfig } from "./image-drop";
@@ -96,6 +120,37 @@ export {
   type ImageSaveConfig,
   type HandleImageInsertOptions,
 } from "./image-save";
+export {
+  programmaticDocumentChangeAnnotation,
+} from "./programmatic-document-change";
 export { type EditorPlugin, EditorPluginManager } from "./editor-plugin";
 export { defaultEditorPlugins } from "./editor-plugins-registry";
 export { createInlineEditor, type InlineEditorOptions } from "./inline-editor";
+export {
+  themeTokenNames,
+  themeFoundationTokens,
+  themeLayerTokens,
+  themeLayerTokenDefaults,
+  themeBlockTokens,
+  themeTableTokens,
+  themeTypographyTokens,
+  type CoflatThemeManifest,
+  type CoflatThemeTarget,
+  blueprintBookThemeManifest,
+  COFLAT_THEME_SCOPE_CLASS,
+  COFLAT_READER_CLASS,
+  COFLAT_READER_SHELL_CLASS,
+  COFLAT_READER_TOC_CLASS,
+  COFLAT_READER_DOCUMENT_CLASS,
+} from "./theme-contract";
+export {
+  renderDocumentFragmentToDom,
+  renderDocumentFragmentToHtml,
+  type DocumentSurfaceMode,
+  type DocumentFragmentKind,
+  type DocumentSurfaceFragment,
+} from "./document-surfaces";
+export {
+  DOCUMENT_SURFACE_CLASS,
+  documentSurfaceClassNames,
+} from "../core/document-surface-classes";

@@ -30,7 +30,7 @@
  * ```
  */
 
-import type { CitationFormatter } from "./src/editor/document-context";
+import type { CitationFormatter } from "./src/core/document-context-types";
 import { CslProcessor } from "./src/editor/citations/csl-processor";
 
 export {
@@ -55,10 +55,8 @@ export {
   formatCslAuthors,
 } from "./src/core/citations/csl-json";
 
-// Bridge for hosts that still want the editor's internal bibliography
-// StateField (will be removed in a follow-up once cosheaf migrates to a pure
-// RefResolver). Lets a host populate the field with a CslProcessor it owns,
-// wrapped in a `CitationFormatter`.
+// Bridge for hosts that want the editor's bibliography StateField. Hosts
+// populate it with a CslProcessor they own, wrapped in a CitationFormatter.
 export {
   bibDataField,
   bibDataEffect,
@@ -67,7 +65,7 @@ export {
   type BibliographyFailureKind,
 } from "./src/editor/state/bib-data";
 
-export type { CitationFormatter } from "./src/editor/document-context";
+export type { CitationFormatter } from "./src/core/document-context-types";
 
 /**
  * Wrap a `CslProcessor` so it satisfies the `CitationFormatter` contract

@@ -13,7 +13,7 @@ import {
   ensureFullSyntaxTree,
   getDecorationSpecs,
 } from "../test-utils";
-import { editorFocusField } from "./render-utils";
+import { editorFocusField } from "./render-core";
 import { _tableDecorationFieldForTest as tableDecorationField } from "./table-render";
 import type { ParsedTable } from "./table-utils";
 import {

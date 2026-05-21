@@ -24,7 +24,7 @@ import {
   type Transaction,
 } from "@codemirror/state";
 import { buildDecorations } from "./decoration-core";
-import { documentSemanticsField } from "../state/document-analysis";
+import { documentAnalysisField } from "../state/document-analysis";
 import { createChangeChecker } from "../state/change-detection";
 import type { HeadingSemantics } from "../semantics/document";
 
@@ -48,7 +48,7 @@ export const clearStickySectionNumbersEffect = StateEffect.define<void>();
 export function buildSectionDecorations(state: EditorState): DecorationSet {
   return buildSectionDecorationsForHeadings(
     state,
-    state.field(documentSemanticsField).headings,
+    state.field(documentAnalysisField).headings,
   );
 }
 
@@ -100,7 +100,7 @@ function sameSectionHeadingTopology(
 }
 
 const sectionShouldRebuild = createChangeChecker({
-  get: (state) => state.field(documentSemanticsField).headings,
+  get: (state) => state.field(documentAnalysisField).headings,
   equals: sameSectionHeadingTopology,
 });
 
@@ -152,8 +152,8 @@ function hasCurrentHeadingAtLine(
 }
 
 function collectStickySectionNumbers(tr: Transaction): readonly StickySectionNumber[] {
-  const before = tr.startState.field(documentSemanticsField).headings;
-  const after = tr.state.field(documentSemanticsField).headings;
+  const before = tr.startState.field(documentAnalysisField).headings;
+  const after = tr.state.field(documentAnalysisField).headings;
   if (before.length <= after.length) return [];
 
   const expiresAt = Date.now() + STICKY_SECTION_NUMBER_MS;
@@ -173,7 +173,7 @@ function preserveActiveStickySectionNumbers(
   sticky: readonly StickySectionNumber[],
 ): readonly StickySectionNumber[] {
   const now = Date.now();
-  const current = state.field(documentSemanticsField).headings;
+  const current = state.field(documentAnalysisField).headings;
   if (!sticky.some((heading) =>
     heading.expiresAt > now &&
     selectionTouchesHeading(state, heading) &&
@@ -188,7 +188,7 @@ function buildSectionNumberState(
   state: EditorState,
   sticky: readonly StickySectionNumber[] = [],
 ): SectionNumberState {
-  const headings = state.field(documentSemanticsField).headings;
+  const headings = state.field(documentAnalysisField).headings;
   return {
     decorations: sticky.length > 0
       ? buildSectionDecorationsForHeadings(state, sticky)
@@ -279,7 +279,7 @@ const stickySectionNumberExpiryPlugin = ViewPlugin.fromClass(class {
 
 /** CM6 extension that adds hierarchical section numbers to headings. */
 export const sectionNumberPlugin: Extension = [
-  documentSemanticsField,
+  documentAnalysisField,
   sectionNumberField,
   stickySectionNumberExpiryPlugin,
 ];

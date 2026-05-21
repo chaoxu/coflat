@@ -8,7 +8,7 @@ import { getMathMacros, mathMacrosField } from "../state/math-macros";
 import { collectMathRanges } from "./math-render";
 import { MathWidget } from "./math-widget";
 import { createTestView } from "../test-utils";
-import { documentSemanticsField } from "../state/document-analysis";
+import { documentAnalysisField } from "../state/document-analysis";
 
 /** Create an EditorView with frontmatter and math parser extensions. */
 function createView(
@@ -22,7 +22,7 @@ function createView(
       markdown({ extensions: [mathExtension] }),
       ...(projectConfig ? [projectConfigFacet.of({ math: projectConfig })] : []),
       frontmatterField,
-      documentSemanticsField,
+      documentAnalysisField,
       mathMacrosField,
     ],
   });

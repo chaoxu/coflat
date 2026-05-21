@@ -304,7 +304,9 @@ export function EditableReader(props: EditableReaderProps): ReactElement {
   // Render.
   // -------------------------------------------------------------------------
 
-  const rootClass = ["cf-editable-reader", className].filter(Boolean).join(" ");
+  const rootClass = ["cf-theme-scope", "cf-editable-reader", className]
+    .filter(Boolean)
+    .join(" ");
 
   return (
     <div
@@ -316,7 +318,7 @@ export function EditableReader(props: EditableReaderProps): ReactElement {
       {mode === "reading" && rendered ? (
         <div
           ref={readerRef}
-          className="cf-editable-reader__reader"
+          className="cf-doc-surface cf-doc-flow cf-reader cf-editable-reader__reader"
           onClick={handleReaderClick}
           // Sanitized HTML from renderToHtml; safe to dangerously set.
           dangerouslySetInnerHTML={{ __html: rendered.html }}

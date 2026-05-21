@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { CSS } from "../../core/constants/css-classes";
 import { MathWidget, renderKatex, renderKatexToHtml } from "./math-render";
 import { createMockEditorView } from "../test-utils";
-import { widgetSourceMap } from "./render-utils";
+import { widgetSourceMap } from "./render-core";
 
 describe("MathWidget (inline)", () => {
   it("creates a span with cf-math-inline class", () => {

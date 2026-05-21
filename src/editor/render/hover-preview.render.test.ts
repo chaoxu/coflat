@@ -122,7 +122,7 @@ describe("hover preview block rendering", () => {
     );
 
     const body = buildBlockPreviewBodyForTest(view, getNumberedBlock(view, "fig:main"));
-    const image = body?.querySelector(".cf-block-figure img");
+    const image = body?.querySelector(".cf-doc-block--figure img");
     expect(image?.getAttribute("src")).toBe("data:image/png;base64,FIG");
     expect(body?.querySelector(".cf-block-caption")?.textContent).toContain("Figure caption");
 
@@ -148,7 +148,7 @@ describe("hover preview block rendering", () => {
 
     const body = buildBlockPreviewBodyForTest(view, getNumberedBlock(view, "fig:main"));
     expect(body?.querySelector(".cf-block-caption")?.textContent).toContain("Figure caption");
-    expect(body?.querySelector(".cf-block-figure img")).toBeNull();
+    expect(body?.querySelector(".cf-doc-block--figure img")).toBeNull();
     expect(body?.textContent).toContain("Preview unavailable: fig.pdf");
 
     view.destroy();
@@ -179,11 +179,11 @@ describe("hover preview block rendering", () => {
     );
 
     const body = buildBlockPreviewBodyForTest(view, getNumberedBlock(view, "fig:main"));
-    const pdfCanvas = body?.querySelector(".cf-block-figure canvas");
+    const pdfCanvas = body?.querySelector(".cf-doc-block--figure canvas");
 
     expect(pdfCanvas).toBeTruthy();
     expect(pdfCanvas?.getAttribute("aria-label")).toBe("Preview PDF");
-    expect(body?.querySelector(".cf-block-figure img")).toBeNull();
+    expect(body?.querySelector(".cf-doc-block--figure img")).toBeNull();
     expect(toDataUrl).not.toHaveBeenCalled();
 
     view.destroy();
@@ -207,7 +207,7 @@ describe("hover preview block rendering", () => {
     );
 
     const body = buildBlockPreviewBodyForTest(view, getNumberedBlock(view, "fig:main"));
-    expect(body?.querySelector(".cf-block-figure img")).toBeNull();
+    expect(body?.querySelector(".cf-doc-block--figure img")).toBeNull();
     expect(body?.textContent).toContain("Loading preview: fig.png");
 
     view.destroy();

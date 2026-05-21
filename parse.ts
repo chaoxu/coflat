@@ -401,7 +401,7 @@ function applyKeyOrder(
  */
 export function updateFrontmatter(
   source: string,
-  mutator: (fm: Record<string, unknown>) => Record<string, unknown> | void,
+  mutator: (fm: Record<string, unknown>) => Record<string, unknown> | undefined,
 ): string {
   const parsed = parseFrontmatter(source);
   // Use parsed mapping when available; otherwise start from an empty object

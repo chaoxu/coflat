@@ -4,10 +4,7 @@ import { markdownExtensions } from "../../core/parser";
 import { getPlugin } from "../plugins/plugin-registry";
 import { createEditorState, makeBlockPlugin } from "../test-utils";
 import { blockCounterField } from "./block-counter";
-import {
-  documentAnalysisField,
-  documentSemanticsField,
-} from "./document-analysis";
+import { documentAnalysisField } from "./document-analysis";
 import { documentLabelGraphField } from "./document-label-graph";
 import { frontmatterField } from "./frontmatter-state";
 import { coreDocumentStateExtensions } from "./document-state-extensions";
@@ -46,7 +43,6 @@ describe("core document state extensions", () => {
         },
       },
     });
-    expect(state.field(documentAnalysisField)).toBe(state.field(documentSemanticsField));
     expect(state.field(documentAnalysisField).headingByFrom.get(doc.indexOf("# Intro"))).toMatchObject({
       id: "sec:intro",
     });

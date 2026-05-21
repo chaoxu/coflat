@@ -10,7 +10,7 @@
  */
 
 import { EditorView } from "@codemirror/view";
-import type { FileSystem } from "./lib/types";
+import type { FileSystem } from "../core/lib/file-system-types";
 import {
   relativeMarkdownReferencePathFromDocument,
   resolveMarkdownReferencePathFromDocument,

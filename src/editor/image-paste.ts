@@ -27,9 +27,6 @@ import {
   type ImageSaveConfig,
 } from "./image-save";
 
-// Re-export for backwards compatibility
-export { escapeMarkdownPath, insertImageMarkdown } from "./image-save";
-
 /**
  * Configuration for the image-paste extension.
  * @see ImageSaveConfig

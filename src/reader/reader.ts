@@ -1,13 +1,7 @@
 /**
  * `@chaoxu/coflat-editor/reader` — read-only renderer for FORMAT.md.
  *
- * Phase 2.1 scope: block-level rendering with semantic `cf-*` class names,
- * footnote collection + backref linking, math placeholders for Phase 2.3
- * hydration, unresolved-ref placeholders, and optional `data-source-line`
- * attribution (issue #3).
- *
- * See READER.md ("Public API", "Fast path", "Sanitization", "Plan", and
- * "Theming") and THEMING.md (class names + CSS custom properties).
+ * See READER.md and THEMING.md for the public contract.
  *
  * Node-importable: no `@codemirror/view`, no React, no KaTeX, no pdfjs,
  * no citation-js.
@@ -25,12 +19,25 @@ import {
   parseReferenceClusterBody,
 } from "../core/lib/reference-grammar";
 import { CROSS_REFERENCE_PREFIXES } from "../core/constants/block-manifest";
+import {
+  DOCUMENT_SURFACE_CLASS,
+  documentSurfaceClassNames,
+} from "../core/document-surface-classes";
 import { extractDivClass } from "../core/parser/fenced-div-attrs";
 import type {
   DocumentContext,
   LinkResolver,
   RefResolver,
 } from "../core/document-context-types";
+export {
+  COFLAT_READER_CLASS,
+  COFLAT_READER_DOCUMENT_CLASS,
+  COFLAT_READER_SHELL_CLASS,
+  COFLAT_READER_TOC_CLASS,
+  COFLAT_THEME_SCOPE_CLASS,
+  blueprintBookThemeManifest,
+} from "../core/theme-manifest";
+export type { CoflatThemeManifest, CoflatThemeTarget } from "../core/theme-manifest";
 import { noteLezerInvocation } from "./reader-internal";
 
 export type {
@@ -38,6 +45,12 @@ export type {
   LinkResolver,
   RefResolver,
 } from "../core/document-context-types";
+export type {
+  BlockCounterEntry,
+  ConditionalWriteResult,
+  FileEntry,
+  FileSystem,
+} from "../core/lib/file-system-types";
 
 // ---------------------------------------------------------------------------
 // Parser (lazy: only constructed when the fast path can't handle the input).
@@ -70,7 +83,7 @@ function parseSource(source: string): Tree {
  * inline markdown (`*`, `_`, `~`, `\`-escape). No links, no code, no
  * math, no block constructs — a tiny inline-only renderer suffices.
  */
-const FAST_PATH_RE = /[$\[:`#^<>\n|-]|^---\n/m;
+const FAST_PATH_RE = /[$[:`#^<>\n|-]|^---\n/m;
 
 // ---------------------------------------------------------------------------
 // HTML / text escaping.
@@ -97,6 +110,31 @@ function isCrossrefKey(key: string): boolean {
   const colon = key.indexOf(":");
   if (colon <= 0) return false;
   return CROSSREF_PREFIX_SET.has(key.slice(0, colon));
+}
+
+function headingClasses(level: number): string {
+  return documentSurfaceClassNames(
+    DOCUMENT_SURFACE_CLASS.heading,
+    DOCUMENT_SURFACE_CLASS.headingLevel(level),
+  );
+}
+
+const paragraphClasses = DOCUMENT_SURFACE_CLASS.paragraph;
+
+function listClasses(ordered: boolean, isTaskList: boolean, isLoose: boolean): string {
+  return documentSurfaceClassNames(
+    DOCUMENT_SURFACE_CLASS.list,
+    ordered ? DOCUMENT_SURFACE_CLASS.listOrdered : DOCUMENT_SURFACE_CLASS.listUnordered,
+    isTaskList && DOCUMENT_SURFACE_CLASS.listCheck,
+    isLoose ? DOCUMENT_SURFACE_CLASS.listLoose : DOCUMENT_SURFACE_CLASS.listTight,
+  );
+}
+
+function blockClasses(type: string | undefined): string {
+  return documentSurfaceClassNames(
+    DOCUMENT_SURFACE_CLASS.block,
+    type && DOCUMENT_SURFACE_CLASS.blockType(type),
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -439,7 +477,7 @@ function renderInlineNode(
       const inner = raw.slice(fenceLen, raw.length - fenceLen);
       const sp = sourcePosAttrs(ctx, node.from, node.to);
       return {
-        html: `<code class="cf-code-inline"${sp}>${escapeHtml(inner)}</code>`,
+        html: `<code class="${DOCUMENT_SURFACE_CLASS.codeToken}"${sp}>${escapeHtml(inner)}</code>`,
         text: inner,
         hasMath: false,
       };
@@ -473,7 +511,7 @@ function renderInlineNode(
       const inner = stripMathDelims(raw, false);
       const sp = sourcePosAttrs(ctx, node.from, node.to);
       return {
-        html: `<span class="cf-math cf-math-inline" data-math="${escapeHtml(inner)}"${sp}>${escapeHtml(raw)}</span>`,
+        html: `<span class="${DOCUMENT_SURFACE_CLASS.inlineMath}" data-math="${escapeHtml(inner)}"${sp}>${escapeHtml(raw)}</span>`,
         text: raw,
         hasMath: true,
       };
@@ -483,7 +521,7 @@ function renderInlineNode(
       const inner = stripMathDelims(raw, true);
       const sp = sourcePosAttrs(ctx, node.from, node.to);
       return {
-        html: `<span class="cf-math cf-math-display" data-math="${escapeHtml(inner)}"${sp}>${escapeHtml(raw)}</span>`,
+        html: `<span class="${DOCUMENT_SURFACE_CLASS.displayMath}" data-math="${escapeHtml(inner)}"${sp}>${escapeHtml(raw)}</span>`,
         text: raw,
         hasMath: true,
       };
@@ -757,7 +795,7 @@ interface RenderOptions {
   sourceLineAttribution?: boolean;
   /** If true, emit `data-source-from`/`data-source-to` byte offsets on
    *  every block element, every inline mark (`<strong>`, `<em>`, `<del>`,
-   *  `<code>`, `<a>`, `<sup class="cf-footnote-ref">`, `<span class="cf-math">`,
+   *  `<code>`, `<a>`, `<sup class="cf-footnote-ref">`, `<span data-math>`,
    *  citation/crossref spans), and wrap contiguous plain-text runs in
    *  `<span class="cf-text" data-source-from=… data-source-to=…>`. Off by
    *  default — output is byte-identical to the un-opted form. */
@@ -829,7 +867,7 @@ function renderBlock(ctx: WalkContext, node: SyntaxNode): BlockResult {
       return renderIndentedCode(ctx, node);
     case NODE.HorizontalRule:
       return {
-        html: `<hr class="cf-hr"${blockSourceAttrs(ctx, node.from, node.to)}>`,
+        html: `<hr class="${blockClasses("hr")}"${blockSourceAttrs(ctx, node.from, node.to)}>`,
         text: "",
         hasMath: false,
       };
@@ -844,7 +882,7 @@ function renderBlock(ctx: WalkContext, node: SyntaxNode): BlockResult {
       const inner = stripMathDelims(raw, true);
       return {
         html:
-          `<div class="cf-math cf-math-display" data-math="${escapeHtml(inner)}"${blockSourceAttrs(ctx, node.from, node.to)}>` +
+          `<div class="${DOCUMENT_SURFACE_CLASS.displayMath}" data-math="${escapeHtml(inner)}"${blockSourceAttrs(ctx, node.from, node.to)}>` +
           escapeHtml(raw) +
           `</div>`,
         text: raw,
@@ -903,7 +941,7 @@ function renderHeading(ctx: WalkContext, node: SyntaxNode, level: number): Block
 
   const inner = renderInline(ctx, node, contentFrom, contentTo);
   return {
-    html: `<h${level} class="cf-heading-${level}"${blockSourceAttrs(ctx, node.from, node.to)}>${inner.html}</h${level}>`,
+    html: `<h${level} class="${headingClasses(level)}"${blockSourceAttrs(ctx, node.from, node.to)}>${inner.html}</h${level}>`,
     text: inner.text,
     hasMath: inner.hasMath,
   };
@@ -914,7 +952,7 @@ function renderParagraph(ctx: WalkContext, node: SyntaxNode): BlockResult {
   // Trim trailing whitespace/newlines for tidy output.
   const html = inner.html.replace(/\s+$/, "");
   return {
-    html: `<p class="cf-paragraph"${blockSourceAttrs(ctx, node.from, node.to)}>${html}</p>`,
+    html: `<p class="${paragraphClasses}"${blockSourceAttrs(ctx, node.from, node.to)}>${html}</p>`,
     text: inner.text.replace(/\s+$/, ""),
     hasMath: inner.hasMath,
   };
@@ -935,7 +973,7 @@ function renderList(ctx: WalkContext, node: SyntaxNode, ordered: boolean): Block
         if (/\n\s*\n/.test(between)) isLoose = true;
       }
       const item = renderListItem(ctx, child);
-      if (item.html.includes("cf-list-task")) isTaskList = true;
+      if (item.html.includes(DOCUMENT_SURFACE_CLASS.listItemCheck)) isTaskList = true;
       items.push(item);
       prevItem = child;
     }
@@ -961,15 +999,9 @@ function renderList(ctx: WalkContext, node: SyntaxNode, ordered: boolean): Block
   }
 
   const tag = ordered ? "ol" : "ul";
-  const classes: string[] = [
-    "cf-list",
-    ordered ? "cf-list-ordered" : "cf-list-bullet",
-  ];
-  if (isTaskList) classes.push("cf-list-task");
-  classes.push(isLoose ? "cf-list-loose" : "cf-list-tight");
   return {
     html:
-      `<${tag} class="${classes.join(" ")}"${startAttr}${blockSourceAttrs(ctx, node.from, node.to)}>` +
+      `<${tag} class="${listClasses(ordered, isTaskList, isLoose)}"${startAttr}${blockSourceAttrs(ctx, node.from, node.to)}>` +
       items.map((b) => b.html).join("") +
       `</${tag}>`,
     text: items.map((b) => b.text).join("\n"),
@@ -1010,7 +1042,7 @@ function renderListItem(ctx: WalkContext, node: SyntaxNode): BlockResult {
         // Task is an inline-content wrapper; treat its content as paragraph text.
         const inner = renderInline(ctx, child, child.from, child.to);
         blocks.push({
-          html: `<p class="cf-paragraph"${blockSourceAttrs(ctx, child.from, child.to)}>${inner.html.replace(/\s+$/, "")}</p>`,
+          html: `<p class="${paragraphClasses}"${blockSourceAttrs(ctx, child.from, child.to)}>${inner.html.replace(/\s+$/, "")}</p>`,
           text: inner.text.replace(/\s+$/, ""),
           hasMath: inner.hasMath,
         });
@@ -1031,19 +1063,19 @@ function renderListItem(ctx: WalkContext, node: SyntaxNode): BlockResult {
   let inner: string;
   let text: string;
   const hasMath = blocks.some((b) => b.hasMath);
-  if (blocks.length === 1 && blocks[0].html.startsWith("<p class=\"cf-paragraph\"")) {
+  if (blocks.length === 1 && blocks[0].html.startsWith(`<p class="${paragraphClasses}"`)) {
     // Strip outer <p>…</p>.
-    inner = blocks[0].html.replace(/^<p class="cf-paragraph"[^>]*>/, "").replace(/<\/p>$/, "");
+    inner = blocks[0].html.replace(new RegExp(`^<p class="${paragraphClasses}"[^>]*>`), "").replace(/<\/p>$/, "");
     text = blocks[0].text;
   } else {
     inner = blocks.map((b) => b.html).join("");
     text = blocks.map((b) => b.text).join("\n");
   }
 
-  const classes: string[] = ["cf-list-item"];
+  const classes: string[] = [DOCUMENT_SURFACE_CLASS.listItem];
   let dataAttrs = "";
   if (task) {
-    classes.push("cf-list-task");
+    classes.push(DOCUMENT_SURFACE_CLASS.listItemCheck);
     dataAttrs = ` data-checked="${task.checked}"`;
     const cb = `<input type="checkbox" disabled${task.checked ? " checked" : ""}> `;
     inner = cb + inner;
@@ -1069,7 +1101,7 @@ function renderBlockquote(ctx: WalkContext, node: SyntaxNode): BlockResult {
   }
   return {
     html:
-      `<blockquote class="cf-blockquote"${blockSourceAttrs(ctx, node.from, node.to)}>` +
+      `<blockquote class="${DOCUMENT_SURFACE_CLASS.blockquote}"${blockSourceAttrs(ctx, node.from, node.to)}>` +
       blocks.map((b) => b.html).join("") +
       `</blockquote>`,
     text: blocks.map((b) => b.text).join("\n"),
@@ -1097,7 +1129,7 @@ function renderFencedCode(ctx: WalkContext, node: SyntaxNode): BlockResult {
   const langAttr = lang ? ` data-lang="${escapeHtml(lang)}"` : "";
   return {
     html:
-      `<pre class="cf-code-block"${langAttr}${blockSourceAttrs(ctx, node.from, node.to)}>` +
+      `<pre class="${DOCUMENT_SURFACE_CLASS.codeBlock}"${langAttr}${blockSourceAttrs(ctx, node.from, node.to)}>` +
       `<code>${escapeHtml(code)}</code></pre>`,
     text: code,
     hasMath: false,
@@ -1108,7 +1140,7 @@ function renderIndentedCode(ctx: WalkContext, node: SyntaxNode): BlockResult {
   const code = ctx.source.slice(node.from, node.to).replace(/^( {4}|\t)/gm, "");
   return {
     html:
-      `<pre class="cf-code-block"${blockSourceAttrs(ctx, node.from, node.to)}>` +
+      `<pre class="${DOCUMENT_SURFACE_CLASS.codeBlock}"${blockSourceAttrs(ctx, node.from, node.to)}>` +
       `<code>${escapeHtml(code)}</code></pre>`,
     text: code,
     hasMath: false,
@@ -1140,7 +1172,7 @@ function renderTable(ctx: WalkContext, node: SyntaxNode): BlockResult {
   if (headerRowsHtml.length) inner += `<thead>${headerRowsHtml.join("")}</thead>`;
   if (bodyRowsHtml.length) inner += `<tbody>${bodyRowsHtml.join("")}</tbody>`;
   return {
-    html: `<table class="cf-table"${blockSourceAttrs(ctx, node.from, node.to)}>${inner}</table>`,
+    html: `<table class="${DOCUMENT_SURFACE_CLASS.tableBlock}"${blockSourceAttrs(ctx, node.from, node.to)}>${inner}</table>`,
     text: textRows.join("\n"),
     hasMath: false,
   };
@@ -1179,7 +1211,10 @@ function renderTableRow(
   cells.forEach((cell, idx) => {
     const inner = renderInline(ctx, cell, cell.from, cell.to);
     const tag = isHeader ? "th" : "td";
-    const classes = isHeader ? "cf-table-cell cf-table-header" : "cf-table-cell";
+    const classes = documentSurfaceClassNames(
+      DOCUMENT_SURFACE_CLASS.tableCell,
+      isHeader && DOCUMENT_SURFACE_CLASS.tableHeader,
+    );
     const align = aligns[idx];
     const styleAttr = align ? ` style="text-align:${align}"` : "";
     const alignAttr = align ? ` data-align="${align}"` : "";
@@ -1187,7 +1222,7 @@ function renderTableRow(
     cellTexts.push(inner.text);
   });
   return {
-    rowHtml: `<tr class="cf-table-row"${blockSourceAttrs(ctx, row.from, row.to)}>${cellHtmls.join("")}</tr>`,
+    rowHtml: `<tr class="${DOCUMENT_SURFACE_CLASS.tableRow}"${blockSourceAttrs(ctx, row.from, row.to)}>${cellHtmls.join("")}</tr>`,
     rowText: cellTexts.join("\t"),
   };
 }
@@ -1224,8 +1259,8 @@ function renderFencedDiv(ctx: WalkContext, node: SyntaxNode): BlockResult {
     child = child.nextSibling;
   }
 
-  const classes = ["cf-fenced-div"];
-  if (className) classes.push(`cf-fenced-${className.toLowerCase()}`);
+  const normalizedClassName = className.toLowerCase();
+  const classes = [blockClasses(normalizedClassName || undefined)];
 
   let attrs = ` class="${classes.join(" ")}"`;
   if (id) attrs += ` id="${escapeHtml(id)}"`;
@@ -1474,10 +1509,10 @@ function walkDocument(
   if (
     !truncated &&
     topCount === 1 &&
-    blocks[0].html.startsWith("<p class=\"cf-paragraph\"")
+    blocks[0].html.startsWith(`<p class="${paragraphClasses}"`)
   ) {
     const stripped = blocks[0].html
-      .replace(/^<p class="cf-paragraph"[^>]*>/, "")
+      .replace(new RegExp(`^<p class="${paragraphClasses}"[^>]*>`), "")
       .replace(/<\/p>$/, "");
     combined = { html: stripped, text: blocks[0].text, hasMath: blocks[0].hasMath };
   } else {
@@ -1572,7 +1607,7 @@ void ALLOWED_ATTR_RE;
 /**
  * Render a FORMAT.md source string to sanitized HTML.
  *
- * Phase 2.1 scope:
+ * Supported output:
  * - Headings (h1–h6), paragraphs, bullet + ordered + task lists,
  *   blockquotes, fenced and indented code blocks, horizontal rules,
  *   tables (with alignment), fenced divs, footnotes.
@@ -1588,10 +1623,10 @@ void ALLOWED_ATTR_RE;
  *   preserves the fast-path shape so short snippets (search hits,
  *   notification bodies) don't get gratuitously wrapped. Documents with
  *   any block structure or multiple paragraphs wrap each paragraph in
- *   `<p class="cf-paragraph">`.
- * - Math nodes emit `<span class="cf-math cf-math-inline" data-math="…">`
- *   placeholders preserving the source verbatim. The Phase 2.3 React
- *   wrapper hydrates these with KaTeX.
+ *   `<p class="cf-doc-paragraph">`.
+ * - Math nodes emit `<span class="cf-doc-inline-math" data-math="…">`
+ *   placeholders preserving the source verbatim. `hydrateMath` hydrates
+ *   these with KaTeX.
  * - When `RefResolver` is absent (or it returns null), citations emit
  *   `cf-citation-unresolved` placeholders carrying `data-ref-key`.
  *   Crossrefs emit `cf-crossref-unresolved cf-crossref-{prefix}` similarly.
@@ -1607,7 +1642,7 @@ void ALLOWED_ATTR_RE;
  * `opts.sourcePositions` (default `false`) adds `data-source-from` and
  * `data-source-to` byte offsets on every block element, every inline
  * mark (`<strong>`, `<em>`, `<del>`, `<code>`, `<a>`, `<mark>`,
- * `<sup class="cf-footnote-ref">`, `<span class="cf-math">`,
+ * `<sup class="cf-footnote-ref">`, `<span data-math>`,
  * citation/crossref spans, images), and wraps contiguous plain-text
  * runs in `<span class="cf-text">`. Used by {@link mapDomRangeToSource}
  * to invert the rendering. Off by default — the un-opted output is
@@ -1691,7 +1726,7 @@ function buildResolvers(ctx: DocumentContext | undefined): Resolvers {
 }
 
 // ---------------------------------------------------------------------------
-// DOM Range → source position mapping (Phase 2.6).
+// DOM Range → source position mapping.
 // ---------------------------------------------------------------------------
 
 /**
@@ -1706,7 +1741,7 @@ function buildResolvers(ctx: DocumentContext | undefined): Resolvers {
  * by character count (HTML escapes are atomic in source), so the offset
  * inside the text node is added to the ancestor's `data-source-from`.
  *
- * Limitation — math: after {@link hydrateMath} runs, a `<span class="cf-math">`
+ * Limitation — math: after {@link hydrateMath} runs, a `<span data-math>`
  * contains KaTeX-rendered MathML/HTML whose character offsets do NOT
  * correspond to LaTeX source. Selections inside a hydrated math node
  * collapse to the math span's full `[from, to)` range (block-granularity).
@@ -1777,15 +1812,15 @@ function resolveEndpoint(
   if (!Number.isFinite(elFrom) || !Number.isFinite(elTo)) return null;
 
   // Math: hydrated subtrees do not character-map; collapse to block bounds.
-  // Detect by walking from the endpoint up to `el` and looking for cf-math.
+  // Detect by walking from the endpoint up to `el` and looking for data-math.
   let probe: Element | null = node.nodeType === 1 ? (node as Element) : node.parentElement;
   while (probe && probe !== el) {
-    if (probe.classList && probe.classList.contains("cf-math")) {
+    if (probe.hasAttribute("data-math")) {
       return atEnd ? elTo : elFrom;
     }
     probe = probe.parentElement;
   }
-  if (el.classList && el.classList.contains("cf-math")) {
+  if (el.hasAttribute("data-math")) {
     return atEnd ? elTo : elFrom;
   }
 
@@ -1845,7 +1880,7 @@ function countTextCharsBefore(root: Element, target: Node): number {
 }
 
 // ---------------------------------------------------------------------------
-// KaTeX lazy hydration (Phase 2.3).
+// KaTeX lazy hydration.
 // ---------------------------------------------------------------------------
 
 /**
@@ -1872,7 +1907,7 @@ export interface HydrateMathOptions {
  * - Otherwise dynamically `import("katex")` once (the browser's module cache
  *   keeps subsequent calls cheap) and replaces each placeholder's contents
  *   with KaTeX HTML. `displayMode: true` is used for elements bearing the
- *   `cf-math-display` class, `false` otherwise.
+ *   `cf-doc-display-math` class, `false` otherwise.
  * - On render error, the placeholder is left as-is (the raw `$…$` source
  *   inside the `<span>` remains visible as a fallback) and gets a
  *   `cf-math-error` class plus a `data-math-error` attribute carrying the
@@ -1907,7 +1942,7 @@ export async function hydrateMath(
     const latex = el.getAttribute("data-math");
     if (latex === null) continue;
 
-    const isDisplay = el.classList.contains("cf-math-display");
+    const isDisplay = el.classList.contains(DOCUMENT_SURFACE_CLASS.displayMath);
     let html: string;
     try {
       html = katex.renderToString(latex, {

@@ -3,9 +3,8 @@ import { EditorView } from "@codemirror/view";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   documentContextFacet,
-  type LinkResolver,
-  type RefResolver,
 } from "./document-context";
+import type { LinkResolver, RefResolver } from "../core/document-context-types";
 import { documentPathFacet } from "./lib/types";
 import { isBareDocumentAnchor } from "./render/link-handler";
 import { planReferenceRendering } from "./render/reference-render";
@@ -16,7 +15,7 @@ import {
 import { bibDataEffect, bibDataField } from "./state/bib-data";
 
 /**
- * Phase 0 chunk 2 wiring: with no host resolver, behavior is unchanged
+ * DocumentContext wiring: with no host resolver, behavior is unchanged
  * (verified across the existing 2700+ tests). With a resolver, the
  * editor consults it with the documented carve-outs.
  */
@@ -85,7 +84,7 @@ describe("documentContextFacet — RefResolver wiring through planReferenceRende
   }
 
   function findAt(items: ReturnType<typeof plan>, raw: string) {
-    return items.find((it) => view!.state.sliceDoc(it.from, it.to) === raw);
+    return items.find((it) => view?.state.sliceDoc(it.from, it.to) === raw);
   }
 
   it("no resolver: bracketed bib reference uses existing citation path", () => {

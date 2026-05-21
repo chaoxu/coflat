@@ -18,7 +18,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { equationLabelExtension } from "../../core/parser/equation-label";
 import { fencedDiv } from "../../core/parser/fenced-div";
 import { mathExtension } from "../../core/parser/math-backslash";
-import { documentSemanticsField } from "../state/document-analysis";
+import { documentAnalysisField } from "../state/document-analysis";
 import {
   buildCrossrefPreviewContent,
   destroyHoverPreviewTooltipForTest,
@@ -65,7 +65,7 @@ function createReferenceHoverPreviewView(doc: string): EditorView {
         markdown({
           extensions: [fencedDiv, mathExtension, equationLabelExtension],
         }),
-        documentSemanticsField,
+        documentAnalysisField,
       ],
     }),
     parent,

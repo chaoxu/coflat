@@ -2,7 +2,7 @@ import type { Extension, Text } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 
 import { isFrontmatterDelimiterLine } from "../../core/parser/frontmatter";
-import { documentSemanticsField } from "../state/document-analysis";
+import { documentAnalysisField } from "../state/document-analysis";
 import type { DocumentAnalysis } from "../semantics/document";
 
 export interface OutlineEntry {
@@ -198,7 +198,7 @@ function computeCounts(view: EditorView): Counts {
 }
 
 function computeOutline(view: EditorView): readonly OutlineEntry[] {
-  const analysis = view.state.field(documentSemanticsField, false);
+  const analysis = view.state.field(documentAnalysisField, false);
   if (!analysis) {
     return [];
   }
@@ -261,7 +261,7 @@ function activeHeadingIndex(
 function computeCursorContext(view: EditorView): CursorContext {
   const from = clampPosition(view.state.doc, view.state.selection.main.head);
   const line = view.state.doc.lineAt(from);
-  const analysis = view.state.field(documentSemanticsField, false);
+  const analysis = view.state.field(documentAnalysisField, false);
   const currentHeadingPath = analysis ? currentHeadingPathAt(analysis, from) : [];
   return {
     line: line.number,

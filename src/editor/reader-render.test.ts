@@ -1,6 +1,7 @@
 import { describe, expect, it, beforeEach } from "vitest";
 import { renderToHtml, renderToText } from "../../reader";
 import type { LinkResolver } from "../../reader";
+import type { FileSystem } from "../core/lib/file-system-types";
 import {
   getLezerInvocationCount,
   resetLezerInvocationCount,
@@ -67,7 +68,7 @@ describe("renderToHtml — slow path (Lezer)", () => {
 
   it("renders inline code", () => {
     const r = renderToHtml("see `code` here");
-    expect(r.html).toContain('<code class="cf-code-inline">code</code>');
+    expect(r.html).toContain('<code class="cf-doc-code-token">code</code>');
   });
 
   it("renders a [label](url) link", () => {
@@ -81,16 +82,17 @@ describe("renderToHtml — slow path (Lezer)", () => {
     expect(r.html).toContain("https://example.com</a>");
   });
 
-  it("renders headings as <h1> with cf-heading-1 class", () => {
+  it("renders headings with canonical classes", () => {
     const r = renderToHtml("# Heading\n\nbody");
-    expect(r.html).toContain('<h1 class="cf-heading-1">Heading</h1>');
+    expect(r.html).toContain('class="cf-doc-heading cf-doc-heading--h1"');
+    expect(r.html).toContain(">Heading</h1>");
     expect(r.html).toContain("body");
   });
 
-  it("renders bullet lists as <ul> with cf-list classes", () => {
+  it("renders bullet lists as <ul> with canonical list classes", () => {
     const r = renderToHtml("- a\n- b");
-    expect(r.html).toContain('<ul class="cf-list cf-list-bullet');
-    expect(r.html).toContain('<li class="cf-list-item');
+    expect(r.html).toContain('<ul class="cf-doc-list cf-doc-list--unordered cf-doc-list--tight');
+    expect(r.html).toContain('<li class="cf-doc-list-item');
     expect(r.html).toContain("a");
     expect(r.html).toContain("b");
   });
@@ -132,7 +134,7 @@ describe("renderToHtml — slow path (Lezer)", () => {
       fileSystem: {
         // Only resolveAssetUrl is invoked; other methods unused.
         resolveAssetUrl: (path: string) => `https://cdn/${path}`,
-      } as unknown as import("./lib/types").FileSystem,
+      } as unknown as FileSystem,
     };
     const r = renderToHtml("![alt text](logo.png)", ctx);
     expect(r.html).toContain('src="https://cdn/logo.png"');
@@ -167,7 +169,8 @@ describe("renderToText", () => {
     // Source index 2 ('b') → text index 2 (after the '**' literals
     // tentatively counted; the spans collapse on close — we accept that
     // the implementation maps to the *tentative* text position).
-    const map = r.sourceToText!;
+    const { sourceToText: map } = r;
+    if (!map) throw new Error("expected sourceToText map");
     // The map should at least be monotonic.
     for (let i = 1; i < map.length; i++) {
       expect(map[i]).toBeGreaterThanOrEqual(map[i - 1]);
@@ -189,23 +192,25 @@ describe("renderToText", () => {
   });
 });
 
-describe("renderToHtml — block-level rendering (Phase 2.1)", () => {
+describe("renderToHtml — block-level rendering ()", () => {
   it("renders all six heading levels", () => {
     for (let n = 1; n <= 6; n++) {
       const r = renderToHtml(`${"#".repeat(n)} H${n}\n\nbody`);
-      expect(r.html).toContain(`<h${n} class="cf-heading-${n}">H${n}</h${n}>`);
+      expect(r.html).toContain(`cf-doc-heading--h${n}`);
+      expect(r.html).toContain(`>H${n}</h${n}>`);
     }
   });
 
   it("renders an ordered list with start attribute", () => {
     const r = renderToHtml("3. three\n4. four");
-    expect(r.html).toContain('<ol class="cf-list cf-list-ordered');
+    expect(r.html).toContain('<ol class="cf-doc-list cf-doc-list--ordered cf-doc-list--tight');
     expect(r.html).toContain('start="3"');
   });
 
   it("renders task list items with checkbox + data-checked", () => {
     const r = renderToHtml("- [ ] open\n- [x] done");
-    expect(r.html).toContain('cf-list-task');
+    expect(r.html).toContain('cf-doc-list--check');
+    expect(r.html).toContain('cf-doc-list-item--check');
     expect(r.html).toContain('data-checked="false"');
     expect(r.html).toContain('data-checked="true"');
     expect(r.html).toContain('type="checkbox"');
@@ -215,13 +220,13 @@ describe("renderToHtml — block-level rendering (Phase 2.1)", () => {
 
   it("renders blockquotes", () => {
     const r = renderToHtml("> quoted\n> body");
-    expect(r.html).toContain('<blockquote class="cf-blockquote"');
+    expect(r.html).toContain('<blockquote class="cf-doc-blockquote"');
     expect(r.html).toContain('quoted');
   });
 
   it("renders fenced code with language attribute, HTML-escaped contents", () => {
     const r = renderToHtml("```js\nconst x = '<b>';\n```");
-    expect(r.html).toContain('class="cf-code-block"');
+    expect(r.html).toContain('class="cf-doc-code-block"');
     expect(r.html).toContain('data-lang="js"');
     expect(r.html).toContain('&lt;b&gt;');
     expect(r.html).not.toContain('<b>');
@@ -229,21 +234,21 @@ describe("renderToHtml — block-level rendering (Phase 2.1)", () => {
 
   it("renders inline code inside a heading", () => {
     const r = renderToHtml("# Use `foo` here");
-    expect(r.html).toContain('<h1 class="cf-heading-1">');
-    expect(r.html).toContain('<code class="cf-code-inline">foo</code>');
+    expect(r.html).toContain('cf-doc-heading--h1');
+    expect(r.html).toContain('<code class="cf-doc-code-token">foo</code>');
   });
 
   it("renders horizontal rules", () => {
     const r = renderToHtml("a\n\n---\n\nb");
-    expect(r.html).toContain('<hr class="cf-hr"');
+    expect(r.html).toContain('<hr class="cf-doc-block cf-doc-block--hr"');
   });
 
   it("renders tables with header, body, and cell alignment", () => {
     const r = renderToHtml("| a | b |\n|:--|--:|\n| 1 | 2 |");
-    expect(r.html).toContain('<table class="cf-table"');
+    expect(r.html).toContain('<table class="cf-doc-table-block"');
     expect(r.html).toContain('<thead>');
     expect(r.html).toContain('<tbody>');
-    expect(r.html).toContain('cf-table-header');
+    expect(r.html).toContain('cf-doc-table-header');
     expect(r.html).toMatch(/text-align:left|data-align="left"/);
     expect(r.html).toMatch(/text-align:right|data-align="right"/);
   });
@@ -265,23 +270,22 @@ describe("renderToHtml — block-level rendering (Phase 2.1)", () => {
 
   it("renders fenced divs with class and data-* attributes", () => {
     const r = renderToHtml("::: {.theorem #thm-1 title=\"Pythagoras\"}\nbody\n:::");
-    expect(r.html).toContain('cf-fenced-div');
-    expect(r.html).toContain('cf-fenced-theorem');
+    expect(r.html).toContain('cf-doc-block--theorem');
     expect(r.html).toContain('id="thm-1"');
     expect(r.html).toContain('data-title="Pythagoras"');
   });
 
-  it("emits inline math placeholder with cf-math-inline + hasMath flag", () => {
+  it("emits inline math placeholder with canonical class + hasMath flag", () => {
     const r = renderToHtml("x is $y^2$ today");
     expect(r.hasMath).toBe(true);
-    expect(r.html).toContain('class="cf-math cf-math-inline"');
+    expect(r.html).toContain('class="cf-doc-inline-math"');
     expect(r.html).toContain('data-math="y^2"');
   });
 
-  it("emits display math placeholder with cf-math-display", () => {
+  it("emits display math placeholder with canonical class", () => {
     const r = renderToHtml("eq:\n\n$$x^2$$\n\nend");
     expect(r.hasMath).toBe(true);
-    expect(r.html).toContain('class="cf-math cf-math-display"');
+    expect(r.html).toContain('cf-doc-display-math');
     expect(r.html).toContain('data-math="x^2"');
   });
 
@@ -313,10 +317,10 @@ describe("renderToHtml — block-level rendering (Phase 2.1)", () => {
     expect(r.html).not.toContain('data-source-line');
   });
 
-  it("wraps multi-paragraph documents in <p class=\"cf-paragraph\">", () => {
+  it("wraps multi-paragraph documents in canonical paragraph classes", () => {
     const r = renderToHtml("first\n\nsecond");
-    expect(r.html).toContain('<p class="cf-paragraph">first</p>');
-    expect(r.html).toContain('<p class="cf-paragraph">second</p>');
+    expect(r.html).toContain('<p class="cf-doc-paragraph">first</p>');
+    expect(r.html).toContain('<p class="cf-doc-paragraph">second</p>');
   });
 
   it("keeps bare-inline shape for single-paragraph (no <p>)", () => {
@@ -325,13 +329,13 @@ describe("renderToHtml — block-level rendering (Phase 2.1)", () => {
   });
 });
 
-describe("renderToHtml — truncation (Phase 2.4)", () => {
+describe("renderToHtml — truncation ()", () => {
   it("stops before next block when lines budget exhausted (4 paragraphs, lines:2)", () => {
     const src = "p1\n\np2\n\np3\n\np4";
     const r = renderToHtml(src, undefined, { truncate: { lines: 2 } });
     expect(r.truncated).toBeDefined();
     // 2 paragraphs emitted, then marker.
-    const pCount = (r.html.match(/<p class="cf-paragraph"/g) ?? []).length;
+    const pCount = (r.html.match(/<p class="cf-doc-paragraph"/g) ?? []).length;
     expect(pCount).toBe(2);
     expect(r.html).toContain('class="cf-truncation-marker"');
     // sourceFrom = start of paragraph 3 = index of "p3" in src.
@@ -368,7 +372,7 @@ describe("renderToHtml — truncation (Phase 2.4)", () => {
     const src = "p1\n\n# heading\n\np2";
     const r = renderToHtml(src, undefined, { truncate: { lines: 1 } });
     expect(r.truncated).toBeDefined();
-    expect(r.html).toContain('class="cf-paragraph"');
+    expect(r.html).toContain('class="cf-doc-paragraph"');
     expect(r.html).not.toContain("<h1");
     expect(r.truncated?.sourceFrom).toBe(src.indexOf("# heading"));
   });
@@ -390,7 +394,7 @@ describe("renderToHtml — truncation (Phase 2.4)", () => {
     // Note: lines:0 would emit nothing, so use a small > 0 budget via lines:1.
     const r1 = renderToHtml(src, undefined, { truncate: { lines: 1 } });
     expect(r1.truncated).toBeDefined();
-    expect(r1.html).toContain("cf-math-display");
+    expect(r1.html).toContain("cf-doc-display-math");
     expect(r1.html).not.toContain("tail");
     void r;
   });
@@ -403,22 +407,24 @@ describe("renderToHtml — truncation (Phase 2.4)", () => {
     );
     const m = r.html.match(/data-source-from="(\d+)" data-source-to="(\d+)"/);
     expect(m).not.toBeNull();
-    expect(Number(m![1])).toBe(r.truncated?.sourceFrom);
-    expect(Number(m![2])).toBe(r.truncated?.sourceTo);
+    if (!m) throw new Error("expected truncation source attrs");
+    expect(Number(m[1])).toBe(r.truncated?.sourceFrom);
+    expect(Number(m[2])).toBe(r.truncated?.sourceTo);
   });
 
   it("re-rendering source.slice(truncated.sourceFrom) yields a sane document", () => {
     const src = "# Title\n\npara one\n\npara two\n\npara three";
     const r = renderToHtml(src, undefined, { truncate: { lines: 2 } });
     expect(r.truncated).toBeDefined();
-    const rest = src.slice(r.truncated!.sourceFrom);
+    if (!r.truncated) throw new Error("expected truncation info");
+    const rest = src.slice(r.truncated.sourceFrom);
     const r2 = renderToHtml(rest);
     expect(r2.html).toContain("para two");
     expect(r2.html).toContain("para three");
   });
 });
 
-describe("renderToText — truncation (Phase 2.4)", () => {
+describe("renderToText — truncation ()", () => {
   it("stops emitting at block boundary, no marker in text", () => {
     const src = "p1\n\np2\n\np3\n\np4";
     const r = renderToText(src, undefined, { truncate: { lines: 2 } });

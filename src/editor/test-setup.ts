@@ -60,6 +60,22 @@ if (typeof globalThis.IntersectionObserver === "undefined") {
   } as unknown as typeof IntersectionObserver;
 }
 
+if (typeof window !== "undefined") {
+  Object.defineProperty(window, "open", {
+    configurable: true,
+    writable: true,
+    value: vi.fn(() => null),
+  });
+}
+
+if (typeof HTMLCanvasElement !== "undefined") {
+  Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
+    configurable: true,
+    writable: true,
+    value: vi.fn(() => null),
+  });
+}
+
 const localStorageMock = installLocalStorageMock();
 
 const rangePrototype = globalThis.Range?.prototype;

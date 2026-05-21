@@ -33,14 +33,15 @@
       "types": "./dist/citeproc.d.ts",
       "import": "./dist/citeproc.mjs"
     },
+    "./themes/blueprint-book.css": "./dist/themes/blueprint-book.css",
     "./test-utils": {
-      "types": "./dist/src/editor/test-utils.d.ts",
-      "import": "./dist/src/editor/test-utils.js"
+      "types": "./dist/test-utils.d.ts",
+      "import": "./dist/test-utils.js"
     },
     "./style.css": "./dist/editor.css"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.editor.json && vite build --config vite.editor.config.ts && find src -name '*.d.mts' -print0 | xargs -0 -I{} rsync -aR {} dist/ && find src -name '*.d.ts' -print0 | xargs -0 -I{} rsync -aR {} dist/ && tsc -p tsconfig.test-utils.json && cp src/editor/test-utils.ts dist/src/editor/test-utils.ts",
+    "build": "rm -rf dist && tsc -p tsconfig.editor.json && vite build --config vite.editor.config.ts && find src -name '*.d.mts' -print0 | xargs -0 -I{} rsync -aR {} dist/ && find src -name '*.d.ts' -print0 | xargs -0 -I{} rsync -aR {} dist/ && tsc -p tsconfig.test-utils.json",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "publint": "publint",
@@ -49,7 +50,7 @@
     "lint": "biome lint . && node scripts/check-layer-boundary.mjs",
     "lint:layers": "node scripts/check-layer-boundary.mjs",
     "prepack": "pnpm build && pnpm publint",
-    "test:e2e": "playwright test",
+    "test:e2e": "env -u NO_COLOR -u FORCE_COLOR playwright test",
     "e2e:install": "playwright install --with-deps chromium"
   },
   "publishConfig": {
@@ -109,7 +110,6 @@
     "@playwright/test": "^1.49.0",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
-    "@types/dompurify": "^3.0.5",
     "@types/katex": "^0.16.8",
     "@types/node": "^25.5.0",
     "@types/react": "^19.2.14",

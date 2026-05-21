@@ -2,13 +2,13 @@
  * Pure test helpers usable from core/ tests.
  *
  * Lives in core/ so .test.ts files inside core/ can import shared parser
- * helpers without violating the layer rule. The richer test-utils.ts at
- * src/test-utils.ts (which depends on CodeMirror, vitest mocks, etc.) is
- * editor-layer.
+ * helpers without violating the layer rule. The richer helpers at
+ * src/editor/test-utils.ts (and the package-level ./test-utils entry) depend
+ * on CodeMirror, Vitest mocks, and DOM setup, so they stay editor-layer.
  */
 
-import { expect } from "vitest";
 import type { Parser } from "@lezer/common";
+import { expect } from "vitest";
 
 export interface NodeInfo {
   readonly name: string;

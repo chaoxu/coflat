@@ -1,7 +1,5 @@
 /**
- * Phase 3.2 (#10) — SaveHandler wiring.
- *
- * Provides:
+ * SaveHandler wiring:
  *  - a CM6 extension that snapshots the last successfully-saved source,
  *    fires {@link StatusEvents.onDirtyChange} on transitions only, and
  *    debounces autosave per the host-supplied (or default) cadence;

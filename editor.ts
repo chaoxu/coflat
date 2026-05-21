@@ -74,7 +74,7 @@ export interface MountEditorOptions {
    */
   assetUploader?: AssetUploader;
   /**
-   * Trigger-based autocomplete sources (Phase 3.4). Each source declares
+   * Trigger-based autocomplete sources. Each source declares
    * a `trigger` string (e.g. "[@", "#"). On match, the library debounces
    * (~80ms by default), calls `suggest(prefix, env)` with a cancellable
    * AbortSignal, aggregates results from sources sharing the trigger,
@@ -258,7 +258,6 @@ export function mountEditor(options: MountEditorOptions): MountedEditor {
   };
 }
 
-// React click-to-edit primitive (Phase 2.7, issue #4).
 export {
   EditableReader,
   preloadEditableReaderEditor,
@@ -267,99 +266,6 @@ export {
   type EditableReaderRenderOptions,
 } from "./editable-reader";
 
-// Lower-level API: re-export everything from src/editor/index.ts so that
-// shells which need fine-grained control (compartments, plugins, theme,
-// project config, etc.) can import them straight from this package.
+// Lower-level editor API for hosts that need direct CodeMirror control.
 export * from "./src/editor";
 export * from "./src/editor/headless/per-file-panels";
-
-// Kitchen-sink re-exports for the coflat shell, which reaches into many
-// editor-library submodules. Cosheaf only needs the standalone API above.
-//
-// Citation helpers (CslProcessor, parseBibTeX, etc.) have moved to the
-// `@chaoxu/coflat-editor/citeproc` sub-entry so the main bundle no longer
-// transitively depends on citation-js. Hosts that need them import from
-// there explicitly.
-export * from "./src/core/constants";
-export * from "./src/core/constants/block-manifest";
-export * from "./src/core/constants/css-classes";
-export * from "./src/core/constants/events";
-export * from "./src/editor/debug/debug-bridge-ready";
-export * from "./src/editor/debug/editor-runtime-contract";
-export * from "./src/editor/debug/session-recorder";
-export * from "./src/editor/debug/tree-view-portal-context";
-export * from "./src/editor/debug/debug-bridge-contract-types";
-export * from "./src/editor/editor-display-mode";
-export * from "./src/editor/editor-host-api";
-export * from "./src/editor/asset-uploader";
-export * from "./src/editor/product";
-export * from "./src/editor/project-config";
-export * from "./src/editor/theme-contract";
-export * from "./src/editor/document-surfaces";
-export * from "./src/core/document-surface-classes";
-export * from "./src/editor/inline-editor";
-export * from "./src/editor/inline-fragments";
-export * from "./src/editor/inline-surface";
-export * from "./src/editor/preview-surface";
-export * from "./src/editor/filesystem/file-system-context";
-// export * from "./src/editor/render/reference-render-test-utils"; // test utils only, imports vitest
-// export * from "./src/editor/test-utils"; // test utils only, imports vitest
-export * from "./src/editor/semantics/document";
-export * from "./src/editor/debug-lane-state";
-export * from "./src/editor/editor-plugin-metadata";
-export * from "./src/editor/image-insert";
-export * from "./src/editor/programmatic-document-change";
-export * from "./src/editor/scroll-stability";
-export * from "./src/editor/theme-config";
-export * from "./src/editor/index-helpers";
-export * from "./src/editor/index-helpers/indexer";
-export * from "./src/editor/index-helpers/query-api";
-export * from "./src/editor/latex/index";
-export * from "./src/editor/lib/context-menu";
-export * from "./src/editor/lib/debug-types";
-export * from "./src/editor/lib/editor-document-diff";
-export * from "./src/editor/lib/file-tree-model";
-export * from "./src/editor/lib/katex-options";
-export * from "./src/editor/lib/markdown-reference-paths";
-// ./src/lib/markdown/heading-syntax covered by ./src/semantics/document
-// export * from "./src/editor/lib/markdown/headings"; // conflicts with ./src/semantics/document on findTrailingHeadingAttributes, hasUnnumberedHeadingAttributes
-export * from "./src/editor/lib/markdown/index";
-export * from "./src/editor/lib/markdown/label-parser";
-export * from "./src/editor/lib/markdown/text-lines";
-export * from "./src/editor/lib/open-link";
-export * from "./src/editor/lib/perf";
-export * from "./src/editor/lib/project-file-paths";
-export * from "./src/editor/lib/tauri";
-export * from "./src/editor/lib/types";
-// ./src/lib/ui/context-menu conflicts with ./src/lib/context-menu (same symbol names; picked the latter)
-export * from "./src/editor/lib/utils";
-export * from "./src/core/parser";
-export * from "./src/core/parser/equation-label";
-export * from "./src/core/parser/fenced-div";
-export * from "./src/core/parser/footnote";
-export * from "./src/core/parser/frontmatter";
-export * from "./src/core/parser/math-backslash";
-export * from "./src/editor/plugins";
-export * from "./src/editor/plugins/plugin-types";
-export * from "./src/editor/render";
-export * from "./src/editor/render/image-url-cache";
-export * from "./src/editor/render/inline-shared";
-export * from "./src/editor/render/pdf-preview-cache";
-export * from "./src/editor/render/render-core";
-// ./src/search doesn't exist as a barrel
-// ./src/semantics/document covered above by re-export
-export * from "./src/editor/semantics/document-label-backlinks";
-export * from "./src/editor/semantics/document-label-rename";
-export * from "./src/editor/semantics/heading-ancestry-types";
-export * from "./src/editor/semantics/incremental/cached-document-analysis";
-export * from "./src/editor/semantics/reference-catalog";
-export * from "./src/editor/semantics/reference-conflicts";
-export * from "./src/editor/state/bib-data";
-export * from "./src/editor/state/block-counter";
-export * from "./src/editor/state/change-detection";
-export * from "./src/editor/state/dev-settings";
-export * from "./src/editor/state/document-analysis";
-export * from "./src/editor/state/document-label-graph";
-export * from "./src/editor/state/frontmatter-state";
-export * from "./src/editor/state/math-macros";
-export * from "./src/editor/state/plugin-registry";

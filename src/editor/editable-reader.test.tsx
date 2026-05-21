@@ -1,5 +1,5 @@
 /**
- * Tests for `<EditableReader>` (Phase 2.7, issue #4).
+ * Tests for `<EditableReader>`.
  *
  * Reader-mode tests run cleanly in jsdom. The editor-mounted cases also
  * run in jsdom — CM6 mounts well enough for createEditor + read-back,
@@ -27,6 +27,30 @@ describe("EditableReader: reader mode", () => {
     expect(document.querySelector("strong")?.textContent).toBe("world");
     // Editor host should NOT be present.
     expect(document.querySelector(".cf-editable-reader__editor")).toBeNull();
+  });
+
+  it("uses the shared scoped reader theme classes", () => {
+    render(
+      <EditableReader
+        source={SOURCE}
+        canEdit={false}
+        onCommit={vi.fn()}
+        className="cf-theme-blueprint-book"
+      />,
+    );
+
+    expect(document.querySelector(".cf-editable-reader")?.className).toContain(
+      "cf-theme-scope",
+    );
+    expect(document.querySelector(".cf-editable-reader")?.className).toContain(
+      "cf-theme-blueprint-book",
+    );
+    expect(
+      document.querySelector(".cf-editable-reader__reader")?.className,
+    ).toContain("cf-reader");
+    expect(
+      document.querySelector(".cf-editable-reader__reader")?.className,
+    ).toContain("cf-doc-flow");
   });
 
   it("renders reader output when canEdit=true and not yet clicked", () => {

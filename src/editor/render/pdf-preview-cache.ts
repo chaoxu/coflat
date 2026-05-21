@@ -6,7 +6,7 @@
  */
 import type { EditorView } from "@codemirror/view";
 import { rasterizePdfPage1 } from "./pdf-rasterizer";
-import type { FileSystem } from "../lib/types";
+import type { FileSystem } from "../../core/lib/file-system-types";
 import {
   ERROR_COOLDOWN_MS,
   pdfPreviewEffect,

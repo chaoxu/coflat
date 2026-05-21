@@ -11,7 +11,7 @@ import {
 } from "../semantics/block-numbering";
 import type { PluginRegistryState } from "./plugin-registry-core";
 import { getPluginOrFallback } from "./plugin-registry-core";
-import { documentSemanticsField } from "./document-analysis";
+import { documentAnalysisField } from "./document-analysis";
 
 function getBlockNumberingSpec(
   registry: PluginRegistryState,
@@ -50,7 +50,7 @@ export function computeBlockNumbers(
   numbering: NumberingScheme = "grouped",
 ): BlockCounterState {
   return computeBlockNumbersFromFencedDivs(
-    state.field(documentSemanticsField).fencedDivs,
+    state.field(documentAnalysisField).fencedDivs,
     registry,
     numbering,
   );

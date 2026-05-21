@@ -2,20 +2,12 @@
  * Shared inline rendering utilities used by both the DOM renderer
  * (`inline-render.ts`) and rich preview renderers.
  *
- * `buildKatexOptions` and `isSafeUrl` now live in `src/lib/` as they are
- * CM6-free utilities needed across multiple layers. Re-exported here for
- * backward compatibility.
  */
 
 import createDOMPurify from "dompurify";
 import katex from "katex";
 import { buildKatexOptions } from "../lib/katex-options";
 import { isSafeUrl } from "../../core/lib/url-utils";
-
-// Re-export from canonical shared locations
-export { buildKatexOptions } from "../lib/katex-options";
-export { sanitizeCslHtml } from "../lib/sanitize-csl-html";
-export { isSafeUrl } from "../../core/lib/url-utils";
 
 // ── Mark nodes ──────────────────────────────────────────────────────────────
 

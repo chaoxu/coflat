@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { escapeMarkdownPath } from "./image-paste";
+import { escapeMarkdownPath } from "./image-save";
 
 describe("escapeMarkdownPath", () => {
   // Regression: paths containing `)` or spaces break CommonMark image syntax
