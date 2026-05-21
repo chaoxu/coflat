@@ -112,10 +112,11 @@ function isCrossrefKey(key: string): boolean {
   return CROSSREF_PREFIX_SET.has(key.slice(0, colon));
 }
 
-function headingClasses(level: number): string {
+function headingClasses(level: number, unnumbered = false): string {
   return documentSurfaceClassNames(
     DOCUMENT_SURFACE_CLASS.heading,
     DOCUMENT_SURFACE_CLASS.headingLevel(level),
+    unnumbered && "cf-doc-heading--unnumbered",
   );
 }
 
@@ -939,12 +940,55 @@ function renderHeading(ctx: WalkContext, node: SyntaxNode, level: number): Block
     while (contentTo > contentFrom && /\s/.test(ctx.source[contentTo - 1] ?? "")) contentTo--;
   }
 
+  const attrs = parsePandocHeadingAttributes(ctx.source, contentFrom, contentTo);
+  if (attrs) contentTo = attrs.contentTo;
+
   const inner = renderInline(ctx, node, contentFrom, contentTo);
+  const numberingAttr = attrs?.unnumbered ? ' data-heading-numbering="none"' : "";
   return {
-    html: `<h${level} class="${headingClasses(level)}"${blockSourceAttrs(ctx, node.from, node.to)}>${inner.html}</h${level}>`,
+    html: `<h${level} class="${headingClasses(level, attrs?.unnumbered)}"${numberingAttr}${blockSourceAttrs(ctx, node.from, node.to)}>${inner.html}</h${level}>`,
     text: inner.text,
     hasMath: inner.hasMath,
   };
+}
+
+interface HeadingAttributeInfo {
+  contentTo: number;
+  unnumbered: boolean;
+}
+
+function parsePandocHeadingAttributes(
+  source: string,
+  contentFrom: number,
+  contentTo: number,
+): HeadingAttributeInfo | null {
+  let end = contentTo;
+  while (end > contentFrom && /\s/.test(source[end - 1] ?? "")) end--;
+  if (source[end - 1] !== "}") return null;
+
+  const open = source.lastIndexOf("{", end - 1);
+  if (open < contentFrom) return null;
+  const beforeOpen = source[open - 1] ?? "";
+  if (open > contentFrom && !/\s/.test(beforeOpen)) return null;
+
+  const raw = source.slice(open + 1, end - 1).trim();
+  if (!raw) return null;
+  const tokens = raw.split(/\s+/);
+  if (!tokens.every(isPandocHeadingAttributeToken)) return null;
+  let strippedTo = open;
+  while (strippedTo > contentFrom && /\s/.test(source[strippedTo - 1] ?? "")) strippedTo--;
+  return {
+    contentTo: strippedTo,
+    unnumbered: tokens.includes("-") || tokens.includes(".unnumbered"),
+  };
+}
+
+function isPandocHeadingAttributeToken(token: string): boolean {
+  return (
+    token === "-" ||
+    /^[#.][^\s{}]+$/.test(token) ||
+    /^[A-Za-z_:][\w:.-]*=(?:"[^"]*"|'[^']*'|[^\s{}]+)$/.test(token)
+  );
 }
 
 function renderParagraph(ctx: WalkContext, node: SyntaxNode): BlockResult {

@@ -6,34 +6,58 @@ on:
   pull_request:
 
 jobs:
-  check:
-    runs-on: ubuntu-latest
+  static:
+    name: Static checks
+    runs-on: host
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10.33.0
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: pnpm
+      - name: Setup pnpm
+        run: |
+          pnpm_home="${RUNNER_TEMP:-$PWD/.tmp-ci}/pnpm"
+          npm install -g --prefix "$pnpm_home" pnpm@10.33.0
+          echo "$pnpm_home/bin" >> "$GITHUB_PATH"
+          "$pnpm_home/bin/pnpm" --version
       - run: pnpm install --frozen-lockfile
-      - run: pnpm typecheck
+      - run: pnpm check:static
+
+  package:
+    name: Package smoke
+    runs-on: host
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Setup pnpm
+        run: |
+          pnpm_home="${RUNNER_TEMP:-$PWD/.tmp-ci}/pnpm"
+          npm install -g --prefix "$pnpm_home" pnpm@10.33.0
+          echo "$pnpm_home/bin" >> "$GITHUB_PATH"
+          "$pnpm_home/bin/pnpm" --version
+      - run: pnpm install --frozen-lockfile
       - run: pnpm test
-      - run: pnpm build
-      - run: pnpm publint
+      - run: pnpm check:package
+      - run: pnpm jupiter:verify
 
   e2e:
-    runs-on: ubuntu-latest
+    runs-on: host
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10.33.0
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: pnpm
+      - name: Setup pnpm
+        run: |
+          pnpm_home="${RUNNER_TEMP:-$PWD/.tmp-ci}/pnpm"
+          npm install -g --prefix "$pnpm_home" pnpm@10.33.0
+          echo "$pnpm_home/bin" >> "$GITHUB_PATH"
+          "$pnpm_home/bin/pnpm" --version
       - run: pnpm install --frozen-lockfile
       - run: pnpm e2e:install
       - run: pnpm test:e2e

@@ -95,10 +95,24 @@ this sub-entry is imported.
 
 Add to your `.npmrc`:
 ```
-@chaoxu:registry=http://localhost:3001/api/packages/chaoxu/npm/
+@chaoxu:registry=http://jupiter:3001/api/packages/chaoxu/npm/
 ```
 
 Then `pnpm add @chaoxu/coflat-editor`.
+
+## Jupiter package checks
+
+`jupiter` is the Linux container host for production-like package checks. This
+repo does not own Caddy, TLS, Docker volumes, cleanup, backups, or monitoring;
+those stay in fleet infra. The project-specific smoke target is:
+
+```sh
+pnpm jupiter:verify
+```
+
+It builds the package, renders `tests/fixtures/coflat-showcase.md` through the
+built reader, and verifies that the packaged stylesheet contains the default
+full-document reader surface. See `docs/jupiter.md` for the host contract.
 
 ## Package architecture
 
@@ -179,7 +193,7 @@ documents can use separate themes:
 
 ```html
 <div class="cf-theme-scope my-theme">
-  <div class="cf-reader">...</div>
+  <div class="cf-reader cf-doc-surface cf-doc-flow">...</div>
 </div>
 ```
 

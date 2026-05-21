@@ -69,4 +69,25 @@ describe("theme CSS contract", () => {
     );
     expect(cssRuleBody(css, ".cm-content")).toContain("white-space: pre;");
   });
+
+  it("ships full-document reader defaults for host-rendered documents", () => {
+    const css = readRepoFile("editor/editor-theme.css");
+
+    expect(cssRuleBody(css, ".cf-reader")).toContain("max-width: var(--cf-content-max-width, 800px);");
+    expect(cssRuleBody(css, ".cf-reader")).toContain("counter-reset: cf-reader-h1 cf-reader-h2;");
+    expect(cssRuleBody(css, ".cf-reader .cf-doc-heading--h1")).toContain(
+      "font-size: var(--cf-h1-size, 1.15em);",
+    );
+    expect(cssRuleBody(css, ".cf-reader .cf-doc-heading--h2")).toContain(
+      "font-style: var(--cf-h2-style, italic);",
+    );
+    expect(cssRuleBody(css, ".cf-reader .cf-doc-heading--h1:not(.cf-doc-heading--unnumbered)::before")).toContain(
+      "counter-increment: cf-reader-h1;",
+    );
+    expect(cssRuleBody(css, ".cf-reader .cf-doc-heading--h2:not(.cf-doc-heading--unnumbered)::before")).toContain(
+      "counter-increment: cf-reader-h2;",
+    );
+    expect(cssRuleBody(css, ".cf-reader .cf-doc-list--unordered")).toContain("list-style: disc;");
+    expect(cssRuleBody(css, ".cf-reader .cf-doc-display-math")).toContain("text-align: center;");
+  });
 });

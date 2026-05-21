@@ -9,8 +9,8 @@ The package owns only the target contract:
 
 - apply `cf-theme-scope` to the nearest root that should receive a theme
 - apply a theme class or data attribute chosen by the host
-- render reader HTML inside `cf-reader`; document nodes carry canonical
-  `cf-doc-*` classes
+- render full-document reader HTML inside `cf-reader cf-doc-surface
+  cf-doc-flow`; document nodes carry canonical `cf-doc-*` classes
 - mount editor instances inside the same scoped root when reader/editor
   should share a theme
 
@@ -22,7 +22,7 @@ different themes on the same page.
   <div class="cf-reader-shell">
     <aside class="cf-reader-toc">...</aside>
     <main class="cf-reader-document">
-      <div class="cf-reader">
+      <div class="cf-reader cf-doc-surface cf-doc-flow">
         <!-- renderToHtml(...) output -->
       </div>
     </main>
@@ -32,7 +32,10 @@ different themes on the same page.
 
 `EditableReader` already uses `cf-theme-scope` on its root and
 `cf-reader` on its read-mode output. Plain `renderToHtml` callers should
-wrap the returned HTML themselves.
+wrap the returned HTML themselves. Use the full reader wrapper above for
+pages, long issue bodies, PR descriptions, and exported documents. For compact
+snippets or comments, keep `cf-reader cf-doc-flow` and add a host-owned compact
+class that overrides width, padding, and rhythm locally.
 
 The default stylesheet is `@chaoxu/coflat-editor/style.css`. Optional
 theme CSS is imported separately by hosts.
@@ -221,7 +224,7 @@ Apply it on a scoped root:
 
 ```html
 <div class="cf-theme-scope cf-theme-blueprint-book">
-  <div class="cf-reader">...</div>
+  <div class="cf-reader cf-doc-surface cf-doc-flow">...</div>
 </div>
 ```
 

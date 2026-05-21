@@ -126,6 +126,47 @@ The reader has a plain-inline fast path for common short fragments. More
 structural input uses the Lezer parser. Math emits placeholders and reports
 `hasMath`; UI wrappers can hydrate KaTeX only when needed.
 
+Pandoc-style heading attributes at the end of ATX or Setext headings are
+metadata, not visible heading text. The reader strips suffixes such as
+`{#sec:intro}`, `{-}`, and `{.unnumbered}` from output. `{-}` and
+`.unnumbered` add `cf-doc-heading--unnumbered` plus
+`data-heading-numbering="none"` so host CSS can skip generated section
+numbers without patching the DOM.
+
+## Reader Surfaces
+
+Use the full document surface for long-form content: pages, issue bodies, PR
+descriptions, exported documents, and review panes that should look like the
+editor's rich document view.
+
+```html
+<div class="cf-theme-scope">
+  <div class="cf-reader cf-doc-surface cf-doc-flow">
+    <!-- renderToHtml(...) output -->
+  </div>
+</div>
+```
+
+With `@chaoxu/coflat-editor/style.css` imported, this surface owns document
+width, padding, content font, line height, headings, paragraph/list rhythm,
+code blocks, tables, blockquotes, math placeholders, and H1/H2 section
+numbering.
+
+Use a compact inline surface only for small embedded fragments: comments,
+notifications, search snippets, hover previews, and metadata cells. Coflat
+does not export a required compact class because hosts usually need compact
+spacing to match their surrounding app chrome. A compact wrapper should still
+include `cf-reader` and `cf-doc-flow`, then override only layout density:
+
+```html
+<div class="cf-reader cf-doc-flow my-compact-reader">
+  <!-- renderToHtml(...) output -->
+</div>
+```
+
+Do not apply compact reader overrides to whole documents unless the visual
+difference from editor rich mode is intentional.
+
 ## Sanitization
 
 Reader HTML is sanitized before it is returned. Resolver-provided HTML is

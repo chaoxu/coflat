@@ -401,7 +401,7 @@ function applyKeyOrder(
  */
 export function updateFrontmatter(
   source: string,
-  mutator: (fm: Record<string, unknown>) => Record<string, unknown> | undefined,
+  mutator: (fm: Record<string, unknown>) => unknown,
 ): string {
   const parsed = parseFrontmatter(source);
   // Use parsed mapping when available; otherwise start from an empty object
@@ -424,7 +424,8 @@ export function updateFrontmatter(
 
   // Run the mutator. A returned object replaces; void means "mutated in place".
   const returned = mutator(original);
-  const next: Record<string, unknown> = returned === undefined ? original : returned;
+  const next: Record<string, unknown> =
+    returned === undefined ? original : (returned as Record<string, unknown>);
 
   // Compute final key order: source order first (for keys still present),
   // then any new keys in their insertion order on `next`.

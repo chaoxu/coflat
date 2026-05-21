@@ -89,6 +89,33 @@ describe("renderToHtml — slow path (Lezer)", () => {
     expect(r.html).toContain("body");
   });
 
+  it("strips Pandoc heading attributes and marks unnumbered headings", () => {
+    const dash = renderToHtml("# Unnumbered Heading {-}");
+    expect(dash.html).toContain('class="cf-doc-heading cf-doc-heading--h1 cf-doc-heading--unnumbered"');
+    expect(dash.html).toContain('data-heading-numbering="none"');
+    expect(dash.html).toContain(">Unnumbered Heading</h1>");
+    expect(dash.html).not.toContain("{-}");
+
+    const classAttr = renderToHtml("## Unnumbered Subsection {.unnumbered}");
+    expect(classAttr.html).toContain("cf-doc-heading--unnumbered");
+    expect(classAttr.html).toContain(">Unnumbered Subsection</h2>");
+    expect(classAttr.html).not.toContain("{.unnumbered}");
+  });
+
+  it("strips non-numbering Pandoc heading attributes from visible text", () => {
+    const r = renderToHtml("## A target {#sec:a .appendix}");
+    expect(r.html).toContain('class="cf-doc-heading cf-doc-heading--h2"');
+    expect(r.html).toContain(">A target</h2>");
+    expect(r.html).not.toContain("{#sec:a");
+    expect(r.html).not.toContain("cf-doc-heading--unnumbered");
+  });
+
+  it("keeps trailing braces when they are not Pandoc heading attributes", () => {
+    const r = renderToHtml("## Set notation {x}");
+    expect(r.html).toContain(">Set notation {x}</h2>");
+    expect(r.html).not.toContain("cf-doc-heading--unnumbered");
+  });
+
   it("renders bullet lists as <ul> with canonical list classes", () => {
     const r = renderToHtml("- a\n- b");
     expect(r.html).toContain('<ul class="cf-doc-list cf-doc-list--unordered cf-doc-list--tight');
@@ -160,6 +187,12 @@ describe("renderToText", () => {
     expect(r.text).toContain("Title");
     expect(r.text).toContain("body");
     expect(r.text).not.toContain("#");
+  });
+
+  it("strips Pandoc heading attributes from text output", () => {
+    const r = renderToText("# Title {-}\n\nbody");
+    expect(r.text).toContain("Title");
+    expect(r.text).not.toContain("{-}");
   });
 
   it("emits sourceToText for the fast path", () => {
