@@ -18,7 +18,10 @@ import {
   BRACKETED_REFERENCE_EXACT_RE,
   parseReferenceClusterBody,
 } from "../core/lib/reference-grammar";
-import { CROSS_REFERENCE_PREFIXES } from "../core/constants/block-manifest";
+import {
+  CROSS_REFERENCE_PREFIXES,
+  getBlockManifestEntry,
+} from "../core/constants/block-manifest";
 import {
   DOCUMENT_SURFACE_CLASS,
   documentSurfaceClassNames,
@@ -136,6 +139,23 @@ function blockClasses(type: string | undefined): string {
     DOCUMENT_SURFACE_CLASS.block,
     type && DOCUMENT_SURFACE_CLASS.blockType(type),
   );
+}
+
+function blockTitle(type: string): string {
+  const entry = getBlockManifestEntry(type);
+  if (entry?.title) return entry.title;
+  return type.charAt(0).toUpperCase() + type.slice(1);
+}
+
+function blockSummary(type: string, title: string | undefined): string {
+  if (!title) return blockTitle(type);
+  if (type === "proof") return `Proof of ${title}`;
+  return `${blockTitle(type)} (${title})`;
+}
+
+function isCollapsibleBlock(type: string): boolean {
+  const entry = getBlockManifestEntry(type);
+  return entry?.latexExportKind === "environment" && entry.displayHeader !== false;
 }
 
 // ---------------------------------------------------------------------------
@@ -1311,11 +1331,15 @@ function renderFencedDiv(ctx: WalkContext, node: SyntaxNode): BlockResult {
   for (const [k, v] of Object.entries(kvs)) {
     attrs += ` data-${escapeHtml(k)}="${escapeHtml(v)}"`;
   }
+  const bodyHtml = blocks.map((b) => b.html).join("");
+  const sourceAttrs = blockSourceAttrs(ctx, node.from, node.to);
+  const title = kvs.title;
+  const html = normalizedClassName && isCollapsibleBlock(normalizedClassName)
+    ? `<details${attrs}${sourceAttrs} open><summary class="cf-doc-block-heading">${escapeHtml(blockSummary(normalizedClassName, title))}</summary>${bodyHtml}</details>`
+    : `<div${attrs}${sourceAttrs}>${bodyHtml}</div>`;
+
   return {
-    html:
-      `<div${attrs}${blockSourceAttrs(ctx, node.from, node.to)}>` +
-      blocks.map((b) => b.html).join("") +
-      `</div>`,
+    html,
     text: blocks.map((b) => b.text).join("\n\n"),
     hasMath: blocks.some((b) => b.hasMath),
   };
@@ -1588,7 +1612,7 @@ function walkDocument(
 // ---------------------------------------------------------------------------
 
 const ALLOWED_TAGS = [
-  "p", "br", "span", "div",
+  "p", "br", "span", "div", "details", "summary",
   "h1", "h2", "h3", "h4", "h5", "h6",
   "ul", "ol", "li",
   "blockquote",
@@ -1601,7 +1625,7 @@ const ALLOWED_TAGS = [
   "input",
 ];
 const ALLOWED_ATTR = [
-  "href", "src", "alt", "title", "class", "id", "start",
+  "href", "src", "alt", "title", "class", "id", "start", "open",
   "type", "checked", "disabled",
   "data-math", "data-lang", "data-checked", "data-align",
   "data-ref-key", "data-ref-mode", "data-source-line",

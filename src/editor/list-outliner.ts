@@ -13,12 +13,14 @@ import {
   foldService,
   syntaxTree,
 } from "@codemirror/language";
+import {
+  deleteMarkupBackward,
+  insertNewlineContinueMarkup,
+} from "@codemirror/lang-markdown";
 import { type Extension, Prec } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
 import type { SyntaxNode } from "@lezer/common";
 import {
-  backspaceAtListItemStart,
-  enterInListItem,
   indentListItem,
   moveListItemDown,
   moveListItemUp,
@@ -26,8 +28,6 @@ import {
 } from "./list-outliner-commands";
 
 export {
-  backspaceAtListItemStart,
-  enterInListItem,
   outdentListItem,
 } from "./list-outliner-commands";
 
@@ -89,11 +89,11 @@ const listOutlinerKeymap = Prec.high(keymap.of([
   },
   {
     key: "Enter",
-    run: enterInListItem,
+    run: insertNewlineContinueMarkup,
   },
   {
     key: "Backspace",
-    run: backspaceAtListItemStart,
+    run: deleteMarkupBackward,
   },
   ...foldKeymap,
 ]));
@@ -101,11 +101,7 @@ const listOutlinerKeymap = Prec.high(keymap.of([
 const listOutlinerDomHandlers: Extension = EditorView.domEventHandlers({
   keydown(event, view) {
     let handled = false;
-    if (event.key === "Enter" && !event.metaKey && !event.ctrlKey && !event.altKey) {
-      handled = enterInListItem(view);
-    } else if (event.key === "Backspace" && !event.metaKey && !event.ctrlKey && !event.altKey) {
-      handled = backspaceAtListItemStart(view);
-    } else if (event.key === "Tab" && event.shiftKey && !event.metaKey && !event.ctrlKey && !event.altKey) {
+    if (event.key === "Tab" && event.shiftKey && !event.metaKey && !event.ctrlKey && !event.altKey) {
       handled = outdentListItem(view);
     }
 

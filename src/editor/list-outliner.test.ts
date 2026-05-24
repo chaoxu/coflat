@@ -1,15 +1,18 @@
 import { describe, expect, it, afterEach } from "vitest";
 import { markdown } from "@codemirror/lang-markdown";
-import type { EditorView } from "@codemirror/view";
+import { type EditorView, runScopeHandlers } from "@codemirror/view";
 
 import {
-  backspaceAtListItemStart,
-  enterInListItem,
+  listOutlinerExtension,
   outdentListItem,
 } from "./list-outliner";
 import { createTestView } from "./test-utils";
 
-describe("backspaceAtListItemStart", () => {
+function runEditorKey(view: EditorView, key: string, init?: KeyboardEventInit): boolean {
+  return runScopeHandlers(view, new KeyboardEvent("keydown", { key, ...init }), "editor");
+}
+
+describe("native markdown list writing", () => {
   let view: EditorView | undefined;
 
   afterEach(() => {
@@ -17,59 +20,29 @@ describe("backspaceAtListItemStart", () => {
     view = undefined;
   });
 
-  it("keeps the previous item's nested children when merging into it", () => {
-    const doc = "- parent\n  - child\n- current";
+  it("continues a bullet item on Enter through CodeMirror's Markdown command", () => {
+    const doc = "- current";
     view = createTestView(doc, {
-      cursorPos: doc.indexOf("current"),
-      extensions: [markdown()],
+      cursorPos: doc.length,
+      extensions: [markdown(), listOutlinerExtension],
     });
 
-    expect(backspaceAtListItemStart(view)).toBe(true);
-    expect(view.state.doc.toString()).toBe("- parentcurrent\n  - child\n");
+    expect(runEditorKey(view, "Enter")).toBe(true);
+    expect(view.state.doc.toString()).toBe("- current\n- ");
   });
 
-  it("preserves the current item's nested children under the merged result", () => {
-    const doc = "- parent\n- current\n  - child";
-    view = createTestView(doc, {
-      cursorPos: doc.indexOf("current"),
-      extensions: [markdown()],
-    });
-
-    expect(backspaceAtListItemStart(view)).toBe(true);
-    expect(view.state.doc.toString()).toBe("- parentcurrent\n  - child");
-  });
-
-  it("removes an empty top-level marker without leaving indent residue", () => {
+  it("exits an empty list item through CodeMirror's two-step tight-list behavior", () => {
     const doc = "- one\n- ";
     view = createTestView(doc, {
       cursorPos: doc.length,
-      extensions: [markdown()],
+      extensions: [markdown(), listOutlinerExtension],
     });
 
-    expect(backspaceAtListItemStart(view)).toBe(true);
-    expect(view.state.doc.toString()).toBe("- one\n");
-    expect(view.state.selection.main.head).toBe("- one\n".length);
-  });
-});
-
-describe("enterInListItem", () => {
-  let view: EditorView | undefined;
-
-  afterEach(() => {
-    view?.destroy();
-    view = undefined;
-  });
-
-  it("exits a list from an empty top-level bullet item", () => {
-    const doc = "- one\n- ";
-    view = createTestView(doc, {
-      cursorPos: doc.length,
-      extensions: [markdown()],
-    });
-
-    expect(enterInListItem(view)).toBe(true);
-    expect(view.state.doc.toString()).toBe("- one\n");
-    expect(view.state.selection.main.head).toBe("- one\n".length);
+    expect(runEditorKey(view, "Enter")).toBe(true);
+    expect(view.state.doc.toString()).toBe("- one\n\n- ");
+    expect(runEditorKey(view, "Enter")).toBe(true);
+    expect(view.state.doc.toString()).toBe("- one\n\n");
+    expect(view.state.selection.main.head).toBe("- one\n\n".length);
   });
 });
 

@@ -8,22 +8,22 @@
   --cf-ui-font: "Lucida Grande", Arial, Helvetica, sans-serif;
   --cf-content-font: KaTeX_Main, "Times New Roman", Times, serif;
   --cf-code-font: Monaco, "DejaVu Sans Mono", Consolas, monospace;
-  --cf-bg: #ffffff;
-  --cf-bg-secondary: #ffffff;
-  --cf-fg: #24292e;
-  --cf-muted: #5c6976;
-  --cf-border: #e8e8e8;
-  --cf-subtle: #f7f7f7;
-  --cf-hover: #e6e6e6;
-  --cf-active: #d8d8d8;
-  --cf-accent: #24292e;
+  --cf-bg: #e8e8e8;
+  --cf-bg-secondary: #e8e8e8;
+  --cf-fg: #0a0a14;
+  --cf-muted: #536878;
+  --cf-border: #c2c2c2;
+  --cf-subtle: #dbdbdb;
+  --cf-hover: #497da5;
+  --cf-active: #89aecb;
+  --cf-accent: #396282;
   --cf-accent-fg: #ffffff;
-  --cf-color-link: #24292e;
-  --cf-color-code-bg: #f7f7f7;
+  --cf-color-link: #396282;
+  --cf-color-code-bg: #dbdbdb;
   --cf-base-font-size: 16px;
   --cf-line-height: 1.4;
   --cf-content-max-width: 75ch;
-  --cf-doc-content-padding-block-start: 16px;
+  --cf-doc-content-padding-block-start: 8px;
   --cf-doc-content-padding-block-end: 40px;
   --cf-doc-content-padding-inline: 16px;
   --cf-doc-paragraph-margin: 0.5rem 0;
@@ -50,11 +50,11 @@
   --cf-h6-size: 0.9rem;
   --cf-h6-weight: 700;
   --cf-h6-style: normal;
-  --cf-block-header-accent: #24292e;
+  --cf-block-header-accent: #0a0a14;
   --cf-block-header-border-width: 0px;
   --cf-block-title-weight: 700;
   --cf-block-title-separator: ".\00a0";
-  --cf-block-margin: 0.85rem 0;
+  --cf-block-margin: 1rem 0;
   --cf-block-theorem-style: italic;
   --cf-block-lemma-style: italic;
   --cf-block-corollary-style: italic;
@@ -70,43 +70,83 @@
 .cf-theme-blueprint-book.cf-reader-shell,
 .cf-theme-blueprint-book .cf-reader-shell {
   display: grid;
-  min-height: 100%;
+  min-height: 100vh;
   grid-template-columns: minmax(0, 1fr);
-  background: var(--cf-bg);
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+  background: #e8e8e8;
+}
+
+.cf-theme-blueprint-book .cf-reader-header {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  min-height: 2.75rem;
+  padding: 0.5rem;
+  color: #ffffff;
+  background: linear-gradient(180deg, #6696bb 0, #396282);
+  text-shadow: 1px 2px 0 rgba(0, 0, 0, 0.8);
+}
+
+.cf-theme-blueprint-book .cf-reader-header-title {
+  margin: 0 auto;
+  color: #ffffff;
+  font-family: var(--cf-ui-font);
+  font-size: 1.5rem;
+  font-weight: 400;
+  line-height: 1.2;
 }
 
 .cf-theme-blueprint-book .cf-reader-document {
   min-width: 0;
+  overflow: auto;
+  padding: 0.5rem 0.5rem 2.5rem;
+  background: #e8e8e8;
 }
 
 .cf-theme-blueprint-book .cf-reader {
-  padding-block: 1rem 2.5rem;
+  padding-block: 0.5rem 2.5rem;
+  background: #e8e8e8;
 }
 
 .cf-theme-blueprint-book .cf-reader-toc {
   display: none;
   overflow: auto;
-  border-right: 1px solid #f2f2f2;
+  border-right: none;
   padding: 0 1rem 1rem 0;
-  background: #ffffff;
+  background: #6696bb;
 }
 
 .cf-theme-blueprint-book .cf-reader-toc a {
-  display: block;
-  padding: 0.45rem 0.5rem 0.45rem 0.8rem;
-  color: #464f59;
+  display: inline-block;
+  max-width: 90%;
+  padding: 0.5rem 0.5rem 0.5rem 0.8rem;
+  color: #ffffff;
+  font-size: 1.125rem;
   text-decoration: none;
+  text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.8);
 }
 
 .cf-theme-blueprint-book .cf-reader-toc a:hover {
-  background: #e6e6e6;
+  background: #497da5;
+}
+
+.cf-theme-blueprint-book .cf-reader-toc a[aria-current="page"],
+.cf-theme-blueprint-book .cf-reader-toc .current > a,
+.cf-theme-blueprint-book .cf-reader-toc a.current {
+  background: #89aecb;
 }
 
 .cf-theme-blueprint-book .cf-reader a {
-  color: inherit;
+  color: #396282;
   text-decoration: underline;
   text-decoration-thickness: 1px;
   text-underline-offset: 2px;
+}
+
+.cf-theme-blueprint-book .cf-reader .cf-doc-heading {
+  color: #0f2f48;
+  font-family: var(--cf-ui-font);
 }
 
 .cf-theme-blueprint-book .cf-reader .cf-doc-heading--h1 {
@@ -148,12 +188,40 @@
   margin: var(--cf-block-margin);
 }
 
+.cf-theme-blueprint-book .cf-reader details.cf-doc-block {
+  display: block;
+}
+
+.cf-theme-blueprint-book .cf-reader .cf-doc-block-heading {
+  color: #0a0a14;
+  cursor: pointer;
+  font-family: var(--cf-content-font);
+  font-style: normal;
+  font-weight: 700;
+  line-height: 1.5;
+  user-select: none;
+}
+
+.cf-theme-blueprint-book .cf-reader .cf-doc-block--proof > .cf-doc-block-heading {
+  line-height: 1.2;
+}
+
+.cf-theme-blueprint-book .cf-reader .cf-doc-block-heading::marker {
+  color: #0a0a14;
+  font-size: 0.8em;
+}
+
 .cf-theme-blueprint-book .cf-reader .cf-doc-block--theorem,
-.cf-theme-blueprint-book .cf-reader .cf-doc-block--proposition,
+.cf-theme-blueprint-book .cf-reader .cf-doc-block--proposition {
+  border-left: 0.15rem solid #0a0a14;
+  padding-left: 1rem;
+  font-style: italic;
+}
+
 .cf-theme-blueprint-book .cf-reader .cf-doc-block--lemma,
 .cf-theme-blueprint-book .cf-reader .cf-doc-block--corollary,
 .cf-theme-blueprint-book .cf-reader .cf-doc-block--conjecture {
-  border-left: 0.12rem solid currentColor;
+  border-left: 0.1rem solid #0a0a14;
   padding-left: 1rem;
   font-style: italic;
 }
@@ -162,6 +230,14 @@
 .cf-theme-blueprint-book .cf-doc-block--proof:not(.cm-line) {
   border-left: 0.08rem solid #808080;
   padding-left: 1rem;
+}
+
+.cf-theme-blueprint-book .cf-reader .cf-doc-block--proof[open]::after {
+  float: right;
+  color: #0a0a14;
+  content: var(--cf-proof-marker);
+  font-size: var(--cf-proof-marker-size, 1.2em);
+  line-height: 1;
 }
 
 .cf-theme-blueprint-book .cf-reader .cf-doc-block--definition,
@@ -178,10 +254,14 @@
   .cf-theme-blueprint-book.cf-reader-shell,
   .cf-theme-blueprint-book .cf-reader-shell {
     grid-template-columns: 25ch minmax(0, 1fr);
-    column-gap: 1rem;
   }
 
   .cf-theme-blueprint-book .cf-reader-toc {
     display: block;
+    max-width: 25ch;
+  }
+
+  .cf-theme-blueprint-book .cf-reader-document {
+    padding: 1rem 0 0;
   }
 }

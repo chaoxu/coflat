@@ -303,6 +303,9 @@ describe("renderToHtml — block-level rendering ()", () => {
 
   it("renders fenced divs with class and data-* attributes", () => {
     const r = renderToHtml("::: {.theorem #thm-1 title=\"Pythagoras\"}\nbody\n:::");
+    expect(r.html).toContain("<details");
+    expect(r.html).toContain('open=""');
+    expect(r.html).toContain('<summary class="cf-doc-block-heading">Theorem (Pythagoras)</summary>');
     expect(r.html).toContain('cf-doc-block--theorem');
     expect(r.html).toContain('id="thm-1"');
     expect(r.html).toContain('data-title="Pythagoras"');
