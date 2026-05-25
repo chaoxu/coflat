@@ -255,7 +255,7 @@ describe("codeBlockDecorationField", () => {
     const nextStructure = nextState.field(codeBlockStructureField);
 
     expect(nextStructure.structureRevision).toBe(initialStructure.structureRevision + 1);
-    expect(nextStructure.blocks[0]?.openFenceMarker).toBe("~~~");
+    expect(nextStructure.blocks).toHaveLength(0);
   });
 
   it("keeps code blocks rendered when cursor is inside the body", () => {
@@ -578,6 +578,13 @@ function createParsedState(doc: string, cursorPos = 0) {
 }
 
 describe("computeCodeBlockDirtyRegion (#723)", () => {
+  it("does not treat an unclosed code fence as a renderable code block", () => {
+    const state = createParsedState("```js\nconst y = 2;", "```js\nconst y = 2;".length);
+
+    expect(collectCodeBlocks(state)).toHaveLength(0);
+    expect(getDecoSpecs(state).some((s) => s.class?.includes(CSS.codeblockHeader))).toBe(false);
+  });
+
   it("covers the full extent of a destroyed code block", () => {
     const doc = "```js\nconsole.log('x')\n```";
     const state = createParsedState(doc);

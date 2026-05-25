@@ -42,6 +42,43 @@ function hasNestedList(node: SyntaxNode): boolean {
   return false;
 }
 
+const emptyListMarkerLineRe = /^(\s*)(?:[-+*]\s+(?:\[[ xX]\]\s+)?|\d+[.)]\s+)$/;
+const listMarkerPrefixRe = /^(\s*)(?:[-+*]\s+(?:\[[ xX]\]\s+)?|\d+[.)]\s+)$/;
+
+function exitEmptyListItem(view: EditorView): boolean {
+  const selection = view.state.selection.main;
+  if (!selection.empty) return false;
+
+  const line = view.state.doc.lineAt(selection.head);
+  if (selection.head !== line.to) return false;
+  if (!emptyListMarkerLineRe.test(line.text)) return false;
+
+  const insert = line.to === view.state.doc.length ? "\n" : "";
+  view.dispatch({
+    changes: { from: line.from, to: line.to, insert },
+    selection: { anchor: line.from + insert.length },
+    scrollIntoView: true,
+  });
+  return true;
+}
+
+function deleteListMarkerBackward(view: EditorView): boolean {
+  const selection = view.state.selection.main;
+  if (!selection.empty) return false;
+
+  const line = view.state.doc.lineAt(selection.head);
+  const beforeCursor = view.state.sliceDoc(line.from, selection.head);
+  if (!listMarkerPrefixRe.test(beforeCursor)) return false;
+  if (selection.head <= line.from) return false;
+
+  view.dispatch({
+    changes: { from: line.from, to: selection.head, insert: "" },
+    selection: { anchor: line.from },
+    scrollIntoView: true,
+  });
+  return true;
+}
+
 const listFoldService = foldService.of((state, lineStart, _lineEnd) => {
   const tree = syntaxTree(state);
   let node = tree.resolveInner(lineStart, 1);
@@ -70,7 +107,7 @@ const listFoldService = foldService.of((state, lineStart, _lineEnd) => {
   return { from: foldFrom, to: foldTo };
 });
 
-const listOutlinerKeymap = Prec.high(keymap.of([
+const listOutlinerKeymap = Prec.highest(keymap.of([
   {
     key: "Tab",
     run: indentListItem,
@@ -89,11 +126,11 @@ const listOutlinerKeymap = Prec.high(keymap.of([
   },
   {
     key: "Enter",
-    run: insertNewlineContinueMarkup,
+    run: (view) => exitEmptyListItem(view) || insertNewlineContinueMarkup(view),
   },
   {
     key: "Backspace",
-    run: deleteMarkupBackward,
+    run: (view) => deleteListMarkerBackward(view) || deleteMarkupBackward(view),
   },
   ...foldKeymap,
 ]));

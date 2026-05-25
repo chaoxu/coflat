@@ -13,6 +13,21 @@ function activateInsertedMathBlock(view: EditorView, anchor: number): void {
   );
 }
 
+function findNextNonBlankLine(
+  view: EditorView,
+  lineNumber: number,
+  text: string,
+) {
+  for (let n = lineNumber + 1; n <= view.state.doc.lines; n += 1) {
+    const line = view.state.doc.line(n);
+    const trimmed = line.text.trim();
+    if (trimmed === "") continue;
+    if (trimmed === text) return line;
+    break;
+  }
+  return null;
+}
+
 export function createPairedMathEntry(
   fenceOperationAnnotation: AnnotationType<true>,
 ) {
@@ -32,12 +47,16 @@ export function createPairedMathEntry(
       const after = state.sliceDoc(from, line.to).trim();
       if (after !== "") return false;
 
-      // Bracket-match skip: don't auto-insert if next non-blank line is $$
-      for (let n = line.number + 1; n <= state.doc.lines; n += 1) {
-        const trimmed = state.doc.line(n).text.trim();
-        if (trimmed === "") continue;
-        if (trimmed === "$$") return false;
-        break;
+      const existingCloseLine = findNextNonBlankLine(view, line.number, "$$");
+      if (existingCloseLine) {
+        const removeTo = line.to < state.doc.length ? line.to + 1 : line.to;
+        const removedLength = removeTo - line.from;
+        view.dispatch({
+          changes: { from: line.from, to: removeTo, insert: "" },
+          selection: { anchor: existingCloseLine.to - removedLength },
+          annotations: fenceOperationAnnotation.of(true),
+        });
+        return true;
       }
 
       // Preserve indentation: keep the leading whitespace on all three lines.
@@ -60,13 +79,8 @@ export function createPairedMathEntry(
       const after = state.sliceDoc(from, line.to).trim();
       if (after !== "") return false;
 
-      // Bracket-match skip: don't auto-insert if next non-blank line is \]
-      for (let n = line.number + 1; n <= state.doc.lines; n += 1) {
-        const trimmed = state.doc.line(n).text.trim();
-        if (trimmed === "") continue;
-        if (trimmed === "\\]") return false;
-        break;
-      }
+      const existingCloseLine = findNextNonBlankLine(view, line.number, "\\]");
+      if (existingCloseLine) return false;
 
       // Preserve indentation: keep the leading whitespace on all three lines.
       const indent = before.slice(0, before.length - beforeTrimmed.length);

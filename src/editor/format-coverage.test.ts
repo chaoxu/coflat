@@ -465,11 +465,12 @@ describe("FORMAT.md coverage: Fenced Divs", () => {
     expect(semantics.fencedDivs[0].title).toBeUndefined();
   });
 
-  it("rejects non-canonical trailing titles on fenced-div openers", () => {
+  it("accepts natural trailing titles on braced fenced-div openers", () => {
     const doc = "::: {.theorem} Main Result\nContent.\n:::";
     const state = createTestState(doc);
     const semantics = state.field(documentAnalysisField);
-    expect(semantics.fencedDivs).toHaveLength(0);
+    expect(semantics.fencedDivs).toHaveLength(1);
+    expect(semantics.fencedDivs[0].title).toBe("Main Result");
   });
 });
 
@@ -742,10 +743,12 @@ describe("FORMAT.md coverage: Removed Features", () => {
     expect(state.field(documentAnalysisField).fencedDivs).toHaveLength(0);
   });
 
-  it("trailing fenced-div titles stay outside canonical semantics", () => {
+  it("natural trailing fenced-div titles are accepted for Blueprint-style blocks", () => {
     const doc = "::: {.theorem} Trailing title\nStatement.\n:::";
     const state = createTestState(doc);
-    expect(state.field(documentAnalysisField).fencedDivs).toHaveLength(0);
+    const divs = state.field(documentAnalysisField).fencedDivs;
+    expect(divs).toHaveLength(1);
+    expect(divs[0].title).toBe("Trailing title");
   });
 
   it("raw LaTeX equation labels are not canonical Coflat equation labels", () => {

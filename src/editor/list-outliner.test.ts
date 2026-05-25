@@ -31,15 +31,39 @@ describe("native markdown list writing", () => {
     expect(view.state.doc.toString()).toBe("- current\n- ");
   });
 
-  it("exits an empty list item through CodeMirror's two-step tight-list behavior", () => {
-    const doc = "- one\n- ";
+  it("exits an empty list item on the second Enter from a normal item", () => {
+    const doc = "- one";
     view = createTestView(doc, {
       cursorPos: doc.length,
       extensions: [markdown(), listOutlinerExtension],
     });
 
     expect(runEditorKey(view, "Enter")).toBe(true);
-    expect(view.state.doc.toString()).toBe("- one\n\n- ");
+    expect(view.state.doc.toString()).toBe("- one\n- ");
+    expect(runEditorKey(view, "Enter")).toBe(true);
+    expect(view.state.doc.toString()).toBe("- one\n\n");
+    expect(view.state.selection.main.head).toBe("- one\n\n".length);
+  });
+
+  it("removes a list marker on Backspace before item text", () => {
+    const doc = "- one\n- two";
+    view = createTestView(doc, {
+      cursorPos: "- one\n- ".length,
+      extensions: [markdown(), listOutlinerExtension],
+    });
+
+    expect(runEditorKey(view, "Backspace")).toBe(true);
+    expect(view.state.doc.toString()).toBe("- one\ntwo");
+    expect(view.state.selection.main.head).toBe("- one\n".length);
+  });
+
+  it("exits an existing empty list item without requiring an extra blank marker", () => {
+    const doc = "- one\n- ";
+    view = createTestView(doc, {
+      cursorPos: doc.length,
+      extensions: [markdown(), listOutlinerExtension],
+    });
+
     expect(runEditorKey(view, "Enter")).toBe(true);
     expect(view.state.doc.toString()).toBe("- one\n\n");
     expect(view.state.selection.main.head).toBe("- one\n\n".length);

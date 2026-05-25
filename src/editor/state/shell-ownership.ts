@@ -49,6 +49,14 @@ function codeShellInfoFromNode(
   const closeLine = state.doc.lineAt(node.to);
   const markerMatch = /^\s*([`~]{3,})/.exec(openLine.text);
   if (!markerMatch) return null;
+  const closeTrimmed = closeLine.text.trim();
+  const closeMarker = markerMatch[1][0];
+  if (
+    closeLine.from === openLine.from ||
+    !new RegExp(`^\\${closeMarker}{${markerMatch[1].length},}\\s*$`).test(closeTrimmed)
+  ) {
+    return null;
+  }
   const codeInfoNode = node.getChild("CodeInfo");
   return {
     from: node.from,
@@ -134,6 +142,7 @@ export function activeCodeBlock(state: EditorState): CodeShellInfo | null {
   const selection = currentSelectionRange(state);
   const block = findCodeShellAt(state, selection.from) ?? findCodeShellAt(state, selection.to);
   if (!block) return null;
+  if (selection.from >= block.closeFenceFrom) return null;
   return containsRange(block, selection) ? block : null;
 }
 

@@ -18,11 +18,19 @@ export const baseThemeStyles = {
   ".cm-content": {
     fontFamily: "var(--cf-content-font, KaTeX_Main, 'Times New Roman', serif)",
     padding: `var(--cf-doc-content-padding-block-start, ${CONTENT_PADDING_Y}) var(--cf-doc-content-padding-inline, ${CONTENT_PADDING_X}) var(--cf-doc-content-padding-block-end, ${CONTENT_PADDING_Y}) var(--cf-doc-content-padding-inline, ${CONTENT_PADDING_X})`,
-    maxWidth: `var(--cf-content-max-width, ${CONTENT_MAX_WIDTH})`,
+    boxSizing: "border-box",
+    width: "100%",
+    maxWidth: `min(var(--cf-content-max-width, ${CONTENT_MAX_WIDTH}), 100%)`,
     marginLeft: "auto",
     marginRight: `max(var(--cf-sidenote-width, ${MARGIN_RIGHT_CALC}), calc((100% - var(--cf-content-max-width, ${CONTENT_MAX_WIDTH})) / 2))`,
     overflow: "visible",
     lineHeight: "var(--cf-line-height)",
+  },
+  "@media (max-width: 720px)": {
+    ".cm-content": {
+      paddingInline: "var(--cf-doc-content-padding-inline-compact, 20px)",
+      marginRight: "auto",
+    },
   },
   ".cm-gutters": {
     display: "none",

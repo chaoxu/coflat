@@ -43,10 +43,11 @@ describe("fenced div parser", () => {
       expect(names).toContain("FencedDivAttributes");
     });
 
-    it("rejects non-canonical trailing title text", () => {
+    it("accepts natural trailing title text", () => {
       const text = "::: {.theorem} My Title\nContent.\n:::";
       const names = nodeNames(text);
-      expect(names).not.toContain("FencedDiv");
+      expect(names).toContain("FencedDiv");
+      expect(names).toContain("FencedDivTitle");
     });
 
     it("does not create FencedDivTitle when no title", () => {
@@ -80,9 +81,9 @@ describe("fenced div parser", () => {
   });
 
   describe("non-canonical trailing titles", () => {
-    it("rejects title text after closing brace", () => {
+    it("accepts title text after a braced attribute block", () => {
       const text = "::: {.theorem} Fundamental Theorem\nContent.\n:::";
-      expect(nodeNames(text)).not.toContain("FencedDiv");
+      expect(nodeNames(text)).toContain("FencedDiv");
     });
 
     it("rejects title text after class shorthand", () => {

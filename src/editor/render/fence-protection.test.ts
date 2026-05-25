@@ -875,6 +875,24 @@ describe("emptyMathBlockBackspaceCleanup ($$)", () => {
     }
   });
 
+  it("treats a typed closing $$ before the auto-inserted delimiter as an exit", () => {
+    const view = createProtectedView("");
+    try {
+      typeThroughInputHandlers(view, "$$");
+      typeThroughInputHandlers(view, "x=1");
+      view.dispatch({
+        changes: { from: view.state.selection.main.head, insert: "\n" },
+        selection: { anchor: view.state.selection.main.head + 1 },
+      });
+      typeThroughInputHandlers(view, "$$");
+
+      expect(view.state.doc.toString()).toBe("$$\nx=1\n$$");
+      expect(view.state.selection.main.head).toBe(view.state.doc.length);
+    } finally {
+      view.destroy();
+    }
+  });
+
   it("activates display-math source editing after paired \\[ entry", () => {
     const view = createProtectedView("");
     try {

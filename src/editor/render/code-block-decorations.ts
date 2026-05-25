@@ -251,10 +251,21 @@ function decorateCodeBlock(
   }
 }
 
+function cursorIsImmediatelyAfterCodeBlock(state: EditorState, block: CodeBlockInfo): boolean {
+  const selection = state.selection.main;
+  if (!selection.empty) return false;
+  const closeLine = state.doc.lineAt(block.closeFenceFrom);
+  if (selection.head === closeLine.to) return true;
+  if (closeLine.to >= state.doc.length) return false;
+  const cursorLine = state.doc.lineAt(selection.head);
+  return cursorLine.number === closeLine.number + 1 && selection.head === cursorLine.from;
+}
+
 /** Build decorations for all fenced code blocks. */
 function buildCodeBlockDecorations(state: EditorState): DecorationSet {
   const activeShellStarts = activeCodeBlockOpenFenceStarts(state);
   return buildFencedBlockDecorations(state, collectCodeBlocks, (context, items) => {
+    if (cursorIsImmediatelyAfterCodeBlock(state, context.block)) return;
     decorateCodeBlock(context, items, activeShellStarts);
   });
 }
@@ -324,6 +335,7 @@ function buildCodeBlockItemsInRange(
   for (const block of collectCodeBlocks(state)) {
     if (block.to < rangeFrom) continue;
     if (block.from > rangeTo) break;
+    if (cursorIsImmediatelyAfterCodeBlock(state, block)) continue;
     decorateCodeBlock(
       getFencedBlockRenderContext(state, block, focused),
       items,

@@ -29,6 +29,13 @@ interface DirtyRange {
 
 const OPEN_CODE_FENCE_RE = /^\s*([`~]{3,})/;
 
+function closesCodeFence(lineText: string, marker: string): boolean {
+  const trimmed = lineText.trim();
+  if (!trimmed.startsWith(marker[0])) return false;
+  const match = new RegExp(`^\\${marker[0]}{${marker.length},}\\s*$`).exec(trimmed);
+  return Boolean(match);
+}
+
 function isValidCodeBlockInfo(
   state: EditorState,
   block: CodeBlockInfo,
@@ -50,6 +57,7 @@ function isValidCodeBlockInfo(
   }
 
   const openLine = state.doc.lineAt(block.openFenceFrom);
+  const closeLine = state.doc.lineAt(block.closeFenceFrom);
   if (
     block.openFenceFrom !== openLine.from
     || block.openFenceTo !== openLine.to
@@ -57,7 +65,9 @@ function isValidCodeBlockInfo(
     return false;
   }
 
-  return OPEN_CODE_FENCE_RE.test(openLine.text);
+  return OPEN_CODE_FENCE_RE.test(openLine.text)
+    && closeLine.from !== openLine.from
+    && closesCodeFence(closeLine.text, block.openFenceMarker);
 }
 
 function sanitizeCodeBlocks(

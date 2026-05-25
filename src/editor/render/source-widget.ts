@@ -294,7 +294,14 @@ export abstract class RenderWidget extends BaseRenderWidget {
       event.preventDefault();
       view.focus();
       const liveRange = resolveLiveWidgetSourceRange(view, el);
-      const targetPos = liveRange?.from ?? this.sourceFrom;
+      let targetPos = liveRange?.from ?? this.sourceFrom;
+      if (liveRange && liveRange.to > liveRange.from + 1) {
+        const rect = el.getBoundingClientRect();
+        if (rect.width > 0) {
+          const ratio = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
+          targetPos = Math.round(liveRange.from + ratio * (liveRange.to - liveRange.from));
+        }
+      }
       if (targetPos >= 0 && activateStructureEditAt(view, targetPos)) {
         return;
       }
