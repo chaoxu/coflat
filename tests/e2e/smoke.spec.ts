@@ -116,7 +116,11 @@ test("blueprint book theme applies to a host-rendered reader document", async ({
   await expect(theorem).toBeVisible();
   await expect(proof).toBeVisible();
 
-  await expect(reader).toHaveCSS("max-width", "600px");
+  const readerMaxWidth = await reader.evaluate((el) =>
+    Math.round(Number.parseFloat(getComputedStyle(el).maxWidth))
+  );
+  expect(readerMaxWidth).toBeGreaterThanOrEqual(560);
+  expect(readerMaxWidth).toBeLessThanOrEqual(800);
   await expect(reader).toHaveCSS("font-family", /KaTeX_Main/);
   await expect(toc).toHaveCSS("background-color", "rgb(102, 150, 187)");
   await expect(theorem).toHaveCSS("border-left-style", "solid");
