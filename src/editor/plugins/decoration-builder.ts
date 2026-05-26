@@ -1,7 +1,10 @@
 import type { EditorState, Range } from "@codemirror/state";
 import { Decoration } from "@codemirror/view";
 import { CSS } from "../../core/constants/css-classes";
-import type { FencedDivInfo } from "../fenced-block/model";
+import {
+  getLastFencedDivContentLine,
+  type FencedDivInfo,
+} from "../fenced-block/model";
 import { pushPluginHiddenDecoration } from "./plugin-render-adapter";
 
 /**
@@ -26,14 +29,8 @@ export class DecorationBuilder {
   }
 
   addQedDecoration(state: EditorState, div: FencedDivInfo): this {
-    if (div.closeFenceFrom < 0) return this;
-
-    const closeLine = state.doc.lineAt(div.closeFenceFrom);
-    if (closeLine.number <= 1) return this;
-
-    const lastContentLine = state.doc.line(closeLine.number - 1);
-    if (lastContentLine.from <= div.openFenceFrom) return this;
-
+    const lastContentLine = getLastFencedDivContentLine(state.doc, div);
+    if (!lastContentLine) return this;
     this.addLine(lastContentLine.from, CSS.blockQed);
     return this;
   }

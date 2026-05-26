@@ -1,10 +1,9 @@
 import type { EditorState } from "@codemirror/state";
 import { type EditorView, WidgetType } from "@codemirror/view";
-import { CSS } from "../../core/constants/css-classes";
 import {
-  DOCUMENT_SURFACE_CLASS,
-  documentSurfaceClassNames,
-} from "../../core/document-surface-classes";
+  CSS,
+  mathSurfaceClassNames,
+} from "../../core/constants/css-classes";
 import { isPlainPrimaryMouseEvent } from "../state/mouse-selection";
 import { documentAnalysisField } from "../state/document-analysis";
 import type { MathSemantics } from "../semantics/document";
@@ -57,7 +56,9 @@ export function renderKatex(
   macros: Record<string, string>,
 ): void {
   const renderRawError = (label: string): void => {
-    element.className = "cf-math-error";
+    element.className = isDisplay
+      ? mathSurfaceClassNames(true, CSS.mathError)
+      : mathSurfaceClassNames(false, CSS.mathError);
     element.setAttribute("role", "alert");
     element.setAttribute("aria-label", label);
     element.textContent = isDisplay ? `$$${latex}$$` : `$${latex}$`;
@@ -145,6 +146,7 @@ export class MathWidget extends LazyMacroAwareWidget {
     private readonly macros: Record<string, string> = {},
     private readonly contentOffset = 0,
     private readonly equationNumber?: number,
+    private readonly hasQedMarker = false,
   ) {
     super(macros);
     this.inlineDomCacheKey = [
@@ -155,12 +157,14 @@ export class MathWidget extends LazyMacroAwareWidget {
       this.raw,
       this.macrosKey,
       this.equationNumber === undefined ? "" : String(this.equationNumber),
+      this.hasQedMarker ? "qed" : "",
     ].join("\u0001");
     this.displayDomCacheKey = [
       this.latex,
       this.raw,
       this.macrosKey,
       this.equationNumber === undefined ? "" : String(this.equationNumber),
+      this.hasQedMarker ? "qed" : "",
     ].join("\u0001");
   }
 
@@ -248,10 +252,7 @@ export class MathWidget extends LazyMacroAwareWidget {
     }
 
     const el = document.createElement("div");
-    el.className = documentSurfaceClassNames(
-      DOCUMENT_SURFACE_CLASS.displayMath,
-      CSS.mathDisplay,
-    );
+    el.className = mathSurfaceClassNames(true, this.hasQedMarker && CSS.blockQed);
     el.setAttribute("role", "img");
     el.setAttribute("aria-label", this.latex);
     const content = document.createElement("div");
@@ -271,7 +272,7 @@ export class MathWidget extends LazyMacroAwareWidget {
     }
 
     const el = document.createElement("span");
-    el.className = CSS.mathInline;
+    el.className = mathSurfaceClassNames(false);
     el.setAttribute("role", "img");
     el.setAttribute("aria-label", this.latex);
     renderKatex(el, this.latex, this.isDisplay, this.macros);
@@ -331,7 +332,8 @@ export class MathWidget extends LazyMacroAwareWidget {
       this.raw === other.raw &&
       this.isDisplay === other.isDisplay &&
       this.macrosKey === other.macrosKey &&
-      this.equationNumber === other.equationNumber
+      this.equationNumber === other.equationNumber &&
+      this.hasQedMarker === other.hasQedMarker
     );
   }
 
@@ -344,8 +346,8 @@ export class MathWidget extends LazyMacroAwareWidget {
     }
 
     dom.className = this.isDisplay
-      ? documentSurfaceClassNames(DOCUMENT_SURFACE_CLASS.displayMath, CSS.mathDisplay)
-      : CSS.mathInline;
+      ? mathSurfaceClassNames(true, this.hasQedMarker && CSS.blockQed)
+      : mathSurfaceClassNames(false);
     dom.setAttribute("role", "img");
     dom.setAttribute("aria-label", this.latex);
 

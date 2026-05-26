@@ -4,6 +4,7 @@ import * as language from "@codemirror/language";
 import type { Decoration } from "@codemirror/view";
 import { EditorView } from "@codemirror/view";
 import { markdown } from "@codemirror/lang-markdown";
+import { markdownExtensions } from "../../core/parser";
 import { documentAnalysisField } from "../state/document-analysis";
 import {
   _computeContainerDirtyRegionForTest,
@@ -15,7 +16,11 @@ import {
 function createState(doc: string): EditorState {
   return EditorState.create({
     doc,
-    extensions: [markdown(), documentAnalysisField, containerAttributesField],
+    extensions: [
+      markdown({ extensions: markdownExtensions }),
+      documentAnalysisField,
+      containerAttributesField,
+    ],
   });
 }
 
@@ -25,7 +30,11 @@ function createView(doc: string): { view: EditorView; parent: HTMLElement } {
   const view = new EditorView({
     state: EditorState.create({
       doc,
-      extensions: [markdown(), documentAnalysisField, containerAttributesPlugin],
+      extensions: [
+        markdown({ extensions: markdownExtensions }),
+        documentAnalysisField,
+        containerAttributesPlugin,
+      ],
     }),
     parent,
   });
@@ -47,6 +56,38 @@ function extractTags(state: EditorState): Array<{ pos: number; tag: string }> {
     iter.next();
   }
   return result;
+}
+
+function extractClasses(state: EditorState): Array<{ pos: number; className: string }> {
+  const decos = state.field(containerAttributesField);
+  const result: Array<{ pos: number; className: string }> = [];
+  const iter = decos.iter();
+  while (iter.value) {
+    const className = (iter.value as Decoration & { spec?: { class?: string } })
+      .spec?.class;
+    if (className) {
+      result.push({ pos: iter.from, className });
+    }
+    iter.next();
+  }
+  return result;
+}
+
+function classNamesByLine(state: EditorState): string[][] {
+  const byLine = new Map<number, Set<string>>();
+  for (const line of extractClasses(state)) {
+    let classes = byLine.get(line.pos);
+    if (!classes) {
+      classes = new Set();
+      byLine.set(line.pos, classes);
+    }
+    for (const className of line.className.split(/\s+/)) {
+      classes.add(className);
+    }
+  }
+  return [...byLine.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([, classes]) => [...classes]);
 }
 
 /** Extract just the tag names in document order. */
@@ -114,17 +155,51 @@ describe("containerAttributesField", () => {
   });
 
   describe("lists", () => {
-    it("tags bullet list lines as p (innermost Paragraph wins over BulletList)", () => {
+    it("tags bullet list lines as paragraph list items", () => {
       const doc = "- item one\n- item two";
-      const tags = extractTagNames(createState(doc));
-      // Lezer produces BulletList > ListItem > Paragraph; depth-first means Paragraph overwrites.
-      expect(tags).toEqual(["p", "p"]);
+      const state = createState(doc);
+      expect(extractTagNames(state)).toEqual(["p", "p"]);
+      const classes = classNamesByLine(state);
+      expect(classes[0]).toEqual(expect.arrayContaining([
+        "cf-doc-paragraph",
+        "cf-doc-list",
+        "cf-doc-list--unordered",
+        "cf-doc-list-item",
+      ]));
+      expect(classes[1]).toEqual(expect.arrayContaining([
+        "cf-doc-paragraph",
+        "cf-doc-list",
+        "cf-doc-list--unordered",
+        "cf-doc-list-item",
+      ]));
     });
 
-    it("tags ordered list lines as p (innermost Paragraph wins over OrderedList)", () => {
+    it("tags ordered list lines as paragraph list items", () => {
       const doc = "1. first\n2. second";
-      const tags = extractTagNames(createState(doc));
-      expect(tags).toEqual(["p", "p"]);
+      const state = createState(doc);
+      expect(extractTagNames(state)).toEqual(["p", "p"]);
+      const classes = classNamesByLine(state);
+      expect(classes[0]).toEqual(expect.arrayContaining([
+        "cf-doc-paragraph",
+        "cf-doc-list",
+        "cf-doc-list--ordered",
+        "cf-doc-list-item",
+      ]));
+      expect(classes[1]).toEqual(expect.arrayContaining([
+        "cf-doc-paragraph",
+        "cf-doc-list",
+        "cf-doc-list--ordered",
+        "cf-doc-list-item",
+      ]));
+    });
+
+    it("tags task list lines with shared task item classes", () => {
+      const doc = "- [x] done";
+      const classes = classNamesByLine(createState(doc));
+      expect(classes[0]).toEqual(expect.arrayContaining([
+        "cf-doc-list--check",
+        "cf-doc-list-item--check",
+      ]));
     });
   });
 

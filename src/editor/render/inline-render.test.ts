@@ -243,6 +243,8 @@ describe("renderInlineMarkdown — inline math", () => {
 
     const span = container.querySelector("span.cf-math-error");
     expect(span).not.toBeNull();
+    expect(span?.classList.contains("cf-doc-inline-math")).toBe(true);
+    expect(span?.classList.contains("cf-math-inline")).toBe(true);
     expect(span?.textContent).toBe("$x_$");
     expect(span?.getAttribute("aria-label")).toContain("KaTeX error");
   });
@@ -442,7 +444,7 @@ describe("renderInlineMarkdown — resolved reference context", () => {
       inlineReferenceContext,
       "table-preview-inline",
     );
-    expect(html).toContain('class="cf-math-inline"');
+    expect(html).toContain('cf-doc-inline-math cf-math-inline');
     expect(html).toContain("katex");
   });
 });

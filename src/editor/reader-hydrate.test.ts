@@ -31,6 +31,7 @@ describe("hydrateMath", () => {
     const placeholder = root.querySelector<HTMLElement>("[data-math]");
     expect(placeholder).not.toBeNull();
     expect(placeholder?.classList.contains("cf-doc-inline-math")).toBe(true);
+    expect(placeholder?.classList.contains("cf-math-inline")).toBe(true);
 
     await hydrateMath(root);
 
@@ -46,9 +47,11 @@ describe("hydrateMath", () => {
     const root = makeRoot(html);
     const placeholder = root.querySelector<HTMLElement>("[data-math]");
     expect(placeholder?.classList.contains("cf-doc-display-math")).toBe(true);
+    expect(placeholder?.classList.contains("cf-math-display")).toBe(true);
 
     await hydrateMath(root);
 
+    expect(placeholder?.querySelector(".cf-math-display-content")).not.toBeNull();
     // KaTeX uses "katex-display" wrapper when displayMode is true.
     expect(placeholder?.innerHTML).toContain("katex-display");
     expect(placeholder?.innerHTML).toContain("katex-mathml");

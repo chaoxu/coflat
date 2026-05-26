@@ -52,6 +52,20 @@ describe("DecorationBuilder", () => {
 
     expect(hasLineClassAt(specs, state.doc.line(2).from, CSS.blockQed)).toBe(true);
   });
+
+  it("skips trailing blank lines when adding a qed marker", () => {
+    const state = EditorState.create({
+      doc: "::: {.proof}\nText\n\n:::",
+    });
+    const div = makeDiv(state, "proof");
+    const items: Range<Decoration>[] = [];
+
+    new DecorationBuilder(items).addQedDecoration(state, div);
+    const specs = collectSpecs(items);
+
+    expect(hasLineClassAt(specs, state.doc.line(2).from, CSS.blockQed)).toBe(true);
+    expect(hasLineClassAt(specs, state.doc.line(3).from, CSS.blockQed)).toBe(false);
+  });
 });
 
 describe("applySpecialBehavior", () => {

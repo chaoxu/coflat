@@ -54,7 +54,7 @@ describe("renderToHtml — sourcePositions emission", () => {
     const src = "the $x^2$ thing";
     const r = renderToHtml(src, undefined, { sourcePositions: true });
     expect(r.html).toMatch(
-      /<span class="cf-doc-inline-math" data-math="[^"]+" data-source-from="4" data-source-to="9">/,
+      /<span class="cf-doc-inline-math cf-math-inline" data-math="[^"]+" data-source-from="4" data-source-to="9">/,
     );
   });
 

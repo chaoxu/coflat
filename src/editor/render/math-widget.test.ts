@@ -12,7 +12,8 @@ describe("MathWidget (inline)", () => {
     const widget = new MathWidget("x^2", "$x^2$", false);
     const el = widget.toDOM();
     expect(el.tagName).toBe("SPAN");
-    expect(el.className).toBe(CSS.mathInline);
+    expect(el.classList.contains(CSS.mathInline)).toBe(true);
+    expect(el.classList.contains("cf-doc-inline-math")).toBe(true);
   });
 
   it("renders KaTeX content inside the span", () => {
@@ -185,7 +186,7 @@ describe("renderKatex", () => {
     const el = document.createElement("span");
     renderKatex(el, "\\R", false, {});
 
-    expect(el.className).toBe("cf-math-error");
+    expect(el.className).toBe("cf-doc-inline-math cf-math-inline cf-math-error");
     expect(el.textContent).toBe("$\\R$");
     expect(el.textContent).not.toContain("Maximum call stack size exceeded");
     expect(el.getAttribute("aria-label")).toContain("Maximum call stack size exceeded");

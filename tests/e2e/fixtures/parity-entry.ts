@@ -1,3 +1,4 @@
+import "katex/dist/katex.min.css";
 import "../../../src/editor/editor-theme.css";
 import { applyThemePreset, mountEditor, themePresets } from "../../../editor";
 import { hydrateMath, renderToHtml } from "../../../reader";
@@ -10,7 +11,7 @@ if (presetKey && presetKey in themePresets) {
 }
 document.body.dataset.surface = params.get("surface") ?? "split";
 
-const source = `# Default Document
+const defaultSource = `# Default Document
 
 This paragraph includes **bold text**, *italic text*, ~~struck text~~,
 ==highlighted text==, \`inline code\`, $x + y$, and a
@@ -51,6 +52,8 @@ Every optimal document theme has a readable column and stable theorem rails.
 The host applies a scoped class, and Coflat surfaces inherit variables from it.
 :::
 `;
+
+const source = window.localStorage.getItem("__coflatParitySource") ?? defaultSource;
 
 const catalog = buildReferenceCatalog(source);
 const context = {

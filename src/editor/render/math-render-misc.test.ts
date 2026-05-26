@@ -17,6 +17,7 @@ import { mathExtension } from "../../core/parser/math-backslash";
 import { equationLabelExtension } from "../../core/parser/equation-label";
 import { renderInlineMarkdown } from "./inline-render";
 import {
+  createFullMarkdownMathView,
   createMathView,
   createMathViewWithLabels,
 } from "./math-render-test-utils";
@@ -48,7 +49,12 @@ describe("error handling", () => {
 
     expect(errorSpy).not.toHaveBeenCalled();
     expect(widgetElement.classList.contains("cf-math-error")).toBe(true);
+    expect(widgetElement.classList.contains("cf-doc-inline-math")).toBe(true);
+    expect(widgetElement.classList.contains("cf-math-inline")).toBe(true);
     expect(inlineContainer.querySelector(".cf-math-error")).not.toBeNull();
+    expect(
+      inlineContainer.querySelector(".cf-doc-inline-math.cf-math-inline.cf-math-error"),
+    ).not.toBeNull();
   });
 
   it("handles deeply nested LaTeX without error", () => {
@@ -86,6 +92,28 @@ describe("performance", () => {
     view = createMathView(blocks, blocks.length);
     const ranges = collectMathRanges(view);
     expect(ranges.length).toBe(50);
+  });
+});
+
+describe("QED display math markers", () => {
+  it("marks display math as QED when a proof ends with display math before blank lines", () => {
+    const view = createFullMarkdownMathView([
+      "::: {.proof}",
+      "$$",
+      "x^2",
+      "$$",
+      "",
+      ":::",
+    ].join("\n"));
+    try {
+      const widget = collectMathRanges(view)
+        .map((range) => range.value.spec.widget)
+        .find((candidate): candidate is MathWidget => candidate instanceof MathWidget);
+
+      expect(widget?.toDOM(view).classList.contains(CSS.blockQed)).toBe(true);
+    } finally {
+      view.destroy();
+    }
   });
 });
 

@@ -7,7 +7,10 @@
 
 import type { SyntaxNode } from "@lezer/common";
 import type { InlineRenderSurface } from "../inline-surface";
-import { CSS } from "../../core/constants/css-classes";
+import {
+  CSS,
+  mathSurfaceClassNames,
+} from "../../core/constants/css-classes";
 import {
   ClusteredCrossrefWidget,
   CrossrefWidget,
@@ -252,11 +255,11 @@ function renderFragment(
 
     case "math": {
       const span = document.createElement("span");
-      span.className = CSS.mathInline;
+      span.className = mathSurfaceClassNames(false);
       span.setAttribute("role", "img");
       span.setAttribute("aria-label", fragment.latex);
       const renderRawError = (label: string): void => {
-        span.className = `${CSS.mathInline} ${CSS.mathError}`;
+        span.className = mathSurfaceClassNames(false, CSS.mathError);
         span.setAttribute("aria-label", label);
         span.textContent = fragment.raw;
       };

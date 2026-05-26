@@ -3,6 +3,16 @@ import { CSS } from "../../core/constants/css-classes";
 import { isSafeUrl } from "../../core/lib/url-utils";
 import { ReferenceWidget, SimpleTextReferenceWidget } from "./render-core";
 
+function hostRefClassName(className: string | undefined): string {
+  const classNames: string[] = [CSS.crossref];
+  for (const token of className?.split(/\s+/) ?? []) {
+    if (token !== "" && !classNames.includes(token)) {
+      classNames.push(token);
+    }
+  }
+  return classNames.join(" ");
+}
+
 /**
  * Widget for a reference whose display text is produced by a host
  * `RefResolver`. The `html` argument is sanitized HTML emitted by the
@@ -10,6 +20,8 @@ import { ReferenceWidget, SimpleTextReferenceWidget } from "./render-core";
  * not in this widget.
  */
 export class HostRefWidget extends ReferenceWidget {
+  private readonly className: string;
+
   constructor(
     private readonly html: string,
     private readonly key: string,
@@ -18,12 +30,12 @@ export class HostRefWidget extends ReferenceWidget {
     className: string | undefined,
     private readonly hasOnClick: boolean,
   ) {
+    const rootClassName = hostRefClassName(className);
     super({
-      className: className
-        ? `${CSS.citation} ${className}`
-        : CSS.citation,
+      className: rootClassName,
       ariaLabel: key,
     });
+    this.className = rootClassName;
   }
 
   createDOM(): HTMLElement {
@@ -49,6 +61,7 @@ export class HostRefWidget extends ReferenceWidget {
       this.key === other.key &&
       this.mode === other.mode &&
       this.href === other.href &&
+      this.className === other.className &&
       this.hasOnClick === other.hasOnClick
     );
   }

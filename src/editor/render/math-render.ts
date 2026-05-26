@@ -46,6 +46,8 @@ import { createChangeChecker } from "../state/change-detection";
 import { programmaticDocumentChangeAnnotation } from "../state/programmatic-document-change";
 import { planSemanticSensitiveUpdate } from "./view-plugin-factories";
 import { measureSync } from "../lib/perf";
+import { getBlockManifestEntry } from "../../core/constants/block-manifest";
+import { getLastFencedDivContentLine } from "../fenced-block/model";
 import {
   collectActiveMathDirtyRanges,
   collectDirtyMathRegions,
@@ -76,6 +78,47 @@ function sameSerializedMacros(
   after: Record<string, string>,
 ): boolean {
   return before === after || serializeMacros(before) === serializeMacros(after);
+}
+
+function buildQedDisplayMathStarts(
+  state: EditorState,
+  analysis: DocumentAnalysis,
+  regions: readonly MathSemantics[],
+): ReadonlySet<number> {
+  const displayMathByLastLineFrom = new Map<number, MathSemantics[]>();
+  let regionFrom = Number.POSITIVE_INFINITY;
+  let regionTo = Number.NEGATIVE_INFINITY;
+  for (const region of regions) {
+    if (!region.isDisplay) continue;
+    regionFrom = Math.min(regionFrom, region.from);
+    regionTo = Math.max(regionTo, region.to);
+    const lastLine = state.doc.lineAt(Math.max(region.from, region.to - 1));
+    const bucket = displayMathByLastLineFrom.get(lastLine.from);
+    if (bucket) {
+      bucket.push(region);
+    } else {
+      displayMathByLastLineFrom.set(lastLine.from, [region]);
+    }
+  }
+  if (displayMathByLastLineFrom.size === 0) return new Set();
+
+  const starts = new Set<number>();
+  for (const div of analysis.fencedDivs) {
+    if (div.closeFenceFrom < 0) continue;
+    if (div.openFenceTo > regionTo || div.closeFenceFrom < regionFrom) continue;
+    const entry = getBlockManifestEntry(div.primaryClass);
+    if (entry?.specialBehavior !== "qed") continue;
+    const lastContentLine = getLastFencedDivContentLine(state.doc, div);
+    if (!lastContentLine) continue;
+    const candidates = displayMathByLastLineFrom.get(lastContentLine.from);
+    const region = candidates?.find((candidate) =>
+      candidate.from >= div.openFenceTo && candidate.to <= div.closeFenceFrom
+    );
+    if (region) {
+      starts.add(region.from);
+    }
+  }
+  return starts;
 }
 
 const mathMacrosChanged = createChangeChecker({
@@ -125,6 +168,7 @@ function buildMathItems(
   const macros = state.field(mathMacrosField);
   const analysis = state.field(documentAnalysisField);
   const equationNumbersByFrom = buildEquationNumbersByFrom(analysis.equationById);
+  const qedDisplayMathStarts = buildQedDisplayMathStarts(state, analysis, regions);
   const items: Range<Decoration>[] = [];
   const disableInlineMathWidgets = isDebugRenderFlagEnabled("disableInlineMathWidgets");
   const disableDisplayMathWidgets = isDebugRenderFlagEnabled("disableDisplayMathWidgets");
@@ -169,6 +213,7 @@ function buildMathItems(
           macros,
           region.contentFrom - region.from,
           getDisplayEquationNumber(region, equationNumbersByFrom),
+          qedDisplayMathStarts.has(region.from),
         );
         widget.sourceFrom = region.from;
         widget.sourceTo = region.to;
@@ -186,6 +231,7 @@ function buildMathItems(
         macros,
         region.contentFrom - region.from,
         getDisplayEquationNumber(region, equationNumbersByFrom),
+        qedDisplayMathStarts.has(region.from),
       );
       pushBlockWidgetDecoration(items, widget, region.from, region.to);
     } else if (!disableInlineMathWidgets) {

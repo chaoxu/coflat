@@ -27,7 +27,10 @@ import {
 import { documentAnalysisField } from "../state/document-analysis";
 import { buildDecorations } from "./decoration-core";
 import { SyntaxParseScheduler } from "./syntax-parse-scheduler";
-import { DOCUMENT_SURFACE_CLASS } from "../../core/document-surface-classes";
+import {
+  DOCUMENT_SURFACE_CLASS,
+  documentSurfaceClassNames,
+} from "../../core/document-surface-classes";
 
 /**
  * Maps Lezer syntax node type names to HTML tag names.
@@ -57,21 +60,56 @@ const TREE_ONLY_TAG_NAME_MAP: Readonly<Record<string, string>> = {
   Paragraph: "p",
 };
 
-const CONTAINER_NODE_TYPES = new Set(Object.keys(TAG_NAME_MAP));
+const CONTAINER_NODE_TYPES = new Set([...Object.keys(TAG_NAME_MAP), "ListItem"]);
 const HEADING_TAGS = ["h1", "h2", "h3", "h4", "h5", "h6"] as const;
 const LINE_CLASS_BY_TAG: Readonly<Record<string, string>> = {
   p: DOCUMENT_SURFACE_CLASS.paragraph,
 };
 
-const LINE_DECORATION_BY_TAG = Object.freeze(Object.fromEntries(
-  [...HEADING_TAGS, "ul", "ol", "code", "hr", "div", "p"].map((tag) => [
-    tag,
-    Decoration.line({
-      attributes: { "data-tag-name": tag },
-      class: LINE_CLASS_BY_TAG[tag],
-    }),
-  ]),
-) as Record<string, Decoration>);
+const LINE_DECORATION_CACHE = new Map<string, Decoration>();
+const LIST_LINE_DECORATION_CACHE = new Map<string, Decoration>();
+
+function lineDecorationFor(tagName: string): Decoration {
+  const classes = documentSurfaceClassNames(LINE_CLASS_BY_TAG[tagName]);
+  const cached = LINE_DECORATION_CACHE.get(tagName);
+  if (cached) return cached;
+  const decoration = Decoration.line({
+    attributes: { "data-tag-name": tagName },
+    class: classes || undefined,
+  });
+  LINE_DECORATION_CACHE.set(tagName, decoration);
+  return decoration;
+}
+
+function listLineDecorationFor(classNames: readonly string[]): Decoration {
+  const classes = documentSurfaceClassNames(...classNames);
+  const cached = LIST_LINE_DECORATION_CACHE.get(classes);
+  if (cached) return cached;
+  const decoration = Decoration.line({ class: classes });
+  LIST_LINE_DECORATION_CACHE.set(classes, decoration);
+  return decoration;
+}
+
+function forEachCoveredLineStart(
+  state: EditorState,
+  from: number,
+  to: number,
+  rangeFrom: number,
+  rangeTo: number,
+  callback: (lineStart: number) => void,
+): void {
+  if (!rangesOverlap({ from, to }, { from: rangeFrom, to: rangeTo })) return;
+
+  let lineStart = state.doc.lineAt(Math.max(from, rangeFrom)).from;
+  const nodeEnd = Math.min(to, rangeTo);
+
+  while (lineStart <= nodeEnd) {
+    callback(lineStart);
+    const line = state.doc.lineAt(lineStart);
+    if (line.to >= nodeEnd) break;
+    lineStart = line.to + 1;
+  }
+}
 
 function assignLineTag(
   lineTagMap: Map<number, string>,
@@ -82,25 +120,48 @@ function assignLineTag(
   rangeFrom: number,
   rangeTo: number,
 ): void {
-  if (!rangesOverlap({ from, to }, { from: rangeFrom, to: rangeTo })) return;
-
-  let lineStart = state.doc.lineAt(Math.max(from, rangeFrom)).from;
-  const nodeEnd = Math.min(to, rangeTo);
-
-  while (lineStart <= nodeEnd) {
+  forEachCoveredLineStart(state, from, to, rangeFrom, rangeTo, (lineStart) => {
     lineTagMap.set(lineStart, tagName);
-    const line = state.doc.lineAt(lineStart);
-    if (line.to >= nodeEnd) break;
-    lineStart = line.to + 1;
-  }
+  });
 }
 
-function collectLineTagsInRange(
+function addListLineDecorations(
+  items: Range<Decoration>[],
+  state: EditorState,
+  from: number,
+  to: number,
+  classNames: readonly string[],
+  rangeFrom: number,
+  rangeTo: number,
+): void {
+  const decoration = listLineDecorationFor(classNames);
+  forEachCoveredLineStart(state, from, to, rangeFrom, rangeTo, (lineStart) => {
+    items.push(decoration.range(lineStart));
+  });
+}
+
+function listItemLineClasses(node: { readonly node: { readonly parent?: { readonly name: string } | null; getChild(name: string): unknown } }): readonly string[] {
+  const ordered = node.node.parent?.name === "OrderedList";
+  const taskNode = node.node.getChild("Task") as { getChild(name: string): unknown } | null;
+  const task = Boolean(taskNode?.getChild("TaskMarker"));
+  return [
+    DOCUMENT_SURFACE_CLASS.list,
+    ordered
+      ? DOCUMENT_SURFACE_CLASS.listOrdered
+      : DOCUMENT_SURFACE_CLASS.listUnordered,
+    task && DOCUMENT_SURFACE_CLASS.listCheck,
+    DOCUMENT_SURFACE_CLASS.listItem,
+    task && DOCUMENT_SURFACE_CLASS.listItemCheck,
+  ].filter(Boolean) as string[];
+}
+
+function collectLineDecorationsInRange(
   state: EditorState,
   rangeFrom: number,
   rangeTo: number,
-): Map<number, string> {
+): Range<Decoration>[] {
   const lineTagMap = new Map<number, string>();
+  const items: Range<Decoration>[] = [];
   const semantics = state.field(documentAnalysisField, false);
   const range = { from: rangeFrom, to: rangeTo };
 
@@ -148,20 +209,36 @@ function collectLineTagsInRange(
     to: rangeTo,
     enter(node) {
       const tagName = treeTagMap[node.type.name];
-      if (!tagName) return;
-      assignLineTag(
-        lineTagMap,
-        state,
-        node.from,
-        node.to,
-        tagName,
-        rangeFrom,
-        rangeTo,
-      );
+      if (tagName) {
+        assignLineTag(
+          lineTagMap,
+          state,
+          node.from,
+          node.to,
+          tagName,
+          rangeFrom,
+          rangeTo,
+        );
+      }
+      if (node.type.name === "ListItem") {
+        addListLineDecorations(
+          items,
+          state,
+          node.from,
+          node.to,
+          listItemLineClasses(node),
+          rangeFrom,
+          rangeTo,
+        );
+      }
     },
   });
 
-  return lineTagMap;
+  for (const [pos, tagName] of [...lineTagMap.entries()].sort((a, b) => a[0] - b[0])) {
+    items.push(lineDecorationFor(tagName).range(pos));
+  }
+
+  return items;
 }
 
 function buildContainerItemsInRange(
@@ -169,17 +246,7 @@ function buildContainerItemsInRange(
   rangeFrom: number,
   rangeTo: number,
 ): Range<Decoration>[] {
-  const lineTagMap = collectLineTagsInRange(state, rangeFrom, rangeTo);
-  const items: Range<Decoration>[] = [];
-  const sortedPositions = [...lineTagMap.keys()].sort((a, b) => a - b);
-
-  for (const pos of sortedPositions) {
-    const tagName = lineTagMap.get(pos);
-    if (!tagName) continue;
-    items.push(LINE_DECORATION_BY_TAG[tagName].range(pos));
-  }
-
-  return items;
+  return collectLineDecorationsInRange(state, rangeFrom, rangeTo);
 }
 
 /**
@@ -359,8 +426,9 @@ function incrementalContainerUpdate(
 }
 
 const containerAttributePendingDirtyRegionField = StateField.define<DirtyRegion | null>({
-  create() {
-    return null;
+  create(state) {
+    if (syntaxTreeAvailable(state, state.doc.length)) return null;
+    return { filterFrom: 0, filterTo: state.doc.length };
   },
 
   update(value, tr) {
@@ -469,6 +537,7 @@ class ContainerAttributeParsePlugin {
 
   constructor(private readonly view: EditorView) {
     this.scheduler = new SyntaxParseScheduler(view);
+    this.schedule();
   }
 
   update(_update: ViewUpdate): void {

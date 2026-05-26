@@ -1,4 +1,4 @@
-import type { ChangeDesc, EditorState } from "@codemirror/state";
+import type { ChangeDesc, EditorState, Text } from "@codemirror/state";
 import type { FencedDivSemantics } from "../semantics/document";
 import { compareRangesByFromThenTo } from "../lib/range-order";
 import { containsPos } from "../lib/range-helpers";
@@ -80,6 +80,25 @@ export function collectFencedDivs(state: EditorState): FencedDivInfo[] {
     }));
   fencedDivInfoCache.set(semantics as object, collected);
   return collected;
+}
+
+export function getLastFencedDivContentLine<T extends Pick<FencedBlockInfo, "openFenceFrom" | "closeFenceFrom">>(
+  doc: Pick<Text, "lineAt" | "sliceString">,
+  div: T,
+): ReturnType<Text["lineAt"]> | null {
+  if (div.closeFenceFrom < 0) return null;
+
+  let line = doc.lineAt(div.closeFenceFrom);
+  while (line.from > div.openFenceFrom) {
+    const previous = doc.lineAt(Math.max(div.openFenceFrom, line.from - 1));
+    if (previous.from <= div.openFenceFrom) return null;
+    if (doc.sliceString(previous.from, previous.to).trim().length > 0) {
+      return previous;
+    }
+    line = previous;
+  }
+
+  return null;
 }
 
 export function collectFencedDivStructureRanges(

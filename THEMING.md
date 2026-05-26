@@ -128,6 +128,24 @@ import { blueprintBookThemeManifest } from "@chaoxu/coflat-editor/reader";
 | `cf-citation` | explicitly formatted citation `<span>` |
 | `cf-crossref-unresolved` | unresolved crossref `<span>` |
 
+## Reader/editor parity contract
+
+Full-document reader output and CM6 rich mode share the same document
+semantics. Themes should style shared `cf-doc-*` classes, shared runtime
+classes such as `cf-math-*`, `cf-crossref-*`, `cf-citation-*`, and the
+`--cf-*` tokens on `cf-theme-scope`. Avoid reader-only or CM6-only overrides
+for prose, lists, tables, math, cross-references, and semantic blocks unless
+the visual difference is intentional.
+
+Math placeholders carry both the document class and runtime class
+(`cf-doc-inline-math cf-math-inline`,
+`cf-doc-display-math cf-math-display`). Display math always contains
+`cf-math-display-content`, so themes can center and size display math once for
+both surfaces. Fenced semantic block references are derived from the block
+manifest prefixes (`thm`, `lem`, `prop`, `conj`, `def`, `prob`, `rem`, `ex`,
+and related figure/table/algorithm prefixes), so new block types should add a
+manifest prefix instead of teaching the reader and editor separately.
+
 ### Data attributes
 
 | Attribute | Where |

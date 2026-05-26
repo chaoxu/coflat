@@ -9,7 +9,8 @@ describe("MathWidget (inline)", () => {
     const widget = new MathWidget("x^2", "$x^2$", false);
     const el = widget.toDOM();
     expect(el.tagName).toBe("SPAN");
-    expect(el.className).toBe(CSS.mathInline);
+    expect(el.classList.contains(CSS.mathInline)).toBe(true);
+    expect(el.classList.contains("cf-doc-inline-math")).toBe(true);
   });
 
   it("renders KaTeX content inside the span", () => {
@@ -138,6 +139,12 @@ describe("MathWidget (display)", () => {
     const widget = new MathWidget("x^2", "$$x^2$$", true);
     const el = widget.toDOM();
     expect(el.classList.contains(CSS.mathDisplayNumbered)).toBe(false);
+  });
+
+  it("can carry the shared QED marker class on display math", () => {
+    const widget = new MathWidget("x^2", "$$x^2$$", true, {}, 0, undefined, true);
+    const el = widget.toDOM();
+    expect(el.classList.contains(CSS.blockQed)).toBe(true);
   });
 
   it("shows error for invalid LaTeX", () => {
