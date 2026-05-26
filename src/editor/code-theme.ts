@@ -7,11 +7,14 @@
  * code lines changes that oracle, wrapped prose far away gets re-estimated and
  * scrolling jumps. Code-block chrome is therefore visual-only here.
  */
+import { monoFont } from "../core/constants/editor-constants";
+
 export const codeThemeStyles = {
   /* Code block: unified container via per-line classes.
      Header = top border + radius, body = side borders, last = bottom border + radius. */
   ".cf-codeblock-header": {
     position: "relative",
+    fontFamily: monoFont,
     backgroundColor: "var(--cf-subtle)",
     boxShadow:
       "inset 0 var(--cf-border-width) 0 var(--cf-border), inset var(--cf-border-width) 0 0 var(--cf-border), inset calc(-1 * var(--cf-border-width)) 0 0 var(--cf-border)",
@@ -27,11 +30,13 @@ export const codeThemeStyles = {
     textTransform: "uppercase",
   },
   ".cf-codeblock-body": {
+    fontFamily: monoFont,
     backgroundColor: "var(--cf-subtle)",
     boxShadow:
       "inset var(--cf-border-width) 0 0 var(--cf-border), inset calc(-1 * var(--cf-border-width)) 0 0 var(--cf-border)",
   },
   ".cf-codeblock-last": {
+    fontFamily: monoFont,
     backgroundColor: "var(--cf-subtle)",
     boxShadow:
       "inset var(--cf-border-width) 0 0 var(--cf-border), inset calc(-1 * var(--cf-border-width)) 0 0 var(--cf-border), inset 0 calc(-1 * var(--cf-border-width)) 0 var(--cf-border)",

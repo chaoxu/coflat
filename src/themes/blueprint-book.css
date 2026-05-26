@@ -149,6 +149,11 @@
   font-family: var(--cf-ui-font);
 }
 
+.cf-theme-blueprint-book .cm-line.cf-doc-heading {
+  color: #0f2f48;
+  font-family: var(--cf-ui-font);
+}
+
 .cf-theme-blueprint-book .cf-reader .cf-doc-heading--h1 {
   font-size: var(--cf-h1-size);
   font-style: var(--cf-h1-style);
@@ -173,9 +178,18 @@
   text-align: center;
 }
 
+.cf-theme-blueprint-book .cm-line.cf-doc-heading--h1 {
+  line-height: 1;
+  text-align: center;
+}
+
 .cf-theme-blueprint-book .cf-reader .cf-doc-heading--h2 {
   line-height: 1.2;
   margin-block: 0.8rem 0.5rem;
+}
+
+.cf-theme-blueprint-book .cm-line.cf-doc-heading--h2 {
+  line-height: 1.2;
 }
 
 .cf-theme-blueprint-book .cf-reader .cf-doc-heading--h3,
@@ -212,7 +226,9 @@
 }
 
 .cf-theme-blueprint-book .cf-reader .cf-doc-block--theorem,
-.cf-theme-blueprint-book .cf-reader .cf-doc-block--proposition {
+.cf-theme-blueprint-book .cf-reader .cf-doc-block--proposition,
+.cf-theme-blueprint-book .cm-line.cf-doc-block--theorem,
+.cf-theme-blueprint-book .cm-line.cf-doc-block--proposition {
   border-left: 0.15rem solid #0a0a14;
   padding-left: 1rem;
   font-style: italic;
@@ -220,14 +236,18 @@
 
 .cf-theme-blueprint-book .cf-reader .cf-doc-block--lemma,
 .cf-theme-blueprint-book .cf-reader .cf-doc-block--corollary,
-.cf-theme-blueprint-book .cf-reader .cf-doc-block--conjecture {
+.cf-theme-blueprint-book .cf-reader .cf-doc-block--conjecture,
+.cf-theme-blueprint-book .cm-line.cf-doc-block--lemma,
+.cf-theme-blueprint-book .cm-line.cf-doc-block--corollary,
+.cf-theme-blueprint-book .cm-line.cf-doc-block--conjecture {
   border-left: 0.1rem solid #0a0a14;
   padding-left: 1rem;
   font-style: italic;
 }
 
 .cf-theme-blueprint-book .cf-reader .cf-doc-block--proof,
-.cf-theme-blueprint-book .cf-doc-block--proof:not(.cm-line) {
+.cf-theme-blueprint-book .cf-doc-block--proof:not(.cm-line),
+.cf-theme-blueprint-book .cm-line.cf-doc-block--proof {
   border-left: 0.08rem solid #808080;
   padding-left: 1rem;
 }
@@ -242,7 +262,10 @@
 
 .cf-theme-blueprint-book .cf-reader .cf-doc-block--definition,
 .cf-theme-blueprint-book .cf-reader .cf-doc-block--example,
-.cf-theme-blueprint-book .cf-reader .cf-doc-block--remark {
+.cf-theme-blueprint-book .cf-reader .cf-doc-block--remark,
+.cf-theme-blueprint-book .cm-line.cf-doc-block--definition,
+.cf-theme-blueprint-book .cm-line.cf-doc-block--example,
+.cf-theme-blueprint-book .cm-line.cf-doc-block--remark {
   font-style: normal;
 }
 

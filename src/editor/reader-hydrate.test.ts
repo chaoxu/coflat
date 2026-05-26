@@ -37,6 +37,7 @@ describe("hydrateMath", () => {
     expect(placeholder?.getAttribute("data-math-hydrated")).toBe("true");
     // KaTeX emits a wrapper with class "katex".
     expect(placeholder?.innerHTML).toContain("katex");
+    expect(placeholder?.innerHTML).not.toContain("katex-mathml");
     expect(placeholder?.classList.contains("cf-math-error")).toBe(false);
   });
 
@@ -50,6 +51,7 @@ describe("hydrateMath", () => {
 
     // KaTeX uses "katex-display" wrapper when displayMode is true.
     expect(placeholder?.innerHTML).toContain("katex-display");
+    expect(placeholder?.innerHTML).toContain("katex-mathml");
     expect(placeholder?.getAttribute("data-math-hydrated")).toBe("true");
   });
 
@@ -97,7 +99,7 @@ describe("hydrateMath", () => {
     expect(placeholder.classList.contains("cf-math-error")).toBe(true);
 
     const root2 = makeRoot(
-      `<p><span class="cf-doc-inline-math" data-math="\\myfoo">$\\myfoo$</span></p>`,
+      `<div class="cf-doc-display-math" data-math="\\myfoo">$$\\myfoo$$</div>`,
     );
     const placeholder2 = requireMathPlaceholder(root2);
     await hydrateMath(root2, { mathMacros: { "\\myfoo": "\\mathbb{R}" } });

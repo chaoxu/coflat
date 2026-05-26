@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>coflat reader/editor parity fixture</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+      }
+
+      .parity-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        min-height: 100vh;
+      }
+
+      .parity-reader,
+      .parity-editor {
+        min-width: 0;
+        min-height: 100vh;
+      }
+
+      body[data-surface="reader"] .parity-layout,
+      body[data-surface="editor"] .parity-layout {
+        display: block;
+        --cf-sidenote-width: 0px;
+      }
+
+      body[data-surface="reader"] .parity-editor,
+      body[data-surface="editor"] .parity-reader {
+        display: none;
+      }
+
+      #editor-root {
+        height: 100vh;
+      }
+
+      @media (max-width: 800px) {
+        .parity-layout {
+          grid-template-columns: minmax(0, 1fr);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="cf-theme-scope parity-layout" data-cf-theme="default">
+      <main class="parity-reader">
+        <div id="reader-root" class="cf-doc-surface cf-doc-flow cf-reader"></div>
+      </main>
+      <main class="parity-editor">
+        <div id="editor-root"></div>
+      </main>
+    </div>
+    <script type="module" src="./parity-entry.ts"></script>
+  </body>
+</html>

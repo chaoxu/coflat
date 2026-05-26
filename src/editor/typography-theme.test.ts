@@ -17,4 +17,18 @@ describe("typographyThemeStyles", () => {
       });
     }
   });
+
+  it("uses reader/editor shared tokens for rendered inline code and links", () => {
+    expect(typographyThemeStyles[".cf-inline-code"]).toMatchObject({
+      backgroundColor: "var(--cf-color-code-bg, var(--cf-hover))",
+      borderRadius: "var(--cf-border-radius)",
+      padding: "0.1em 0.25em",
+    });
+
+    expect(typographyThemeStyles[".cf-link-rendered"]).toMatchObject({
+      color: "var(--cf-color-link, var(--cf-accent))",
+      textDecorationThickness: "1px",
+      textUnderlineOffset: "2px",
+    });
+  });
 });

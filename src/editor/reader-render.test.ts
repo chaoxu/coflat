@@ -85,6 +85,7 @@ describe("renderToHtml — slow path (Lezer)", () => {
   it("renders headings with canonical classes", () => {
     const r = renderToHtml("# Heading\n\nbody");
     expect(r.html).toContain('class="cf-doc-heading cf-doc-heading--h1"');
+    expect(r.html).toContain('data-section-number="1"');
     expect(r.html).toContain(">Heading</h1>");
     expect(r.html).toContain("body");
   });
@@ -105,6 +106,7 @@ describe("renderToHtml — slow path (Lezer)", () => {
   it("strips non-numbering Pandoc heading attributes from visible text", () => {
     const r = renderToHtml("## A target {#sec:a .appendix}");
     expect(r.html).toContain('class="cf-doc-heading cf-doc-heading--h2"');
+    expect(r.html).toContain('data-section-number="0.1"');
     expect(r.html).toContain(">A target</h2>");
     expect(r.html).not.toContain("{#sec:a");
     expect(r.html).not.toContain("cf-doc-heading--unnumbered");
@@ -120,6 +122,7 @@ describe("renderToHtml — slow path (Lezer)", () => {
     const r = renderToHtml("- a\n- b");
     expect(r.html).toContain('<ul class="cf-doc-list cf-doc-list--unordered cf-doc-list--tight');
     expect(r.html).toContain('<li class="cf-doc-list-item');
+    expect(r.html).toContain('<span class="cf-list-bullet">•</span> a');
     expect(r.html).toContain("a");
     expect(r.html).toContain("b");
   });
@@ -238,6 +241,8 @@ describe("renderToHtml — block-level rendering ()", () => {
     const r = renderToHtml("3. three\n4. four");
     expect(r.html).toContain('<ol class="cf-doc-list cf-doc-list--ordered cf-doc-list--tight');
     expect(r.html).toContain('start="3"');
+    expect(r.html).toContain('<span class="cf-list-number">3.</span> three');
+    expect(r.html).toContain('<span class="cf-list-number">4.</span> four');
   });
 
   it("renders task list items with checkbox + data-checked", () => {
@@ -247,8 +252,10 @@ describe("renderToHtml — block-level rendering ()", () => {
     expect(r.html).toContain('data-checked="false"');
     expect(r.html).toContain('data-checked="true"');
     expect(r.html).toContain('type="checkbox"');
-    // disabled attribute may be normalized by DOMPurify but should be present
-    expect(r.html.toLowerCase()).toContain('disabled');
+    expect(r.html).toContain('<span class="cf-list-bullet">•</span> <input');
+    expect(r.html).toContain('tabindex="-1"');
+    expect(r.html).toContain('aria-disabled="true"');
+    expect(r.html.toLowerCase()).not.toContain(" disabled");
   });
 
   it("renders blockquotes", () => {
@@ -305,10 +312,17 @@ describe("renderToHtml — block-level rendering ()", () => {
     const r = renderToHtml("::: {.theorem #thm-1 title=\"Pythagoras\"}\nbody\n:::");
     expect(r.html).toContain("<details");
     expect(r.html).toContain('open=""');
-    expect(r.html).toContain('<summary class="cf-doc-block-heading">Theorem (Pythagoras)</summary>');
+    expect(r.html).toContain('<span class="cf-block-header-rendered">Theorem 1</span>');
+    expect(r.html).toContain('<span class="cf-block-attr-title"><span class="cf-block-title-paren">(</span><span>Pythagoras</span><span class="cf-block-title-paren">)</span></span>');
     expect(r.html).toContain('cf-doc-block--theorem');
     expect(r.html).toContain('id="thm-1"');
     expect(r.html).toContain('data-title="Pythagoras"');
+  });
+
+  it("renders proof headers inline with the first paragraph", () => {
+    const r = renderToHtml("::: {.proof title=\"main theorem\"}\nbody\n:::");
+    expect(r.html).toContain('<div class="cf-doc-block cf-doc-block--proof"');
+    expect(r.html).toContain('<p class="cf-doc-paragraph cf-block-qed"><span class="cf-doc-block-heading"><span class="cf-block-header-rendered">Proof</span></span>body</p>');
   });
 
   it("emits inline math placeholder with canonical class + hasMath flag", () => {

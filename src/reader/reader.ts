@@ -22,6 +22,7 @@ import {
   CROSS_REFERENCE_PREFIXES,
   getBlockManifestEntry,
 } from "../core/constants/block-manifest";
+import { CSS } from "../core/constants/css-classes";
 import {
   DOCUMENT_SURFACE_CLASS,
   documentSurfaceClassNames,
@@ -147,15 +148,91 @@ function blockTitle(type: string): string {
   return type.charAt(0).toUpperCase() + type.slice(1);
 }
 
-function blockSummary(type: string, title: string | undefined): string {
-  if (!title) return blockTitle(type);
-  if (type === "proof") return `Proof of ${title}`;
-  return `${blockTitle(type)} (${title})`;
+function blockCounterGroup(type: string): string | null {
+  const entry = getBlockManifestEntry(type);
+  if (!entry?.numbered) return null;
+  return entry.counterGroup ?? type;
+}
+
+function nextBlockNumber(ctx: WalkContext, type: string): number | undefined {
+  const counterGroup = blockCounterGroup(type);
+  if (!counterGroup) return undefined;
+  const next = (ctx.blockCounters.get(counterGroup) ?? 0) + 1;
+  ctx.blockCounters.set(counterGroup, next);
+  return next;
+}
+
+function nextHeadingNumber(ctx: WalkContext, level: number, unnumbered: boolean): string {
+  if (unnumbered) return "";
+  ctx.headingCounters[level]++;
+  for (let nextLevel = level + 1; nextLevel <= 6; nextLevel++) {
+    ctx.headingCounters[nextLevel] = 0;
+  }
+  return ctx.headingCounters.slice(1, level + 1).join(".");
+}
+
+function renderBlockSummaryHtml(type: string, title: string | undefined, number: number | undefined): string {
+  const header = number === undefined ? blockTitle(type) : `${blockTitle(type)} ${number}`;
+  const escapedHeader = escapeHtml(type === "proof" ? "Proof" : header);
+  if (!title || type === "proof") {
+    return `<span class="cf-block-header-rendered">${escapedHeader}</span>`;
+  }
+  return (
+    `<span class="cf-block-header-rendered">${escapedHeader}</span>` +
+    `<span class="cf-block-attr-title">` +
+    `<span class="cf-block-title-paren">(</span>` +
+    `<span>${escapeHtml(title)}</span>` +
+    `<span class="cf-block-title-paren">)</span>` +
+    `</span>`
+  );
 }
 
 function isCollapsibleBlock(type: string): boolean {
   const entry = getBlockManifestEntry(type);
   return entry?.latexExportKind === "environment" && entry.displayHeader !== false;
+}
+
+function renderProofBlockHtml(attrs: string, sourceAttrs: string, summaryHtml: string, bodyHtml: string): string {
+  const proofParagraphClasses = documentSurfaceClassNames(paragraphClasses, CSS.blockQed);
+  const openParagraph = `<p class="${paragraphClasses}"`;
+  if (!bodyHtml.startsWith(openParagraph)) {
+    return (
+      `<div${attrs}${sourceAttrs}>` +
+      `<p class="${proofParagraphClasses}"><span class="cf-doc-block-heading">${summaryHtml}</span></p>` +
+      bodyHtml +
+      `</div>`
+    );
+  }
+  const openEnd = bodyHtml.indexOf(">");
+  if (openEnd < 0) {
+    return (
+      `<div${attrs}${sourceAttrs}>` +
+      `<p class="${proofParagraphClasses}"><span class="cf-doc-block-heading">${summaryHtml}</span></p>` +
+      bodyHtml +
+      `</div>`
+    );
+  }
+  const closeStart = bodyHtml.indexOf("</p>", openEnd + 1);
+  if (closeStart < 0) {
+    return (
+      `<div${attrs}${sourceAttrs}>` +
+      `<p class="${proofParagraphClasses}"><span class="cf-doc-block-heading">${summaryHtml}</span></p>` +
+      bodyHtml +
+      `</div>`
+    );
+  }
+  const paragraphAttrs = bodyHtml.slice(openParagraph.length, openEnd);
+  const firstInner = bodyHtml.slice(openEnd + 1, closeStart).replace(/^\s+/, "");
+  const rest = bodyHtml.slice(closeStart + "</p>".length);
+  return (
+    `<div${attrs}${sourceAttrs}>` +
+    `<p class="${proofParagraphClasses}"${paragraphAttrs}>` +
+    `<span class="cf-doc-block-heading">${summaryHtml}</span>` +
+    firstInner +
+    `</p>` +
+    rest +
+    `</div>`
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -369,6 +446,8 @@ interface WalkContext {
    *  every block element, inline mark, math placeholder, and plain-text
    *  span (the latter wrapped in `<span class="cf-text">`). */
   sourcePositions: boolean;
+  headingCounters: number[];
+  blockCounters: Map<string, number>;
   // Footnote tracking
   footnotesById: Map<string, FootnoteEntry>;
   footnotesInOrder: FootnoteEntry[];
@@ -457,6 +536,7 @@ function renderInlineNode(
     case "CodeInfo":
     case "EmphasisMark":
     case "StrikethroughMark":
+    case "HighlightMark":
     case "LinkMark":
     case "URL":
     case "LinkTitle":
@@ -964,7 +1044,10 @@ function renderHeading(ctx: WalkContext, node: SyntaxNode, level: number): Block
   if (attrs) contentTo = attrs.contentTo;
 
   const inner = renderInline(ctx, node, contentFrom, contentTo);
-  const numberingAttr = attrs?.unnumbered ? ' data-heading-numbering="none"' : "";
+  const headingNumber = nextHeadingNumber(ctx, level, !!attrs?.unnumbered);
+  const numberingAttr = attrs?.unnumbered
+    ? ' data-heading-numbering="none"'
+    : ` data-section-number="${headingNumber}"`;
   return {
     html: `<h${level} class="${headingClasses(level, attrs?.unnumbered)}"${numberingAttr}${blockSourceAttrs(ctx, node.from, node.to)}>${inner.html}</h${level}>`,
     text: inner.text,
@@ -1013,11 +1096,12 @@ function isPandocHeadingAttributeToken(token: string): boolean {
 
 function renderParagraph(ctx: WalkContext, node: SyntaxNode): BlockResult {
   const inner = renderInline(ctx, node, node.from, node.to);
-  // Trim trailing whitespace/newlines for tidy output.
-  const html = inner.html.replace(/\s+$/, "");
+  // Trim boundary whitespace/newlines for tidy output; interior soft breaks
+  // stay available for CSS to preserve rich-editor visual parity.
+  const html = inner.html.replace(/^\s+/, "").replace(/\s+$/, "");
   return {
     html: `<p class="${paragraphClasses}"${blockSourceAttrs(ctx, node.from, node.to)}>${html}</p>`,
-    text: inner.text.replace(/\s+$/, ""),
+    text: inner.text.replace(/^\s+/, "").replace(/\s+$/, ""),
     hasMath: inner.hasMath,
   };
 }
@@ -1026,6 +1110,8 @@ function renderList(ctx: WalkContext, node: SyntaxNode, ordered: boolean): Block
   const items: BlockResult[] = [];
   let isTaskList = false;
   let isLoose = false;
+  const startNumber = ordered ? orderedListStart(ctx, node) : 1;
+  let itemIndex = 0;
 
   // Detect loose by checking for blank-line gaps between items.
   let prevItem: SyntaxNode | null = null;
@@ -1036,7 +1122,8 @@ function renderList(ctx: WalkContext, node: SyntaxNode, ordered: boolean): Block
         const between = ctx.source.slice(prevItem.to, child.from);
         if (/\n\s*\n/.test(between)) isLoose = true;
       }
-      const item = renderListItem(ctx, child);
+      const item = renderListItem(ctx, child, ordered, startNumber + itemIndex);
+      itemIndex++;
       if (item.html.includes(DOCUMENT_SURFACE_CLASS.listItemCheck)) isTaskList = true;
       items.push(item);
       prevItem = child;
@@ -1047,19 +1134,7 @@ function renderList(ctx: WalkContext, node: SyntaxNode, ordered: boolean): Block
   // Detect start number for ordered lists.
   let startAttr = "";
   if (ordered) {
-    // Find the first list-mark on the first ListItem.
-    const firstItem = node.getChild(NODE.ListItem);
-    if (firstItem) {
-      const mark = firstItem.getChild("ListMark");
-      if (mark) {
-        const markText = ctx.source.slice(mark.from, mark.to);
-        const m = markText.match(/(\d+)/);
-        if (m) {
-          const n = parseInt(m[1], 10);
-          if (!isNaN(n) && n !== 1) startAttr = ` start="${n}"`;
-        }
-      }
-    }
+    if (startNumber !== 1) startAttr = ` start="${startNumber}"`;
   }
 
   const tag = ordered ? "ol" : "ul";
@@ -1073,7 +1148,24 @@ function renderList(ctx: WalkContext, node: SyntaxNode, ordered: boolean): Block
   };
 }
 
-function renderListItem(ctx: WalkContext, node: SyntaxNode): BlockResult {
+function orderedListStart(ctx: WalkContext, node: SyntaxNode): number {
+  const firstItem = node.getChild(NODE.ListItem);
+  if (!firstItem) return 1;
+  const mark = firstItem.getChild("ListMark");
+  if (!mark) return 1;
+  const markText = ctx.source.slice(mark.from, mark.to);
+  const m = markText.match(/(\d+)/);
+  if (!m) return 1;
+  const n = parseInt(m[1], 10);
+  return Number.isNaN(n) ? 1 : n;
+}
+
+function renderListItem(
+  ctx: WalkContext,
+  node: SyntaxNode,
+  ordered: boolean,
+  number: number,
+): BlockResult {
   // Task marker: TaskMarker is the first child of a Task wrapper (which
   // wraps the rest of the item content). Detect by walking one level deep.
   let task: { checked: boolean } | null = null;
@@ -1106,8 +1198,8 @@ function renderListItem(ctx: WalkContext, node: SyntaxNode): BlockResult {
         // Task is an inline-content wrapper; treat its content as paragraph text.
         const inner = renderInline(ctx, child, child.from, child.to);
         blocks.push({
-          html: `<p class="${paragraphClasses}"${blockSourceAttrs(ctx, child.from, child.to)}>${inner.html.replace(/\s+$/, "")}</p>`,
-          text: inner.text.replace(/\s+$/, ""),
+          html: `<p class="${paragraphClasses}"${blockSourceAttrs(ctx, child.from, child.to)}>${inner.html.replace(/^\s+/, "").replace(/\s+$/, "")}</p>`,
+          text: inner.text.replace(/^\s+/, "").replace(/\s+$/, ""),
           hasMath: inner.hasMath,
         });
         child = child.nextSibling;
@@ -1141,12 +1233,15 @@ function renderListItem(ctx: WalkContext, node: SyntaxNode): BlockResult {
   if (task) {
     classes.push(DOCUMENT_SURFACE_CLASS.listItemCheck);
     dataAttrs = ` data-checked="${task.checked}"`;
-    const cb = `<input type="checkbox" disabled${task.checked ? " checked" : ""}> `;
+    const cb = `<input type="checkbox" tabindex="-1" aria-disabled="true"${task.checked ? " checked" : ""}> `;
     inner = cb + inner;
     text = (task.checked ? "[x] " : "[ ] ") + text;
   }
+  const marker = ordered
+    ? `<span class="cf-list-number">${number}.</span> `
+    : `<span class="cf-list-bullet">•</span> `;
   return {
-    html: `<li class="${classes.join(" ")}"${dataAttrs}${blockSourceAttrs(ctx, node.from, node.to)}>${inner}</li>`,
+    html: `<li class="${classes.join(" ")}"${dataAttrs}${blockSourceAttrs(ctx, node.from, node.to)}>${marker}${inner}</li>`,
     text,
     hasMath,
   };
@@ -1334,8 +1429,14 @@ function renderFencedDiv(ctx: WalkContext, node: SyntaxNode): BlockResult {
   const bodyHtml = blocks.map((b) => b.html).join("");
   const sourceAttrs = blockSourceAttrs(ctx, node.from, node.to);
   const title = kvs.title;
-  const html = normalizedClassName && isCollapsibleBlock(normalizedClassName)
-    ? `<details${attrs}${sourceAttrs} open><summary class="cf-doc-block-heading">${escapeHtml(blockSummary(normalizedClassName, title))}</summary>${bodyHtml}</details>`
+  const number = normalizedClassName ? nextBlockNumber(ctx, normalizedClassName) : undefined;
+  const summaryHtml = normalizedClassName
+    ? renderBlockSummaryHtml(normalizedClassName, title, number)
+    : "";
+  const html = normalizedClassName === "proof"
+    ? renderProofBlockHtml(attrs, sourceAttrs, summaryHtml, bodyHtml)
+    : normalizedClassName && isCollapsibleBlock(normalizedClassName)
+    ? `<details${attrs}${sourceAttrs} open><summary class="cf-doc-block-heading">${summaryHtml}</summary>${bodyHtml}</details>`
     : `<div${attrs}${sourceAttrs}>${bodyHtml}</div>`;
 
   return {
@@ -1515,6 +1616,8 @@ function walkDocument(
     resolvers,
     lineOffsets: opts.sourceLineAttribution ? buildLineOffsets(source) : null,
     sourcePositions: !!opts.sourcePositions,
+    headingCounters: [0, 0, 0, 0, 0, 0, 0],
+    blockCounters: new Map(),
     footnotesById: new Map(),
     footnotesInOrder: [],
   };
@@ -1539,6 +1642,8 @@ function walkDocument(
       // Snapshot footnote state so we can roll back if we end up not emitting.
       const fnOrderLen = ctx.footnotesInOrder.length;
       const fnIdSnapshot = new Map(ctx.footnotesById);
+      const headingCounterSnapshot = [...ctx.headingCounters];
+      const blockCounterSnapshot = new Map(ctx.blockCounters);
       const rendered = renderBlock(ctx, child);
       const cost = budgetKind === "lines"
         ? blockLineCost(source, child)
@@ -1547,6 +1652,8 @@ function walkDocument(
         // Roll back footnote side-effects, then stop before this block.
         ctx.footnotesInOrder.length = fnOrderLen;
         ctx.footnotesById = fnIdSnapshot;
+        ctx.headingCounters = headingCounterSnapshot;
+        ctx.blockCounters = blockCounterSnapshot;
         truncated = { sourceFrom: child.from, sourceTo: source.length };
         break;
       }
@@ -1626,7 +1733,7 @@ const ALLOWED_TAGS = [
 ];
 const ALLOWED_ATTR = [
   "href", "src", "alt", "title", "class", "id", "start", "open",
-  "type", "checked", "disabled",
+  "type", "checked", "disabled", "tabindex", "aria-disabled",
   "data-math", "data-lang", "data-checked", "data-align",
   "data-ref-key", "data-ref-mode", "data-source-line",
   "style",
@@ -2016,7 +2123,7 @@ export async function hydrateMath(
       html = katex.renderToString(latex, {
         displayMode: isDisplay,
         throwOnError: true,
-        output: "htmlAndMathml",
+        output: isDisplay ? "htmlAndMathml" : "html",
         ...(macros ? { macros: { ...macros } } : {}),
       });
     } catch (error: unknown) {

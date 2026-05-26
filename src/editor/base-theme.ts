@@ -24,7 +24,7 @@ export const baseThemeStyles = {
     marginLeft: "auto",
     marginRight: `max(var(--cf-sidenote-width, ${MARGIN_RIGHT_CALC}), calc((100% - var(--cf-content-max-width, ${CONTENT_MAX_WIDTH})) / 2))`,
     overflow: "visible",
-    lineHeight: "var(--cf-line-height)",
+    lineHeight: "var(--cf-line-height, 1.5)",
   },
   "@media (max-width: 720px)": {
     ".cm-content": {

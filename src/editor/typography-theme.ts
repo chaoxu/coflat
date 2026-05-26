@@ -138,12 +138,17 @@ export const typographyThemeStyles = {
     fontSize: "0.85em",
     lineHeight: "0",
     verticalAlign: "baseline",
+    backgroundColor: "var(--cf-color-code-bg, var(--cf-hover))",
+    borderRadius: "var(--cf-border-radius)",
+    padding: "0.1em 0.25em",
   },
 
   /* Rendered link styling — shown when cursor is outside the link */
   ".cf-link-rendered": {
-    color: "var(--cf-fg)",
+    color: "var(--cf-color-link, var(--cf-accent))",
     textDecoration: "underline",
+    textDecorationThickness: "1px",
+    textUnderlineOffset: "2px",
     cursor: "pointer",
   },
 

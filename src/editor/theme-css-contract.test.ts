@@ -68,26 +68,103 @@ describe("theme CSS contract", () => {
       "padding: var(--cf-doc-content-padding-block-start, 24px) var(--cf-doc-content-padding-inline, 48px) var(--cf-doc-content-padding-block-end, 24px) var(--cf-doc-content-padding-inline, 48px);",
     );
     expect(cssRuleBody(css, ".cm-content")).toContain("white-space: pre;");
+    expect(cssRuleBody(css, ".cm-line")).toContain("line-height: inherit;");
+    expect(cssRuleBody(css, ".cm-line")).toContain("padding: 0;");
+    expect(cssRuleBody(css, ".cm-editor .cm-line")).toContain("padding: 0;");
+    expect(cssRuleBody(css, '.cm-editor .cm-line:not(.cm-activeLine):not([class*="cf-"]) > br:only-child')).toContain("display: none;");
   });
 
   it("ships full-document reader defaults for host-rendered documents", () => {
     const css = readRepoFile("editor/editor-theme.css");
 
     expect(cssRuleBody(css, ".cf-reader")).toContain("max-width: var(--cf-content-max-width, 800px);");
-    expect(cssRuleBody(css, ".cf-reader")).toContain("counter-reset: cf-reader-h1 cf-reader-h2;");
+    expect(cssRuleBody(css, ".cf-reader")).toContain("counter-reset: cf-reader-h1 cf-reader-h2 cf-reader-h3 cf-reader-h4 cf-reader-h5 cf-reader-h6;");
     expect(cssRuleBody(css, ".cf-reader .cf-doc-heading--h1")).toContain(
       "font-size: var(--cf-h1-size, 1.15em);",
     );
     expect(cssRuleBody(css, ".cf-reader .cf-doc-heading--h2")).toContain(
       "font-style: var(--cf-h2-style, italic);",
     );
-    expect(cssRuleBody(css, ".cf-reader .cf-doc-heading--h1:not(.cf-doc-heading--unnumbered)::before")).toContain(
+    expect(cssRuleBody(css, ".cf-reader .cf-doc-heading--h1:not([data-section-number]):not(.cf-doc-heading--unnumbered)::before")).toContain(
       "counter-increment: cf-reader-h1;",
     );
-    expect(cssRuleBody(css, ".cf-reader .cf-doc-heading--h2:not(.cf-doc-heading--unnumbered)::before")).toContain(
+    expect(cssRuleBody(css, ".cf-reader .cf-doc-heading--h2:not([data-section-number]):not(.cf-doc-heading--unnumbered)::before")).toContain(
       "counter-increment: cf-reader-h2;",
     );
-    expect(cssRuleBody(css, ".cf-reader .cf-doc-list--unordered")).toContain("list-style: disc;");
+    expect(cssRuleBody(css, ".cf-reader .cf-doc-heading--h3:not([data-section-number]):not(.cf-doc-heading--unnumbered)::before")).toContain(
+      "counter-increment: cf-reader-h3;",
+    );
+    expect(cssRuleBody(css, "[data-section-number]::before")).toContain(
+      'content: attr(data-section-number) ".\\2002";',
+    );
+    expect(cssRuleBody(css, ".cf-reader .cf-doc-paragraph")).toContain("white-space: pre-wrap;");
+    expect(cssRuleBody(css, ".cf-reader .cf-doc-list")).toContain("margin: 0;");
+    expect(cssRuleBody(css, ".cf-reader .cf-doc-list")).toContain("padding-left: 0;");
+    expect(cssRuleBody(css, ".cf-reader .cf-doc-list--unordered")).toContain("list-style: none;");
+    expect(cssRuleBody(css, ".cf-reader .cf-doc-list--ordered")).toContain("list-style: none;");
+    expect(cssRuleBody(css, ".cf-reader .cf-doc-list-item")).toContain("display: block;");
+    expect(cssRuleBody(css, ".cf-reader .cf-doc-list-item")).toContain("margin: 0;");
+    expect(cssRuleBody(css, ".cf-list-bullet")).toContain("font-weight: 700;");
+    expect(cssRuleBody(css, ".cf-list-number")).toContain("font-weight: 600;");
+    expect(cssRuleBody(css, ".cf-list-number")).toContain("font-variant-numeric: tabular-nums;");
+    expect(cssRuleBody(css, ".cf-reader .cf-doc-list-item--check input[type=\"checkbox\"]")).toContain("pointer-events: none;");
+    expect(cssRuleBody(css, ".cf-reader .cf-doc-code-block")).toContain("margin: var(--cf-spacing-sm) 0 0;");
+    expect(cssRuleBody(css, ".cf-reader .cf-doc-code-block")).toContain("padding: 0;");
+    expect(cssRuleBody(css, ".cf-reader .cf-doc-code-block")).toContain("border: 0;");
+    expect(cssRuleBody(css, ".cf-reader .cf-doc-code-block")).toContain('font-family: var(--cf-code-font, Monaco, "DejaVu Sans Mono", Consolas, monospace);');
+    expect(cssRuleBody(css, ".cf-reader .cf-doc-code-block")).toContain("line-height: var(--cf-line-height, 1.5);");
+    expect(cssRuleBody(css, ".cf-reader .cf-doc-code-block[data-lang]::before")).toContain("content: attr(data-lang);");
+    expect(cssRuleBody(css, ".cf-reader .cf-doc-code-block code")).toContain("display: block;");
     expect(cssRuleBody(css, ".cf-reader .cf-doc-display-math")).toContain("text-align: center;");
+    expect(cssRuleBody(css, ".cf-reader .cf-doc-table-block")).toContain("margin: var(--cf-spacing-sm) 0;");
+    expect(cssRuleBody(css, ".cf-reader .cf-doc-table-block")).toContain("width: 100%;");
+    expect(cssRuleBody(css, ".cf-reader .cf-doc-table-header")).toContain("background: transparent;");
+    expect(cssRuleBody(css, ".cf-reader .cf-doc-table-header")).toContain("font-weight: 700;");
+    expect(cssRuleBody(css, ".cf-reader .cf-doc-block")).toContain("margin: 0;");
+    expect(cssRuleBody(css, ".cf-reader .cf-doc-block:not(.cm-line)")).toContain("margin: 0;");
+    expect(cssRuleBody(css, ".cf-reader details.cf-doc-block > .cf-doc-block-heading")).toContain("list-style: none;");
+  });
+
+  it("keeps shared inline mark styling available outside CM6", () => {
+    const css = readRepoFile("editor/editor-theme.css");
+
+    expect(cssRuleBody(css, ".cf-highlight")).toContain(
+      "background-color: var(--cf-mark-bg, rgba(255, 255, 0, 0.2));",
+    );
+    expect(cssRuleBody(css, ".cf-inline-code")).toContain(
+      "background: var(--cf-color-code-bg, var(--cf-hover));",
+    );
+    expect(cssRuleBody(css, ".cf-inline-code")).toContain("padding: 0.1em 0.25em;");
+  });
+
+  it("lets the Blueprint theme target reader and CM6 semantic classes", () => {
+    const css = readRepoFile("themes/blueprint-book.css");
+
+    expect(cssRuleBody(css, ".cf-theme-blueprint-book .cm-line.cf-doc-heading")).toContain(
+      "font-family: var(--cf-ui-font);",
+    );
+    expect(cssRuleBody(css, ".cf-theme-blueprint-book .cm-line.cf-doc-heading--h1")).toContain(
+      "text-align: center;",
+    );
+    expect(cssRuleBody(css, ".cf-theme-blueprint-book .cf-reader .cf-doc-block--theorem,\n.cf-theme-blueprint-book .cf-reader .cf-doc-block--proposition,\n.cf-theme-blueprint-book .cm-line.cf-doc-block--theorem,\n.cf-theme-blueprint-book .cm-line.cf-doc-block--proposition")).toContain(
+      "border-left: 0.15rem solid #0a0a14;",
+    );
+    expect(cssRuleBody(css, ".cf-theme-blueprint-book .cf-reader .cf-doc-block--proof,\n.cf-theme-blueprint-book .cf-doc-block--proof:not(.cm-line),\n.cf-theme-blueprint-book .cm-line.cf-doc-block--proof")).toContain(
+      "border-left: 0.08rem solid #808080;",
+    );
+  });
+
+  it("keeps the proof QED marker on the shared line-level class", () => {
+    const css = readRepoFile("editor/editor-theme.css");
+
+    expect(cssRuleBody(css, ".cf-doc-block--proof:not(.cm-line):not(.cf-block-header-collapsed)::after")).toContain(
+      "content: var(--cf-proof-marker);",
+    );
+    expect(cssRuleBody(css, ".cf-reader .cf-doc-block--proof:not(.cm-line)::after")).toContain(
+      "content: none;",
+    );
+    expect(cssRuleBody(css, ".cf-block-qed::after")).toContain(
+      "line-height: 1;",
+    );
   });
 });
