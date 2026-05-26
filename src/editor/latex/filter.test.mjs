@@ -60,7 +60,7 @@ describe("LaTeX filter inline mappings", () => {
     expect(latex).toContain("\\hl{highlighted \\textbf{term}}");
   });
 
-  it.skipIf(!hasPandoc)("renders mixed xref and citation clusters in order", () => {
+  it.skipIf(!hasPandoc)("renders all citation syntax as cross-reference clusters", () => {
     const latex = runPandoc([
       "::: {.theorem #thm:main}",
       "Body",
@@ -69,10 +69,10 @@ describe("LaTeX filter inline mappings", () => {
       "See [@thm:main; @karger2000].",
     ].join("\n"));
 
-    expect(latex).toContain("\\cref{thm:main}; \\cite{karger2000}");
+    expect(latex).toContain("\\cref{thm:main,karger2000}");
   });
 
-  it.skipIf(!hasPandoc)("preserves citation locators in mixed clusters", () => {
+  it.skipIf(!hasPandoc)("does not use locators to classify references as citations", () => {
     const latex = runPandoc([
       "::: {.theorem #thm:main}",
       "Body",
@@ -81,6 +81,6 @@ describe("LaTeX filter inline mappings", () => {
       "See [@thm:main; @karger2000, p. 42].",
     ].join("\n"));
 
-    expect(latex).toContain("\\cref{thm:main}; \\cite[p.~42]{karger2000}");
+    expect(latex).toContain("\\cref{thm:main,karger2000}");
   });
 });

@@ -18,10 +18,7 @@ import {
   BRACKETED_REFERENCE_EXACT_RE,
   parseReferenceClusterBody,
 } from "../core/lib/reference-grammar";
-import {
-  CROSS_REFERENCE_PREFIXES,
-  getBlockManifestEntry,
-} from "../core/constants/block-manifest";
+import { getBlockManifestEntry } from "../core/constants/block-manifest";
 import { CSS } from "../core/constants/css-classes";
 import {
   DOCUMENT_SURFACE_CLASS,
@@ -110,13 +107,6 @@ function escapeHtml(s: string): string {
     }
   }
   return out;
-}
-
-const CROSSREF_PREFIX_SET = new Set(CROSS_REFERENCE_PREFIXES);
-function isCrossrefKey(key: string): boolean {
-  const colon = key.indexOf(":");
-  if (colon <= 0) return false;
-  return CROSSREF_PREFIX_SET.has(key.slice(0, colon));
 }
 
 function headingClasses(level: number, unnumbered = false): string {
@@ -727,7 +717,7 @@ function emitLink(
     const body = clusterMatch[1] ?? "";
     const parts = parseReferenceClusterBody(body);
     if (parts) {
-      return emitCitationCluster(
+      return emitReferenceCluster(
         ctx,
         parts.map((p) => p.id),
         parts.map((p) => p.locator),
@@ -827,15 +817,9 @@ function buildReaderRefResolverEnv(
 }
 
 function hostReferenceClassName(
-  id: string,
-  isCross: boolean,
   resolved: HostReferenceResolution,
 ): string {
-  const classes = ["cf-citation"];
-  if (isCross) {
-    const colon = id.indexOf(":");
-    if (colon > 0) classes.push(`cf-crossref-${id.slice(0, colon)}`);
-  }
+  const classes: string[] = [CSS.crossref];
   if (resolved.className) classes.push(resolved.className);
   return classes.join(" ");
 }
@@ -847,7 +831,7 @@ function renderReaderHostReference(resolved: HostReferenceResolution): string {
   return resolved.content;
 }
 
-function emitCitationCluster(
+function emitReferenceCluster(
   ctx: WalkContext,
   ids: string[],
   locators: (string | undefined)[],
@@ -856,26 +840,11 @@ function emitCitationCluster(
   to: number,
 ): { html: string; text: string; hasMath: boolean } {
   const refResolver = ctx.resolvers.refResolver;
-  const citationFormatter = ctx.resolvers.citationFormatter;
   const parts: string[] = [];
   const textParts: string[] = [];
 
-  if (citationFormatter && ids.every((id) => !isCrossrefKey(id))) {
-    citationFormatter.registerCitations([{ ids, locators }]);
-    const rendered = citationFormatter.cite(ids, locators);
-    const html = `<span class="cf-citation" data-ref-key="${escapeHtml(ids.join(";"))}" data-ref-mode="bracketed">${rendered}</span>`;
-    return {
-      html: ctx.sourcePositions
-        ? `<span class="cf-citation-cluster"${sourcePosAttrs(ctx, from, to)}>${html}</span>`
-        : html,
-      text: stripTags(rendered),
-      hasMath: false,
-    };
-  }
-
   for (let index = 0; index < ids.length; index += 1) {
     const id = ids[index];
-    const isCross = isCrossrefKey(id);
     if (refResolver) {
       const resolved = refResolver.resolve(
         id,
@@ -883,7 +852,7 @@ function emitCitationCluster(
         buildReaderRefResolverEnv(ctx, raw, from, to, ids, locators, index),
       );
       if (resolved) {
-        const cls = hostReferenceClassName(id, isCross, resolved);
+        const cls = hostReferenceClassName(resolved);
         const inner = renderReaderHostReference(resolved);
         parts.push(
           `<span class="${escapeHtml(cls)}" data-ref-key="${escapeHtml(id)}" data-ref-mode="bracketed">${inner}</span>`,
@@ -892,18 +861,11 @@ function emitCitationCluster(
         continue;
       }
     }
-    if (isCross) {
-      const prefix = id.slice(0, id.indexOf(":"));
-      parts.push(
-        `<span class="cf-crossref-unresolved cf-crossref-${escapeHtml(prefix)}" data-ref-key="${escapeHtml(id)}">@${escapeHtml(id)}</span>`,
-      );
-      textParts.push(`@${id}`);
-    } else {
-      parts.push(
-        `<span class="cf-citation cf-citation-unresolved" data-ref-key="${escapeHtml(id)}" data-ref-mode="bracketed">[@${escapeHtml(id)}]</span>`,
-      );
-      textParts.push(`[@${id}]`);
-    }
+    const display = ids.length === 1 ? raw : `@${id}`;
+    parts.push(
+      `<span class="${CSS.crossrefUnresolved}" data-ref-key="${escapeHtml(id)}" data-ref-mode="bracketed">${escapeHtml(display)}</span>`,
+    );
+    textParts.push(display);
   }
 
   const inner = parts.join("");
@@ -1887,9 +1849,8 @@ void ALLOWED_ATTR_RE;
  * - Math nodes emit `<span class="cf-doc-inline-math" data-math="…">`
  *   placeholders preserving the source verbatim. `hydrateMath` hydrates
  *   these with KaTeX.
- * - When `RefResolver` is absent (or it returns null), citations emit
- *   `cf-citation-unresolved` placeholders carrying `data-ref-key`.
- *   Crossrefs emit `cf-crossref-unresolved cf-crossref-{prefix}` similarly.
+ * - When `RefResolver` is absent (or it returns null), references emit
+ *   `cf-crossref-unresolved` placeholders carrying `data-ref-key`.
  *
  * Sanitization: when a DOM window is available (browser or jsdom), HTML
  * is passed through DOMPurify before return. Tag and attribute allowlists

@@ -319,15 +319,15 @@ describe("inline editor citation state wiring (#406)", () => {
   });
 });
 
-describe("inline editor citation widget rendering (#422)", () => {
-  // Regression: #422 — the inline editor showed citations as
-  // <span class="cf-link-rendered"> instead of CitationWidget.
+describe("inline editor reference widget rendering (#422)", () => {
+  // Regression: #422 — the inline editor showed references as
+  // <span class="cf-link-rendered"> instead of a reference widget.
   // The markdownRenderPlugin's Link handler was treating [@id] as
   // a normal link and applying cf-link-rendered styling. The
   // referenceRenderPlugin's Decoration.replace widget was either
   // not produced or conflicting with the Link decoration.
 
-  it("renders [@id] as cf-citation widget, not cf-link-rendered", () => {
+  it("renders [@id] as unresolved crossref widget, not cf-link-rendered", () => {
     const parent = document.createElement("div");
     document.body.appendChild(parent);
 
@@ -342,11 +342,10 @@ describe("inline editor citation widget rendering (#422)", () => {
       onChange: () => {},
     });
 
-    const citationEls = view.dom.querySelectorAll(".cf-citation");
+    const crossrefEls = view.dom.querySelectorAll(".cf-crossref-unresolved");
     const linkRenderedEls = view.dom.querySelectorAll(".cf-link-rendered");
 
-    // Citation should be rendered as a widget, not as a styled link
-    expect(citationEls.length).toBeGreaterThan(0);
+    expect(crossrefEls.length).toBeGreaterThan(0);
     expect(linkRenderedEls.length).toBe(0);
 
     view.destroy();
@@ -414,7 +413,7 @@ describe("inline editor citation widget rendering (#422)", () => {
     parent.remove();
   });
 
-  it("renders clustered citations [@a; @b] as cf-citation widget", () => {
+  it("renders clustered references [@a; @b] as crossref widget", () => {
     const parent = document.createElement("div");
     document.body.appendChild(parent);
 
@@ -429,10 +428,10 @@ describe("inline editor citation widget rendering (#422)", () => {
       onChange: () => {},
     });
 
-    const citationEls = view.dom.querySelectorAll(".cf-citation");
+    const crossrefEls = view.dom.querySelectorAll(".cf-crossref");
     const linkRenderedEls = view.dom.querySelectorAll(".cf-link-rendered");
 
-    expect(citationEls.length).toBeGreaterThan(0);
+    expect(crossrefEls.length).toBeGreaterThan(0);
     expect(linkRenderedEls.length).toBe(0);
 
     view.destroy();

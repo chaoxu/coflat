@@ -4,19 +4,6 @@
 -- companion syntax-manifest.test.ts fails when the TypeScript manifest drifts.
 
 return {
-  xref_prefixes = {
-    sec = true,
-    eq = true,
-    thm = true,
-    lem = true,
-    cor = true,
-    prop = true,
-    def = true,
-    fig = true,
-    tbl = true,
-    alg = true,
-  },
-
   latex_environment_by_block = {
     theorem = "theorem",
     lemma = "lemma",

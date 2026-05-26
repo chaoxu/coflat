@@ -4,7 +4,6 @@ import {
   renderToHtml,
   renderToText,
 } from "../../reader";
-import { createNumericCitationFormatter } from "../../numeric";
 import type { LinkResolver } from "../../reader";
 import type { FileSystem } from "../core/lib/file-system-types";
 import {
@@ -344,28 +343,18 @@ describe("renderToHtml — block-level rendering ()", () => {
     expect(r.html).toContain('data-math="x^2"');
   });
 
-  it("emits cf-citation-unresolved for [@key] with no RefResolver", () => {
+  it("defaults [@key] to an unresolved crossref with no RefResolver", () => {
     const r = renderToHtml("As shown in [@knuth1984], …");
-    expect(r.html).toContain('cf-citation-unresolved');
+    expect(r.html).toContain('cf-crossref-unresolved');
     expect(r.html).toContain('data-ref-key="knuth1984"');
     expect(r.html).toContain('data-ref-mode="bracketed"');
   });
 
-  it("emits cf-crossref-unresolved for [@eq:foo]", () => {
+  it("does not derive crossref classes from id prefixes", () => {
     const r = renderToHtml("see [@eq:euler]");
     expect(r.html).toContain('cf-crossref-unresolved');
-    expect(r.html).toContain('cf-crossref-eq');
+    expect(r.html).not.toContain('cf-crossref-eq');
     expect(r.html).toContain('data-ref-key="eq:euler"');
-  });
-
-  it("uses DocumentContext citationFormatter for bracketed citations", () => {
-    const formatter = createNumericCitationFormatter(["knuth1984", "lamport1994"]);
-    const r = renderToHtml("As shown in [@knuth1984; @lamport1994].", {
-      citationFormatter: formatter,
-    });
-    expect(r.html).toContain('class="cf-citation"');
-    expect(r.html).toContain("[1; 2]");
-    expect(formatter.citationRegistrationKey).toBe("knuth1984,lamport1994");
   });
 
   it("passes resolver metadata and document path while rendering references", () => {

@@ -55,20 +55,17 @@ describe("collectReferenceRanges edge-cases", () => {
     });
   });
 
-  it("keeps citation routing when only the processor is cleared (#770)", () => {
+  it("keeps bibliography ids on the default unresolved crossref route when only the processor is cleared", () => {
     const doc = "See [@karger2000].";
     view = createView(doc, doc.length);
 
-    // Initially the citation renders as a CitationWidget.
     const before = collectReferenceRanges(view, store);
-    const citBefore = before.find(
+    const refBefore = before.find(
       (r) => view.state.sliceDoc(r.from, r.to) === "[@karger2000]",
     );
-    expectPresent(citBefore, "citation range before clearing processor");
-    expect(widgetClass(citBefore)).toBe("CitationWidget");
+    expectPresent(refBefore, "reference range before clearing processor");
+    expect(widgetClass(refBefore)).toBe("UnresolvedRefWidget");
 
-    // Simulate file-switch: keep the old store for routing, only replace
-    // the processor with an empty one so the stale engine can't throw.
     view.dispatch({
       effects: bibDataEffect.of({
         store,
@@ -76,13 +73,11 @@ describe("collectReferenceRanges edge-cases", () => {
       }),
     });
 
-    // Citations should still route as CitationWidget (store.has() works)
-    // with blank rendered text (empty processor returns "").
     const after = collectReferenceRanges(view, store);
-    const citAfter = after.find(
+    const refAfter = after.find(
       (r) => view.state.sliceDoc(r.from, r.to) === "[@karger2000]",
     );
-    expectPresent(citAfter, "citation range after clearing processor");
-    expect(widgetClass(citAfter)).toBe("CitationWidget");
+    expectPresent(refAfter, "reference range after clearing processor");
+    expect(widgetClass(refAfter)).toBe("UnresolvedRefWidget");
   });
 });

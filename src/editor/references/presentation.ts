@@ -38,7 +38,7 @@ import {
 } from "../semantics/reference-catalog";
 import { type BibStore, bibDataField } from "../state/bib-data";
 
-export type CrossrefKind = "block" | "heading" | "equation" | "citation" | "unresolved";
+export type CrossrefKind = "block" | "heading" | "equation" | "unresolved";
 
 export interface ResolvedCrossref {
   readonly kind: CrossrefKind;
@@ -379,15 +379,10 @@ export function resolveCatalogCrossref(
 export function classifyReferenceTarget(
   resolveCrossref: (id: string) => ResolvedCrossref | null,
   id: string,
-  options: Pick<ReferenceClassificationOptions, "bibliography"> = {},
 ): ReferenceClassification {
   const resolved = resolveCrossref(id);
   if (resolved) {
     return { kind: "crossref", resolved };
-  }
-
-  if (options.bibliography?.has(id) ?? false) {
-    return { kind: "citation", id };
   }
 
   return { kind: "unresolved", id };
@@ -417,7 +412,7 @@ export function planReferencePresentation(
         narrative: true,
       };
     }
-    return null;
+    return { kind: "unresolved", raw: input.raw };
   }
 
   const hasCitation = classifications.some((classification) => classification.kind === "citation");
@@ -473,9 +468,7 @@ export function planReferencePresentation(
     };
   });
 
-  return parts.some((part) => !part.unresolved)
-    ? { kind: "clustered-crossref", parts, raw: input.raw }
-    : { kind: "unresolved", raw: input.raw };
+  return { kind: "clustered-crossref", parts, raw: input.raw };
 }
 
 function createReferencePresentationController(
@@ -493,9 +486,7 @@ function createReferencePresentationController(
     resolveHostReference,
 
     classify(id, _preferCitation) {
-      return classifyReferenceTarget(options.resolveCrossref, id, {
-        bibliography: options.bibliography,
-      });
+      return classifyReferenceTarget(options.resolveCrossref, id);
     },
 
     cite(ids, locators) {

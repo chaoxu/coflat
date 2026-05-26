@@ -54,7 +54,7 @@ export function resolveCrossref(
 ): ResolvedCrossref {
   const catalog = getEditorDocumentReferenceCatalog(state);
   return resolveCatalogCrossref(catalog, id, equationLabels)
-    ?? { kind: "citation", label: id };
+    ?? { kind: "unresolved", label: id };
 }
 
 /** A cross-reference occurrence found in the document text. */
@@ -94,6 +94,5 @@ export function classifyReference(
   return classifyReferenceTarget(
     (targetId) => resolveCatalogCrossref(catalog, targetId, options.equationLabels),
     id,
-    { bibliography: options.bibliography },
   );
 }

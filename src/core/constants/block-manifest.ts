@@ -45,8 +45,6 @@ export interface BlockManifestEntry {
   readonly bodyStyle: BodyStyle;
   /** Special rendering behavior, if any. */
   readonly specialBehavior?: SpecialBehavior;
-  /** Conventional cross-reference prefix, without the trailing colon. */
-  readonly referencePrefix?: string;
   /** LaTeX export strategy for this block type. Defaults to "environment". */
   readonly latexExportKind?: LatexExportKind;
   /** LaTeX environment name when latexExportKind is "environment". */
@@ -83,14 +81,14 @@ export interface BlockManifestEntry {
  */
 export const BLOCK_MANIFEST = [
   // Theorem family — shared counter, italic body
-  { name: "theorem",     counterGroup: "theorem",    numbered: true,  bodyStyle: "italic", referencePrefix: "thm",  latexExportKind: "environment", latexEnvironment: "theorem" },
-  { name: "lemma",       counterGroup: "theorem",    numbered: true,  bodyStyle: "italic", referencePrefix: "lem",  latexExportKind: "environment", latexEnvironment: "lemma" },
-  { name: "corollary",   counterGroup: "theorem",    numbered: true,  bodyStyle: "italic", referencePrefix: "cor",  latexExportKind: "environment", latexEnvironment: "corollary" },
-  { name: "proposition", counterGroup: "theorem",    numbered: true,  bodyStyle: "italic", referencePrefix: "prop", latexExportKind: "environment", latexEnvironment: "proposition" },
+  { name: "theorem",     counterGroup: "theorem",    numbered: true,  bodyStyle: "italic", latexExportKind: "environment", latexEnvironment: "theorem" },
+  { name: "lemma",       counterGroup: "theorem",    numbered: true,  bodyStyle: "italic", latexExportKind: "environment", latexEnvironment: "lemma" },
+  { name: "corollary",   counterGroup: "theorem",    numbered: true,  bodyStyle: "italic", latexExportKind: "environment", latexEnvironment: "corollary" },
+  { name: "proposition", counterGroup: "theorem",    numbered: true,  bodyStyle: "italic", latexExportKind: "environment", latexEnvironment: "proposition" },
   { name: "conjecture",  counterGroup: "theorem",    numbered: true,  bodyStyle: "italic", latexExportKind: "environment", latexEnvironment: "conjecture" },
 
   // Definition — own counter, normal body
-  { name: "definition",  counterGroup: "definition", numbered: true,  bodyStyle: "normal", referencePrefix: "def", latexExportKind: "environment", latexEnvironment: "definition" },
+  { name: "definition",  counterGroup: "definition", numbered: true,  bodyStyle: "normal", latexExportKind: "environment", latexEnvironment: "definition" },
 
   // Problem — theorem counter, normal body
   { name: "problem",     counterGroup: "theorem",    numbered: true,  bodyStyle: "normal", latexExportKind: "environment", latexEnvironment: "problem" },
@@ -101,13 +99,13 @@ export const BLOCK_MANIFEST = [
   { name: "example",     counterGroup: undefined,    numbered: false, bodyStyle: "normal", latexExportKind: "environment", latexEnvironment: "example" },
 
   // Algorithm — own counter, normal body
-  { name: "algorithm",   counterGroup: "algorithm",  numbered: true,  bodyStyle: "normal", referencePrefix: "alg", latexExportKind: "algorithm" },
+  { name: "algorithm",   counterGroup: "algorithm",  numbered: true,  bodyStyle: "normal", latexExportKind: "algorithm" },
 
   // Figure — own counter, caption below content
-  { name: "figure",      counterGroup: "figure",     numbered: true,  bodyStyle: "normal", captionPosition: "below", referencePrefix: "fig", latexExportKind: "figure" },
+  { name: "figure",      counterGroup: "figure",     numbered: true,  bodyStyle: "normal", captionPosition: "below", latexExportKind: "figure" },
 
   // Table — own counter, caption below content
-  { name: "table",       counterGroup: "table",      numbered: true,  bodyStyle: "normal", captionPosition: "below", referencePrefix: "tbl", latexExportKind: "table" },
+  { name: "table",       counterGroup: "table",      numbered: true,  bodyStyle: "normal", captionPosition: "below", latexExportKind: "table" },
 
   // Blockquote — unnumbered, special rendering, no header label
   { name: "blockquote",  counterGroup: undefined,    numbered: false, bodyStyle: "normal", specialBehavior: "blockquote", displayHeader: false, latexExportKind: "blockquote", searchIndexed: false },
@@ -201,14 +199,6 @@ export const LATEX_ENVIRONMENT_BY_BLOCK: ReadonlyMap<string, string> = new Map(
     .filter((entry) => entry.latexExportKind === "environment" && entry.latexEnvironment)
     .map((entry) => [entry.name, entry.latexEnvironment ?? entry.name] as const),
 );
-
-export const CROSS_REFERENCE_PREFIXES: readonly string[] = [
-  "sec",
-  "eq",
-  ...BLOCK_MANIFEST_ENTRIES
-    .map((entry) => entry.referencePrefix)
-    .filter((prefix): prefix is string => prefix !== undefined),
-] as const;
 
 /** Shared counter group name for theorem-family blocks. */
 export const THEOREM_COUNTER = "theorem";

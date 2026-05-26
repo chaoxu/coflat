@@ -14,7 +14,6 @@ import { parse as parseYaml, parseDocument as parseYamlDocument, stringify as st
 
 import { extractRawFrontmatter, markdownExtensions } from "./src/core/parser";
 import {
-  CROSS_REFERENCE_PREFIXES,
   getBlockManifestEntry,
   getManifestBlockTitle,
 } from "./src/core/constants/block-manifest";
@@ -39,7 +38,7 @@ export {
   type NumericCitationEntry,
 } from "./src/core/citations/numeric";
 
-export type ReferenceKind = "link" | "image" | "ref" | "crossref";
+export type ReferenceKind = "link" | "image" | "crossref";
 
 export interface ExtractedReference {
   readonly kind: ReferenceKind;
@@ -49,20 +48,11 @@ export interface ExtractedReference {
   readonly to: number;
   /** Present on `link` and `image`: the href as written in source. */
   readonly href?: string;
-  /** Present on `ref` and `crossref`: the key after `@`. */
+  /** Present on `crossref`: the key after `@`. */
   readonly key?: string;
-  /** Present on `ref` only: bracketed `[@key]` vs narrative `@key`. */
-  readonly mode?: "bracketed" | "narrative";
 }
 
-const CROSSREF_PREFIX_SET = new Set(CROSS_REFERENCE_PREFIXES);
 const markdownParser = baseMarkdownParser.configure(markdownExtensions);
-
-function isCrossrefKey(key: string): boolean {
-  const colon = key.indexOf(":");
-  if (colon <= 0) return false;
-  return CROSSREF_PREFIX_SET.has(key.slice(0, colon));
-}
 
 function getUrlChild(node: SyntaxNodeRef): { from: number; to: number } | null {
   const url = node.node.getChild("URL");
@@ -91,14 +81,12 @@ function emitLinkOrRef(
         const from = node.from + 1 + part.markerFrom;
         const to = node.from + 1 + part.markerTo;
         const key = part.id;
-        const isCross = isCrossrefKey(key);
         out.push({
-          kind: isCross ? "crossref" : "ref",
+          kind: "crossref",
           raw: source.slice(from, to),
           from,
           to,
           key,
-          ...(isCross ? {} : { mode: "bracketed" as const }),
         });
       }
       return;
@@ -181,14 +169,12 @@ function collectNarrativeRefs(
     const id = match[1] ?? "";
     if (!id) continue;
     const to = from + 1 + id.length;
-    const isCross = isCrossrefKey(id);
     out.push({
-      kind: isCross ? "crossref" : "ref",
+      kind: "crossref",
       raw: source.slice(from, to),
       from,
       to,
       key: id,
-      ...(isCross ? {} : { mode: "narrative" as const }),
     });
   }
 }

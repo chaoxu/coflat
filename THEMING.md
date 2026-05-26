@@ -125,10 +125,8 @@ import { blueprintBookThemeManifest } from "@chaoxu/coflat-editor/reader";
 | `cf-footnote-ref` | `<sup>` wrapping the ref `<a>` |
 | `cf-footnote-backref` | `<a>` linking back from the definition |
 | `cf-doc-inline-math` | inline math placeholder |
-| `cf-citation` | resolved citation `<span>` (when `RefResolver` returns a value) |
-| `cf-citation-unresolved` | unresolved citation `<span>` (no resolver / null) |
+| `cf-citation` | explicitly formatted citation `<span>` |
 | `cf-crossref-unresolved` | unresolved crossref `<span>` |
-| `cf-crossref-{prefix}` | e.g. `cf-crossref-eq`, `cf-crossref-sec`, `cf-crossref-thm` |
 
 ### Data attributes
 

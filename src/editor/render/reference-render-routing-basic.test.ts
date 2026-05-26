@@ -51,7 +51,7 @@ describe("collectReferenceRanges", () => {
     expect(widgetClass(ref)).toBe("CrossrefWidget");
   });
 
-  it("routes bracketed citation to CitationWidget", () => {
+  it("defaults bracketed bibliography ids to UnresolvedRefWidget", () => {
     const doc = "See [@karger2000] for details.";
     view = createView(doc, doc.length);
     const ranges = collectReferenceRanges(view, store);
@@ -60,7 +60,7 @@ describe("collectReferenceRanges", () => {
       (r) => view.state.sliceDoc(r.from, r.to) === "[@karger2000]",
     );
     expectPresent(ref, "reference range");
-    expect(widgetClass(ref)).toBe("CitationWidget");
+    expect(widgetClass(ref)).toBe("UnresolvedRefWidget");
   });
 
   it("reveals reference source when the focused cursor touches it", () => {
@@ -101,7 +101,7 @@ describe("collectReferenceRanges", () => {
 
     const ref = ranges.find((r) => r.from === refStart);
     expectPresent(ref, "reference range");
-    expect(widgetClass(ref)).toBe("CitationWidget");
+    expect(widgetClass(ref)).toBe("UnresolvedRefWidget");
   });
 
   it("routes unknown bracketed id to UnresolvedRefWidget", () => {
@@ -181,7 +181,7 @@ describe("collectReferenceRanges", () => {
     expect(widgetClass(ref)).toBe("CrossrefWidget");
   });
 
-  it("routes narrative @id to CitationWidget for bib entries", () => {
+  it("defaults narrative bibliography ids to UnresolvedRefWidget", () => {
     const doc = "As @karger2000 showed.";
     view = createView(doc, doc.length);
     const ranges = collectReferenceRanges(view, store);
@@ -190,7 +190,7 @@ describe("collectReferenceRanges", () => {
       (r) => view.state.sliceDoc(r.from, r.to) === "@karger2000",
     );
     expectPresent(ref, "reference range");
-    expect(widgetClass(ref)).toBe("CitationWidget");
+    expect(widgetClass(ref)).toBe("UnresolvedRefWidget");
   });
 
   it("returns empty array for document with no references", () => {
@@ -205,7 +205,7 @@ describe("collectReferenceRanges", () => {
     expect(ranges).toHaveLength(0);
   });
 
-  it("routes multi-citation bracket to CitationWidget", () => {
+  it("defaults multi-id bibliography clusters to ClusteredCrossrefWidget", () => {
     const doc = "See [@karger2000; @stein2001].";
     view = createView(doc, doc.length);
     const ranges = collectReferenceRanges(view, store);
@@ -214,7 +214,7 @@ describe("collectReferenceRanges", () => {
       (r) => view.state.sliceDoc(r.from, r.to) === "[@karger2000; @stein2001]",
     );
     expectPresent(ref, "reference range");
-    expect(widgetClass(ref)).toBe("CitationWidget");
+    expect(widgetClass(ref)).toBe("ClusteredCrossrefWidget");
   });
 
   // Regression: clustered equation references ([@eq:a; @eq:b]) where all ids

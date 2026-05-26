@@ -33,20 +33,17 @@ import {
 } from "../state/cm-structure-edit";
 import {
   applyStateEffects,
-  CSL_FIXTURES,
   createEditorState,
   getDecorationSpecs,
   hasBlockReplacementClassAt,
   hasLineClassAt,
   hasMarkClassInRange,
-  makeBibStore,
   makeBlockPlugin,
 } from "../test-utils";
 import { CSS } from "../../core/constants/css-classes";
 import { defaultPlugins } from "../plugins/default-plugins";
 import { withCm6BlockPlugin } from "../state/cm6-block-plugin";
-import { bibDataEffect, bibDataField } from "../state/bib-data";
-import { CslProcessor } from "../citations/csl-processor";
+import { bibDataField } from "../state/bib-data";
 
 /** Create an EditorState with all extensions needed for block decorations. */
 function createTestState(doc: string, cursorPos = 0, focused = false) {
@@ -508,24 +505,17 @@ describe("blockDecorationField", () => {
     expect(widget.toDOM().querySelector(".katex")).not.toBeNull();
   });
 
-  it("renders citations inside attribute-only titles with the editor reference context", () => {
+  it("renders references inside attribute-only titles with the editor reference context", () => {
     const doc = `::: {.theorem title="From [@karger2000]"}\nContent\n:::`;
-    const state = applyStateEffects(
-      createTestState(doc),
-      bibDataEffect.of({
-        store: makeBibStore([CSL_FIXTURES.karger]),
-        formatter: new CslProcessor([CSL_FIXTURES.karger]),
-        status: { state: "ok", bibPath: "refs.bib" },
-      }),
-    );
+    const state = createTestState(doc);
     const widget = getWidgetFromDecorations<{ toDOM: (view?: { state: EditorState }) => HTMLElement }>(
       state,
       "AttributeTitleWidget",
     );
 
     const dom = widget.toDOM({ state });
-    expect(dom.querySelector(`.${CSS.citation}`)).not.toBeNull();
-    expect(dom.textContent).not.toContain("karger2000");
+    expect(dom.querySelector(".cf-crossref-unresolved")).not.toBeNull();
+    expect(dom.textContent).toContain("[@karger2000]");
   });
 
   it("attribute-only title widget is hidden only during explicit structure edit", () => {

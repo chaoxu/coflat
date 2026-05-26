@@ -174,7 +174,7 @@ function makeInput(
 }
 
 describe("reference presentation controller", () => {
-  it("uses one classification policy for local targets and citations", () => {
+  it("classifies local targets and leaves unmatched ids unresolved", () => {
     const controller = createCatalogReferencePresentationController(catalog, {
       bibliography: makeBibStore([CSL_FIXTURES.karger]),
       cite: (ids) => `[${ids.join(", ")}]`,
@@ -185,14 +185,8 @@ describe("reference presentation controller", () => {
       kind: "crossref",
       resolved: { kind: "block", label: "Theorem 1" },
     });
-    expect(controller.classify("karger2000", true)).toEqual({
-      kind: "citation",
-      id: "karger2000",
-    });
-    expect(controller.classify("missing", true)).toEqual({
-      kind: "unresolved",
-      id: "missing",
-    });
+    expect(controller.classify("karger2000", true)).toEqual({ kind: "unresolved", id: "karger2000" });
+    expect(controller.classify("missing", true)).toEqual({ kind: "unresolved", id: "missing" });
   });
 
   it("routes mixed and clustered references from the shared presentation plan", () => {
@@ -205,10 +199,10 @@ describe("reference presentation controller", () => {
     expect(controller.planReference(
       makeInput(["eq-main", "karger2000"], "[@eq-main; @karger2000]"),
     )).toMatchObject({
-      kind: "mixed-cluster",
+      kind: "clustered-crossref",
       parts: [
-        { kind: "crossref", id: "eq-main", text: "Eq. (1)" },
-        { kind: "citation", id: "karger2000", text: "karger2000" },
+        { id: "eq-main", text: "Eq. (1)" },
+        { id: "karger2000", text: "karger2000", unresolved: true },
       ],
     });
 

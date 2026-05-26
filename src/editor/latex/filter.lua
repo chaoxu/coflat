@@ -2,8 +2,7 @@
 --
 -- Responsibilities:
 --   * YAML "math:" frontmatter -> \newcommand in header-includes.
---   * [@thm:foo], [@sec:foo], etc. -> \cref; bare-id refs to known labels
---     likewise; anything else -> \cite.
+--   * Pandoc citations are Coflat references and export as \cref.
 --   * Manifest-backed fenced-div blocks
 --     divs -> matching LaTeX environments.
 --   * Multi-image figure divs -> subfigure wrappers.
@@ -21,15 +20,6 @@ local function script_dir()
 end
 
 local syntax = dofile(script_dir() .. "syntax-manifest.lua")
-local xref_prefixes = syntax.xref_prefixes
-
-local known_labels = {}
-
-local function is_xref_id(id)
-  local prefix = id:match("^([%w%-]+):")
-  if prefix and xref_prefixes[prefix] then return true end
-  return known_labels[id] == true
-end
 
 local function first_latex_class(classes)
   for _, c in ipairs(classes) do
@@ -78,10 +68,6 @@ end
 local function inlines_to_latex(inlines)
   if not inlines or #inlines == 0 then return "" end
   return pandoc.write(pandoc.Pandoc({ pandoc.Plain(inlines) }), "latex")
-end
-
-local function trim(s)
-  return (s:gsub("^%s+", ""):gsub("%s+$", ""))
 end
 
 local function handle_figure(el)
@@ -249,69 +235,9 @@ local function transform_div(el)
 end
 
 local function transform_cite(el)
-  local segments = {}
-
-  local function append_segment(kind, citation)
-    local last = segments[#segments]
-    if last and last.kind == kind then
-      table.insert(last.citations, citation)
-    else
-      table.insert(segments, { kind = kind, citations = { citation } })
-    end
-  end
-
-  for _, c in ipairs(el.citations) do
-    if is_xref_id(c.id) then append_segment("xref", c)
-    else                     append_segment("bib", c) end
-  end
-
-  local function citation_note(citation)
-    local parts = {}
-    local prefix = trim(inlines_to_latex(citation.prefix))
-    local suffix = trim(inlines_to_latex(citation.suffix)):gsub("^,%s*", "")
-    if prefix ~= "" then table.insert(parts, prefix) end
-    if suffix ~= "" then table.insert(parts, suffix) end
-    return table.concat(parts, " ")
-  end
-
-  local function render_bib_segment(citations)
-    local has_note = false
-    for _, citation in ipairs(citations) do
-      if citation_note(citation) ~= "" then
-        has_note = true
-        break
-      end
-    end
-    if not has_note then
-      local ids = {}
-      for _, citation in ipairs(citations) do table.insert(ids, citation.id) end
-      return "\\cite{" .. table.concat(ids, ",") .. "}"
-    end
-
-    local cites = {}
-    for _, citation in ipairs(citations) do
-      local note = citation_note(citation)
-      if note ~= "" then
-        table.insert(cites, "\\cite[" .. note .. "]{" .. citation.id .. "}")
-      else
-        table.insert(cites, "\\cite{" .. citation.id .. "}")
-      end
-    end
-    return table.concat(cites, "; ")
-  end
-
-  local pieces = {}
-  for _, segment in ipairs(segments) do
-    if segment.kind == "xref" then
-      local ids = {}
-      for _, citation in ipairs(segment.citations) do table.insert(ids, citation.id) end
-      table.insert(pieces, "\\cref{" .. table.concat(ids, ",") .. "}")
-    else
-      table.insert(pieces, render_bib_segment(segment.citations))
-    end
-  end
-
-  return pandoc.RawInline("latex", table.concat(pieces, "; "))
+  local ids = {}
+  for _, citation in ipairs(el.citations) do table.insert(ids, citation.id) end
+  return pandoc.RawInline("latex", "\\cref{" .. table.concat(ids, ",") .. "}")
 end
 
 -- The Pandoc reader profile enables the `mark` extension, so ==text== reaches
@@ -319,11 +245,5 @@ end
 -- handling is needed here.
 
 function Pandoc(doc)
-  -- Pass 1: collect every defined label.
-  doc:walk({
-    Div    = function(el) if el.identifier ~= "" then known_labels[el.identifier] = true end end,
-    Header = function(el) if el.identifier ~= "" then known_labels[el.identifier] = true end end,
-  })
-  -- Pass 2: transform.
   return doc:walk({ Cite = transform_cite, Div = transform_div })
 end

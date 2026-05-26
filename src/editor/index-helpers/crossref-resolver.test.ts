@@ -250,19 +250,19 @@ describe("resolveCrossref", () => {
     });
   });
 
-  it("returns citation for unknown id", () => {
+  it("returns unresolved for unknown id", () => {
     const doc = "Some text.";
     const state = createState(doc);
     const result = resolveCrossref(state, "karger2000");
 
-    expect(result.kind).toBe("citation");
+    expect(result.kind).toBe("unresolved");
     expect(result.label).toBe("karger2000");
   });
 
-  it("prefers block label over citation for matching ids", () => {
+  it("prefers block label over unresolved fallback for matching ids", () => {
     const doc = [
       "::: {.theorem #karger2000}",
-      "A theorem with a citation-like id.",
+      "A theorem with a bibliography-like id.",
       ":::",
     ].join("\n");
     const state = createState(doc);
@@ -318,10 +318,10 @@ describe("resolveCrossref", () => {
 });
 
 describe("classifyReference", () => {
-  it("prefers local crossrefs for bracketed refs when a citation shares the same id", () => {
+  it("prefers local crossrefs for bracketed refs when a bibliography key shares the same id", () => {
     const doc = [
       "::: {.theorem #karger2000}",
-      "A theorem with a citation-like id.",
+      "A theorem with a bibliography-like id.",
       ":::",
       "",
       "See [@karger2000].",
@@ -340,10 +340,10 @@ describe("classifyReference", () => {
     expect(result.resolved.label).toBe("Theorem 1");
   });
 
-  it("prefers local crossrefs for narrative refs when a citation shares the same id", () => {
+  it("prefers local crossrefs for narrative refs when a bibliography key shares the same id", () => {
     const doc = [
       "::: {.theorem #karger2000}",
-      "A theorem with a citation-like id.",
+      "A theorem with a bibliography-like id.",
       ":::",
       "",
       "See @karger2000.",

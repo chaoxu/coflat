@@ -17,18 +17,18 @@ describe("reference render plugin focus-driven reveal", () => {
     const refStart = doc.indexOf("[@karger2000]");
     view = createPluginView(doc, 0);
 
-    expect(view.contentDOM.querySelector(`.${CSS.citation}`)).not.toBeNull();
+    expect(view.contentDOM.querySelector(".cf-crossref-unresolved")).not.toBeNull();
     expect(view.contentDOM.querySelector(`.${CSS.referenceSource}`)).toBeNull();
 
     view.dispatch({ selection: { anchor: refStart + 3 } });
 
-    expect(view.contentDOM.querySelector(`.${CSS.citation}`)).toBeNull();
+    expect(view.contentDOM.querySelector(".cf-crossref-unresolved")).toBeNull();
     expect(view.contentDOM.querySelector(`.${CSS.referenceSource}`)).not.toBeNull();
 
     view.dispatch({ selection: { anchor: 0 } });
 
     expect(view.contentDOM.querySelector(`.${CSS.referenceSource}`)).toBeNull();
-    expect(view.contentDOM.querySelector(`.${CSS.citation}`)).not.toBeNull();
+    expect(view.contentDOM.querySelector(".cf-crossref-unresolved")).not.toBeNull();
   });
 
   it("removes rendered references when deleting a reference line", () => {
@@ -41,7 +41,7 @@ describe("reference render plugin focus-driven reveal", () => {
     const refLineStart = doc.indexOf(refLine);
     view = createPluginView(doc, 0);
 
-    expect(view.contentDOM.querySelector(`.${CSS.citation}`)).not.toBeNull();
+    expect(view.contentDOM.querySelector(".cf-crossref-unresolved")).not.toBeNull();
 
     view.dispatch({
       changes: {
@@ -51,7 +51,7 @@ describe("reference render plugin focus-driven reveal", () => {
       },
     });
 
-    expect(view.contentDOM.querySelector(`.${CSS.citation}`)).toBeNull();
+    expect(view.contentDOM.querySelector(".cf-crossref-unresolved")).toBeNull();
     expect(view.state.doc.toString()).toBe(["Intro.", "Tail."].join("\n"));
   });
 
@@ -60,7 +60,7 @@ describe("reference render plugin focus-driven reveal", () => {
     const refStart = doc.indexOf("[@karger2000]");
     view = createPluginView(doc, 0);
 
-    expect(view.contentDOM.querySelector(`.${CSS.citation}`)).not.toBeNull();
+    expect(view.contentDOM.querySelector(".cf-crossref-unresolved")).not.toBeNull();
 
     view.dispatch({
       changes: {
@@ -70,7 +70,7 @@ describe("reference render plugin focus-driven reveal", () => {
       },
     });
 
-    expect(view.contentDOM.querySelector(`.${CSS.citation}`)).toBeNull();
+    expect(view.contentDOM.querySelector(".cf-crossref-unresolved")).toBeNull();
     expect(view.state.doc.toString()).toBe("See plain text for details.");
   });
 });

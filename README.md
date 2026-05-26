@@ -58,13 +58,12 @@ re-exported from this package — `createEditor`, `editorModeField`,
 `coflatTheme`, `createPerFilePanelApi`, etc. See `src/editor/index.ts` in
 source for the full surface.
 
-## Classic CSL citations (`./citeproc`)
+## Reference resolution and CSL helpers (`./citeproc`)
 
-The main bundle no longer ships citation-js or CSL processing. Without a
-citation formatter attached, `[@key]` and `@key` render as a degraded
-placeholder (`<span class="cf-citation cf-citation-unresolved">…</span>`).
-Hosts that want IEEE / APA / Chicago-style formatted citations import the
-helper sub-entry:
+The main bundle no longer ships citation-js or CSL processing. `[@key]` and
+`@key` default to cross-reference rendering; hosts that want display text and
+targets attach a `refResolver`. The `./citeproc` helper remains available for
+hosts that explicitly build IEEE / APA / Chicago-style citation formatting:
 
 ```ts
 import { mountEditor } from "@chaoxu/coflat-editor";
@@ -158,7 +157,8 @@ without a major version.
   — host gets to decorate `[text](href)` markdown links.
 - `refResolver?(key, mode: "bracketed" | "narrative") → { content, href, ... } | null`
   — host produces both display text and target for `[@key]` / `@key`.
-- `citationFormatter?` — for CSL-style bracketed/narrative citations.
+- `citationFormatter?` — optional CSL helper state for hosts that explicitly
+  build citation formatting on top of reference handling.
 - `mathMacros?` — `Record<string, string>` of KaTeX macros.
 - `fileSystem?` — abstract filesystem for asset URL resolution.
 

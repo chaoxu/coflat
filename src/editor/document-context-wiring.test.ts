@@ -88,9 +88,9 @@ describe("documentContextFacet — RefResolver wiring through planReferenceRende
     return items.find((it) => view?.state.sliceDoc(it.from, it.to) === raw);
   }
 
-  it("no resolver: bracketed bib reference uses existing citation path", () => {
+  it("no resolver: bracketed bibliography key stays on unresolved crossref path", () => {
     const items = plan("See [@karger2000].");
-    expect(findAt(items, "[@karger2000]")?.kind).toBe("citation");
+    expect(findAt(items, "[@karger2000]")?.kind).toBe("unresolved");
   });
 
   it("bracketed single-key reference routes through host resolver", () => {
@@ -147,10 +147,10 @@ describe("documentContextFacet — RefResolver wiring through planReferenceRende
     expect(called).toBe(false);
   });
 
-  it("resolver returning null falls through to existing CSL path", () => {
+  it("resolver returning null falls through to unresolved crossref path", () => {
     const resolver: RefResolver = { resolve: () => null };
     const items = plan("See [@karger2000].", resolver);
-    expect(findAt(items, "[@karger2000]")?.kind).toBe("citation");
+    expect(findAt(items, "[@karger2000]")?.kind).toBe("unresolved");
   });
 
   it("multi-key clusters and locator-bearing refs receive resolver metadata", () => {
@@ -239,11 +239,11 @@ describe("documentContextFacet — RefResolver wiring through planReferenceRende
   });
 });
 
-describe("degraded citation placeholder — no formatter, no resolver", () => {
+describe("default unresolved reference rendering — no formatter, no resolver", () => {
   function planWithoutFormatter(doc: string, resolver?: RefResolver) {
     const view = createView(doc, doc.length);
-    // Drop the test-utils-attached formatter; keep the bib store so the key
-    // still classifies as a citation rather than unresolved.
+    // Drop the test-utils-attached formatter; unresolved references should
+    // stay on the crossref path by default.
     view.dispatch({
       effects: bibDataEffect.of({ store, formatter: null }),
     });
@@ -261,37 +261,31 @@ describe("degraded citation placeholder — no formatter, no resolver", () => {
     };
   }
 
-  it("bracketed single-key citation emits cf-citation-unresolved placeholder", () => {
+  it("bracketed single-key reference emits an unresolved crossref item", () => {
     const { items, view } = planWithoutFormatter("See [@karger2000].");
     const item = items.find(
       (it) => view.state.sliceDoc(it.from, it.to) === "[@karger2000]",
     );
-    expect(item?.kind).toBe("host-ref");
-    if (item?.kind !== "host-ref") return;
-    expect(item.key).toBe("karger2000");
-    expect(item.mode).toBe("bracketed");
-    expect(item.html).toContain('class="cf-citation cf-citation-unresolved"');
-    expect(item.html).toContain('data-ref-key="karger2000"');
-    expect(item.html).toContain('data-ref-mode="bracketed"');
-    expect(item.html).toContain("[@karger2000]");
+    expect(item).toMatchObject({
+      kind: "unresolved",
+      raw: "[@karger2000]",
+    });
     view.destroy();
   });
 
-  it("narrative @key citation emits placeholder with narrative mode", () => {
+  it("narrative @key reference emits an unresolved crossref item", () => {
     const { items, view } = planWithoutFormatter("See @karger2000 here.");
     const item = items.find(
       (it) => view.state.sliceDoc(it.from, it.to) === "@karger2000",
     );
-    expect(item?.kind).toBe("host-ref");
-    if (item?.kind !== "host-ref") return;
-    expect(item.mode).toBe("narrative");
-    expect(item.html).toContain('data-ref-mode="narrative"');
-    expect(item.html).toContain("@karger2000");
-    expect(item.html).not.toContain("[@");
+    expect(item).toMatchObject({
+      kind: "unresolved",
+      raw: "@karger2000",
+    });
     view.destroy();
   });
 
-  it("multi-key cluster falls back to raw source text in the placeholder", () => {
+  it("multi-key cluster stays on the clustered crossref path", () => {
     const { items, view } = planWithoutFormatter(
       "See [@karger2000; @stein2001].",
     );
@@ -299,11 +293,13 @@ describe("degraded citation placeholder — no formatter, no resolver", () => {
       (it) =>
         view.state.sliceDoc(it.from, it.to) === "[@karger2000; @stein2001]",
     );
-    expect(item?.kind).toBe("host-ref");
-    if (item?.kind !== "host-ref") return;
-    expect(item.html).toContain('class="cf-citation cf-citation-unresolved"');
-    expect(item.html).not.toContain("data-ref-key=");
-    expect(item.html).toContain("[@karger2000; @stein2001]");
+    expect(item).toMatchObject({
+      kind: "clustered-crossref",
+      parts: [
+        { id: "karger2000", text: "karger2000", unresolved: true },
+        { id: "stein2001", text: "stein2001", unresolved: true },
+      ],
+    });
     view.destroy();
   });
 

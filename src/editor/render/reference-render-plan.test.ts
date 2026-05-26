@@ -82,24 +82,18 @@ describe("planReferenceRendering", () => {
     }
   });
 
-  it("routes bracketed citation to citation plan", () => {
+  it("defaults bracketed bibliography keys to unresolved plan", () => {
     const items = plan("See [@karger2000] for details.");
     const item = findPlan(items, "[@karger2000]");
     expect(item).toBeDefined();
-    expect(item?.kind).toBe("citation");
-    if (item?.kind === "citation") {
-      expect(item?.narrative).toBe(false);
-    }
+    expect(item?.kind).toBe("unresolved");
   });
 
-  it("routes narrative bib reference to narrative citation plan", () => {
+  it("defaults narrative bibliography keys to unresolved plan", () => {
     const items = plan("As @karger2000 showed.");
     const item = findPlan(items, "@karger2000");
     expect(item).toBeDefined();
-    expect(item?.kind).toBe("citation");
-    if (item?.kind === "citation") {
-      expect(item?.narrative).toBe(true);
-    }
+    expect(item?.kind).toBe("unresolved");
   });
 
   it("routes unknown bracketed id to unresolved plan", () => {
@@ -124,7 +118,7 @@ describe("planReferenceRendering", () => {
     expect(item?.kind).toBe("source-mark");
   });
 
-  it("routes mixed crossref+citation to mixed-cluster plan", () => {
+  it("routes resolved plus unresolved ids to clustered-crossref plan", () => {
     const doc = [
       "$$a^2$$ {#eq:alpha}",
       "",
@@ -133,7 +127,7 @@ describe("planReferenceRendering", () => {
     const items = plan(doc);
     const item = findPlan(items, "[@eq:alpha; @karger2000]");
     expect(item).toBeDefined();
-    expect(item?.kind).toBe("mixed-cluster");
+    expect(item?.kind).toBe("clustered-crossref");
   });
 
   it("routes clustered equation crossrefs to clustered-crossref plan", () => {
@@ -169,8 +163,12 @@ describe("planReferenceRendering", () => {
     ]);
   });
 
-  it("skips narrative refs that resolve to neither crossref nor citation", () => {
+  it("renders narrative refs that resolve to neither crossref nor citation as unresolved", () => {
     const items = plan("As @unknown-thing goes.");
-    expect(items).toHaveLength(0);
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({
+      kind: "unresolved",
+      raw: "@unknown-thing",
+    });
   });
 });

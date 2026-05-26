@@ -617,9 +617,9 @@ describe("FORMAT.md coverage: Cross-References", () => {
     expect(result.label).toBe("Section 1.1");
   });
 
-  it("treats unknown reference as citation", () => {
+  it("treats unknown reference as unresolved", () => {
     const result = resolveCrossref(masterState, "karger2000");
-    expect(result.kind).toBe("citation");
+    expect(result.kind).toBe("unresolved");
   });
 
   it("extracts reference semantics from document analysis", () => {

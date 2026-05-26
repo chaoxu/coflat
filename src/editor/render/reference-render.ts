@@ -2,9 +2,8 @@
  * Unified CM6 StateField for rendering all [@id] and @id references.
  *
  * Replaces the separate crossref-render and citation-render ViewPlugins
- * with a single tree walk that routes each reference to the appropriate
- * widget based on whether the id resolves as a block/heading/equation crossref
- * or a bibliography citation.
+ * with a single tree walk that routes each reference through the shared
+ * presentation planner. Unmatched ids stay on the crossref path by default.
  *
  * Widget classes remain render-owned; this plugin only handles discovery and
  * routing.
@@ -120,16 +119,15 @@ function toRenderItem(
  *
  * Routing per reference:
  * - Focused cursor/selection inside → source-mark
- * - Bracketed all-bib cluster → citation (parenthetical)
- * - Bracketed mixed cluster (some bib, some crossref) → mixed-cluster
  * - Bracketed single id, block/heading/equation → crossref
- * - Bracketed multi id, at least one block/heading/equation → clustered-crossref
+ * - Bracketed multi id → clustered-crossref
  *   with unresolved items degraded in place
- * - Bracketed ids, none resolve to block/equation/citation → unresolved
+ * - Bracketed single id, unresolved → unresolved
  * - Narrative, block/heading/equation → crossref
- * - Narrative, bib id → citation (narrative)
+ * - Narrative, unresolved → unresolved
  *
- * Citations must be registered with the processor before calling this
+ * Citation routes are still supported for explicit custom presentation
+ * contexts. Citations must be registered with the processor before calling this
  * function (see {@link ensureEditorReferencePresentationCitationsRegistered}).
  */
 function isEditorView(value: EditorState | EditorView): value is EditorView {
@@ -195,10 +193,8 @@ export function planReferenceRendering(
     });
     if (!route) continue;
 
-    // Degraded placeholder: classified as citation but no formatter is
-    // attached to render it. Emit a host-ref-style placeholder span. For
-    // single-id clusters we record the key on the element; multi-id
-    // clusters fall back to the raw source text.
+    // Compatibility path for explicit custom contexts that still classify a
+    // reference as a citation without attaching a formatter.
     if (route.kind === "citation" && !formatter) {
       items.push(buildDegradedCitationItem(ref.ids, ref.bracketed, ref.from, ref.to, raw));
       continue;

@@ -25,25 +25,23 @@ describe("extractReferences", () => {
     });
   });
 
-  it("extracts a bracketed citation [@key] as ref with mode bracketed", () => {
+  it("extracts a bracketed reference [@key] as crossref", () => {
     const src = "as shown [@knuth1984] earlier";
     const refs = extractReferences(src);
     expect(refs).toHaveLength(1);
     expect(refs[0]).toMatchObject({
-      kind: "ref",
-      mode: "bracketed",
+      kind: "crossref",
       key: "knuth1984",
     });
     expect(src.slice(refs[0].from, refs[0].to)).toBe("@knuth1984");
   });
 
-  it("extracts bare @key as ref with mode narrative", () => {
+  it("extracts bare @key as crossref", () => {
     const src = "see @knuth1984 for details";
     const refs = extractReferences(src);
     expect(refs).toHaveLength(1);
     expect(refs[0]).toMatchObject({
-      kind: "ref",
-      mode: "narrative",
+      kind: "crossref",
       key: "knuth1984",
     });
     expect(src.slice(refs[0].from, refs[0].to)).toBe("@knuth1984");
@@ -57,8 +55,6 @@ describe("extractReferences", () => {
       kind: "crossref",
       key: "eq:pythag",
     });
-    // crossref does not carry mode
-    expect(refs[0].mode).toBeUndefined();
   });
 
   it("classifies @sec:intro and @thm:main as crossrefs", () => {
@@ -101,10 +97,9 @@ describe("extractReferences", () => {
     const src = "see [@knuth1984; @eq:pythag]";
     const refs = extractReferences(src);
     expect(refs.map((r) => ({ kind: r.kind, key: r.key }))).toEqual([
-      { kind: "ref", key: "knuth1984" },
+      { kind: "crossref", key: "knuth1984" },
       { kind: "crossref", key: "eq:pythag" },
     ]);
-    expect(refs[0].mode).toBe("bracketed");
   });
 
   it("returns items sorted by `from`", () => {
@@ -119,7 +114,7 @@ describe("extractReferences", () => {
     const src = "---\ntitle: hello @nobody\nauthor: @alice\n---\n\nBody with @claude here.";
     const refs = extractReferences(src);
     expect(refs).toHaveLength(1);
-    expect(refs[0]).toMatchObject({ kind: "ref", key: "claude", mode: "narrative" });
+    expect(refs[0]).toMatchObject({ kind: "crossref", key: "claude" });
   });
 
   it("does not extract bare @key inside HTML comments", () => {
@@ -163,8 +158,8 @@ describe("extractReferences", () => {
     const src = "First line @alice.\n\nSecond line [@knuth1984].\n\nThird line.";
     const refs = extractReferences(src);
     expect(refs.map((r) => ({ kind: r.kind, key: r.key }))).toEqual([
-      { kind: "ref", key: "alice" },
-      { kind: "ref", key: "knuth1984" },
+      { kind: "crossref", key: "alice" },
+      { kind: "crossref", key: "knuth1984" },
     ]);
   });
 });

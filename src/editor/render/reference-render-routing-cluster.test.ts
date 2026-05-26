@@ -1,15 +1,11 @@
 import { EditorView } from "@codemirror/view";
 import { afterEach, describe, expect, it } from "vitest";
-import { bibDataEffect } from "../state/bib-data";
-import { CslProcessor } from "../citations/csl-processor";
 import { CSS } from "../../core/constants/css-classes";
 import { collectReferenceRanges } from "./reference-render";
 import { renderPreviewBlockContentToDom } from "./preview-block-renderer";
 import {
   createView,
   expectPresent,
-  karger,
-  stein,
   store,
   widgetClass,
 } from "./reference-render-test-utils";
@@ -107,7 +103,7 @@ describe("collectReferenceRanges (clusters)", () => {
     expect(spans[1].getAttribute("data-ref-id")).toBe("thm-b");
   });
 
-  it("routes clustered unknown crossrefs to UnresolvedRefWidget", () => {
+  it("routes clustered unknown crossrefs to ClusteredCrossrefWidget", () => {
     const doc = "See [@unknown-a; @unknown-b].";
     view = createView(doc, doc.length);
     const ranges = collectReferenceRanges(view, store);
@@ -117,7 +113,7 @@ describe("collectReferenceRanges (clusters)", () => {
     );
     expectPresent(ref, "reference range");
     if (!ref) return;
-    expect(widgetClass(ref)).toBe("UnresolvedRefWidget");
+    expect(widgetClass(ref)).toBe("ClusteredCrossrefWidget");
   });
 
   it("keeps partially resolved crossref clusters rendered in place", () => {
@@ -148,10 +144,7 @@ describe("collectReferenceRanges (clusters)", () => {
     expect(spans[1].className).toBe(CSS.crossrefUnresolved);
   });
 
-  // Regression (#358): mixed crossref+citation clusters like [@eq:foo; @smith2020]
-  // must NOT send all ids to CSL. Instead, crossref ids are resolved as labels
-  // and citation ids are formatted via CslProcessor.cite().
-  it("routes mixed crossref+citation cluster to MixedClusterWidget", () => {
+  it("routes resolved and unresolved ids to ClusteredCrossrefWidget", () => {
     const doc = [
       "$$a^2$$ {#eq:alpha}",
       "",
@@ -165,22 +158,17 @@ describe("collectReferenceRanges (clusters)", () => {
     );
     expectPresent(ref, "reference range");
     if (!ref) return;
-    expect(widgetClass(ref)).toBe("MixedClusterWidget");
+    expect(widgetClass(ref)).toBe("ClusteredCrossrefWidget");
   });
 
-  it("keeps shared processors stable after preview rendering (#788)", async () => {
+  it("keeps formatter-backed state on the default crossref route", () => {
     const doc = "See [@karger2000] and [@stein2001].";
-    const processor = await CslProcessor.create([karger, stein]);
     view = createView(doc, doc.length);
-    view.dispatch({ effects: bibDataEffect.of({ store, formatter: processor }) });
 
     collectReferenceRanges(view, store);
 
     const preview = document.createElement("div");
-    renderPreviewBlockContentToDom(preview, "Preview [@karger2000].", {
-      bibliography: store,
-      formatter: processor,
-    });
+    renderPreviewBlockContentToDom(preview, "Preview [@karger2000].");
 
     const ranges = collectReferenceRanges(view, store);
     const steinRange = ranges.find(
@@ -193,7 +181,10 @@ describe("collectReferenceRanges (clusters)", () => {
     expect(widget).toBeDefined();
     if (!widget) return;
 
-    expect((widget.toDOM() as HTMLElement).textContent).toBe("[2]");
+    expect(widgetClass(steinRange)).toBe("UnresolvedRefWidget");
+    expect((widget.toDOM() as HTMLElement).textContent).toBe("[@stein2001]");
+    expect(preview.querySelector(`.${CSS.crossref}`)?.textContent)
+      .toBe("[@karger2000]");
   });
 
   it("renders preview heading crossrefs as first-class crossrefs", () => {
@@ -213,17 +204,13 @@ describe("collectReferenceRanges (clusters)", () => {
     expect(crossref?.textContent).toBe("Section 1.1");
   });
 
-  // Regression (#397): mixed cluster must have per-item spans with data-ref-id
-  it("renders mixed cluster with per-item spans and data-ref-id", async () => {
+  it("renders crossref clusters with per-item spans and data-ref-id", () => {
     const doc = [
       "$$a^2$$ {#eq:alpha}",
       "",
       "See [@eq:alpha; @karger2000].",
     ].join("\n");
-    // Needs an initialized CSL engine so cite() returns formatted text
-    const processor = await CslProcessor.create([karger, stein]);
     view = createView(doc, doc.length);
-    view.dispatch({ effects: bibDataEffect.of({ store, formatter: processor }) });
     const ranges = collectReferenceRanges(view, store);
 
     const ref = ranges.find(
@@ -235,20 +222,18 @@ describe("collectReferenceRanges (clusters)", () => {
     expect(widget).toBeDefined();
     if (!widget) return;
     const el = widget.toDOM() as HTMLElement;
-    // Should contain the crossref label for eq:alpha and a citation for karger2000
     expect(el.textContent).toContain("Eq. (1)");
-    // The combined text should be wrapped in parens with semicolon separator
-    expect(el.textContent).toMatch(/^\(Eq\. \(1\); .+\)$/);
-    expect(el.className).toBe(CSS.citation);
+    expect(el.textContent).toBe("Eq. (1); karger2000");
+    expect(el.className).toBe(CSS.crossref);
 
-    // Per-item spans with data-ref-id
     const spans = el.querySelectorAll("span[data-ref-id]");
     expect(spans.length).toBe(2);
     expect(spans[0].getAttribute("data-ref-id")).toBe("eq:alpha");
     expect(spans[1].getAttribute("data-ref-id")).toBe("karger2000");
+    expect(spans[1].className).toBe(CSS.crossrefUnresolved);
   });
 
-  it("renders mixed block-crossref+citation cluster correctly", () => {
+  it("renders block crossref plus unresolved id as a clustered crossref", () => {
     const doc = [
       "::: {.theorem #thm-main}",
       "Statement.",
@@ -264,7 +249,7 @@ describe("collectReferenceRanges (clusters)", () => {
     );
     expectPresent(ref, "reference range");
     if (!ref) return;
-    expect(widgetClass(ref)).toBe("MixedClusterWidget");
+    expect(widgetClass(ref)).toBe("ClusteredCrossrefWidget");
     const widget = ref.value.spec.widget;
     expect(widget).toBeDefined();
     if (!widget) return;
@@ -272,23 +257,15 @@ describe("collectReferenceRanges (clusters)", () => {
     expect(el.textContent).toContain("Theorem 1");
   });
 
-  it("keeps CM6 widgets and block previews on the same presentation route", async () => {
+  it("keeps CM6 widgets and block previews on the same presentation route", () => {
     const doc = [
       "$$a^2$$ {#eq:alpha}",
       "",
       "See [@eq:alpha; @karger2000].",
     ].join("\n");
-    const editorProcessor = await CslProcessor.create([karger, stein]);
-    const previewProcessor = await CslProcessor.create([karger, stein]);
     view = createView(doc, doc.length);
-    view.dispatch({
-      effects: bibDataEffect.of({
-        store,
-        formatter: editorProcessor,
-      }),
-    });
 
-    const ref = collectReferenceRanges(view, store, editorProcessor).find(
+    const ref = collectReferenceRanges(view, store).find(
       (range) => view.state.sliceDoc(range.from, range.to) === "[@eq:alpha; @karger2000]",
     );
     expectPresent(ref, "reference range");
@@ -298,15 +275,12 @@ describe("collectReferenceRanges (clusters)", () => {
     const widgetText = (widget.toDOM() as HTMLElement).textContent;
 
     const preview = document.createElement("div");
-    renderPreviewBlockContentToDom(preview, doc, {
-      bibliography: store,
-      formatter: previewProcessor,
-    });
+    renderPreviewBlockContentToDom(preview, doc);
 
-    expect(preview.querySelector(`.${CSS.citation}`)?.textContent).toBe(widgetText);
+    expect(preview.querySelector(`.${CSS.crossref}`)?.textContent).toBe(widgetText);
   });
 
-  it("pure citation cluster still routes to CitationWidget (not MixedClusterWidget)", () => {
+  it("pure unresolved cluster routes to ClusteredCrossrefWidget", () => {
     const doc = "See [@karger2000; @stein2001].";
     view = createView(doc, doc.length);
     const ranges = collectReferenceRanges(view, store);
@@ -316,8 +290,7 @@ describe("collectReferenceRanges (clusters)", () => {
     );
     expectPresent(ref, "reference range");
     if (!ref) return;
-    // Should be CitationWidget, not MixedClusterWidget
-    expect(widgetClass(ref)).toBe("CitationWidget");
+    expect(widgetClass(ref)).toBe("ClusteredCrossrefWidget");
   });
 
   it("pure crossref cluster still routes to ClusteredCrossrefWidget", () => {

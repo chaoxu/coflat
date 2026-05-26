@@ -8,19 +8,6 @@ import { BLOCK_MANIFEST_ENTRIES } from "../../core/constants/block-manifest";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const LUA_MANIFEST = readFileSync(resolve(__dirname, "syntax-manifest.lua"), "utf8");
 
-const CROSS_REFERENCE_PREFIXES = [
-  "sec",
-  "eq",
-  "thm",
-  "lem",
-  "cor",
-  "prop",
-  "def",
-  "fig",
-  "tbl",
-  "alg",
-] as const;
-
 const LATEX_KIND_BY_BLOCK: Readonly<Record<string, string>> = {
   algorithm: "algorithm",
   blockquote: "blockquote",
@@ -44,18 +31,7 @@ function readLuaStringMap(name: string): Record<string, string> {
   );
 }
 
-function readLuaBooleanSet(name: string): readonly string[] {
-  const body = readLuaTableBody(name);
-  return [...body.matchAll(/([A-Za-z_][\w]*)\s*=\s*true/gu)]
-    .map((match) => match[1])
-    .sort();
-}
-
 describe("LaTeX syntax manifest", () => {
-  it("keeps cross-reference prefixes synchronized with the TypeScript manifest", () => {
-    expect(readLuaBooleanSet("xref_prefixes")).toEqual([...CROSS_REFERENCE_PREFIXES].sort());
-  });
-
   it("keeps LaTeX block kinds synchronized with the TypeScript manifest", () => {
     const expected = Object.fromEntries(
       BLOCK_MANIFEST_ENTRIES.map((entry) => [

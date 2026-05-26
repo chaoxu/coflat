@@ -79,7 +79,7 @@ function renderReference(
       anchor.textContent = fragment.ids[0];
       if (fragment.parenthetical) {
         const span = document.createElement("span");
-        span.className = CSS.citation;
+        span.className = CSS.crossref;
         span.appendChild(anchor);
         container.appendChild(span);
       } else {
@@ -89,7 +89,7 @@ function renderReference(
     }
 
     const span = document.createElement("span");
-    span.className = "cf-citation";
+    span.className = CSS.crossref;
     span.appendChild(document.createTextNode("("));
     fragment.ids.forEach((id, index) => {
       if (index > 0) span.appendChild(document.createTextNode("; "));

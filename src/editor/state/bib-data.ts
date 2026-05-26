@@ -44,8 +44,8 @@ export type BibliographyStatus =
 export interface BibData {
   store: BibStore;
   /**
-   * Optional citation formatter. When absent, citations render as a degraded
-   * placeholder (`<span class="cf-citation cf-citation-unresolved">…</span>`).
+   * Optional citation formatter state for hosts that explicitly build CSL
+   * rendering on top of the default reference flow.
    */
   formatter?: CitationFormatter | null;
   status?: BibliographyStatus;
