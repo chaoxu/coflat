@@ -1,4 +1,8 @@
 import type { EditorView } from "@codemirror/view";
+import {
+  DOCUMENT_SURFACE_CLASS,
+  documentSurfaceClassNames,
+} from "../../core/document-surface-classes";
 import { createInlineEditorController } from "../inline-editor";
 import { documentContextFacet } from "../document-context";
 import { coarseHitTestPosition, preciseHitTestPosition } from "../lib/editor-hit-test";
@@ -363,6 +367,10 @@ export function buildTableWidgetDOM(options: TableWidgetDomOptions): HTMLTableEl
     content: string,
   ): void => {
     const address: TableCellAddress = { section, row, col };
+    cell.className = documentSurfaceClassNames(
+      DOCUMENT_SURFACE_CLASS.tableCell,
+      section === "header" && DOCUMENT_SURFACE_CLASS.tableHeader,
+    );
     cell.dataset.row = String(row);
     cell.dataset.col = String(col);
     cell.dataset.section = section;

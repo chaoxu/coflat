@@ -111,6 +111,18 @@ describe("TableWidget source range attributes", () => {
     expect(dom.dataset.shellTo).toBe(String(42 + tableText.length));
   });
 
+  it("uses shared document surface classes on table cells", () => {
+    const widget = new TableWidget(makeTable(), "| A | B |\n|---|---|\n| 1 | 2 |", 0, {});
+    const dom = widget.toDOM(makeStubView());
+    const header = dom.querySelector("th");
+    const cell = dom.querySelector("tbody td");
+
+    expect(header?.classList.contains("cf-doc-table-cell")).toBe(true);
+    expect(header?.classList.contains("cf-doc-table-header")).toBe(true);
+    expect(cell?.classList.contains("cf-doc-table-cell")).toBe(true);
+    expect(cell?.classList.contains("cf-doc-table-header")).toBe(false);
+  });
+
   it("computes sourceTo from tableFrom + tableText.length", () => {
     const tableText = "| X |\n|---|\n| Y |";
     const tableFrom = 100;

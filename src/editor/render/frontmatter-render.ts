@@ -107,6 +107,10 @@ function shouldShowFrontmatterSource(state: EditorState): boolean {
   return isFrontmatterStructureEditActive(state);
 }
 
+function frontmatterReplacementTo(state: EditorState, end: number): number {
+  return end > 0 && state.sliceDoc(end - 1, end) === "\n" ? end - 1 : end;
+}
+
 function frontmatterShouldRebuild(tr: Transaction): boolean {
   if (hasStructureEditEffect(tr)) {
     return true;
@@ -150,9 +154,9 @@ function buildDecorations(state: EditorState): DecorationSet {
       Decoration.replace({
         widget,
         block: true,
-      }).range(0, end),
+      }).range(0, frontmatterReplacementTo(state, end)),
     ]);
   }
 
-  return Decoration.set([Decoration.replace({}).range(0, end)]);
+  return Decoration.set([Decoration.replace({}).range(0, frontmatterReplacementTo(state, end))]);
 }

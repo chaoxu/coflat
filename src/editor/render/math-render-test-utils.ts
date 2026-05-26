@@ -4,6 +4,7 @@ import { EditorView } from "@codemirror/view";
 import { markdown } from "@codemirror/lang-markdown";
 import { mathExtension } from "../../core/parser/math-backslash";
 import { equationLabelExtension } from "../../core/parser/equation-label";
+import { markdownExtensions } from "../../core/parser";
 import { collectMathRanges, mathRenderPlugin } from "./math-render";
 import { frontmatterField } from "../state/frontmatter-state";
 import { mathMacrosField } from "../state/math-macros";
@@ -61,6 +62,20 @@ export function createMathViewWithLabels(doc: string, cursorPos?: number): Edito
     focus: false,
     extensions: [
       markdown({ extensions: [mathExtension, equationLabelExtension] }),
+      frontmatterField,
+      activeStructureEditField,
+      documentAnalysisField,
+      mathMacrosField,
+    ],
+  });
+}
+
+export function createFullMarkdownMathView(doc: string, cursorPos?: number): EditorView {
+  return createTestView(doc, {
+    cursorPos,
+    focus: false,
+    extensions: [
+      markdown({ extensions: markdownExtensions }),
       frontmatterField,
       activeStructureEditField,
       documentAnalysisField,

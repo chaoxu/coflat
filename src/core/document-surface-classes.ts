@@ -31,6 +31,7 @@ export const DOCUMENT_SURFACE_CLASS = {
   blockTitle: "cf-doc-block-title",
   blockBody: "cf-doc-block-body",
   blockCaption: "cf-doc-block-caption",
+  blankLine: "cf-doc-blank-line",
   tableBlock: "cf-doc-table-block",
   tableRow: "cf-doc-table-row",
   tableCell: "cf-doc-table-cell",

@@ -87,18 +87,18 @@ export const BLOCK_MANIFEST = [
   { name: "lemma",       counterGroup: "theorem",    numbered: true,  bodyStyle: "italic", referencePrefix: "lem",  latexExportKind: "environment", latexEnvironment: "lemma" },
   { name: "corollary",   counterGroup: "theorem",    numbered: true,  bodyStyle: "italic", referencePrefix: "cor",  latexExportKind: "environment", latexEnvironment: "corollary" },
   { name: "proposition", counterGroup: "theorem",    numbered: true,  bodyStyle: "italic", referencePrefix: "prop", latexExportKind: "environment", latexEnvironment: "proposition" },
-  { name: "conjecture",  counterGroup: "theorem",    numbered: true,  bodyStyle: "italic", latexExportKind: "environment", latexEnvironment: "conjecture" },
+  { name: "conjecture",  counterGroup: "theorem",    numbered: true,  bodyStyle: "italic", referencePrefix: "conj", latexExportKind: "environment", latexEnvironment: "conjecture" },
 
   // Definition — own counter, normal body
   { name: "definition",  counterGroup: "definition", numbered: true,  bodyStyle: "normal", referencePrefix: "def", latexExportKind: "environment", latexEnvironment: "definition" },
 
   // Problem — theorem counter, normal body
-  { name: "problem",     counterGroup: "theorem",    numbered: true,  bodyStyle: "normal", latexExportKind: "environment", latexEnvironment: "problem" },
+  { name: "problem",     counterGroup: "theorem",    numbered: true,  bodyStyle: "normal", referencePrefix: "prob", latexExportKind: "environment", latexEnvironment: "problem" },
 
   // Unnumbered blocks — no counter
   { name: "proof",       counterGroup: undefined,    numbered: false, bodyStyle: "normal", specialBehavior: "qed", headerPosition: "inline", latexExportKind: "environment", latexEnvironment: "proof" },
-  { name: "remark",      counterGroup: undefined,    numbered: false, bodyStyle: "normal", latexExportKind: "environment", latexEnvironment: "remark" },
-  { name: "example",     counterGroup: undefined,    numbered: false, bodyStyle: "normal", latexExportKind: "environment", latexEnvironment: "example" },
+  { name: "remark",      counterGroup: undefined,    numbered: false, bodyStyle: "normal", referencePrefix: "rem", latexExportKind: "environment", latexEnvironment: "remark" },
+  { name: "example",     counterGroup: undefined,    numbered: false, bodyStyle: "normal", referencePrefix: "ex", latexExportKind: "environment", latexEnvironment: "example" },
 
   // Algorithm — own counter, normal body
   { name: "algorithm",   counterGroup: "algorithm",  numbered: true,  bodyStyle: "normal", referencePrefix: "alg", latexExportKind: "algorithm" },

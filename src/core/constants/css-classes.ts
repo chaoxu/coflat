@@ -1,4 +1,21 @@
-import { DOCUMENT_SURFACE_CLASS } from "../document-surface-classes";
+import {
+  DOCUMENT_SURFACE_CLASS,
+  documentSurfaceClassNames,
+} from "../document-surface-classes";
+
+export const MATH_INLINE_CLASS = "cf-math-inline";
+export const MATH_DISPLAY_CLASS = "cf-math-display";
+
+export function mathSurfaceClassNames(
+  isDisplay: boolean,
+  ...classNames: Array<string | false | null | undefined>
+): string {
+  return documentSurfaceClassNames(
+    isDisplay ? DOCUMENT_SURFACE_CLASS.displayMath : DOCUMENT_SURFACE_CLASS.inlineMath,
+    isDisplay ? MATH_DISPLAY_CLASS : MATH_INLINE_CLASS,
+    ...classNames,
+  );
+}
 
 /**
  * Typed constants for all cf-* CSS class names used in decorations.
@@ -67,10 +84,10 @@ export const CSS = {
   headingLine: (level: number) => `cf-heading-line-${level}`,
 
   /** Inline math wrapper. */
-  mathInline: "cf-math-inline",
+  mathInline: MATH_INLINE_CLASS,
 
   /** Display math wrapper. */
-  mathDisplay: "cf-math-display",
+  mathDisplay: MATH_DISPLAY_CLASS,
   mathDisplayNumbered: "cf-math-display-numbered",
   mathDisplayContent: "cf-math-display-content",
   mathDisplayNumber: "cf-math-display-number",

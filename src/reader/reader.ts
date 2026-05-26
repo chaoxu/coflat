@@ -11,7 +11,7 @@ import { parser as baseMarkdownParser } from "@lezer/markdown";
 import type { SyntaxNode, Tree } from "@lezer/common";
 import createDOMPurify from "dompurify";
 
-import { htmlRenderExtensions } from "../core/parser";
+import { htmlRenderExtensions, parseFrontmatter } from "../core/parser";
 import { NODE } from "../core/constants/node-types";
 import { isSafeUrl } from "../core/lib/url-utils";
 import {
@@ -22,7 +22,10 @@ import {
   CROSS_REFERENCE_PREFIXES,
   getBlockManifestEntry,
 } from "../core/constants/block-manifest";
-import { CSS } from "../core/constants/css-classes";
+import {
+  CSS,
+  mathSurfaceClassNames,
+} from "../core/constants/css-classes";
 import {
   DOCUMENT_SURFACE_CLASS,
   documentSurfaceClassNames,
@@ -195,41 +198,55 @@ function isCollapsibleBlock(type: string): boolean {
   return entry?.latexExportKind === "environment" && entry.displayHeader !== false;
 }
 
+function addRootClass(html: string, className: string): string {
+  return html.replace(/^<([a-z][\w:-]*)([^>]*)>/i, (match, tag: string, attrs: string) => {
+    const classAttr = attrs.match(/\sclass="([^"]*)"/);
+    if (classAttr?.[1]) {
+      const classes = classAttr[1].split(/\s+/);
+      if (classes.includes(className)) return match;
+      return `<${tag}${attrs.replace(classAttr[0], ` class="${classAttr[1]} ${className}"`)}>`;
+    }
+    return `<${tag} class="${className}"${attrs}>`;
+  });
+}
+
+function addClassToLastHtmlBlock(blocks: BlockResult[], className: string): void {
+  for (let index = blocks.length - 1; index >= 0; index -= 1) {
+    if (!blocks[index].html) continue;
+    blocks[index] = {
+      ...blocks[index],
+      html: addRootClass(blocks[index].html, className),
+    };
+    return;
+  }
+}
+
 function renderProofBlockHtml(attrs: string, sourceAttrs: string, summaryHtml: string, bodyHtml: string): string {
-  const proofParagraphClasses = documentSurfaceClassNames(paragraphClasses, CSS.blockQed);
-  const openParagraph = `<p class="${paragraphClasses}"`;
-  if (!bodyHtml.startsWith(openParagraph)) {
+  const firstParagraph = bodyHtml.match(/^<p\b([^>]*)>/);
+  if (!firstParagraph?.[1] || !/\bclass="[^"]*\bcf-doc-paragraph\b[^"]*"/.test(firstParagraph[1])) {
     return (
       `<div${attrs}${sourceAttrs}>` +
-      `<p class="${proofParagraphClasses}"><span class="cf-doc-block-heading">${summaryHtml}</span></p>` +
+      `<p class="${paragraphClasses}"><span class="cf-doc-block-heading">${summaryHtml}</span></p>` +
       bodyHtml +
       `</div>`
     );
   }
-  const openEnd = bodyHtml.indexOf(">");
-  if (openEnd < 0) {
-    return (
-      `<div${attrs}${sourceAttrs}>` +
-      `<p class="${proofParagraphClasses}"><span class="cf-doc-block-heading">${summaryHtml}</span></p>` +
-      bodyHtml +
-      `</div>`
-    );
-  }
+  const openEnd = firstParagraph[0].length - 1;
   const closeStart = bodyHtml.indexOf("</p>", openEnd + 1);
   if (closeStart < 0) {
     return (
       `<div${attrs}${sourceAttrs}>` +
-      `<p class="${proofParagraphClasses}"><span class="cf-doc-block-heading">${summaryHtml}</span></p>` +
+      `<p class="${paragraphClasses}"><span class="cf-doc-block-heading">${summaryHtml}</span></p>` +
       bodyHtml +
       `</div>`
     );
   }
-  const paragraphAttrs = bodyHtml.slice(openParagraph.length, openEnd);
+  const paragraphAttrs = firstParagraph[1];
   const firstInner = bodyHtml.slice(openEnd + 1, closeStart).replace(/^\s+/, "");
   const rest = bodyHtml.slice(closeStart + "</p>".length);
   return (
     `<div${attrs}${sourceAttrs}>` +
-    `<p class="${proofParagraphClasses}"${paragraphAttrs}>` +
+    `<p${paragraphAttrs}>` +
     `<span class="cf-doc-block-heading">${summaryHtml}</span>` +
     firstInner +
     `</p>` +
@@ -617,7 +634,7 @@ function renderInlineNode(
       const inner = stripMathDelims(raw, false);
       const sp = sourcePosAttrs(ctx, node.from, node.to);
       return {
-        html: `<span class="${DOCUMENT_SURFACE_CLASS.inlineMath}" data-math="${escapeHtml(inner)}"${sp}>${escapeHtml(raw)}</span>`,
+        html: `<span class="${mathSurfaceClassNames(false)}" data-math="${escapeHtml(inner)}"${sp}>${escapeHtml(raw)}</span>`,
         text: raw,
         hasMath: true,
       };
@@ -627,7 +644,7 @@ function renderInlineNode(
       const inner = stripMathDelims(raw, true);
       const sp = sourcePosAttrs(ctx, node.from, node.to);
       return {
-        html: `<span class="${DOCUMENT_SURFACE_CLASS.displayMath}" data-math="${escapeHtml(inner)}"${sp}>${escapeHtml(raw)}</span>`,
+        html: `<span class="${mathSurfaceClassNames(true)}" data-math="${escapeHtml(inner)}"${sp}>${escapeHtml(raw)}</span>`,
         text: raw,
         hasMath: true,
       };
@@ -831,12 +848,16 @@ function hostReferenceClassName(
   isCross: boolean,
   resolved: HostReferenceResolution,
 ): string {
-  const classes = ["cf-citation"];
+  const classes = isCross ? ["cf-crossref"] : ["cf-citation"];
   if (isCross) {
     const colon = id.indexOf(":");
     if (colon > 0) classes.push(`cf-crossref-${id.slice(0, colon)}`);
   }
-  if (resolved.className) classes.push(resolved.className);
+  for (const className of resolved.className?.split(/\s+/) ?? []) {
+    if (className && !classes.includes(className)) {
+      classes.push(className);
+    }
+  }
   return classes.join(" ");
 }
 
@@ -894,10 +915,11 @@ function emitCitationCluster(
     }
     if (isCross) {
       const prefix = id.slice(0, id.indexOf(":"));
+      const display = ids.length === 1 ? raw : `[@${id}]`;
       parts.push(
-        `<span class="cf-crossref-unresolved cf-crossref-${escapeHtml(prefix)}" data-ref-key="${escapeHtml(id)}">@${escapeHtml(id)}</span>`,
+        `<span class="cf-crossref cf-crossref-unresolved cf-crossref-${escapeHtml(prefix)}" data-ref-key="${escapeHtml(id)}">${escapeHtml(display)}</span>`,
       );
-      textParts.push(`@${id}`);
+      textParts.push(display);
     } else {
       parts.push(
         `<span class="cf-citation cf-citation-unresolved" data-ref-key="${escapeHtml(id)}" data-ref-mode="bracketed">[@${escapeHtml(id)}]</span>`,
@@ -1068,7 +1090,7 @@ function renderBlock(ctx: WalkContext, node: SyntaxNode): BlockResult {
       const inner = stripMathDelims(raw, true);
       return {
         html:
-          `<div class="${DOCUMENT_SURFACE_CLASS.displayMath}" data-math="${escapeHtml(inner)}"${blockSourceAttrs(ctx, node.from, node.to)}>` +
+          `<div class="${mathSurfaceClassNames(true)}" data-math="${escapeHtml(inner)}"${blockSourceAttrs(ctx, node.from, node.to)}>` +
           escapeHtml(raw) +
           `</div>`,
         text: raw,
@@ -1471,6 +1493,38 @@ function renderTableRow(
   };
 }
 
+function blankLineRangesBetweenBlocks(source: string, from: number, to: number): Array<[number, number]> {
+  const ranges: Array<[number, number]> = [];
+  let pos = from;
+
+  if (pos > 0 && source[pos - 1] !== "\n") {
+    while (pos < to && source[pos] !== "\n") pos++;
+    if (pos < to) pos++;
+  }
+
+  while (pos < to) {
+    const lineStart = pos;
+    while (pos < to && source[pos] !== "\n") pos++;
+    if (pos >= to) break;
+
+    const lineEnd = source[pos - 1] === "\r" ? pos - 1 : pos;
+    if (/^[ \t]*$/.test(source.slice(lineStart, lineEnd))) {
+      ranges.push([lineStart, pos + 1]);
+    }
+    pos++;
+  }
+
+  return ranges;
+}
+
+function renderBlankLine(ctx: WalkContext, from: number, to: number): BlockResult {
+  return {
+    html: `<div class="${DOCUMENT_SURFACE_CLASS.blankLine}" aria-hidden="true"${blockSourceAttrs(ctx, from, to)}><br></div>`,
+    text: "",
+    hasMath: false,
+  };
+}
+
 function renderFencedDiv(ctx: WalkContext, node: SyntaxNode): BlockResult {
   // Read attribute text from FencedDivAttributes child.
   const attrsNode = node.getChild(NODE.FencedDivAttributes);
@@ -1489,6 +1543,7 @@ function renderFencedDiv(ctx: WalkContext, node: SyntaxNode): BlockResult {
 
   // Render children (skipping the fence + attrs nodes).
   const blocks: BlockResult[] = [];
+  let previousRenderable: SyntaxNode | null = null;
   let child = node.firstChild;
   while (child) {
     if (
@@ -1499,11 +1554,21 @@ function renderFencedDiv(ctx: WalkContext, node: SyntaxNode): BlockResult {
       child = child.nextSibling;
       continue;
     }
+    if (previousRenderable && child.from > previousRenderable.to) {
+      for (const [from, to] of blankLineRangesBetweenBlocks(ctx.source, previousRenderable.to, child.from)) {
+        blocks.push(renderBlankLine(ctx, from, to));
+      }
+    }
     blocks.push(renderBlock(ctx, child));
+    previousRenderable = child;
     child = child.nextSibling;
   }
 
   const normalizedClassName = className.toLowerCase();
+  const manifestEntry = getBlockManifestEntry(normalizedClassName);
+  if (manifestEntry?.specialBehavior === "qed") {
+    addClassToLastHtmlBlock(blocks, CSS.blockQed);
+  }
   const classes = [blockClasses(normalizedClassName || undefined)];
 
   let attrs = ` class="${classes.join(" ")}"`;
@@ -1511,14 +1576,15 @@ function renderFencedDiv(ctx: WalkContext, node: SyntaxNode): BlockResult {
   for (const [k, v] of Object.entries(kvs)) {
     attrs += ` data-${escapeHtml(k)}="${escapeHtml(v)}"`;
   }
-  const bodyHtml = blocks.map((b) => b.html).join("");
+  const body = combineBlocks(blocks);
+  const bodyHtml = body.html;
   const sourceAttrs = blockSourceAttrs(ctx, node.from, node.to);
   const title = kvs.title;
   const number = normalizedClassName ? nextBlockNumber(ctx, normalizedClassName) : undefined;
   const summaryHtml = normalizedClassName
     ? renderBlockSummaryHtml(normalizedClassName, title, number)
     : "";
-  const html = normalizedClassName === "proof"
+  const html = manifestEntry?.headerPosition === "inline"
     ? renderProofBlockHtml(attrs, sourceAttrs, summaryHtml, bodyHtml)
     : normalizedClassName && isCollapsibleBlock(normalizedClassName)
     ? `<details${attrs}${sourceAttrs} open><summary class="cf-doc-block-heading">${summaryHtml}</summary>${bodyHtml}</details>`
@@ -1526,8 +1592,8 @@ function renderFencedDiv(ctx: WalkContext, node: SyntaxNode): BlockResult {
 
   return {
     html,
-    text: blocks.map((b) => b.text).join("\n\n"),
-    hasMath: blocks.some((b) => b.hasMath),
+    text: body.text,
+    hasMath: body.hasMath,
   };
 }
 
@@ -1696,6 +1762,8 @@ function walkDocument(
   resolvers: Resolvers,
   opts: RenderOptions,
 ): BlockResult & { truncated?: TruncatedInfo } {
+  const frontmatter = parseFrontmatter(source);
+  const frontmatterEnd = frontmatter.end;
   const ctx: WalkContext = {
     source,
     resolvers,
@@ -1717,12 +1785,25 @@ function walkDocument(
 
   const root = tree.topNode;
   const blocks: BlockResult[] = [];
+  if (frontmatter.config.title) {
+    const title = frontmatter.config.title;
+    const renderedTitle = renderToHtml(title);
+    blocks.push({
+      html: `<div class="${CSS.docTitle}"${blockSourceAttrs(ctx, 0, frontmatterEnd)}>${renderedTitle.html}</div>`,
+      text: title,
+      hasMath: renderedTitle.hasMath,
+    });
+  }
   let child = root.firstChild;
-  let topCount = 0;
+  let topCount = blocks.length;
   let used = 0;
   let truncated: TruncatedInfo | undefined;
 
   while (child) {
+    if (child.to <= frontmatterEnd) {
+      child = child.nextSibling;
+      continue;
+    }
     if (budgetKind) {
       // Snapshot footnote state so we can roll back if we end up not emitting.
       const fnOrderLen = ctx.footnotesInOrder.length;
@@ -1884,7 +1965,7 @@ void ALLOWED_ATTR_RE;
  *   notification bodies) don't get gratuitously wrapped. Documents with
  *   any block structure or multiple paragraphs wrap each paragraph in
  *   `<p class="cf-doc-paragraph">`.
- * - Math nodes emit `<span class="cf-doc-inline-math" data-math="…">`
+ * - Math nodes emit `<span class="cf-doc-inline-math cf-math-inline" data-math="…">`
  *   placeholders preserving the source verbatim. `hydrateMath` hydrates
  *   these with KaTeX.
  * - When `RefResolver` is absent (or it returns null), citations emit
@@ -2344,7 +2425,14 @@ export async function hydrateMath(
       continue;
     }
 
-    el.innerHTML = html;
+    if (isDisplay) {
+      const content = document.createElement("div");
+      content.className = CSS.mathDisplayContent;
+      content.innerHTML = html;
+      el.replaceChildren(content);
+    } else {
+      el.innerHTML = html;
+    }
     el.setAttribute("data-math-hydrated", "true");
   }
 }

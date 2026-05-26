@@ -95,6 +95,17 @@ describe("renderToHtml — slow path (Lezer)", () => {
     expect(r.html).toContain("body");
   });
 
+  it("omits YAML frontmatter from document rendering", () => {
+    const source = "---\ntitle: Hidden\nstatus: accepted\n---\n# Visible\n\nbody";
+    const r = renderToHtml(source, undefined, { sourcePositions: true });
+    expect(r.html).toContain('class="cf-doc-title"');
+    expect(r.html).toContain(">Hidden</div>");
+    expect(r.html).toContain("Visible");
+    expect(r.html).toContain("body");
+    expect(r.html).not.toContain("status: accepted");
+    expect(r.html).toContain(`data-source-from="${source.indexOf("# Visible")}"`);
+  });
+
   it("strips Pandoc heading attributes and marks unnumbered headings", () => {
     const dash = renderToHtml("# Unnumbered Heading {-}");
     expect(dash.html).toContain('class="cf-doc-heading cf-doc-heading--h1 cf-doc-heading--unnumbered"');
@@ -195,6 +206,14 @@ describe("renderToText", () => {
     expect(r.text).toContain("Title");
     expect(r.text).toContain("body");
     expect(r.text).not.toContain("#");
+  });
+
+  it("omits YAML frontmatter from text output", () => {
+    const r = renderToText("---\ntitle: Hidden\n---\n# Title\n\nbody");
+    expect(r.text).toContain("Hidden");
+    expect(r.text).toContain("Title");
+    expect(r.text).toContain("body");
+    expect(r.text).not.toContain("title:");
   });
 
   it("strips Pandoc heading attributes from text output", () => {
@@ -330,10 +349,20 @@ describe("renderToHtml — block-level rendering ()", () => {
     expect(r.html).toContain('<p class="cf-doc-paragraph cf-block-qed"><span class="cf-doc-block-heading"><span class="cf-block-header-rendered">Proof</span></span>body</p>');
   });
 
+  it("preserves blank source lines inside fenced semantic blocks", () => {
+    const r = renderToHtml("::: {.proof}\nfirst\n\nsecond\n\n\nthird\n:::");
+    const blankLines = r.html.match(/class="cf-doc-blank-line"/g) ?? [];
+    expect(blankLines).toHaveLength(3);
+    expect(r.html).toContain("<p class=\"cf-doc-paragraph\"><span class=\"cf-doc-block-heading\"><span class=\"cf-block-header-rendered\">Proof</span></span>first</p>");
+    expect(r.html).toContain('<div class="cf-doc-blank-line" aria-hidden="true"><br></div><p class="cf-doc-paragraph">second</p>');
+    expect(r.html).toContain('<p class="cf-doc-paragraph cf-block-qed">third</p>');
+  });
+
   it("emits inline math placeholder with canonical class + hasMath flag", () => {
     const r = renderToHtml("x is $y^2$ today");
     expect(r.hasMath).toBe(true);
-    expect(r.html).toContain('class="cf-doc-inline-math"');
+    expect(r.html).toContain("cf-doc-inline-math");
+    expect(r.html).toContain("cf-math-inline");
     expect(r.html).toContain('data-math="y^2"');
   });
 
@@ -341,6 +370,7 @@ describe("renderToHtml — block-level rendering ()", () => {
     const r = renderToHtml("eq:\n\n$$x^2$$\n\nend");
     expect(r.hasMath).toBe(true);
     expect(r.html).toContain('cf-doc-display-math');
+    expect(r.html).toContain('cf-math-display');
     expect(r.html).toContain('data-math="x^2"');
   });
 
@@ -353,9 +383,28 @@ describe("renderToHtml — block-level rendering ()", () => {
 
   it("emits cf-crossref-unresolved for [@eq:foo]", () => {
     const r = renderToHtml("see [@eq:euler]");
+    expect(r.html).toContain('cf-crossref');
     expect(r.html).toContain('cf-crossref-unresolved');
     expect(r.html).toContain('cf-crossref-eq');
     expect(r.html).toContain('data-ref-key="eq:euler"');
+    expect(r.html).toContain("[@eq:euler]");
+  });
+
+  it("classifies example references as crossrefs", () => {
+    const r = renderToHtml("see [@ex:case]");
+    expect(r.html).toContain('cf-crossref-unresolved');
+    expect(r.html).toContain('cf-crossref-ex');
+    expect(r.html).toContain("[@ex:case]");
+  });
+
+  it("classifies manifest reference prefixes as crossrefs", () => {
+    const r = renderToHtml("see [@conj:route], [@prob:gap], and [@rem:note]");
+    expect(r.html).toContain('cf-crossref-conj');
+    expect(r.html).toContain("[@conj:route]");
+    expect(r.html).toContain('cf-crossref-prob');
+    expect(r.html).toContain("[@prob:gap]");
+    expect(r.html).toContain('cf-crossref-rem');
+    expect(r.html).toContain("[@rem:note]");
   });
 
   it("uses DocumentContext citationFormatter for bracketed citations", () => {
@@ -396,6 +445,24 @@ describe("renderToHtml — block-level rendering ()", () => {
         },
       },
     ]);
+  });
+
+  it("uses shared crossref classes for resolved reader crossrefs", () => {
+    const r = renderToHtml("see [@prop:main]", {
+      refResolver: {
+        resolve: () => ({
+          content: "Proposition 1",
+          className: "cf-crossref",
+        }),
+      },
+    });
+
+    const root = document.createElement("div");
+    root.innerHTML = r.html;
+    const ref = root.querySelector("[data-ref-key='prop:main']");
+    expect(ref?.classList.contains("cf-crossref")).toBe(true);
+    expect(ref?.classList.contains("cf-crossref-prop")).toBe(true);
+    expect(ref?.classList.contains("cf-citation")).toBe(false);
   });
 
   it("hydrates unresolved reader references and links in place", () => {

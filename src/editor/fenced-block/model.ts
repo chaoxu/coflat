@@ -40,6 +40,17 @@ interface FencedDivGeometryInfo extends FencedBlockInfo {
   readonly titleSourceTo?: number;
 }
 
+interface FencedLineSourceLine {
+  readonly from: number;
+  readonly to: number;
+}
+
+interface FencedLineSource {
+  lineAt(pos: number): FencedLineSourceLine;
+  slice?(from: number, to: number): unknown;
+  sliceString?(from: number, to: number): string;
+}
+
 const fencedDivInfoCache = new WeakMap<object, FencedDivInfo[]>();
 const fencedDivStructureRangeCache = new WeakMap<
   object,
@@ -80,6 +91,31 @@ export function collectFencedDivs(state: EditorState): FencedDivInfo[] {
     }));
   fencedDivInfoCache.set(semantics as object, collected);
   return collected;
+}
+
+function sliceLineSource(doc: FencedLineSource, from: number, to: number): string {
+  if (doc.sliceString) return doc.sliceString(from, to);
+  const value = doc.slice?.(from, to);
+  return typeof value === "string" ? value : String(value ?? "");
+}
+
+export function getLastFencedDivContentLine<T extends Pick<FencedBlockInfo, "openFenceFrom" | "closeFenceFrom">>(
+  doc: FencedLineSource,
+  div: T,
+): FencedLineSourceLine | null {
+  if (div.closeFenceFrom < 0) return null;
+
+  let line = doc.lineAt(div.closeFenceFrom);
+  while (line.from > div.openFenceFrom) {
+    const previous = doc.lineAt(Math.max(div.openFenceFrom, line.from - 1));
+    if (previous.from <= div.openFenceFrom) return null;
+    if (sliceLineSource(doc, previous.from, previous.to).trim().length > 0) {
+      return previous;
+    }
+    line = previous;
+  }
+
+  return null;
 }
 
 export function collectFencedDivStructureRanges(

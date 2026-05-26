@@ -1,6 +1,6 @@
 {
   "name": "@chaoxu/coflat-editor",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "description": "Math-aware markdown editor library extracted from coflat — CM6 + Lezer + Typora-style ViewPlugins.",
   "type": "module",
   "sideEffects": [
