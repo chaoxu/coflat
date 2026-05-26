@@ -7,13 +7,24 @@ import {
   getCitationRegistrationKey,
   type CitationCollectionOptions,
 } from "../citations/citation-matching";
-import type { CitationFormatter } from "../../core/document-context-types";
+import type {
+  CitationFormatter,
+  DocumentContext,
+  HostReferenceResolution,
+  LinkResolver,
+  RefResolverEnv,
+  ReferenceMode,
+} from "../../core/document-context-types";
 import type { BlockCounterEntry } from "../../core/lib/file-system-types";
+import { isSafeUrl } from "../../core/lib/url-utils";
 import type {
   DocumentAnalysis,
   DocumentSemantics,
   ReferenceSemantics,
 } from "../semantics/document";
+import { documentContextFacet } from "../document-context";
+import { documentPathFacet } from "../lib/types";
+import { sanitizeCslHtml } from "../lib/sanitize-csl-html";
 import {
   documentReferenceCatalogField,
   getEditorDocumentReferenceCatalog,
@@ -55,9 +66,15 @@ export interface ReferencePresentationContext {
     locators: readonly (string | undefined)[],
   ) => string;
   citeNarrative: (id: string) => string;
+  resolveHostReference?: (
+    input: ReferencePresentationInput,
+  ) => ReferencePresentationHostRefRoute | null;
 }
 
 export interface ReferencePresentationController extends ReferencePresentationContext {
+  readonly linkResolver?: LinkResolver;
+  readonly documentPath?: string;
+  readonly surface?: string;
   getDisplayText(id: string): string;
   getPreviewText(id: string): string | undefined;
   planReference(input: ReferencePresentationInput): ReferencePresentationRoute | null;
@@ -69,6 +86,7 @@ export interface ReferencePresentationInput {
   readonly ids: readonly string[];
   readonly locators: readonly (string | undefined)[];
   readonly raw: string;
+  readonly sourceRange?: { readonly from: number; readonly to: number };
 }
 
 export interface ReferencePresentationCitationPart {
@@ -89,6 +107,19 @@ export interface ReferencePresentationClusteredCrossrefPart {
   readonly unresolved?: boolean;
 }
 
+export interface ReferencePresentationHostRefRoute {
+  readonly kind: "host-ref";
+  readonly key: string;
+  readonly mode: ReferenceMode;
+  readonly html: string;
+  readonly href?: string;
+  readonly className?: string;
+  readonly hasOnClick: boolean;
+  readonly raw: string;
+  readonly ids: readonly string[];
+  readonly locators: readonly (string | undefined)[];
+}
+
 export type ReferencePresentationMixedPart =
   | ReferencePresentationCitationPart
   | ReferencePresentationCrossrefPart;
@@ -98,7 +129,8 @@ export type ReferencePresentationRoute =
   | { readonly kind: "mixed-cluster"; readonly parts: readonly ReferencePresentationMixedPart[]; readonly raw: string }
   | { readonly kind: "crossref"; readonly resolved: ResolvedCrossref; readonly raw: string }
   | { readonly kind: "clustered-crossref"; readonly parts: readonly ReferencePresentationClusteredCrossrefPart[]; readonly raw: string }
-  | { readonly kind: "unresolved"; readonly raw: string };
+  | { readonly kind: "unresolved"; readonly raw: string }
+  | ReferencePresentationHostRefRoute;
 
 export interface ReferenceClassificationOptions {
   readonly bibliography?: ReferenceLookup;
@@ -121,13 +153,19 @@ interface ReferencePresentationControllerOptions {
   readonly getCitationPreview?: (id: string) => string | undefined;
   readonly registerCitations?: (references: readonly ReferenceSemantics[]) => void;
   readonly resolveCrossref: (id: string) => ResolvedCrossref | null;
+  readonly documentContext?: DocumentContext;
+  readonly documentPath?: string;
+  readonly surface?: string;
 }
 
 interface PreviewReferencePresentationOptions {
   readonly bibliography?: BibStore;
   readonly blockCounters?: ReadonlyMap<string, BlockCounterEntry>;
+  readonly documentContext?: DocumentContext;
+  readonly documentPath?: string;
   readonly formatter?: CitationFormatter | null;
   readonly referenceSemantics?: DocumentSemantics;
+  readonly surface?: string;
 }
 
 let referencePresentationComputationCount = 0;
@@ -199,6 +237,107 @@ function citeSingle(
   return context.cite([id], locator === undefined ? [] : [locator]);
 }
 
+function escapeAttr(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function renderResolvedHostReference(
+  resolved: HostReferenceResolution,
+): string {
+  const content = sanitizeCslHtml(resolved.content);
+  if (!resolved.href || !isSafeUrl(resolved.href)) {
+    return content;
+  }
+  return `<a href="${escapeAttr(resolved.href)}">${content}</a>`;
+}
+
+function buildRefResolverEnv(
+  input: ReferencePresentationInput,
+  index: number,
+  options: Pick<ReferencePresentationControllerOptions, "documentPath" | "surface">,
+): RefResolverEnv {
+  return {
+    raw: input.raw,
+    sourceRange: input.sourceRange,
+    locator: input.locators[index],
+    cluster: {
+      ids: input.ids,
+      locators: input.locators,
+      index,
+      raw: input.raw,
+    },
+    documentPath: options.documentPath,
+    surface: options.surface,
+  };
+}
+
+function createHostReferenceResolver(
+  options: Pick<
+    ReferencePresentationControllerOptions,
+    "documentContext" | "documentPath" | "resolveCrossref" | "surface"
+  >,
+): ReferencePresentationContext["resolveHostReference"] | undefined {
+  const resolver = options.documentContext?.refResolver;
+  if (!resolver?.resolve) return undefined;
+
+  return (input) => {
+    if (input.ids.length === 0) return null;
+    const mode: ReferenceMode = input.bracketed ? "bracketed" : "narrative";
+    const rendered: string[] = [];
+    const classNames = new Set<string>();
+    let firstHref: string | undefined;
+    let hasOnClick = false;
+    let hostResolved = false;
+
+    for (let index = 0; index < input.ids.length; index += 1) {
+      const id = input.ids[index];
+      const crossref = options.resolveCrossref(id);
+      if (crossref) {
+        rendered.push(escapeHtml(crossref.label));
+        continue;
+      }
+      const resolved = resolver.resolve(
+        id,
+        mode,
+        buildRefResolverEnv(input, index, options),
+      );
+      if (!resolved) return null;
+      hostResolved = true;
+      if (resolved.className) classNames.add(resolved.className);
+      if (firstHref === undefined && resolved.href) firstHref = resolved.href;
+      if (typeof resolved.onClick === "function") hasOnClick = true;
+      rendered.push(renderResolvedHostReference(resolved));
+    }
+
+    if (!hostResolved) return null;
+
+    return {
+      kind: "host-ref",
+      key: input.ids.join(";"),
+      mode,
+      html: rendered.join("; "),
+      href: input.ids.length === 1 ? firstHref : undefined,
+      className: classNames.size === 1 ? [...classNames][0] : undefined,
+      hasOnClick,
+      raw: input.raw,
+      ids: input.ids,
+      locators: input.locators,
+    };
+  };
+}
+
 export function resolveCatalogCrossref(
   catalog: DocumentReferenceCatalog,
   id: string,
@@ -258,6 +397,9 @@ export function planReferencePresentation(
   context: ReferencePresentationContext,
   input: ReferencePresentationInput,
 ): ReferencePresentationRoute | null {
+  const hostRef = context.resolveHostReference?.(input);
+  if (hostRef) return hostRef;
+
   const classifications = input.ids.map((id) =>
     context.classify(id, input.bracketed),
   );
@@ -342,8 +484,14 @@ function createReferencePresentationController(
   const citationEntries = new Map<string, CachedCitationFormat>();
   const cite = options.cite ?? (() => "");
   const citeNarrative = options.citeNarrative ?? ((id: string) => id);
+  const resolveHostReference = createHostReferenceResolver(options);
 
   const controller: ReferencePresentationController = {
+    linkResolver: options.documentContext?.linkResolver,
+    documentPath: options.documentPath,
+    surface: options.surface,
+    resolveHostReference,
+
     classify(id, _preferCitation) {
       return classifyReferenceTarget(options.resolveCrossref, id, {
         bibliography: options.bibliography,
@@ -418,20 +566,26 @@ export function createEditorReferencePresentationController(
     readonly store?: BibStore;
     readonly formatter?: CitationFormatter | null;
     readonly equationLabels?: ReadonlyMap<string, EquationEntry>;
+    readonly surface?: string;
   } = {},
 ): ReferencePresentationController {
   const bibliography = state.field(bibDataField, false);
   const store = options.store ?? bibliography?.store;
   const formatter =
     options.formatter !== undefined ? options.formatter : bibliography?.formatter ?? null;
+  const documentContext = state.facet(documentContextFacet);
+  const documentPath = state.facet(documentPathFacet) || undefined;
 
   return createCatalogReferencePresentationController(
     getEditorDocumentReferenceCatalog(state),
     {
       bibliography: store,
+      documentContext,
+      documentPath,
       equationLabels: options.equationLabels,
       cite: (ids, locators) => formatter?.cite([...ids], [...locators]) ?? "",
       citeNarrative: (id) => formatter?.citeNarrative(id) ?? id,
+      surface: options.surface ?? "editor",
       registerCitations: (references) => {
         if (!store || !formatter) return;
         const catalog = getEditorDocumentReferenceCatalog(state);
@@ -494,6 +648,9 @@ export function createPreviewReferencePresentationController(
   const formatter = options.formatter ?? null;
   return createReferencePresentationController({
     bibliography: options.bibliography,
+    documentContext: options.documentContext,
+    documentPath: options.documentPath,
+    surface: options.surface ?? "editor-widget",
     cite: (ids, locators) => {
       const rendered = formatter?.cite([...ids], [...locators]);
       if (rendered) return rendered;
@@ -527,7 +684,9 @@ function referencePresentationDependenciesChanged(tr: Transaction): boolean {
   return tr.docChanged
     || tr.startState.field(documentReferenceCatalogField, false)
       !== tr.state.field(documentReferenceCatalogField, false)
-    || tr.startState.field(bibDataField, false) !== tr.state.field(bibDataField, false);
+    || tr.startState.field(bibDataField, false) !== tr.state.field(bibDataField, false)
+    || tr.startState.facet(documentContextFacet) !== tr.state.facet(documentContextFacet)
+    || tr.startState.facet(documentPathFacet) !== tr.state.facet(documentPathFacet);
 }
 
 export const referencePresentationField = StateField.define<ReferencePresentationController>({

@@ -1,4 +1,21 @@
-export { getEditorCommands, createHeadingCommands } from "./commands";
+export {
+  builtinCommandRegistryExtension,
+  createHeadingCommands,
+  getEditorCommandRegistry,
+  getEditorCommands,
+} from "./commands";
+export {
+  commandKeymapExtension,
+  commandRegistryExtension,
+  commandRegistryFacet,
+  getPaletteCommands,
+  getRegisteredCommands,
+  getSlashCommands,
+  runRegisteredCommand,
+  type Command,
+  type CommandEnv,
+  type CommandSurface,
+} from "./command-registry";
 export {
   captureEditorHistoryState,
   createEditor,
@@ -24,6 +41,12 @@ export {
   frontmatterDecoration,
 } from "./frontmatter-render";
 export { editorKeybindings } from "./keybindings";
+export {
+  documentContextCompartment,
+  documentContextExtension,
+  documentContextFacet,
+  setDocumentContext,
+} from "./document-context";
 export { blockTypePickerExtension, isPickerVisible } from "./block-type-picker";
 export { listOutlinerExtension } from "./list-outliner";
 export { coflatTheme, coflatDarkTheme } from "./theme";
@@ -95,6 +118,8 @@ export {
   type UploadToastRequest,
   type AutocompleteRequest,
   type AutocompleteResult,
+  type CommandPaletteRequest,
+  type CommandPaletteResult,
   DEFAULT_AUTOCOMPLETE_DEBOUNCE_MS,
   DEFAULT_AUTOSAVE_DEBOUNCE_MS,
 } from "./editor-host-api";
@@ -154,3 +179,15 @@ export {
   DOCUMENT_SURFACE_CLASS,
   documentSurfaceClassNames,
 } from "../core/document-surface-classes";
+export type {
+  DocumentContext,
+  HostLinkResolution,
+  HostReferenceResolution,
+  LinkResolver,
+  LinkResolverEnv,
+  RefResolver,
+  RefResolverClusterEnv,
+  RefResolverEnv,
+  ReferenceMode,
+  SourceRange,
+} from "../core/document-context-types";

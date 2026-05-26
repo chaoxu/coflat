@@ -1,6 +1,6 @@
 {
   "name": "@chaoxu/coflat-editor",
-  "version": "0.2.3",
+  "version": "0.2.5",
   "description": "Math-aware markdown editor library extracted from coflat — CM6 + Lezer + Typora-style ViewPlugins.",
   "type": "module",
   "sideEffects": [
@@ -32,6 +32,10 @@
     "./citeproc": {
       "types": "./dist/citeproc.d.ts",
       "import": "./dist/citeproc.mjs"
+    },
+    "./numeric": {
+      "types": "./dist/numeric.d.ts",
+      "import": "./dist/numeric.mjs"
     },
     "./themes/blueprint-book.css": "./dist/themes/blueprint-book.css",
     "./test-utils": {

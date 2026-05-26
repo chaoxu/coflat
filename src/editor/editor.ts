@@ -23,6 +23,8 @@ import {
   createProjectConfigExtensions,
 } from "./base-editor-extensions";
 import { blockTypePickerExtension } from "./block-type-picker";
+import { builtinCommandRegistryExtension } from "./commands";
+import { commandKeymapExtension } from "./command-registry";
 import {
   syntaxHighlightCompartment,
   themeCompartment,
@@ -98,6 +100,8 @@ function editorChromeExtensions(isDark: boolean): Extension[] {
     stableHeightOracleExtension,
     richMouseSelectionStyle,
     blockTypePickerExtension,
+    builtinCommandRegistryExtension,
+    commandKeymapExtension,
     debugLaneCompartment.of(defaultDebugLaneExtensions),
     coflatTheme,
 

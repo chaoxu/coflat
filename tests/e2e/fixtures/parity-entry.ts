@@ -1,6 +1,7 @@
 import "../../../src/editor/editor-theme.css";
 import { applyThemePreset, mountEditor, themePresets } from "../../../editor";
 import { hydrateMath, renderToHtml } from "../../../reader";
+import { buildReferenceCatalog } from "../../../parse";
 
 const params = new URLSearchParams(window.location.search);
 const presetKey = params.get("preset");
@@ -14,6 +15,8 @@ const source = `# Default Document
 This paragraph includes **bold text**, *italic text*, ~~struck text~~,
 ==highlighted text==, \`inline code\`, $x + y$, and a
 [reference link](https://example.com).
+
+References should align too: [@karger2000] and [@external-page].
 
 ## Main Result
 
@@ -49,19 +52,33 @@ The host applies a scoped class, and Coflat surfaces inherit variables from it.
 :::
 `;
 
+const catalog = buildReferenceCatalog(source);
+const context = {
+  refResolver: {
+    resolve(key: string) {
+      const target = catalog.uniqueTargetById.get(key);
+      if (target) return { content: target.displayLabel, className: "cf-crossref" };
+      if (key === "karger2000") return { content: "[1]" };
+      if (key === "external-page") return { content: "External Page" };
+      return null;
+    },
+  },
+};
+
 const readerRoot = document.getElementById("reader-root");
 const editorRoot = document.getElementById("editor-root");
 if (!(readerRoot instanceof HTMLElement) || !(editorRoot instanceof HTMLElement)) {
   throw new Error("missing parity fixture roots");
 }
 
-readerRoot.innerHTML = renderToHtml(source).html;
+readerRoot.innerHTML = renderToHtml(source, context).html;
 await hydrateMath(readerRoot);
 
 const mounted = mountEditor({
   parent: editorRoot,
   doc: source,
   mode: "rich",
+  context,
 });
 
 (window as unknown as { __coflatEditor: typeof mounted }).__coflatEditor = mounted;

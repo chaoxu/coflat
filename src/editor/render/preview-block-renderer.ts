@@ -1,6 +1,9 @@
 import { parser as baseParser } from "@lezer/markdown";
 import type { SyntaxNode } from "@lezer/common";
-import type { CitationFormatter } from "../../core/document-context-types";
+import type {
+  CitationFormatter,
+  DocumentContext,
+} from "../../core/document-context-types";
 import {
   BLOCK_MANIFEST_ENTRIES,
   EXCLUDED_FROM_FALLBACK,
@@ -37,6 +40,7 @@ export interface PreviewBlockRenderOptions {
   readonly macros?: Record<string, string>;
   readonly config?: FrontmatterConfig;
   readonly bibliography?: BibStore;
+  readonly documentContext?: DocumentContext;
   readonly formatter?: CitationFormatter | null;
   readonly blockCounters?: ReadonlyMap<string, BlockCounterEntry>;
   readonly documentPath?: string;
@@ -59,8 +63,11 @@ export function renderPreviewBlockContentToDom(
   const referenceController = createPreviewReferencePresentationController({
     bibliography: options.bibliography,
     blockCounters: options.blockCounters,
+    documentContext: options.documentContext,
+    documentPath: options.documentPath,
     formatter: options.formatter,
     referenceSemantics,
+    surface: "editor-widget",
   });
 
   referenceController.registerCitations(semantics.references);

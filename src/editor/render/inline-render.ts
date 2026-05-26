@@ -21,12 +21,14 @@ import {
   parseInlineFragments,
 } from "../inline-fragments";
 import { isSafeUrl } from "../../core/lib/url-utils";
+import type { LinkResolver } from "../../core/document-context-types";
 import {
   planReferencePresentation,
   type ReferencePresentationContext,
   type ReferencePresentationRoute,
 } from "../references/presentation";
 import { renderKatexToHtml } from "./inline-shared";
+import { HostRefWidget } from "./citation-widget";
 
 interface InlineSegment {
   isMath: boolean;
@@ -35,7 +37,11 @@ interface InlineSegment {
 
 type DomInlineSurface = InlineRenderSurface | "document-body";
 
-export interface InlineReferenceRenderContext extends ReferencePresentationContext {}
+export interface InlineReferenceRenderContext extends ReferencePresentationContext {
+  readonly linkResolver?: LinkResolver;
+  readonly documentPath?: string;
+  readonly surface?: string;
+}
 
 function renderFragments(
   container: HTMLElement | DocumentFragment,
@@ -138,7 +144,56 @@ function renderPresentationRoute(
     case "unresolved":
       container.appendChild(new UnresolvedRefWidget(route.raw).createDOM());
       return;
+    case "host-ref":
+      container.appendChild(
+        new HostRefWidget(
+          route.html,
+          route.key,
+          route.mode,
+          route.href,
+          route.className,
+          route.hasOnClick,
+        ).createDOM(),
+      );
+      return;
   }
+}
+
+function fragmentPlainText(fragments: readonly InlineFragment[]): string {
+  let out = "";
+  for (const fragment of fragments) {
+    switch (fragment.kind) {
+      case "text":
+      case "code":
+        out += fragment.text;
+        break;
+      case "math":
+        out += fragment.raw;
+        break;
+      case "emphasis":
+      case "strong":
+      case "strikethrough":
+      case "highlight":
+        out += fragmentPlainText(fragment.children);
+        break;
+      case "link":
+        out += fragmentPlainText(fragment.children);
+        break;
+      case "reference":
+        out += fragment.parenthetical ? `[${fragment.rawText}]` : fragment.rawText;
+        break;
+      case "image":
+        out += fragment.rawAlt;
+        break;
+      case "footnote-ref":
+        out += fragment.id;
+        break;
+      case "hard-break":
+        out += " ";
+        break;
+    }
+  }
+  return out;
 }
 
 function renderFragment(
@@ -213,7 +268,7 @@ function renderFragment(
         // role + aria-label above. Display math still uses the default
         // "htmlAndMathml" output (math-render.ts) so copy-as-MathML works
         // there; only inline CM6 trades the semantic branch for latency.
-        const html = renderKatexToHtml(fragment.latex, false, macros, "html", true);
+        const html = renderKatexToHtml(fragment.latex, false, macros, "html", false);
         if (html.includes("katex-error")) {
           renderRawError("KaTeX error");
         } else {
@@ -240,9 +295,36 @@ function renderFragment(
         return;
       }
 
+      let resolvedHref = href;
+      let className: string | undefined;
+      let title: string | undefined;
+      const resolved = referenceContext?.linkResolver?.resolve?.(
+        href,
+        fragmentPlainText(fragment.children),
+        {
+          from: referenceContext.documentPath,
+          documentPath: referenceContext.documentPath,
+          surface: referenceContext.surface,
+        },
+      );
+      if (resolved) {
+        if (resolved.href !== undefined) resolvedHref = resolved.href;
+        className = resolved.className;
+        title = resolved.title;
+      }
+      if (!isSafeUrl(resolvedHref)) {
+        renderFragments(container, fragment.children, macros, surface, referenceContext);
+        return;
+      }
+
       const anchor = document.createElement("a");
       anchor.className = CSS.linkRendered;
-      anchor.href = href;
+      if (className) anchor.className = `${anchor.className} ${className}`;
+      if (title) anchor.title = title;
+      anchor.href = resolvedHref;
+      if (typeof resolved?.onClick === "function") {
+        anchor.addEventListener("click", resolved.onClick);
+      }
       renderFragments(anchor, fragment.children, macros, surface, referenceContext);
       container.appendChild(anchor);
       return;

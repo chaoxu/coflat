@@ -1,5 +1,6 @@
 import type { EditorView } from "@codemirror/view";
 import { createInlineEditorController } from "../inline-editor";
+import { documentContextFacet } from "../document-context";
 import { coarseHitTestPosition, preciseHitTestPosition } from "../lib/editor-hit-test";
 import { getEditorDocumentReferenceCatalog } from "../semantics/editor-reference-catalog";
 import { bibDataField } from "../state/bib-data";
@@ -151,6 +152,9 @@ export function buildTableWidgetDOM(options: TableWidgetDomOptions): HTMLTableEl
 
     const rootView = options.getRootView();
     const bibData = rootView?.state.field?.(bibDataField, false);
+    const documentContext = rootView && typeof rootView.state.facet === "function"
+      ? rootView.state.facet(documentContextFacet)
+      : undefined;
     const referenceCatalog = rootView && typeof rootView.state.field === "function"
       ? getEditorDocumentReferenceCatalog(rootView.state)
       : undefined;
@@ -159,6 +163,7 @@ export function buildTableWidgetDOM(options: TableWidgetDomOptions): HTMLTableEl
       doc: rawText,
       macros: options.macros,
       bibData: bibData ?? undefined,
+      documentContext,
       referenceCatalog,
       onChange: () => {},
     });

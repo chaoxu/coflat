@@ -18,7 +18,6 @@ import {
 } from "@codemirror/view";
 import { type ChangeSet, type EditorState, type Extension, type Range, type Transaction } from "@codemirror/state";
 import { CSS } from "../../core/constants/css-classes";
-import type { ResolvedCrossref } from "../references/presentation";
 import { forEachOverlappingOrderedRange } from "../lib/range-helpers";
 import type { CitationFormatter } from "../../core/document-context-types";
 import type { BibStore } from "../state/bib-data";
@@ -29,8 +28,6 @@ import {
   MixedClusterWidget,
   UnresolvedRefWidget,
 } from "./crossref-render";
-import { documentContextFacet } from "../document-context";
-import { sanitizeCslHtml } from "../lib/sanitize-csl-html";
 import { buildDecorations, pushWidgetDecoration } from "./decoration-core";
 import {
   type ReferenceSemantics,
@@ -54,8 +51,10 @@ import {
   createEditorReferencePresentationController,
   ensureEditorReferencePresentationCitationsRegistered,
   type ReferencePresentationClusteredCrossrefPart,
+  type ReferencePresentationHostRefRoute,
   type ReferencePresentationMixedPart,
   type ReferencePresentationRoute,
+  type ResolvedCrossref,
 } from "../references/presentation";
 import {
   getReferenceRenderAnalysis,
@@ -91,17 +90,7 @@ export type ReferenceRenderItem =
   | { readonly kind: "crossref"; readonly from: number; readonly to: number; readonly resolved: ResolvedCrossref; readonly raw: string }
   | { readonly kind: "clustered-crossref"; readonly from: number; readonly to: number; readonly parts: readonly ReferencePresentationClusteredCrossrefPart[]; readonly raw: string }
   | { readonly kind: "unresolved"; readonly from: number; readonly to: number; readonly raw: string }
-  | {
-      readonly kind: "host-ref";
-      readonly from: number;
-      readonly to: number;
-      readonly key: string;
-      readonly mode: "bracketed" | "narrative";
-      readonly html: string;
-      readonly href?: string;
-      readonly className?: string;
-      readonly hasOnClick: boolean;
-    };
+  | (ReferencePresentationHostRefRoute & { readonly from: number; readonly to: number });
 
 function toRenderItem(
   route: ReferencePresentationRoute,
@@ -118,6 +107,8 @@ function toRenderItem(
     case "clustered-crossref":
       return { ...route, from, to };
     case "unresolved":
+      return { ...route, from, to };
+    case "host-ref":
       return { ...route, from, to };
   }
 }
@@ -194,18 +185,13 @@ export function planReferenceRendering(
       continue;
     }
 
-    const hostItem = tryPlanHostRef(state, controller, ref);
-    if (hostItem) {
-      items.push(hostItem);
-      continue;
-    }
-
     const raw = state.sliceDoc(ref.from, ref.to);
     const route = controller.planReference({
       bracketed: ref.bracketed,
       ids: ref.ids,
       locators: ref.locators,
       raw,
+      sourceRange: { from: ref.from, to: ref.to },
     });
     if (!route) continue;
 
@@ -267,44 +253,13 @@ function buildDegradedCitationItem(
     mode,
     html,
     hasOnClick: false,
+    raw,
+    ids,
+    locators: ids.map(() => undefined),
   };
 }
 
 // ── Emit: map plan items to CM6 decorations ────────────────────────
-
-function tryPlanHostRef(
-  state: EditorState,
-  controller: ReturnType<typeof createEditorReferencePresentationController>,
-  ref: ReferenceSemantics,
-): ReferenceRenderItem | null {
-  const resolver = state.facet(documentContextFacet)?.refResolver;
-  if (!resolver?.resolve) return null;
-  // Spec: host RefResolver only handles single-key references. Multi-key
-  // clusters and references with locators stay on the existing path.
-  if (ref.ids.length !== 1) return null;
-  if (ref.locators.some((loc) => loc !== undefined)) return null;
-  const key = ref.ids[0];
-  // Cross-refs resolved against the in-doc label index never reach the
-  // host resolver, regardless of the id's surface shape.
-  const classification = controller.classify(key, ref.bracketed);
-  if (classification.kind === "crossref") return null;
-
-  const mode: "bracketed" | "narrative" = ref.bracketed ? "bracketed" : "narrative";
-  const result = resolver.resolve(key, mode);
-  if (!result) return null;
-  const sanitized = sanitizeCslHtml(result.content);
-  return {
-    kind: "host-ref",
-    from: ref.from,
-    to: ref.to,
-    key,
-    mode,
-    html: sanitized,
-    href: result.href,
-    className: result.className,
-    hasOnClick: typeof result.onClick === "function",
-  };
-}
 
 function emitReferenceDecorations(plan: readonly ReferenceRenderItem[]): Range<Decoration>[] {
   const sourceMarkDecoration = Decoration.mark({ class: CSS.referenceSource });

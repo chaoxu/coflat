@@ -192,7 +192,7 @@ describe("renderKatex", () => {
   });
 
   it("reuses cached KaTeX HTML across widget and inline renderers", () => {
-    renderKatexToHtml("x^2", false, {}, "html", true);
+    renderKatexToHtml("x^2", false, {}, "html", false);
     vi.spyOn(katex, "renderToString").mockImplementation(() => {
       throw new Error("cache miss");
     });

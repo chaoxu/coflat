@@ -179,4 +179,28 @@ describe("mountEditor", () => {
 
     expect(onCounts).not.toHaveBeenCalled();
   });
+
+  it("updates DocumentContext after mount without remounting document state", () => {
+    const parent = document.createElement("div");
+    const editor = mountEditor({
+      parent,
+      doc: "See [@host-page].",
+      mode: "rich",
+    });
+
+    expect(editor.getDoc()).toBe("See [@host-page].");
+    expect(parent.textContent).not.toContain("Resolved Page");
+
+    editor.setContext({
+      refResolver: {
+        resolve: (key) => ({ content: `<strong>Resolved ${key}</strong>` }),
+      },
+    });
+
+    expect(editor.getDoc()).toBe("See [@host-page].");
+    expect(editor.getMode()).toBe("rich");
+    expect(parent.textContent).toContain("Resolved host-page");
+
+    editor.unmount();
+  });
 });

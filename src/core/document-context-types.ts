@@ -12,6 +12,53 @@
 
 import type { FileSystem } from "./lib/file-system-types";
 
+export type ReferenceMode = "bracketed" | "narrative";
+
+export interface SourceRange {
+  readonly from: number;
+  readonly to: number;
+}
+
+export interface RefResolverClusterEnv {
+  readonly ids: readonly string[];
+  readonly locators: readonly (string | undefined)[];
+  readonly index: number;
+  readonly raw: string;
+}
+
+export interface RefResolverEnv {
+  readonly raw?: string;
+  readonly sourceRange?: SourceRange;
+  readonly locator?: string;
+  readonly cluster?: RefResolverClusterEnv;
+  readonly documentPath?: string;
+  readonly surface?: "reader" | "editor" | "editor-widget" | "editor-hover" | "editor-completion" | (string & {});
+}
+
+export interface LinkResolverEnv {
+  /** Current document path, when the host supplied one. */
+  readonly from?: string;
+  readonly raw?: string;
+  readonly sourceRange?: SourceRange;
+  readonly documentPath?: string;
+  readonly surface?: "reader" | "editor" | "editor-widget" | "editor-hover" | "editor-completion" | (string & {});
+}
+
+export interface HostLinkResolution {
+  href?: string;
+  className?: string;
+  title?: string;
+  onClick?: (e: MouseEvent) => void;
+}
+
+export interface HostReferenceResolution {
+  /** Sanitized HTML for the visible reference text. */
+  content: string;
+  href?: string;
+  className?: string;
+  onClick?: (e: MouseEvent) => void;
+}
+
 /**
  * Host-supplied resolver for `[text](href)` links. Coflat tokenizes
  * links and emits `<a>`; this resolver decorates the result — rewrites
@@ -21,13 +68,8 @@ export interface LinkResolver {
   resolve?(
     href: string,
     text: string,
-    env: { from?: string },
-  ): {
-    href?: string;
-    className?: string;
-    title?: string;
-    onClick?: (e: MouseEvent) => void;
-  } | null;
+    env: LinkResolverEnv,
+  ): HostLinkResolution | null;
 }
 
 /**
@@ -38,14 +80,9 @@ export interface LinkResolver {
 export interface RefResolver {
   resolve(
     key: string,
-    mode: "bracketed" | "narrative",
-  ): {
-    /** Sanitized HTML for the visible reference text. */
-    content: string;
-    href?: string;
-    className?: string;
-    onClick?: (e: MouseEvent) => void;
-  } | null;
+    mode: ReferenceMode,
+    env?: RefResolverEnv,
+  ): HostReferenceResolution | null;
 }
 
 /**

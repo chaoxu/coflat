@@ -13,13 +13,31 @@ import type { SyntaxNodeRef } from "@lezer/common";
 import { parse as parseYaml, parseDocument as parseYamlDocument, stringify as stringifyYaml, isMap, isScalar } from "yaml";
 
 import { extractRawFrontmatter, markdownExtensions } from "./src/core/parser";
-import { CROSS_REFERENCE_PREFIXES } from "./src/core/constants/block-manifest";
+import {
+  CROSS_REFERENCE_PREFIXES,
+  getBlockManifestEntry,
+  getManifestBlockTitle,
+} from "./src/core/constants/block-manifest";
 import { NODE } from "./src/core/constants/node-types";
+import {
+  formatBlockReferenceLabel,
+  formatEquationReferenceLabel,
+  formatHeadingReferenceLabel,
+} from "./src/core/references/format";
 import {
   BRACKETED_REFERENCE_EXACT_RE,
   NARRATIVE_REFERENCE_GLOBAL_RE,
   parseReferenceClusterBody,
 } from "./src/core/lib/reference-grammar";
+import {
+  analyzeDocumentSemantics,
+  stringTextSource,
+} from "./src/editor/semantics/document";
+export {
+  createNumericCitationFormatter,
+  parseBibliographyKeys,
+  type NumericCitationEntry,
+} from "./src/core/citations/numeric";
 
 export type ReferenceKind = "link" | "image" | "ref" | "crossref";
 
@@ -231,6 +249,159 @@ export function extractReferences(source: string): ExtractedReference[] {
 
   out.sort((a, b) => a.from - b.from || a.to - b.to);
   return out;
+}
+
+export type ReferenceCatalogTargetKind = "block" | "equation" | "heading";
+
+export interface ReferenceCatalogTarget {
+  readonly id?: string;
+  readonly kind: ReferenceCatalogTargetKind;
+  readonly from: number;
+  readonly to: number;
+  readonly displayLabel: string;
+  readonly number?: string;
+  readonly ordinal?: number;
+  readonly title?: string;
+  readonly text?: string;
+  readonly blockType?: string;
+}
+
+export interface ReferenceCatalogReference {
+  readonly from: number;
+  readonly to: number;
+  readonly raw: string;
+  readonly bracketed: boolean;
+  readonly ids: readonly string[];
+  readonly locators: readonly (string | undefined)[];
+}
+
+export interface ReferenceCatalog {
+  readonly targets: readonly ReferenceCatalogTarget[];
+  readonly targetsById: ReadonlyMap<string, readonly ReferenceCatalogTarget[]>;
+  readonly uniqueTargetById: ReadonlyMap<string, ReferenceCatalogTarget>;
+  readonly duplicatesById: ReadonlyMap<string, readonly ReferenceCatalogTarget[]>;
+  readonly references: readonly ReferenceCatalogReference[];
+}
+
+export interface ReferenceCatalogOptions {
+  readonly includeUnnumberedBlockOrdinals?: boolean;
+}
+
+function nextBlockOrdinal(
+  counters: Map<string, number>,
+  blockType: string,
+): number | undefined {
+  const entry = getBlockManifestEntry(blockType);
+  if (!entry?.numbered) return undefined;
+  const group = entry.counterGroup ?? blockType;
+  const next = (counters.get(group) ?? 0) + 1;
+  counters.set(group, next);
+  return next;
+}
+
+function indexTargets(targets: readonly ReferenceCatalogTarget[]) {
+  const targetsById = new Map<string, ReferenceCatalogTarget[]>();
+  const uniqueTargetById = new Map<string, ReferenceCatalogTarget>();
+  const duplicatesById = new Map<string, readonly ReferenceCatalogTarget[]>();
+
+  for (const target of targets) {
+    if (!target.id) continue;
+    const bucket = targetsById.get(target.id);
+    if (!bucket) {
+      targetsById.set(target.id, [target]);
+      uniqueTargetById.set(target.id, target);
+      continue;
+    }
+    if (bucket.length === 1) {
+      uniqueTargetById.delete(target.id);
+      duplicatesById.set(target.id, bucket);
+    }
+    bucket.push(target);
+  }
+
+  return { targetsById, uniqueTargetById, duplicatesById };
+}
+
+/**
+ * Build the shared reference catalog used by reader hosts and package tests.
+ *
+ * The output is parser/semantic data only: no DOM, React, CodeMirror view, or
+ * citation-js dependencies.
+ */
+export function buildReferenceCatalog(
+  source: string,
+  _options: ReferenceCatalogOptions = {},
+): ReferenceCatalog {
+  const tree = markdownParser.parse(source);
+  const analysis = analyzeDocumentSemantics(stringTextSource(source), tree);
+  const blockCounters = new Map<string, number>();
+  const targets: ReferenceCatalogTarget[] = [];
+
+  for (const block of analysis.fencedDivs) {
+    if (!block.primaryClass) continue;
+    const manifest = getBlockManifestEntry(block.primaryClass);
+    const ordinal = nextBlockOrdinal(blockCounters, block.primaryClass);
+    const title = manifest
+      ? getManifestBlockTitle(manifest)
+      : `${block.primaryClass.slice(0, 1).toUpperCase()}${block.primaryClass.slice(1)}`;
+    targets.push({
+      id: block.id,
+      kind: "block",
+      from: block.from,
+      to: block.to,
+      displayLabel: formatBlockReferenceLabel(title, ordinal),
+      number: ordinal === undefined ? undefined : String(ordinal),
+      ordinal,
+      title: block.title,
+      blockType: block.primaryClass,
+    });
+  }
+
+  for (const equation of analysis.equations) {
+    targets.push({
+      id: equation.id,
+      kind: "equation",
+      from: equation.from,
+      to: equation.to,
+      displayLabel: formatEquationReferenceLabel(equation.number),
+      number: String(equation.number),
+      ordinal: equation.number,
+      text: equation.latex,
+    });
+  }
+
+  for (const heading of analysis.headings) {
+    targets.push({
+      id: heading.id,
+      kind: "heading",
+      from: heading.from,
+      to: heading.to,
+      displayLabel: formatHeadingReferenceLabel(heading),
+      number: heading.number || undefined,
+      title: heading.text,
+      text: heading.text,
+    });
+  }
+
+  targets.sort((left, right) => left.from - right.from || left.to - right.to);
+  const indexes = indexTargets(targets);
+
+  return {
+    targets,
+    ...indexes,
+    references: analysis.references.map((reference) => ({
+      from: reference.from,
+      to: reference.to,
+      raw: source.slice(reference.from, reference.to),
+      bracketed: reference.bracketed,
+      ids: reference.ids,
+      locators: reference.locators,
+    })),
+  };
+}
+
+export function analyzeReferences(source: string): ReferenceCatalog {
+  return buildReferenceCatalog(source);
 }
 
 // ---------------------------------------------------------------------------

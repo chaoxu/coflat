@@ -237,13 +237,13 @@ describe("renderInlineMarkdown — inline math", () => {
     expect(() => renderInlineMarkdown(container, "$\\frac{$")).not.toThrow();
   });
 
-  it("marks thrown KaTeX failures as visible math errors", () => {
+  it("marks invalid KaTeX as visible math errors", () => {
     const container = document.createElement("div");
-    renderInlineMarkdown(container, "$\\oops{x}$");
+    renderInlineMarkdown(container, "$x_$");
 
     const span = container.querySelector("span.cf-math-error");
     expect(span).not.toBeNull();
-    expect(span?.textContent).toBe("$\\oops{x}$");
+    expect(span?.textContent).toBe("$x_$");
     expect(span?.getAttribute("aria-label")).toContain("KaTeX error");
   });
 

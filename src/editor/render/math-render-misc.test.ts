@@ -22,6 +22,11 @@ import {
 } from "./math-render-test-utils";
 
 describe("error handling", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    clearKatexCache();
+  });
+
   it("inline MathWidget does not throw on parse error", () => {
     const widget = new MathWidget("\\frac{", "$\\frac{$", false);
     expect(() => widget.toDOM()).not.toThrow();
@@ -30,6 +35,20 @@ describe("error handling", () => {
   it("display MathWidget does not throw on parse error", () => {
     const widget = new MathWidget("\\frac{", "$$\\frac{$$", true);
     expect(() => widget.toDOM()).not.toThrow();
+  });
+
+  it("does not log transient parse errors while rendering fallbacks", () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const widget = new MathWidget("x_", "$x_$", false);
+    const widgetElement = widget.toDOM();
+
+    const inlineContainer = document.createElement("div");
+    renderInlineMarkdown(inlineContainer, "$x_$");
+
+    expect(errorSpy).not.toHaveBeenCalled();
+    expect(widgetElement.classList.contains("cf-math-error")).toBe(true);
+    expect(inlineContainer.querySelector(".cf-math-error")).not.toBeNull();
   });
 
   it("handles deeply nested LaTeX without error", () => {
@@ -77,7 +96,7 @@ describe("shared KaTeX HTML cache", () => {
   });
 
   it("reuses cached KaTeX HTML across widget and inline renderers", () => {
-    renderKatexToHtml("x^2", false, {}, "html", true);
+    renderKatexToHtml("x^2", false, {}, "html", false);
     vi.spyOn(katex, "renderToString").mockImplementation(() => {
       throw new Error("cache miss");
     });

@@ -135,6 +135,7 @@ export class TableWidget extends ShellWidget implements
     return createEditorReferencePresentationController(rootView.state, {
       store,
       formatter,
+      surface: "editor-widget",
     });
   }
 

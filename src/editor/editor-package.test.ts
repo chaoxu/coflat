@@ -29,6 +29,7 @@ describe("package editor export", () => {
     expect(Object.keys(packageJson.exports ?? {}).sort()).toEqual([
       ".",
       "./citeproc",
+      "./numeric",
       "./parse",
       "./reader",
       "./reader/worker",
@@ -86,6 +87,16 @@ describe("package editor export", () => {
     expect(parseExport).toEqual({
       types: "./dist/parse.d.ts",
       import: "./dist/parse.mjs",
+    });
+  });
+
+  it("publishes the numeric citation helper sub-entry from generated dist output", () => {
+    const packageJson = readPackageJson();
+    const numericExport = packageJson.exports?.["./numeric"];
+
+    expect(numericExport).toEqual({
+      types: "./dist/numeric.d.ts",
+      import: "./dist/numeric.mjs",
     });
   });
 

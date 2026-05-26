@@ -26,6 +26,8 @@ import {
   setExternalDocumentReferenceCatalogEffect,
 } from "./semantics/editor-reference-catalog";
 import type { DocumentReferenceCatalog } from "./semantics/reference-catalog";
+import type { DocumentContext } from "../core/document-context-types";
+import { documentContextExtension } from "./document-context";
 
 /** Options for creating a lightweight inline editor. */
 export interface InlineEditorOptions {
@@ -40,6 +42,8 @@ export interface InlineEditorOptions {
   bibData?: BibData;
   /** Root-document reference catalog for resolving crossrefs in embedded editors. */
   referenceCatalog?: DocumentReferenceCatalog;
+  /** Host document context for embedded reference/link rendering. */
+  documentContext?: DocumentContext;
   /** Called whenever the document changes. */
   onChange: (newDoc: string) => void;
   /** Called when the editor loses focus. */
@@ -86,6 +90,7 @@ export function createInlineEditorController(
     ...sharedInlineRenderExtensions,
     frontmatterField,
     documentAnalysisField,
+    documentContextExtension(opts.documentContext),
     bibDataField,
     externalDocumentReferenceCatalogField,
     referenceRenderPlugin,

@@ -7,6 +7,10 @@
 
 import type { EditorView } from "@codemirror/view";
 import type { PaletteCommand } from "./lib/command-palette";
+import {
+  commandRegistryExtension,
+  type Command,
+} from "./command-registry";
 import { insertTable } from "./render/table-render";
 import { extractHeadings } from "./semantics/heading-ancestry";
 import { BLOCK_MANIFEST_ENTRIES } from "../core/constants/block-manifest";
@@ -37,21 +41,27 @@ const BLOCK_TYPES: readonly string[] = BLOCK_MANIFEST_ENTRIES
   .map((e) => e.name);
 
 /** Create commands for inserting each block type. */
-function createBlockCommands(): PaletteCommand[] {
+function createBlockCommands(): Command[] {
   return BLOCK_TYPES.map((type) => ({
     id: `insert-${type}`,
     label: `Insert ${type.charAt(0).toUpperCase() + type.slice(1)}`,
-    action: (view: EditorView) => insertBlock(view, type),
+    keywords: [type],
+    slash: true,
+    run: ({ view }) => {
+      insertBlock(view, type);
+      return true;
+    },
   }));
 }
 
 /** Create commands for inserting math. */
-function createMathCommands(): PaletteCommand[] {
+function createMathCommands(): Command[] {
   return [
     {
       id: "insert-inline-math",
       label: "Insert Inline Math ($...$)",
-      action: (view: EditorView) => {
+      slash: true,
+      run: ({ view }) => {
         const { from, to } = view.state.selection.main;
         const selected = view.state.sliceDoc(from, to);
         const text = `$${selected}$`;
@@ -63,12 +73,14 @@ function createMathCommands(): PaletteCommand[] {
           },
         });
         view.focus();
+        return true;
       },
     },
     {
       id: "insert-display-math",
       label: "Insert Display Math ($$...$$)",
-      action: (view: EditorView) => {
+      slash: true,
+      run: ({ view }) => {
         const { from, to } = view.state.selection.main;
         const line = view.state.doc.lineAt(from);
         const prefix =
@@ -82,6 +94,7 @@ function createMathCommands(): PaletteCommand[] {
           },
         });
         view.focus();
+        return true;
       },
     },
   ];
@@ -103,15 +116,38 @@ export function createHeadingCommands(view: EditorView): PaletteCommand[] {
   }));
 }
 
-/** All static editor commands for the palette. */
-export function getEditorCommands(): PaletteCommand[] {
+/** All static editor commands for host palettes, slash menus, and keymaps. */
+export function getEditorCommandRegistry(): Command[] {
   return [
     ...createBlockCommands(),
     ...createMathCommands(),
     {
       id: "insert-table",
       label: "Insert Table",
-      action: (view: EditorView) => insertTable(view),
+      slash: true,
+      run: ({ view }) => {
+        insertTable(view);
+        return true;
+      },
     },
   ];
+}
+
+/** Built-in command registry extension. Host command ids registered later win. */
+export const builtinCommandRegistryExtension = commandRegistryExtension(
+  getEditorCommandRegistry(),
+);
+
+/** Backward-compatible palette command list. */
+export function getEditorCommands(): PaletteCommand[] {
+  return getEditorCommandRegistry().map((command) => ({
+    id: command.id,
+    label: command.label,
+    shortcut: typeof command.key === "string"
+      ? command.key
+      : command.key?.[0],
+    action: (view: EditorView) => {
+      command.run({ view, surface: "palette" });
+    },
+  }));
 }

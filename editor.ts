@@ -26,6 +26,16 @@ import {
   type SaveHandler,
   type StatusEvents,
 } from "./src/editor/editor-host-api";
+import {
+  commandRegistryExtension,
+  type Command,
+} from "./src/editor/command-registry";
+import type { DocumentContext } from "./src/core/document-context-types";
+import {
+  documentContextExtension,
+  setDocumentContext,
+} from "./src/editor/document-context";
+import { documentPathFacet } from "./src/editor/lib/types";
 import { createSaveController, saveExtension } from "./src/editor/save-handler";
 import {
   assetUploaderExtension,
@@ -44,6 +54,10 @@ export interface MountEditorOptions {
   mode?: StandaloneEditorMode;
   /** Extra CodeMirror extensions supplied by the host. */
   extensions?: readonly Extension[];
+  /** Host context for links, references, citations, file I/O, and math. */
+  context?: DocumentContext;
+  /** Host commands; ids matching built-ins override the library command. */
+  commands?: readonly Command[];
   /** Called for direct user edits only. */
   onChange?: (doc: string) => void;
   /** Called whenever the effective rich/source mode changes. */
@@ -93,6 +107,7 @@ export interface MountEditorOptions {
 export interface MountedEditor {
   getDoc: () => string;
   setDoc: (doc: string) => void;
+  setContext: (context: DocumentContext) => void;
   getMode: () => StandaloneEditorMode;
   setMode: (mode: StandaloneEditorMode) => void;
   outline: HeadlessPanelStore<readonly OutlineEntry[]>;
@@ -168,7 +183,10 @@ export function mountEditor(options: MountEditorOptions): MountedEditor {
             autocompleteSourceExtension({ from: options.from }),
           ]
         : []),
+      ...(options.from ? [documentPathFacet.of(options.from)] : []),
       ...(options.extensions ?? []),
+      ...(options.commands ? [commandRegistryExtension(options.commands)] : []),
+      documentContextExtension(options.context),
     ],
   });
   panelApi.attach(view);
@@ -204,6 +222,11 @@ export function mountEditor(options: MountEditorOptions): MountedEditor {
         annotations: programmaticDocumentChangeAnnotation.of(true),
       });
       view.scrollDOM.scrollTop = 0;
+    },
+
+    setContext(context) {
+      if (!view) return;
+      setDocumentContext(view, context);
     },
 
     getMode() {
@@ -265,6 +288,18 @@ export {
   type EditableReaderProps,
   type EditableReaderRenderOptions,
 } from "./editable-reader";
+export type {
+  DocumentContext,
+  HostLinkResolution,
+  HostReferenceResolution,
+  LinkResolver,
+  LinkResolverEnv,
+  RefResolver,
+  RefResolverClusterEnv,
+  RefResolverEnv,
+  ReferenceMode,
+  SourceRange,
+} from "./src/core/document-context-types";
 
 // Lower-level editor API for hosts that need direct CodeMirror control.
 export * from "./src/editor";

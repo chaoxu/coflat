@@ -4,13 +4,14 @@
  * The pure type definitions live in src/core/document-context-types.ts. This
  * file adds the CM6 Facet machinery that requires @codemirror/state.
  *
- * Context is immutable for the render lifetime. Hosts that need to change
- * resolvers remount their instances with a new context.
+ * Context is live for mounted editor instances. Hosts can reconfigure the
+ * compartment below without remounting the editor.
  *
  * See READER.md for the design rationale.
  */
 
-import { Facet } from "@codemirror/state";
+import { Compartment, Facet, type Extension } from "@codemirror/state";
+import type { EditorView } from "@codemirror/view";
 import {
   EMPTY_DOCUMENT_CONTEXT,
   type DocumentContext,
@@ -27,3 +28,22 @@ export const documentContextFacet = Facet.define<
     return values.length > 0 ? values[values.length - 1] : EMPTY_DOCUMENT_CONTEXT;
   },
 });
+
+export const documentContextCompartment = new Compartment();
+
+export function documentContextExtension(context?: DocumentContext): Extension {
+  return documentContextCompartment.of(
+    documentContextFacet.of(context ?? EMPTY_DOCUMENT_CONTEXT),
+  );
+}
+
+export function setDocumentContext(
+  view: EditorView,
+  context: DocumentContext,
+): void {
+  view.dispatch({
+    effects: documentContextCompartment.reconfigure(
+      documentContextFacet.of(context),
+    ),
+  });
+}

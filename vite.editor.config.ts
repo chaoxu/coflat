@@ -47,6 +47,7 @@ export default defineConfig(({ mode }) => ({
         "reader-worker": fileURLToPath(new URL("./reader-worker.ts", import.meta.url)),
         parse: fileURLToPath(new URL("./parse.ts", import.meta.url)),
         citeproc: fileURLToPath(new URL("./citeproc.ts", import.meta.url)),
+        numeric: fileURLToPath(new URL("./numeric.ts", import.meta.url)),
       },
       formats: ["es"],
       fileName: (_format, entryName) => `${entryName}.mjs`,

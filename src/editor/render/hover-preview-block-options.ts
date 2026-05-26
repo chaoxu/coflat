@@ -1,5 +1,6 @@
 import type { EditorView } from "@codemirror/view";
 import type { BlockCounterEntry } from "../../core/lib/file-system-types";
+import { documentContextFacet } from "../document-context";
 import { documentPathFacet } from "../lib/types";
 import { blockCounterField } from "../state/block-counter";
 import { bibDataField } from "../state/bib-data";
@@ -45,6 +46,7 @@ export function buildPreviewBlockOptions(
     formatter: store.size > 0 ? formatter : undefined,
     blockCounters,
     ...(analysis ? { referenceSemantics: analysis } : {}),
+    documentContext: view.state.facet(documentContextFacet),
     documentPath: view.state.facet(documentPathFacet),
     imageUrlOverrides,
   };

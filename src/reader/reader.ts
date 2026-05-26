@@ -29,8 +29,11 @@ import {
 } from "../core/document-surface-classes";
 import { extractDivClass } from "../core/parser/fenced-div-attrs";
 import type {
+  CitationFormatter,
   DocumentContext,
+  HostReferenceResolution,
   LinkResolver,
+  RefResolverEnv,
   RefResolver,
 } from "../core/document-context-types";
 export {
@@ -424,7 +427,9 @@ function lineAt(offsets: Uint32Array, pos: number): number {
 interface Resolvers {
   linkResolver?: LinkResolver;
   refResolver?: RefResolver;
+  citationFormatter?: CitationFormatter;
   resolveAssetUrl?: (path: string) => string;
+  documentPath?: string;
 }
 
 interface FootnoteEntry {
@@ -722,7 +727,14 @@ function emitLink(
     const body = clusterMatch[1] ?? "";
     const parts = parseReferenceClusterBody(body);
     if (parts) {
-      return emitCitationCluster(ctx, parts.map((p) => p.id), raw, node.from, node.to);
+      return emitCitationCluster(
+        ctx,
+        parts.map((p) => p.id),
+        parts.map((p) => p.locator),
+        raw,
+        node.from,
+        node.to,
+      );
     }
   }
 
@@ -758,7 +770,13 @@ function emitLink(
   let title: string | undefined;
   if (ctx.resolvers.linkResolver?.resolve) {
     const labelText = source.slice(labelStart, labelEnd);
-    const resolved = ctx.resolvers.linkResolver.resolve(href, labelText, {});
+    const resolved = ctx.resolvers.linkResolver.resolve(href, labelText, {
+      from: ctx.resolvers.documentPath,
+      documentPath: ctx.resolvers.documentPath,
+      raw,
+      sourceRange: { from: node.from, to: node.to },
+      surface: "reader",
+    });
     if (resolved) {
       if (resolved.href !== undefined) href = resolved.href;
       if (resolved.className !== undefined) className = resolved.className;
@@ -784,27 +802,92 @@ function emitLink(
   };
 }
 
+function buildReaderRefResolverEnv(
+  ctx: WalkContext,
+  raw: string,
+  from: number,
+  to: number,
+  ids: readonly string[],
+  locators: readonly (string | undefined)[],
+  index: number,
+): RefResolverEnv {
+  return {
+    raw,
+    sourceRange: { from, to },
+    locator: locators[index],
+    cluster: {
+      ids,
+      locators,
+      index,
+      raw,
+    },
+    documentPath: ctx.resolvers.documentPath,
+    surface: "reader",
+  };
+}
+
+function hostReferenceClassName(
+  id: string,
+  isCross: boolean,
+  resolved: HostReferenceResolution,
+): string {
+  const classes = ["cf-citation"];
+  if (isCross) {
+    const colon = id.indexOf(":");
+    if (colon > 0) classes.push(`cf-crossref-${id.slice(0, colon)}`);
+  }
+  if (resolved.className) classes.push(resolved.className);
+  return classes.join(" ");
+}
+
+function renderReaderHostReference(resolved: HostReferenceResolution): string {
+  if (resolved.href && isSafeUrl(resolved.href)) {
+    return `<a href="${escapeHtml(resolved.href)}">${resolved.content}</a>`;
+  }
+  return resolved.content;
+}
+
 function emitCitationCluster(
   ctx: WalkContext,
   ids: string[],
-  _raw: string,
+  locators: (string | undefined)[],
+  raw: string,
   from: number,
   to: number,
 ): { html: string; text: string; hasMath: boolean } {
   const refResolver = ctx.resolvers.refResolver;
+  const citationFormatter = ctx.resolvers.citationFormatter;
   const parts: string[] = [];
   const textParts: string[] = [];
 
-  for (const id of ids) {
+  if (citationFormatter && ids.every((id) => !isCrossrefKey(id))) {
+    citationFormatter.registerCitations([{ ids, locators }]);
+    const rendered = citationFormatter.cite(ids, locators);
+    const html = `<span class="cf-citation" data-ref-key="${escapeHtml(ids.join(";"))}" data-ref-mode="bracketed">${rendered}</span>`;
+    return {
+      html: ctx.sourcePositions
+        ? `<span class="cf-citation-cluster"${sourcePosAttrs(ctx, from, to)}>${html}</span>`
+        : html,
+      text: stripTags(rendered),
+      hasMath: false,
+    };
+  }
+
+  for (let index = 0; index < ids.length; index += 1) {
+    const id = ids[index];
     const isCross = isCrossrefKey(id);
-    if (refResolver && !isCross) {
-      const resolved = refResolver.resolve(id, "bracketed");
+    if (refResolver) {
+      const resolved = refResolver.resolve(
+        id,
+        "bracketed",
+        buildReaderRefResolverEnv(ctx, raw, from, to, ids, locators, index),
+      );
       if (resolved) {
-        const cls = `cf-citation${resolved.className ? ` ${resolved.className}` : ""}`;
-        const inner = resolved.href && isSafeUrl(resolved.href)
-          ? `<a href="${escapeHtml(resolved.href)}">${resolved.content}</a>`
-          : resolved.content;
-        parts.push(`<span class="${escapeHtml(cls)}" data-ref-key="${escapeHtml(id)}" data-ref-mode="bracketed">${inner}</span>`);
+        const cls = hostReferenceClassName(id, isCross, resolved);
+        const inner = renderReaderHostReference(resolved);
+        parts.push(
+          `<span class="${escapeHtml(cls)}" data-ref-key="${escapeHtml(id)}" data-ref-mode="bracketed">${inner}</span>`,
+        );
         textParts.push(stripTags(resolved.content));
         continue;
       }
@@ -903,6 +986,8 @@ interface RenderOptions {
   sourcePositions?: boolean;
   /** Block-boundary truncation budget. */
   truncate?: TruncateSpec;
+  /** Current document path forwarded to host resolvers. */
+  documentPath?: string;
 }
 
 interface TruncatedInfo {
@@ -1828,7 +1913,7 @@ export function renderToHtml(
   ctx?: DocumentContext,
   opts: RenderOptions = {},
 ): { html: string; hasMath: boolean; truncated?: TruncatedInfo } {
-  const resolvers = buildResolvers(ctx);
+  const resolvers = buildResolvers(ctx, opts.documentPath);
 
   if (
     !FAST_PATH_RE.test(source) &&
@@ -1865,9 +1950,9 @@ export function renderToHtml(
 export function renderToText(
   source: string,
   ctx?: DocumentContext,
-  opts: { truncate?: TruncateSpec } = {},
+  opts: { truncate?: TruncateSpec; documentPath?: string } = {},
 ): { text: string; sourceToText?: Uint32Array; truncated?: TruncatedInfo } {
-  const resolvers = buildResolvers(ctx);
+  const resolvers = buildResolvers(ctx, opts.documentPath);
 
   if (!FAST_PATH_RE.test(source) && !opts.truncate) {
     const fast = fastRenderInline(source);
@@ -1883,8 +1968,11 @@ export function renderToText(
   return out;
 }
 
-function buildResolvers(ctx: DocumentContext | undefined): Resolvers {
-  if (!ctx) return {};
+function buildResolvers(
+  ctx: DocumentContext | undefined,
+  documentPath?: string,
+): Resolvers {
+  if (!ctx) return documentPath ? { documentPath } : {};
   const fs = ctx.fileSystem;
   let resolveAssetUrl: ((path: string) => string) | undefined;
   if (fs && typeof fs.resolveAssetUrl === "function") {
@@ -1896,7 +1984,9 @@ function buildResolvers(ctx: DocumentContext | undefined): Resolvers {
   return {
     linkResolver: ctx.linkResolver,
     refResolver: ctx.refResolver,
+    citationFormatter: ctx.citationFormatter,
     resolveAssetUrl,
+    documentPath,
   };
 }
 
@@ -2052,6 +2142,127 @@ function countTextCharsBefore(root: Element, target: Node): number {
     child = child.nextSibling;
   }
   return found ? count : -1;
+}
+
+// ---------------------------------------------------------------------------
+// Reference hydration.
+// ---------------------------------------------------------------------------
+
+export interface HydrateReferencesOptions {
+  readonly documentPath?: string;
+  readonly source?: string;
+  readonly surface?: string;
+}
+
+function parseSourceRange(el: Element): { from: number; to: number } | undefined {
+  const carrier = el.hasAttribute("data-source-from")
+    ? el
+    : el.closest("[data-source-from][data-source-to]");
+  if (!carrier) return undefined;
+  const from = Number(carrier.getAttribute("data-source-from"));
+  const to = Number(carrier.getAttribute("data-source-to"));
+  return Number.isFinite(from) && Number.isFinite(to) ? { from, to } : undefined;
+}
+
+function hydrateReferenceElement(
+  el: HTMLElement,
+  ctx: DocumentContext,
+  opts: HydrateReferencesOptions,
+): void {
+  const key = el.dataset.refKey;
+  if (!key || !ctx.refResolver?.resolve) return;
+  const mode = el.dataset.refMode === "narrative" ? "narrative" : "bracketed";
+  const sourceRange = parseSourceRange(el);
+  const raw = sourceRange && opts.source
+    ? opts.source.slice(sourceRange.from, sourceRange.to)
+    : el.textContent ?? "";
+  const resolved = ctx.refResolver.resolve(key, mode, {
+    raw,
+    sourceRange,
+    locator: undefined,
+    cluster: {
+      ids: [key],
+      locators: [undefined],
+      index: 0,
+      raw,
+    },
+    documentPath: opts.documentPath,
+    surface: opts.surface ?? "reader",
+  });
+  if (!resolved) return;
+
+  el.classList.remove("cf-citation-unresolved", "cf-crossref-unresolved");
+  if (resolved.className) {
+    el.classList.add(...resolved.className.split(/\s+/).filter(Boolean));
+  }
+  if (resolved.href && isSafeUrl(resolved.href)) {
+    el.innerHTML = sanitize(
+      `<a href="${escapeHtml(resolved.href)}">${resolved.content}</a>`,
+    );
+  } else {
+    el.innerHTML = sanitize(resolved.content);
+  }
+  if (typeof resolved.onClick === "function") {
+    el.dataset.refResolver = "1";
+    el.addEventListener("click", resolved.onClick);
+  }
+}
+
+function hydrateLinkElement(
+  el: HTMLAnchorElement,
+  ctx: DocumentContext,
+  opts: HydrateReferencesOptions,
+): void {
+  const href = el.getAttribute("href");
+  if (!href || !ctx.linkResolver?.resolve) return;
+  const sourceRange = parseSourceRange(el);
+  const resolved = ctx.linkResolver.resolve(href, el.textContent ?? "", {
+    from: opts.documentPath,
+    raw: sourceRange && opts.source
+      ? opts.source.slice(sourceRange.from, sourceRange.to)
+      : undefined,
+    sourceRange,
+    documentPath: opts.documentPath,
+    surface: opts.surface ?? "reader",
+  });
+  if (!resolved) return;
+  if (resolved.href !== undefined && isSafeUrl(resolved.href)) {
+    el.setAttribute("href", resolved.href);
+  }
+  if (resolved.className) {
+    el.classList.add(...resolved.className.split(/\s+/).filter(Boolean));
+  }
+  if (resolved.title !== undefined) {
+    el.title = resolved.title;
+  }
+  if (typeof resolved.onClick === "function") {
+    el.addEventListener("click", resolved.onClick);
+  }
+}
+
+/**
+ * Hydrate unresolved reader references and links after static HTML insertion.
+ *
+ * This is the supported DOM pass for hosts that render first and attach
+ * resolver-backed links/references later. It preserves Coflat's source and
+ * data attributes by mutating the emitted elements in place.
+ */
+export function hydrateReferences(
+  root: HTMLElement,
+  ctx: DocumentContext,
+  opts: HydrateReferencesOptions = {},
+): void {
+  for (const el of Array.from(
+    root.querySelectorAll<HTMLElement>(
+      ".cf-citation-unresolved[data-ref-key], .cf-crossref-unresolved[data-ref-key]",
+    ),
+  )) {
+    hydrateReferenceElement(el, ctx, opts);
+  }
+
+  for (const el of Array.from(root.querySelectorAll<HTMLAnchorElement>("a[href]"))) {
+    hydrateLinkElement(el, ctx, opts);
+  }
 }
 
 // ---------------------------------------------------------------------------

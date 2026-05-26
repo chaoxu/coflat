@@ -12,6 +12,8 @@ import {
   getDocumentAnalysisSliceRevision,
 } from "./document-analysis";
 import { pluginRegistryField } from "./plugin-registry";
+import { documentContextFacet } from "../document-context";
+import { documentPathFacet } from "../lib/types";
 import { externalDocumentReferenceCatalogField } from "../semantics/editor-reference-catalog";
 import {
   getEquationNumbersCacheKey,
@@ -223,6 +225,11 @@ const bibliographyInputsChanged = createChangeChecker(
   (state) => state.field(bibDataField, false)?.formatterRevision ?? null,
 );
 
+const documentContextChanged = createChangeChecker(
+  (state) => state.facet(documentContextFacet),
+  (state) => state.facet(documentPathFacet),
+);
+
 interface CitationRegistrationSnapshot {
   readonly key: string | null;
   readonly store: BibStore | null;
@@ -269,6 +276,7 @@ export function referenceRenderRebuildDependenciesChanged(
     externalReferenceCatalogChanged(beforeState, afterState) ||
     headingReferenceTargetsChanged(beforeState, afterState) ||
     bibliographyInputsChanged(beforeState, afterState) ||
+    documentContextChanged(beforeState, afterState) ||
     blockLabelConfigChanged(beforeState, afterState) ||
     crossrefNumberingChanged(beforeState, afterState)
   );
@@ -295,6 +303,7 @@ export function tableReferenceRenderDependenciesChanged(
     externalReferenceCatalogChanged(beforeState, afterState) ||
     headingReferenceTargetsChanged(beforeState, afterState) ||
     bibliographyInputsChanged(beforeState, afterState) ||
+    documentContextChanged(beforeState, afterState) ||
     blockLabelConfigChanged(beforeState, afterState)
   );
 
@@ -327,6 +336,8 @@ export function getReferenceRenderDependencySignature(
       0,
       0,
       "",
+      getObjectIdentityId(state.facet(documentContextFacet)),
+      state.facet(documentPathFacet),
       getObjectIdentityId(pluginRegistry),
     ].join("\u0001");
   }
@@ -342,6 +353,8 @@ export function getReferenceRenderDependencySignature(
     getObjectIdentityId(formatter as object | null),
     formatterRevision,
     formatter?.citationRegistrationKey ?? "",
+    getObjectIdentityId(state.facet(documentContextFacet)),
+    state.facet(documentPathFacet),
     getObjectIdentityId(pluginRegistry),
   ].join("\u0001");
 }
@@ -364,6 +377,8 @@ export function getTableReferenceRenderDependencySignature(
       0,
       0,
       "",
+      getObjectIdentityId(state.facet(documentContextFacet)),
+      state.facet(documentPathFacet),
       getObjectIdentityId(pluginRegistry),
     ].join("\u0001");
   }
@@ -380,6 +395,8 @@ export function getTableReferenceRenderDependencySignature(
     getObjectIdentityId(store as object),
     getObjectIdentityId(formatter as object | null),
     formatterRevision,
+    getObjectIdentityId(state.facet(documentContextFacet)),
+    state.facet(documentPathFacet),
     getObjectIdentityId(pluginRegistry),
   ].join("\u0001");
 }

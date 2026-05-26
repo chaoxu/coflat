@@ -8,7 +8,7 @@
     "outDir": "./dist",
     "rootDir": "."
   },
-  "include": ["editor.ts", "editable-reader.tsx", "reader.ts", "reader-worker.ts", "parse.ts", "citeproc.ts", "src/**/*.d.ts", "src/**/*.d.mts"],
+  "include": ["editor.ts", "editable-reader.tsx", "reader.ts", "reader-worker.ts", "parse.ts", "citeproc.ts", "numeric.ts", "src/**/*.d.ts", "src/**/*.d.mts"],
   "exclude": [
     "src/**/*.test.ts",
     "src/**/__tests__/**"

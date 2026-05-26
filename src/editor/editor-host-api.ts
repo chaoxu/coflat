@@ -13,7 +13,8 @@
  *    dirty-state, asset-upload progress. The host listens; nothing
  *    waits on a return value.
  *
- * Commands and keymaps are intentionally out of scope here.
+ * Command UI is host-overridable here; command registration itself lives in
+ * the command registry.
  *
  * The two interfaces are exposed as separate facets — `requestHandlerFacet`
  * and `statusEventsFacet` — so editor-instance behavior is decoupled
@@ -45,6 +46,7 @@ export interface RequestHandler {
   openLinkPicker?(req: LinkPickerRequest): Promise<LinkPickerResult | null>;
   showUploadToast?(req: UploadToastRequest): Promise<void>;
   openAutocomplete?(req: AutocompleteRequest): Promise<AutocompleteResult | null>;
+  openCommandPalette?(req: CommandPaletteRequest): Promise<CommandPaletteResult | null>;
 }
 
 export interface LinkPickerRequest {
@@ -82,6 +84,16 @@ export interface AutocompleteRequest {
 
 export interface AutocompleteResult {
   insert: string;
+}
+
+export interface CommandPaletteRequest {
+  query: string;
+  signal: AbortSignal;
+  commands: readonly unknown[];
+}
+
+export interface CommandPaletteResult {
+  commandId: string;
 }
 
 /* ────────────────────────────────────────────────────────────────────────────

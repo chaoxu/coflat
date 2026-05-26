@@ -1,5 +1,10 @@
 import { describe, expect, it, beforeEach } from "vitest";
-import { renderToHtml, renderToText } from "../../reader";
+import {
+  hydrateReferences,
+  renderToHtml,
+  renderToText,
+} from "../../reader";
+import { createNumericCitationFormatter } from "../../numeric";
 import type { LinkResolver } from "../../reader";
 import type { FileSystem } from "../core/lib/file-system-types";
 import {
@@ -351,6 +356,77 @@ describe("renderToHtml — block-level rendering ()", () => {
     expect(r.html).toContain('cf-crossref-unresolved');
     expect(r.html).toContain('cf-crossref-eq');
     expect(r.html).toContain('data-ref-key="eq:euler"');
+  });
+
+  it("uses DocumentContext citationFormatter for bracketed citations", () => {
+    const formatter = createNumericCitationFormatter(["knuth1984", "lamport1994"]);
+    const r = renderToHtml("As shown in [@knuth1984; @lamport1994].", {
+      citationFormatter: formatter,
+    });
+    expect(r.html).toContain('class="cf-citation"');
+    expect(r.html).toContain("[1; 2]");
+    expect(formatter.citationRegistrationKey).toBe("knuth1984,lamport1994");
+  });
+
+  it("passes resolver metadata and document path while rendering references", () => {
+    const calls: unknown[] = [];
+    const r = renderToHtml(
+      "see [@eq:euler, p. 2]",
+      {
+        refResolver: {
+          resolve(key, mode, env) {
+            calls.push({ key, mode, env });
+            return { content: `${key}:${env?.locator}:${env?.documentPath}` };
+          },
+        },
+      },
+      { documentPath: "paper.md", sourcePositions: true },
+    );
+    expect(r.html).toContain("eq:euler:p. 2:paper.md");
+    expect(calls).toMatchObject([
+      {
+        key: "eq:euler",
+        mode: "bracketed",
+        env: {
+          raw: "[@eq:euler, p. 2]",
+          sourceRange: { from: 4, to: 21 },
+          locator: "p. 2",
+          documentPath: "paper.md",
+          surface: "reader",
+        },
+      },
+    ]);
+  });
+
+  it("hydrates unresolved reader references and links in place", () => {
+    const root = document.createElement("div");
+    const source = "See [@host-page] and [docs](./docs.md).";
+    root.innerHTML = renderToHtml(source, undefined, { sourcePositions: true }).html;
+
+    hydrateReferences(
+      root,
+      {
+        refResolver: {
+          resolve: (key, _mode, env) => ({
+            content: `<strong>${key}:${env?.sourceRange?.from}</strong>`,
+            href: `/ref/${key}`,
+          }),
+        },
+        linkResolver: {
+          resolve: (href, _text, env) => ({
+            href: `/resolved/${href}`,
+            className: `from-${env.documentPath}`,
+          }),
+        },
+      },
+      { documentPath: "paper.md", source },
+    );
+
+    const ref = root.querySelector("[data-ref-key='host-page']");
+    expect(ref?.classList.contains("cf-citation-unresolved")).toBe(false);
+    expect(ref?.innerHTML).toContain("<strong>host-page:");
+    const link = root.querySelector("a[href='/resolved/./docs.md']");
+    expect(link?.className).toContain("from-paper.md");
   });
 
   it("emits data-source-line when sourceLineAttribution is enabled", () => {

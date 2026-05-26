@@ -72,7 +72,7 @@ export function renderKatex(
       isDisplay,
       macros,
       isDisplay ? "htmlAndMathml" : "html",
-      true,
+      false,
     );
     if (html.includes("katex-error")) {
       renderRawError("KaTeX error");

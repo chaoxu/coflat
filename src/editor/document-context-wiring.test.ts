@@ -7,6 +7,7 @@ import {
 import type { LinkResolver, RefResolver } from "../core/document-context-types";
 import { documentPathFacet } from "./lib/types";
 import { isBareDocumentAnchor } from "./render/link-handler";
+import { renderPreviewBlockContentToDom } from "./render/preview-block-renderer";
 import { planReferenceRendering } from "./render/reference-render";
 import {
   createView,
@@ -152,18 +153,74 @@ describe("documentContextFacet — RefResolver wiring through planReferenceRende
     expect(findAt(items, "[@karger2000]")?.kind).toBe("citation");
   });
 
-  it("multi-key clusters and locator-bearing refs stay on existing path", () => {
-    let called = false;
+  it("multi-key clusters and locator-bearing refs receive resolver metadata", () => {
+    const calls: Array<{
+      key: string;
+      locator?: string;
+      ids?: readonly string[];
+      index?: number;
+      raw?: string;
+      sourceRange?: { from: number; to: number };
+      surface?: string;
+    }> = [];
     const resolver: RefResolver = {
-      resolve() {
-        called = true;
-        return { content: "x" };
+      resolve(key, _mode, env) {
+        calls.push({
+          key,
+          locator: env?.locator,
+          ids: env?.cluster?.ids,
+          index: env?.cluster?.index,
+          raw: env?.raw,
+          sourceRange: env?.sourceRange,
+          surface: env?.surface,
+        });
+        return { content: `<span>${key}</span>` };
       },
     };
-    const items = plan("See [@karger2000; @stein2001].", resolver);
-    const item = findAt(items, "[@karger2000; @stein2001]");
-    expect(item?.kind).toBe("citation");
-    expect(called).toBe(false);
+    const items = plan("See [@some-page, p. 3; @other-page].", resolver);
+    const item = findAt(items, "[@some-page, p. 3; @other-page]");
+    expect(item?.kind).toBe("host-ref");
+    expect(calls).toEqual([
+      {
+        key: "some-page",
+        locator: "p. 3",
+        ids: ["some-page", "other-page"],
+        index: 0,
+        raw: "[@some-page, p. 3; @other-page]",
+        sourceRange: { from: 4, to: 35 },
+        surface: "editor",
+      },
+      {
+        key: "other-page",
+        locator: undefined,
+        ids: ["some-page", "other-page"],
+        index: 1,
+        raw: "[@some-page, p. 3; @other-page]",
+        sourceRange: { from: 4, to: 35 },
+        surface: "editor",
+      },
+    ]);
+  });
+
+  it("mixed local crossref and host refs render through one supported cluster path", () => {
+    const resolver: RefResolver = {
+      resolve(key) {
+        return key === "host-page" ? { content: "Host Page" } : null;
+      },
+    };
+    const doc = [
+      "::: {.theorem #thm-main}",
+      "Statement.",
+      ":::",
+      "",
+      "See [@thm-main; @host-page].",
+    ].join("\n");
+    const items = plan(doc, resolver);
+    const item = findAt(items, "[@thm-main; @host-page]");
+    expect(item?.kind).toBe("host-ref");
+    if (item?.kind !== "host-ref") return;
+    expect(item.html).toContain("Theorem 1");
+    expect(item.html).toContain("Host Page");
   });
 
   it("sanitizer strips dangerous content from resolver HTML", () => {
@@ -264,5 +321,36 @@ describe("degraded citation placeholder — no formatter, no resolver", () => {
     expect(item.html).toContain("<i>karger2000</i>");
     expect(item.html).not.toContain("cf-citation-unresolved");
     view.destroy();
+  });
+});
+
+describe("DocumentContext wiring through rich preview widgets", () => {
+  it("table cell preview rendering consumes host RefResolver and LinkResolver", () => {
+    const container = document.createElement("div");
+    renderPreviewBlockContentToDom(
+      container,
+      "| Ref | Link |\n| --- | --- |\n| [@host-page] | [docs](./docs.md) |",
+      {
+        documentPath: "notes/current.md",
+        documentContext: {
+          refResolver: {
+            resolve: (key, _mode, env) => ({
+              content: `<strong>${key}:${env?.surface}</strong>`,
+            }),
+          },
+          linkResolver: {
+            resolve: (href, _text, env) => ({
+              href: `/resolved/${href}`,
+              className: `from-${env.from?.replace(/[/.]/g, "-")}`,
+            }),
+          },
+        },
+      },
+    );
+
+    expect(container.querySelector("td")?.innerHTML).toContain("host-page:editor-widget");
+    const link = container.querySelector("a");
+    expect(link?.getAttribute("href")).toBe("/resolved/./docs.md");
+    expect(link?.className).toContain("from-notes-current-md");
   });
 });
