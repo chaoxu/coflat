@@ -90,28 +90,20 @@ editor.view.dispatch({
 `citation-js` and its CSL/locale fixtures only enter the runtime graph when
 this sub-entry is imported.
 
-## Installation (Gitea registry)
+## Installation
 
-Add to your `.npmrc`:
-```
-@chaoxu:registry=http://jupiter:3001/api/packages/chaoxu/npm/
-```
+This package should be installable from a public registry or from a sibling
+checkout. Do not commit private registry credentials in this repository.
 
-Then `pnpm add @chaoxu/coflat-editor`.
+## Package Smoke Check
 
-## Jupiter package checks
-
-`jupiter` is the Linux container host for production-like package checks. This
-repo does not own Caddy, TLS, Docker volumes, cleanup, backups, or monitoring;
-those stay in fleet infra. The project-specific smoke target is:
+The package smoke target builds the public package and verifies that the
+bundled reader can render the showcase fixture with the expected document
+surface classes and stylesheet rules:
 
 ```sh
-pnpm jupiter:verify
+pnpm check:package-smoke
 ```
-
-It builds the package, renders `tests/fixtures/coflat-showcase.md` through the
-built reader, and verifies that the packaged stylesheet contains the default
-full-document reader surface. See `docs/jupiter.md` for the host contract.
 
 ## Package architecture
 

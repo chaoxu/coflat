@@ -15,7 +15,7 @@
  * are a directory-placement issue, not a coupling issue, and are tracked
  * separately for relocation.
  *
- * @see https://gitea.chaoxuprime.com/chaoxu/coflat/issues/589
+ * Keep this guard when moving shared modules across editor/app boundaries.
  */
 import { describe, expect, it } from "vitest";
 import { readFileSync, readdirSync, statSync } from "node:fs";

@@ -11,7 +11,6 @@ export default defineConfig({
       "**/node_modules/**",
       "**/target/**",
       "**/.worktrees/**",
-      "**/.claude/worktrees/**",
       "tests/e2e/**",
     ],
   },

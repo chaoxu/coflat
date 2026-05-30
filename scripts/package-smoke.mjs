@@ -16,14 +16,6 @@ function assertIncludes(value, needle, label) {
   }
 }
 
-const host = (() => {
-  try {
-    return readFileSync("/etc/lab-host", "utf8").trim();
-  } catch {
-    return "unknown";
-  }
-})();
-
 const source = read("tests/fixtures/coflat-showcase.md");
 const css = read("dist/editor.css");
 const { renderToHtml } = await import("../dist/reader.mjs");
@@ -48,4 +40,4 @@ assertIncludes(css, "counter-reset: cf-reader-h1 cf-reader-h2", "dist/editor.css
 assertIncludes(css, ".cf-reader .cf-doc-list--unordered", "dist/editor.css");
 assertIncludes(css, ".cf-reader .cf-doc-display-math", "dist/editor.css");
 
-console.log(`coflat-editor Jupiter package smoke passed on ${host}`);
+console.log("coflat-editor package smoke passed");

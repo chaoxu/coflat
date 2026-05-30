@@ -97,8 +97,7 @@
 			"!build/",
 			"!dist-server/",
 			"!src-tauri/target/",
-			"!.claude/worktrees/",
-			"!~/.chatgpt-cli/",
+			"!**/.worktrees/**",
 			"!scripts/"
 		]
 	},
