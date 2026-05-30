@@ -50,6 +50,8 @@ export interface ExtractedReference {
   readonly href?: string;
   /** Present on `crossref`: the key after `@`. */
   readonly key?: string;
+  /** Present on `crossref`: `true` for bracketed `[@key]`, `false` for a bare narrative `@key`. */
+  readonly bracketed?: boolean;
 }
 
 const markdownParser = baseMarkdownParser.configure(markdownExtensions);
@@ -87,6 +89,7 @@ function emitLinkOrRef(
           from,
           to,
           key,
+          bracketed: true,
         });
       }
       return;
@@ -175,6 +178,7 @@ function collectNarrativeRefs(
       from,
       to,
       key: id,
+      bracketed: false,
     });
   }
 }

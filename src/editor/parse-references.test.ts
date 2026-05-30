@@ -32,6 +32,7 @@ describe("extractReferences", () => {
     expect(refs[0]).toMatchObject({
       kind: "crossref",
       key: "knuth1984",
+      bracketed: true,
     });
     expect(src.slice(refs[0].from, refs[0].to)).toBe("@knuth1984");
   });
@@ -43,6 +44,7 @@ describe("extractReferences", () => {
     expect(refs[0]).toMatchObject({
       kind: "crossref",
       key: "knuth1984",
+      bracketed: false,
     });
     expect(src.slice(refs[0].from, refs[0].to)).toBe("@knuth1984");
   });
