@@ -8,7 +8,7 @@ Extracted from the Coflat Shell project; consumed by both Coflat Shell
 
 The simplest live example is on GitHub Pages:
 
-<https://chaoxu.github.io/coflat/>
+<http://chaoxu.prof/coflat/>
 
 Run the same page locally:
 

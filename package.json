@@ -3,7 +3,7 @@
   "version": "0.2.8",
   "description": "Math-aware Markdown editor library built on CodeMirror 6, Lezer, and KaTeX.",
   "type": "module",
-  "homepage": "https://chaoxu.github.io/coflat/",
+  "homepage": "http://chaoxu.prof/coflat/",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/chaoxu/coflat.git"
