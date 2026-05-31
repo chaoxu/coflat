@@ -209,6 +209,12 @@ test("public demo hydrates bibliography citations", async ({ page }) => {
   const tooltip = page.locator('.cf-hover-preview-tooltip[data-visible="true"]');
   await expect(tooltip).toContainText("Introduction to Algorithms");
   await expect(tooltip).toContainText("Cormen");
+  const tooltipBox = await tooltip.boundingBox();
+  expect(tooltipBox).not.toBeNull();
+  expect(tooltipBox?.y).toBeGreaterThanOrEqual(0);
+  expect((tooltipBox?.y ?? 0) + (tooltipBox?.height ?? 0)).toBeLessThanOrEqual(
+    page.viewportSize()!.height,
+  );
 });
 
 test("public demo shows hover panels for cross-references", async ({ page }) => {
@@ -229,6 +235,12 @@ test("public demo shows hover panels for cross-references", async ({ page }) => 
   const tooltip = page.locator('.cf-hover-preview-tooltip[data-visible="true"]');
   await expect(tooltip).toContainText("Eq. (1)");
   await expect(tooltip).toContainText("e^{-x^2}");
+  const tooltipBox = await tooltip.boundingBox();
+  expect(tooltipBox).not.toBeNull();
+  expect(tooltipBox?.y).toBeGreaterThanOrEqual(0);
+  expect((tooltipBox?.y ?? 0) + (tooltipBox?.height ?? 0)).toBeLessThanOrEqual(
+    page.viewportSize()!.height,
+  );
 });
 
 test("blueprint book theme applies to a host-rendered reader document", async ({ page }) => {

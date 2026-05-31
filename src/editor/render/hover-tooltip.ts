@@ -93,6 +93,7 @@ export function showFloatingTooltip(anchor: HTMLElement, plan: TooltipPlan): voi
     const updatePosition = () => {
       void computePosition(anchor, el, {
         placement: "top",
+        strategy: "fixed",
         middleware: [offset(6), flip(), shift({ padding: 5 })],
       }).then(({ x, y }) => {
         if (gen !== showGeneration) return;
