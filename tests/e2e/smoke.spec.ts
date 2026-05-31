@@ -144,6 +144,19 @@ test("public demo uses page-level scrolling over the editor", async ({ page }) =
     .toBe(true);
 });
 
+test("public demo hydrates bibliography citations", async ({ page }) => {
+  await page.goto("/examples/simple/index.html");
+
+  await expect.poll(() =>
+    page.locator('[data-ref-key="cormen2009"]').count()
+  ).toBeGreaterThan(0);
+
+  const firstCitation = page.locator('[data-ref-key="cormen2009"]').first();
+  await expect(firstCitation).toContainText("[1]");
+  await expect(firstCitation).toHaveClass(/cf-citation/);
+  await expect(firstCitation).not.toHaveClass(/cf-crossref-unresolved/);
+});
+
 test("blueprint book theme applies to a host-rendered reader document", async ({ page }) => {
   await page.goto("/tests/e2e/fixtures/theme.html");
 

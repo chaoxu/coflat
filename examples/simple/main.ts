@@ -1,8 +1,16 @@
 import "katex/dist/katex.min.css";
+import { ViewPlugin } from "@codemirror/view";
 import "../../src/editor/editor-theme.css";
 import { mountEditor } from "../../editor";
+import {
+  createNumericCitationFormatter,
+  parseBibliographyKeys,
+} from "../../src/core/citations/numeric";
+import type { BibStore, CslJsonItem } from "../../src/core/citations/csl-json";
+import type { RefResolver } from "../../src/core/document-context-types";
 import type { FileEntry, FileSystem } from "../../src/core/lib/file-system-types";
 import { fileSystemFacet } from "../../src/editor/lib/types";
+import { bibDataEffect } from "../../src/editor/state/bib-data";
 import initialDoc from "./showcase.md?raw";
 import "./style.css";
 
@@ -13,25 +21,36 @@ if (!editorRoot) {
   throw new Error("Missing simple example roots.");
 }
 
+async function fetchPublicFile(path: string): Promise<Response> {
+  const candidates = [
+    new URL(path, assetBaseUrl),
+    new URL(`examples/simple/public/${path}`, window.location.origin),
+  ];
+  for (const url of candidates) {
+    const response = await fetch(url);
+    if (response.ok) return response;
+  }
+  return fetch(candidates[0]);
+}
+
 const publicFileSystem: FileSystem = {
   async listTree(): Promise<FileEntry> {
     return { name: "", path: "", isDirectory: true };
   },
   async readFile(path: string): Promise<string> {
-    const response = await fetch(new URL(path, assetBaseUrl));
+    const response = await fetchPublicFile(path);
     if (!response.ok) throw new Error(`Unable to load ${path}`);
     return response.text();
   },
   async readFileBinary(path: string): Promise<Uint8Array> {
-    const response = await fetch(new URL(path, assetBaseUrl));
+    const response = await fetchPublicFile(path);
     if (!response.ok) throw new Error(`Unable to load ${path}`);
     return new Uint8Array(await response.arrayBuffer());
   },
   async writeFile(): Promise<void> {},
   async createFile(): Promise<void> {},
   async exists(path: string): Promise<boolean> {
-    const response = await fetch(new URL(path, assetBaseUrl), { method: "HEAD" });
-    return response.ok;
+    return (await fetchPublicFile(path)).ok;
   },
   async renameFile(): Promise<void> {},
   async createDirectory(): Promise<void> {},
@@ -42,11 +61,46 @@ const publicFileSystem: FileSystem = {
   },
 };
 
+const bibliographyText = await publicFileSystem.readFile("reference.bib");
+const bibliographyKeys = parseBibliographyKeys(bibliographyText);
+const bibliographyStore: BibStore = new Map<string, CslJsonItem>(
+  bibliographyKeys.map((id) => [id, { id, type: "book" }]),
+);
+const citationFormatter = createNumericCitationFormatter(bibliographyKeys);
+const bibliographyKeySet = new Set(bibliographyKeys);
+const demoRefResolver: RefResolver = {
+  resolve(key, _mode, env) {
+    if (!bibliographyKeySet.has(key)) return null;
+    return {
+      className: "cf-citation",
+      content: citationFormatter.cite([key], env?.locator ? [env.locator] : []),
+    };
+  },
+};
+const bibliographyBootstrap = ViewPlugin.define((view) => {
+  queueMicrotask(() => {
+    view.dispatch({
+      effects: bibDataEffect.of({
+        store: bibliographyStore,
+        formatter: citationFormatter,
+        status: { state: "ok", bibPath: "reference.bib" },
+      }),
+    });
+  });
+  return {};
+});
+
 const editor = mountEditor({
   parent: editorRoot,
   doc: initialDoc,
   mode: "rich",
-  extensions: [fileSystemFacet.of(publicFileSystem)],
+  context: {
+    refResolver: demoRefResolver,
+  },
+  extensions: [
+    fileSystemFacet.of(publicFileSystem),
+    bibliographyBootstrap,
+  ],
 });
 
 editor.focus();
