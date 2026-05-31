@@ -2,16 +2,8 @@ import "katex/dist/katex.min.css";
 import "../../src/editor/editor-theme.css";
 import { mountEditor } from "../../editor";
 import { hydrateMath, renderToHtml } from "../../reader";
+import initialDoc from "./showcase.md?raw";
 import "./style.css";
-
-const initialDoc = `# Coflat Editor
-
-Write Markdown with inline math like $a^2 + b^2 = c^2$.
-
-$$
-\\int_0^1 x^2\\,dx = \\frac{1}{3}
-$$
-`;
 
 const editorRoot = document.querySelector<HTMLElement>("#editor");
 const readerRoot = document.querySelector<HTMLElement>("#reader");

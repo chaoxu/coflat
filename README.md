@@ -6,7 +6,7 @@ Extracted from the Coflat Shell project; consumed by both Coflat Shell
 
 ## Try it
 
-The simplest live example is on GitHub Pages:
+The live showcase example is on GitHub Pages:
 
 <http://chaoxu.prof/coflat/>
 
