@@ -38,7 +38,7 @@ export type BibliographyStatus =
  *
  * v0.2 chunk 3b: the `formatter` field replaced the old `cslProcessor` one.
  * The main bundle no longer imports a concrete CSL implementation; hosts that
- * want CSL formatting attach one via the `@chaoxu/coflat-editor/citeproc`
+ * want CSL formatting attach one via the `@chaoxu/coflat/citeproc`
  * helper.
  */
 export interface BibData {

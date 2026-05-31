@@ -9,7 +9,7 @@ editor instances. This document covers editor-only host hooks.
 
 ## Public Surface
 
-The root entry `@chaoxu/coflat-editor` exports the implemented host-facing
+The root entry `@chaoxu/coflat` exports the implemented host-facing
 interfaces:
 
 - `RequestHandler`
@@ -28,7 +28,7 @@ import {
   type RequestHandler,
   type SaveHandler,
   type StatusEvents,
-} from "@chaoxu/coflat-editor";
+} from "@chaoxu/coflat";
 
 mountEditor({
   parent,

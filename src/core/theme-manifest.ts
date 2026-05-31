@@ -45,7 +45,7 @@ export const blueprintBookThemeManifest = {
   name: "Blueprint Book",
   version: "0.1.0",
   targets: ["reader", "editor"],
-  css: ["@chaoxu/coflat-editor/themes/blueprint-book.css"],
+  css: ["@chaoxu/coflat/themes/blueprint-book.css"],
   rootClass: "cf-theme-blueprint-book",
   dataTheme: "blueprint-book",
 } as const satisfies CoflatThemeManifest;

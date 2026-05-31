@@ -1,5 +1,5 @@
 /**
- * `@chaoxu/coflat-editor/reader` — read-only renderer for FORMAT.md.
+ * `@chaoxu/coflat/reader` — read-only renderer for FORMAT.md.
  *
  * See READER.md and THEMING.md for the public contract.
  *

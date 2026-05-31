@@ -40,4 +40,4 @@ assertIncludes(css, "counter-reset: cf-reader-h1 cf-reader-h2", "dist/editor.css
 assertIncludes(css, ".cf-reader .cf-doc-list--unordered", "dist/editor.css");
 assertIncludes(css, ".cf-reader .cf-doc-display-math", "dist/editor.css");
 
-console.log("coflat-editor package smoke passed");
+console.log("coflat package smoke passed");

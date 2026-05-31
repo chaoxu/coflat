@@ -71,7 +71,7 @@ describe("theme contract", () => {
       dataTheme: "blueprint-book",
     });
     expect(blueprintBookThemeManifest.css).toEqual([
-      "@chaoxu/coflat-editor/themes/blueprint-book.css",
+      "@chaoxu/coflat/themes/blueprint-book.css",
     ]);
   });
 

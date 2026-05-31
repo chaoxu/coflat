@@ -37,12 +37,12 @@ pages, long issue bodies, PR descriptions, and exported documents. For compact
 snippets or comments, keep `cf-reader cf-doc-flow` and add a host-owned compact
 class that overrides width, padding, and rhythm locally.
 
-The default stylesheet is `@chaoxu/coflat-editor/style.css`. Optional
+The default stylesheet is `@chaoxu/coflat/style.css`. Optional
 theme CSS is imported separately by hosts.
 
 ```ts
-import "@chaoxu/coflat-editor/style.css";
-import "@chaoxu/coflat-editor/themes/blueprint-book.css";
+import "@chaoxu/coflat/style.css";
+import "@chaoxu/coflat/themes/blueprint-book.css";
 ```
 
 This file is the contract. Changes to the class names or to the
@@ -56,7 +56,7 @@ the exported `CoflatThemeManifest` type. The manifest is descriptive:
 Coflat never loads `css` entries or writes variables for the host.
 
 ```ts
-import type { CoflatThemeManifest } from "@chaoxu/coflat-editor/reader";
+import type { CoflatThemeManifest } from "@chaoxu/coflat/reader";
 
 const theme: CoflatThemeManifest = {
   id: "my-lab-theme",
@@ -74,7 +74,7 @@ const theme: CoflatThemeManifest = {
 The bundled blueprint/book theme also has an exported manifest:
 
 ```ts
-import { blueprintBookThemeManifest } from "@chaoxu/coflat-editor/reader";
+import { blueprintBookThemeManifest } from "@chaoxu/coflat/reader";
 ```
 
 ## Class names
@@ -210,7 +210,7 @@ works for application-wide defaults.
 | `--cf-table-line-height` | Table line height. |
 
 The complete typed token list is exported from
-`@chaoxu/coflat-editor` as `themeTokenNames`. External full-CSS themes
+`@chaoxu/coflat` as `themeTokenNames`. External full-CSS themes
 may use additional private variables under their own prefix.
 
 ## Example: host overrides link color
@@ -232,8 +232,8 @@ theme inspired by Lean blueprint output. It does not include dependency
 graphs, Lean metadata, or a TeX/plasTeX compatibility layer.
 
 ```ts
-import "@chaoxu/coflat-editor/style.css";
-import "@chaoxu/coflat-editor/themes/blueprint-book.css";
+import "@chaoxu/coflat/style.css";
+import "@chaoxu/coflat/themes/blueprint-book.css";
 ```
 
 Apply it on a scoped root:

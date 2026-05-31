@@ -1,5 +1,5 @@
 /**
- * `@chaoxu/coflat-editor/parse` — Node-importable parsing utilities.
+ * `@chaoxu/coflat/parse` — Node-importable parsing utilities.
  *
  * No DOM, no React, no CodeMirror view. Reuses the same Lezer markdown
  * parser the editor uses internally so that escape rules and code-span

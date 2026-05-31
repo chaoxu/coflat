@@ -128,7 +128,7 @@ describe("package editor export", () => {
   it("preserves the extracted editor package scripts", () => {
     const packageJson = readPackageJson();
 
-    expect(packageJson.name).toBe("@chaoxu/coflat-editor");
+    expect(packageJson.name).toBe("@chaoxu/coflat");
     expect(packageJson.packageManager).toBe("pnpm@10.33.0");
     expect(packageJson.scripts?.build).toContain("rm -rf dist");
     expect(packageJson.scripts?.build).toContain("tsc -p tsconfig.editor.json");

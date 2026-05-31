@@ -1,5 +1,5 @@
 /**
- * Citation/CSL helper sub-entry. Imported as `@chaoxu/coflat-editor/citeproc`.
+ * Citation/CSL helper sub-entry. Imported as `@chaoxu/coflat/citeproc`.
  *
  * The main editor entry no longer ships citation-js / CSL processing in its
  * bundle. Hosts that want classic CSL-formatted citations import the symbols
@@ -10,13 +10,13 @@
  * Minimal example:
  *
  * ```ts
- * import { mountEditor } from "@chaoxu/coflat-editor";
+ * import { mountEditor } from "@chaoxu/coflat";
  * import {
  *   parseBibTeX,
  *   CslProcessor,
  *   createCslCitationFormatter,
  *   bibDataEffect,
- * } from "@chaoxu/coflat-editor/citeproc";
+ * } from "@chaoxu/coflat/citeproc";
  *
  * const items = parseBibTeX(await fetch("refs.bib").then((r) => r.text()));
  * const processor = await CslProcessor.create(items);

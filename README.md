@@ -1,14 +1,14 @@
-# @chaoxu/coflat-editor
+# @chaoxu/coflat
 
 Math-aware markdown editor library — CodeMirror 6 + Lezer + Typora-style ViewPlugins.
-Extracted from the coflat project; consumed by both the coflat desktop shell
+Extracted from the Coflat Shell project; consumed by both Coflat Shell
 (Tauri) and the cosheaf web shell (Hono server).
 
 ## Try it
 
 The simplest live example is on GitHub Pages:
 
-<https://chaoxu.github.io/coflat-editor/>
+<https://chaoxu.github.io/coflat/>
 
 Run the same page locally:
 
@@ -20,8 +20,8 @@ pnpm dev:pages
 ## Quick start
 
 ```ts
-import { mountEditor } from "@chaoxu/coflat-editor";
-import "@chaoxu/coflat-editor/style.css";
+import { mountEditor } from "@chaoxu/coflat";
+import "@chaoxu/coflat/style.css";
 
 const editor = mountEditor({
   parent: document.getElementById("root")!,
@@ -79,14 +79,14 @@ targets attach a `refResolver`. The `./citeproc` helper remains available for
 hosts that explicitly build IEEE / APA / Chicago-style citation formatting:
 
 ```ts
-import { mountEditor } from "@chaoxu/coflat-editor";
-import "@chaoxu/coflat-editor/style.css";
+import { mountEditor } from "@chaoxu/coflat";
+import "@chaoxu/coflat/style.css";
 import {
   parseBibTeX,
   CslProcessor,
   createCslCitationFormatter,
   bibDataEffect,
-} from "@chaoxu/coflat-editor/citeproc";
+} from "@chaoxu/coflat/citeproc";
 
 const items = parseBibTeX(await fetch("/refs.bib").then((r) => r.text()));
 const processor = await CslProcessor.create(items /*, optional CSL XML */);
@@ -108,8 +108,8 @@ this sub-entry is imported.
 This repository is public and should build from a normal checkout:
 
 ```sh
-git clone https://github.com/chaoxu/coflat-editor.git
-cd coflat-editor
+git clone https://github.com/chaoxu/coflat.git
+cd coflat
 pnpm install
 pnpm build
 ```
@@ -120,7 +120,7 @@ or sibling checkout:
 ```json
 {
   "dependencies": {
-    "@chaoxu/coflat-editor": "file:../coflat-editor"
+    "@chaoxu/coflat": "file:../coflat"
   }
 }
 ```
@@ -174,7 +174,7 @@ The source is organized in three internal layers, enforced by
 The layout is package-extraction ready: if a consumer ever needs the
 parser without the editor, or the reader without CodeMirror, the layers
 extract cleanly into `@chaoxu/coflat-format`, `@chaoxu/coflat-reader`,
-and `@chaoxu/coflat-editor` as separate npm packages. Until then, one
+and `@chaoxu/coflat` as separate npm packages. Until then, one
 package with explicit sub-path exports is enough.
 
 ## Stable contracts
@@ -190,7 +190,7 @@ import type {
   LinkResolver,
   RefResolver,
   CitationFormatter,
-} from "@chaoxu/coflat-editor/reader";
+} from "@chaoxu/coflat/reader";
 ```
 
 `DocumentContext` is the single seam through which a host (e.g. cosheaf,
@@ -247,8 +247,8 @@ documents can use separate themes:
 Hosts can load their own CSS or use optional package themes:
 
 ```ts
-import "@chaoxu/coflat-editor/style.css";
-import "@chaoxu/coflat-editor/themes/blueprint-book.css";
+import "@chaoxu/coflat/style.css";
+import "@chaoxu/coflat/themes/blueprint-book.css";
 ```
 
 The exported `CoflatThemeManifest` type describes external theme
@@ -266,7 +266,7 @@ A minimal reader-only host looks like this (~30 lines):
 
 ```tsx
 import { useEffect, useRef } from "react";
-import { renderToHtml, hydrateMath, type DocumentContext } from "@chaoxu/coflat-editor/reader";
+import { renderToHtml, hydrateMath, type DocumentContext } from "@chaoxu/coflat/reader";
 
 export function CoflatViewer({ source, context }: { source: string; context: DocumentContext }) {
   const ref = useRef<HTMLDivElement>(null);

@@ -1,5 +1,5 @@
 /**
- * `@chaoxu/coflat-editor/reader/worker` — off-main-thread renderer.
+ * `@chaoxu/coflat/reader/worker` — off-main-thread renderer.
  *
  * This module is dual-purpose:
  *

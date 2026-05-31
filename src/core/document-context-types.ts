@@ -88,7 +88,7 @@ export interface RefResolver {
 /**
  * Host-supplied formatter for citation rendering. CSL-style numeric or
  * author-date formatting goes through this seam. See
- * `@chaoxu/coflat-editor/citeproc` for a default CSL implementation.
+ * `@chaoxu/coflat/citeproc` for a default CSL implementation.
  */
 export interface CitationFormatter {
   cite(ids: readonly string[], locators: readonly (string | undefined)[]): string;

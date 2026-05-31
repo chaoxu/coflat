@@ -1,7 +1,7 @@
 # Reader and Document Context
 
 The reader is the read-only FORMAT.md renderer in
-`@chaoxu/coflat-editor`. It shares the parser, document semantics, theme
+`@chaoxu/coflat`. It shares the parser, document semantics, theme
 classes, and `DocumentContext` contract with the editor, but it does not
 instantiate CodeMirror or React.
 
@@ -9,14 +9,14 @@ instantiate CodeMirror or React.
 
 The package exports map is the public contract:
 
-- `@chaoxu/coflat-editor/reader`: `renderToHtml`, `renderToText`,
+- `@chaoxu/coflat/reader`: `renderToHtml`, `renderToText`,
   reader helpers, and shared context types.
-- `@chaoxu/coflat-editor/reader/worker`: worker entry for off-main-thread
+- `@chaoxu/coflat/reader/worker`: worker entry for off-main-thread
   rendering.
-- `@chaoxu/coflat-editor/parse`: parser and reference extraction helpers
+- `@chaoxu/coflat/parse`: parser and reference extraction helpers
   for hosts, CLIs, and indexers.
-- `@chaoxu/coflat-editor/citeproc`: optional citation resolver helper.
-- `@chaoxu/coflat-editor/themes/blueprint-book.css`: optional document
+- `@chaoxu/coflat/citeproc`: optional citation resolver helper.
+- `@chaoxu/coflat/themes/blueprint-book.css`: optional document
   theme stylesheet.
 
 Everything outside the exports map is private.
@@ -147,7 +147,7 @@ editor's rich document view.
 </div>
 ```
 
-With `@chaoxu/coflat-editor/style.css` imported, this surface owns document
+With `@chaoxu/coflat/style.css` imported, this surface owns document
 width, padding, content font, line height, headings, paragraph/list rhythm,
 code blocks, tables, blockquotes, math placeholders, and H1/H2 section
 numbering.

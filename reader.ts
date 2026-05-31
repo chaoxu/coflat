@@ -1,5 +1,5 @@
 /**
- * Top-level entry for @chaoxu/coflat-editor/reader.
+ * Top-level entry for @chaoxu/coflat/reader.
  *
  * The implementation lives in src/reader/reader.ts. This shim exists to keep
  * the Vite build entry stable and the package's `./reader` sub-path export
