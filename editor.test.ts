@@ -203,4 +203,31 @@ describe("mountEditor", () => {
 
     editor.unmount();
   });
+
+  it("includes hover preview support for standalone mounts", () => {
+    vi.useFakeTimers();
+    const parent = document.createElement("div");
+    const editor = mountEditor({
+      parent,
+      doc: "$$x$$ {#eq:one}\n\nSee [@eq:one].",
+      mode: "rich",
+    });
+
+    try {
+      const reference = parent.querySelector<HTMLElement>("[data-reference-widget]");
+      expect(reference?.textContent).toBe("Eq. (1)");
+
+      reference?.dispatchEvent(new MouseEvent("mouseover", {
+        bubbles: true,
+        relatedTarget: null,
+      }));
+      vi.advanceTimersByTime(350);
+
+      expect(document.querySelector(".cf-hover-preview-tooltip")).toBeTruthy();
+    } finally {
+      editor.unmount();
+      document.querySelector(".cf-hover-preview-tooltip")?.remove();
+      vi.useRealTimers();
+    }
+  });
 });

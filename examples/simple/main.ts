@@ -10,7 +10,6 @@ import type { BibStore } from "../../src/core/citations/csl-json";
 import type { RefResolver } from "../../src/core/document-context-types";
 import type { FileEntry, FileSystem } from "../../src/core/lib/file-system-types";
 import { fileSystemFacet } from "../../src/editor/lib/types";
-import { hoverPreviewExtension } from "../../src/editor/render/hover-preview";
 import { bibDataEffect } from "../../src/editor/state/bib-data";
 import initialDoc from "./showcase.md?raw";
 import "./style.css";
@@ -97,7 +96,6 @@ const editor = mountEditor({
   },
   extensions: [
     fileSystemFacet.of(publicFileSystem),
-    hoverPreviewExtension,
     bibliographyBootstrap,
   ],
 });
