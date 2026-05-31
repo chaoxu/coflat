@@ -144,6 +144,66 @@ test("public demo uses page-level scrolling over the editor", async ({ page }) =
     .toBe(true);
 });
 
+test("public demo sidebar switches to the format guide", async ({ page }) => {
+  await page.goto("/examples/simple/index.html");
+
+  await expect(page.getByRole("button", { name: "Showcase" })).toHaveAttribute(
+    "aria-current",
+    "page",
+  );
+  await expect(page.getByRole("button", { name: "Format guide" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Editor" })).toHaveAttribute(
+    "aria-current",
+    "page",
+  );
+  await expect(page.getByRole("button", { name: "Reader" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "GitHub" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "FORMAT.md" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Reader API" })).toBeVisible();
+
+  await page.getByRole("button", { name: "Format guide" }).click();
+
+  await expect(page).toHaveURL(/doc=format/);
+  await expect(page).toHaveTitle("Coflat Format Guide");
+  await expect(page.getByRole("button", { name: "Format guide" })).toHaveAttribute(
+    "aria-current",
+    "page",
+  );
+  await expect(page.locator(".cm-content")).toContainText("Coflat Document Format");
+  await expect(page.locator(".cm-content")).toContainText("pandoc-crossref");
+
+  await page.getByRole("button", { name: "Showcase" }).click();
+  await expect(page).toHaveURL(/doc=showcase/);
+  await expect(page).toHaveTitle("Coflat Editor Showcase");
+  await expect(page.locator(".cm-content")).toContainText("Coflat Feature Showcase");
+});
+
+test("public demo reader surface shows shared hover previews", async ({ page }) => {
+  await page.goto("/examples/simple/index.html?doc=format&surface=reader");
+
+  const reader = page.locator("#reader");
+  await expect(reader).toBeVisible();
+  await expect(reader).toContainText("Coflat Document Format");
+  await expect(page.locator("#editor")).toBeHidden();
+  await expect(page.getByRole("button", { name: "Reader" })).toHaveAttribute(
+    "aria-current",
+    "page",
+  );
+
+  const equationReference = reader.locator('[data-ref-key="eq:format-live"]').first();
+  await expect(equationReference).toBeVisible();
+  await equationReference.hover();
+
+  const tooltip = page.locator('.cf-hover-preview-tooltip[data-visible="true"]');
+  await expect(tooltip).toContainText("E = mc^2");
+  const tooltipBox = await tooltip.boundingBox();
+  expect(tooltipBox).not.toBeNull();
+  expect(tooltipBox?.y).toBeGreaterThanOrEqual(0);
+  expect((tooltipBox?.y ?? 0) + (tooltipBox?.height ?? 0)).toBeLessThanOrEqual(
+    page.viewportSize()!.height,
+  );
+});
+
 test("public demo table cell editing does not inherit page-height scrolling", async ({ page }) => {
   await page.goto("/examples/simple/index.html");
 

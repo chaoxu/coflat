@@ -7,7 +7,39 @@
     <title>Coflat Editor Showcase</title>
   </head>
   <body class="cf-theme-scope">
-    <div id="editor"></div>
+    <div class="demo-shell">
+      <aside class="demo-sidebar" aria-label="Demo documents">
+        <div class="demo-brand">
+          <div class="demo-brand-title">Coflat</div>
+          <div class="demo-brand-subtitle">editor demo</div>
+        </div>
+        <nav class="demo-nav" aria-label="Documents">
+          <button class="demo-doc-link" type="button" data-doc-id="showcase" aria-current="page">
+            Showcase
+          </button>
+          <button class="demo-doc-link" type="button" data-doc-id="format">
+            Format guide
+          </button>
+        </nav>
+        <nav class="demo-nav" aria-label="Surface">
+          <button class="demo-surface-link" type="button" data-surface-id="editor" aria-current="page">
+            Editor
+          </button>
+          <button class="demo-surface-link" type="button" data-surface-id="reader">
+            Reader
+          </button>
+        </nav>
+        <nav class="demo-nav demo-nav-secondary" aria-label="Project links">
+          <a href="https://github.com/chaoxu/coflat">GitHub</a>
+          <a href="https://github.com/chaoxu/coflat/blob/main/FORMAT.md">FORMAT.md</a>
+          <a href="https://github.com/chaoxu/coflat/blob/main/READER.md">Reader API</a>
+        </nav>
+      </aside>
+      <main class="demo-main">
+        <div id="editor"></div>
+        <div id="reader" class="cf-reader cf-doc-surface cf-doc-flow" hidden></div>
+      </main>
+    </div>
     <script type="module" src="./main.ts"></script>
   </body>
 </html>

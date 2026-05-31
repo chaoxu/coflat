@@ -29,6 +29,11 @@ import {
   DOCUMENT_SURFACE_CLASS,
   documentSurfaceClassNames,
 } from "../core/document-surface-classes";
+import {
+  createPreviewSurfaceBody,
+  createPreviewSurfaceContent,
+  createPreviewSurfaceHeader,
+} from "../core/preview-surface";
 import { extractDivClass } from "../core/parser/fenced-div-attrs";
 import type {
   CitationFormatter,
@@ -54,6 +59,7 @@ export type {
   LinkResolver,
   RefResolver,
 } from "../core/document-context-types";
+import type { TooltipPlan } from "../core/hover-tooltip";
 export type {
   BlockCounterEntry,
   ConditionalWriteResult,
@@ -2343,6 +2349,277 @@ export function hydrateReferences(
   for (const el of Array.from(root.querySelectorAll<HTMLAnchorElement>("a[href]"))) {
     hydrateLinkElement(el, ctx, opts);
   }
+}
+
+export interface ReaderHoverPreviewEnv {
+  readonly anchor: HTMLElement;
+  readonly context?: DocumentContext;
+  readonly key: string;
+  readonly root: HTMLElement;
+  readonly source?: string;
+}
+
+export interface ReaderHoverPreviewOptions {
+  readonly context?: DocumentContext;
+  readonly hoverDelayMs?: number;
+  readonly mathMacros?: Record<string, string>;
+  readonly previewForReference?: (
+    key: string,
+    env: ReaderHoverPreviewEnv,
+  ) => HTMLElement | string | null | undefined;
+  readonly source?: string;
+}
+
+type HoverTooltipModule = typeof import("../core/hover-tooltip");
+
+const readerHoverCacheScope = {};
+
+function createReaderHoverContainer(): HTMLElement {
+  return createPreviewSurfaceContent(CSS.hoverPreview);
+}
+
+function createReaderHoverHeader(text: string): HTMLElement {
+  const header = createPreviewSurfaceHeader(CSS.hoverPreviewHeader);
+  header.textContent = text;
+  return header;
+}
+
+function createReaderHoverBody(): HTMLElement {
+  return createPreviewSurfaceBody(CSS.hoverPreviewBody);
+}
+
+function createReaderUnresolvedPreview(key: string): HTMLElement {
+  const container = createReaderHoverContainer();
+  container.appendChild(createReaderHoverHeader(`Unresolved: ${key}`));
+  return container;
+}
+
+function createReaderTextPreview(preview: string): HTMLElement {
+  const container = createReaderHoverContainer();
+  const body = createPreviewSurfaceBody(CSS.hoverPreviewCitation);
+  body.textContent = preview;
+  container.appendChild(body);
+  return container;
+}
+
+function createReaderElementPreview(preview: HTMLElement): HTMLElement {
+  const container = createReaderHoverContainer();
+  container.appendChild(preview);
+  return container;
+}
+
+function renderReaderPreviewSource(
+  source: string,
+  context: DocumentContext | undefined,
+  mathMacros: Record<string, string> | undefined,
+): HTMLElement {
+  const body = createReaderHoverBody();
+  body.innerHTML = renderToHtml(source, context).html;
+  void hydrateMath(body, { mathMacros: mathMacros ?? context?.mathMacros });
+  return body;
+}
+
+function escapeRegExpLiteral(value: string): string {
+  return value.replace(/[\\^$.*+?()[\]{}|]/g, "\\$&");
+}
+
+function findReaderEquationPreviewSource(source: string, key: string): string | null {
+  const escapedKey = escapeRegExpLiteral(key);
+  const labelPattern = String.raw`\{\s*#${escapedKey}\s*\}`;
+  const labelMatch = new RegExp(labelPattern).exec(source);
+  if (!labelMatch) return null;
+
+  const beforeLabel = source.slice(0, labelMatch.index);
+  const beforeMath = beforeLabel.trimEnd();
+
+  const closeDollars = beforeMath.lastIndexOf("$$");
+  const closeBracket = beforeMath.lastIndexOf("\\]");
+  if (closeDollars > closeBracket) {
+    const openDollars = beforeMath.lastIndexOf("$$", closeDollars - 1);
+    if (openDollars >= 0) {
+      return beforeMath.slice(openDollars, closeDollars + 2);
+    }
+  }
+
+  if (closeBracket >= 0) {
+    const openBracket = beforeMath.lastIndexOf("\\[", closeBracket - 1);
+    if (openBracket >= 0) {
+      return beforeMath.slice(openBracket, closeBracket + 2);
+    }
+  }
+  return null;
+}
+
+function findReaderHeadingPreviewSource(source: string, key: string): string | null {
+  const escapedKey = escapeRegExpLiteral(key);
+  const pattern = new RegExp(String.raw`^#{1,6}\s+.*\{[^}\n]*#${escapedKey}[^}\n]*\}\s*$`, "m");
+  return pattern.exec(source)?.[0] ?? null;
+}
+
+function findReaderFencedDivPreviewSource(source: string, key: string): string | null {
+  const lines = source.split(/\r?\n/);
+  const idNeedle = `#${key}`;
+  for (let i = 0; i < lines.length; i += 1) {
+    const line = lines[i] ?? "";
+    const fence = /^(:{3,})\s+/.exec(line);
+    if (!fence || !line.includes(idNeedle)) continue;
+
+    const fenceMarker = fence[1];
+    const blockLines = [line];
+    for (let j = i + 1; j < lines.length; j += 1) {
+      const next = lines[j] ?? "";
+      blockLines.push(next);
+      if (next.trim() === fenceMarker) {
+        return blockLines.join("\n");
+      }
+    }
+    return blockLines.join("\n");
+  }
+  return null;
+}
+
+function buildReaderSourcePreview(
+  key: string,
+  source: string | undefined,
+  context: DocumentContext | undefined,
+  mathMacros: Record<string, string> | undefined,
+  label: string,
+): HTMLElement | null {
+  if (!source) return null;
+
+  const equationSource = findReaderEquationPreviewSource(source, key);
+  if (equationSource) {
+    const container = createReaderHoverContainer();
+    container.appendChild(createReaderHoverHeader(label || key));
+    container.appendChild(renderReaderPreviewSource(equationSource, context, mathMacros));
+    return container;
+  }
+
+  const blockSource = findReaderFencedDivPreviewSource(source, key)
+    ?? findReaderHeadingPreviewSource(source, key);
+  if (blockSource) {
+    const container = createReaderHoverContainer();
+    container.appendChild(renderReaderPreviewSource(blockSource, context, mathMacros));
+    return container;
+  }
+
+  return null;
+}
+
+function buildReaderHoverPlan(
+  anchor: HTMLElement,
+  root: HTMLElement,
+  options: ReaderHoverPreviewOptions,
+): TooltipPlan {
+  const key = anchor.dataset.refKey ?? "";
+  const label = anchor.textContent?.trim() ?? key;
+  return {
+    buildContent: () => {
+      const customPreview = options.previewForReference?.(key, {
+        anchor,
+        context: options.context,
+        key,
+        root,
+        source: options.source,
+      });
+      if (customPreview instanceof HTMLElement) {
+        return createReaderElementPreview(customPreview);
+      }
+      if (typeof customPreview === "string" && customPreview.trim() !== "") {
+        return createReaderTextPreview(customPreview);
+      }
+
+      return buildReaderSourcePreview(
+        key,
+        options.source,
+        options.context,
+        options.mathMacros,
+        label,
+      ) ?? createReaderUnresolvedPreview(key);
+    },
+    cacheScope: readerHoverCacheScope,
+    dependsOnBibliography: false,
+    dependsOnMacros: true,
+    key: `reader:hover\0${key}\0${label}\0${options.source ?? ""}`,
+    mediaDependencies: undefined,
+  };
+}
+
+/**
+ * Attach reader hover previews to rendered references in a reader surface.
+ *
+ * The helper reuses the same tooltip shell, positioning, cache behavior, and
+ * CSS classes as the editor hover cards. It stays opt-in so `renderToHtml`
+ * remains static and server-render friendly.
+ */
+export function hydrateReaderHoverPreviews(
+  root: HTMLElement,
+  options: ReaderHoverPreviewOptions = {},
+): () => void {
+  let hoverTimer: ReturnType<typeof setTimeout> | null = null;
+  let currentTarget: HTMLElement | null = null;
+  let tooltipModulePromise: Promise<HoverTooltipModule> | null = null;
+
+  const loadTooltipModule = () => {
+    tooltipModulePromise ??= import("../core/hover-tooltip");
+    return tooltipModulePromise;
+  };
+
+  const clearTimer = () => {
+    if (hoverTimer !== null) {
+      clearTimeout(hoverTimer);
+      hoverTimer = null;
+    }
+  };
+
+  const hideTooltip = () => {
+    void loadTooltipModule().then((module) => module.hideFloatingTooltip());
+  };
+
+  const onMouseOver = (event: MouseEvent) => {
+    const target = event.target instanceof HTMLElement
+      ? event.target.closest<HTMLElement>("[data-ref-key]")
+      : null;
+    if (!target || target === currentTarget) return;
+
+    clearTimer();
+    currentTarget = target;
+
+    hoverTimer = setTimeout(() => {
+      const anchor = currentTarget;
+      if (!anchor?.isConnected) return;
+      const plan = buildReaderHoverPlan(anchor, root, options);
+      void loadTooltipModule().then((module) => {
+        if (anchor === currentTarget) {
+          module.showFloatingTooltip(anchor, plan);
+        }
+      });
+    }, options.hoverDelayMs ?? 300);
+  };
+
+  const onMouseOut = (event: MouseEvent) => {
+    const relatedTarget = event.relatedTarget;
+    if (
+      relatedTarget instanceof HTMLElement &&
+      relatedTarget.closest("[data-ref-key]") === currentTarget
+    ) {
+      return;
+    }
+    clearTimer();
+    currentTarget = null;
+    hideTooltip();
+  };
+
+  root.addEventListener("mouseover", onMouseOver);
+  root.addEventListener("mouseout", onMouseOut);
+
+  return () => {
+    clearTimer();
+    currentTarget = null;
+    root.removeEventListener("mouseover", onMouseOver);
+    root.removeEventListener("mouseout", onMouseOut);
+    hideTooltip();
+  };
 }
 
 // ---------------------------------------------------------------------------
