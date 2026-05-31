@@ -4,6 +4,19 @@ Math-aware markdown editor library — CodeMirror 6 + Lezer + Typora-style ViewP
 Extracted from the coflat project; consumed by both the coflat desktop shell
 (Tauri) and the cosheaf web shell (Hono server).
 
+## Try it
+
+The simplest live example is on GitHub Pages:
+
+<https://chaoxu.github.io/coflat-editor/>
+
+Run the same page locally:
+
+```sh
+pnpm install
+pnpm dev:pages
+```
+
 ## Quick start
 
 ```ts
@@ -92,8 +105,27 @@ this sub-entry is imported.
 
 ## Installation
 
-This package should be installable from a public registry or from a sibling
-checkout. Do not commit private registry credentials in this repository.
+This repository is public and should build from a normal checkout:
+
+```sh
+git clone https://github.com/chaoxu/coflat-editor.git
+cd coflat-editor
+pnpm install
+pnpm build
+```
+
+The npm package is not published yet. Until it is, consume it from a workspace
+or sibling checkout:
+
+```json
+{
+  "dependencies": {
+    "@chaoxu/coflat-editor": "file:../coflat-editor"
+  }
+}
+```
+
+Do not commit private registry credentials in this repository.
 
 ## Package Smoke Check
 

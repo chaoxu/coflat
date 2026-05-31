@@ -16,5 +16,5 @@
     "types": ["node"],
     "jsx": "react-jsx"
   },
-  "include": ["src", "editor.ts", "demo"]
+  "include": ["src", "editor.ts", "demo", "examples", "vite.pages.config.ts"]
 }

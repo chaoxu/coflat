@@ -1,7 +1,9 @@
 node_modules
 dist
+dist-pages
 .npmrc
 .vite
 test-results/
 playwright-report/
 .playwright/
+.playwright-mcp/

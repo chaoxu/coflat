@@ -3,6 +3,14 @@
   "version": "0.2.8",
   "description": "Math-aware markdown editor library extracted from coflat — CM6 + Lezer + Typora-style ViewPlugins.",
   "type": "module",
+  "homepage": "https://chaoxu.github.io/coflat-editor/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/chaoxu/coflat-editor.git"
+  },
+  "bugs": {
+    "url": "https://github.com/chaoxu/coflat-editor/issues"
+  },
   "sideEffects": [
     "**/*.css"
   ],
@@ -50,6 +58,8 @@
     "test": "vitest run",
     "publint": "publint",
     "check:static": "pnpm typecheck && pnpm lint",
+    "dev:pages": "vite --config vite.pages.config.ts --host 127.0.0.1 --port 5190",
+    "build:pages": "vite build --config vite.pages.config.ts",
     "check:package": "pnpm build && pnpm publint",
     "check:package-smoke": "pnpm build && node scripts/package-smoke.mjs",
     "test:watch": "vitest",
