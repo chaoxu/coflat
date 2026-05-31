@@ -294,6 +294,13 @@ function handleElement(node: SyntaxNodeRef, ctx: MarkdownHandlerContext) {
   }
 }
 
+function handleImage(node: SyntaxNodeRef, ctx: MarkdownHandlerContext) {
+  if (cursorInMarkdownRange(ctx.state, ctx.focused, node.from, node.to)) {
+    addInlineRevealSourceMetricsInSubtree(node.node, ctx.items);
+  }
+  return false as const;
+}
+
 function handleFencedCode() {
   return false as const;
 }
@@ -338,7 +345,8 @@ for (const name of Object.keys(headingMarkByLevel)) {
 MARKDOWN_HANDLERS.set("HeaderMark", { cursorSensitive: false, handle: handleHeaderMark });
 MARKDOWN_HANDLERS.set("Highlight", { cursorSensitive: true, handle: handleHighlight });
 MARKDOWN_HANDLERS.set("Link", { cursorSensitive: true, handle: handleLink });
-for (const name of ["Emphasis", "StrongEmphasis", "InlineCode", "Image", "Strikethrough"]) {
+MARKDOWN_HANDLERS.set("Image", { cursorSensitive: true, handle: handleImage });
+for (const name of ["Emphasis", "StrongEmphasis", "InlineCode", "Strikethrough"]) {
   MARKDOWN_HANDLERS.set(name, { cursorSensitive: true, handle: handleElement });
 }
 MARKDOWN_HANDLERS.set("FencedCode", { cursorSensitive: false, handle: handleFencedCode });

@@ -16,6 +16,7 @@ import { pdfPreviewEffect, pdfPreviewField } from "../state/pdf-preview";
 import { createTestView, getDecorationSpecs } from "../test-utils";
 import * as mediaPreview from "./media-preview";
 import { focusEffect } from "./focus-state";
+import { markdownRenderPlugin } from "./markdown-render";
 
 describe("ImagePreviewWidget (image state)", () => {
   const imageState = (src: string) => ({ kind: "image" as const, src });
@@ -910,5 +911,36 @@ describe("imageRenderPlugin cache-only invalidation", () => {
     });
 
     expect(resolvePreview.mock.calls.map((call) => call[1])).toEqual(["hero.png"]);
+  });
+});
+
+describe("imageRenderPlugin with markdown inline rendering", () => {
+  let view: EditorView | undefined;
+
+  afterEach(() => {
+    view?.destroy();
+    view = undefined;
+  });
+
+  it("renders the image widget instead of blanking the image source", () => {
+    const imageSrc = "https://example.com/showcase/hover-preview-figure.svg";
+    const doc = `![Local hover-preview figure](${imageSrc}) should render as an inline image.`;
+
+    view = createTestView(doc, {
+      cursorPos: doc.length,
+      extensions: [
+        markdown(),
+        imageUrlField,
+        pdfPreviewField,
+        markdownRenderPlugin,
+        imageRenderPlugin,
+      ],
+    });
+
+    const image = view.dom.querySelector<HTMLImageElement>(`.${CSS.image}`);
+    expect(image).not.toBeNull();
+    expect(image?.alt).toBe("Local hover-preview figure");
+    expect(view.dom.textContent).toContain("should render as an inline image.");
+    expect(view.dom.textContent).not.toContain(imageSrc);
   });
 });
