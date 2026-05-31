@@ -102,6 +102,8 @@ export const themePresets: Record<string, ThemePreset> = {
   modern,
 };
 
+export const defaultThemePresetKey = "academic";
+
 /** Ordered list of preset keys for UI display (derived from themePresets). */
 export const themePresetKeys: string[] = Object.keys(themePresets);
 

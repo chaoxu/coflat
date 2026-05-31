@@ -408,6 +408,26 @@ describe("markdownRenderPlugin (Decoration.mark approach)", () => {
 
       expect(linkItems).toHaveLength(2);
       expect(linkItems[0].value).toBe(linkItems[1].value);
+      expect(linkItems[0].value.spec.attributes).toMatchObject({
+        "data-cf-link-layout": "flow",
+      });
+    });
+
+    it("marks document link decorations as atomic", () => {
+      clearLinkDecorationCache();
+      const doc = "[one](chapter.md) tail";
+      view = createView(doc, doc.length);
+
+      const items = collectMarkdownItems(
+        view,
+        [{ from: 0, to: doc.length }],
+        () => false,
+      );
+      const linkItem = items.find((item) => item.value.spec.class === "cf-link-rendered");
+
+      expect(linkItem?.value.spec.attributes).toMatchObject({
+        "data-cf-link-layout": "atomic",
+      });
     });
 
     it("bounds cached rendered-link decorations for unique URLs", () => {

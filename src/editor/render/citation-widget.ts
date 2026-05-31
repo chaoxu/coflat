@@ -1,17 +1,8 @@
 import type { WidgetType } from "@codemirror/view";
-import { CSS } from "../../core/constants/css-classes";
+import { CSS, hostReferenceClassNames } from "../../core/constants/css-classes";
+import { LINK_LAYOUT_ATTRIBUTE, linkLayoutForHref } from "../../core/link-layout";
 import { isSafeUrl } from "../../core/lib/url-utils";
 import { ReferenceWidget, SimpleTextReferenceWidget } from "./render-core";
-
-function hostRefClassName(className: string | undefined): string {
-  const classNames: string[] = [CSS.crossref];
-  for (const token of className?.split(/\s+/) ?? []) {
-    if (token !== "" && !classNames.includes(token)) {
-      classNames.push(token);
-    }
-  }
-  return classNames.join(" ");
-}
 
 /**
  * Widget for a reference whose display text is produced by a host
@@ -30,7 +21,7 @@ export class HostRefWidget extends ReferenceWidget {
     className: string | undefined,
     private readonly hasOnClick: boolean,
   ) {
-    const rootClassName = hostRefClassName(className);
+    const rootClassName = hostReferenceClassNames(className);
     super({
       className: rootClassName,
       ariaLabel: key,
@@ -46,6 +37,7 @@ export class HostRefWidget extends ReferenceWidget {
     if (this.href !== undefined && isSafeUrl(this.href)) {
       const anchor = document.createElement("a");
       anchor.href = this.href;
+      anchor.setAttribute(LINK_LAYOUT_ATTRIBUTE, linkLayoutForHref(this.href));
       anchor.innerHTML = this.html;
       root.appendChild(anchor);
     } else {

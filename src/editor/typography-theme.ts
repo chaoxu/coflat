@@ -64,6 +64,7 @@ export const typographyThemeStyles = {
    * with preview-surface <mark> elements (#406). */
   ".cf-highlight": {
     backgroundColor: "var(--cf-mark-bg, rgba(255, 255, 0, 0.2))",
+    color: "var(--cf-fg)",
     borderRadius: "var(--cf-border-radius)",
     padding: "1px 0",
   },
@@ -145,11 +146,18 @@ export const typographyThemeStyles = {
 
   /* Rendered link styling — shown when cursor is outside the link */
   ".cf-link-rendered": {
+    display: "inline",
     color: "var(--cf-color-link, var(--cf-accent))",
     textDecoration: "underline",
     textDecorationThickness: "1px",
     textUnderlineOffset: "2px",
     cursor: "pointer",
+  },
+  ".cf-link-rendered[data-cf-link-layout='flow']": {
+    display: "inline",
+  },
+  ".cf-link-rendered[data-cf-link-layout='atomic']": {
+    display: "inline-block",
   },
 
   /* Section numbers (rendered via ::before when cursor is outside).

@@ -386,10 +386,21 @@
 
 .cf-reader a,
 .cf-reader .cf-doc-link {
+  display: inline;
   color: var(--cf-color-link, var(--cf-accent));
   text-decoration: underline;
   text-decoration-thickness: 1px;
   text-underline-offset: 2px;
+}
+
+.cf-reader a[data-cf-link-layout="flow"],
+.cf-reader .cf-doc-link[data-cf-link-layout="flow"] {
+  display: inline;
+}
+
+.cf-reader a[data-cf-link-layout="atomic"],
+.cf-reader .cf-doc-link[data-cf-link-layout="atomic"] {
+  display: inline-block;
 }
 
 .cf-reader .cf-doc-heading {
@@ -550,14 +561,10 @@
 .cf-reader .cf-doc-code-block {
   margin: 0;
   overflow-x: auto;
-  background: var(--cf-subtle);
+  background: transparent;
   border: 0;
-  border-radius: var(--cf-border-radius-lg);
-  box-shadow:
-    inset 0 var(--cf-border-width) 0 var(--cf-border),
-    inset var(--cf-border-width) 0 0 var(--cf-border),
-    inset calc(-1 * var(--cf-border-width)) 0 0 var(--cf-border),
-    inset 0 calc(-1 * var(--cf-border-width)) 0 var(--cf-border);
+  border-radius: 0;
+  box-shadow: none;
   font-family: var(--cf-code-font, Monaco, "DejaVu Sans Mono", Consolas, monospace);
   padding: 0;
   line-height: var(--cf-line-height, 1.5);
@@ -566,6 +573,13 @@
 .cf-reader .cf-doc-code-block[data-lang]::before {
   content: attr(data-lang);
   display: block;
+  background: var(--cf-subtle);
+  box-shadow:
+    inset 0 var(--cf-border-width) 0 var(--cf-border),
+    inset var(--cf-border-width) 0 0 var(--cf-border),
+    inset calc(-1 * var(--cf-border-width)) 0 0 var(--cf-border);
+  border-top-left-radius: var(--cf-border-radius-lg);
+  border-top-right-radius: var(--cf-border-radius-lg);
   color: var(--cf-muted);
   font-family: var(--cf-code-font, Monaco, "DejaVu Sans Mono", Consolas, monospace);
   font-weight: 600;
@@ -574,8 +588,24 @@
 
 .cf-reader .cf-doc-code-block code {
   display: block;
+  background: var(--cf-subtle);
+  box-shadow:
+    inset var(--cf-border-width) 0 0 var(--cf-border),
+    inset calc(-1 * var(--cf-border-width)) 0 0 var(--cf-border),
+    inset 0 calc(-1 * var(--cf-border-width)) 0 var(--cf-border);
+  border-bottom-left-radius: var(--cf-border-radius-lg);
+  border-bottom-right-radius: var(--cf-border-radius-lg);
   font-family: var(--cf-code-font, Monaco, "DejaVu Sans Mono", Consolas, monospace);
   line-height: inherit;
+}
+
+.cf-reader .cf-doc-code-block:not([data-lang]) code {
+  box-shadow:
+    inset 0 var(--cf-border-width) 0 var(--cf-border),
+    inset var(--cf-border-width) 0 0 var(--cf-border),
+    inset calc(-1 * var(--cf-border-width)) 0 0 var(--cf-border),
+    inset 0 calc(-1 * var(--cf-border-width)) 0 var(--cf-border);
+  border-radius: var(--cf-border-radius-lg);
 }
 
 .cf-reader .cf-doc-blockquote {
@@ -1596,12 +1626,10 @@
 .cf-crossref-unresolved {
   color: var(--cf-math-error-fg);
   background: var(--cf-math-error-bg);
-  border-radius: var(--cf-border-radius);
+  border-radius: 0;
   padding: 0 2px;
-  text-decoration-line: underline;
-  text-decoration-style: dashed;
-  text-decoration-color: currentColor;
-  text-underline-offset: 2px;
+  text-decoration-line: none;
+  box-shadow: inset 0 -1px 0 currentColor;
 }
 
 /* cf-citation — citation widget (editor). It inherits surrounding visual
@@ -1622,6 +1650,7 @@
 
 .cf-highlight {
   background-color: var(--cf-mark-bg, rgba(255, 255, 0, 0.2));
+  color: var(--cf-fg);
   border-radius: var(--cf-border-radius);
   padding: 1px 0;
 }

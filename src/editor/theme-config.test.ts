@@ -1,11 +1,20 @@
 import { describe, expect, it, afterEach } from "vitest";
-import { applyThemePreset, clearThemePreset, themePresets } from "./theme-config";
+import {
+  applyThemePreset,
+  clearThemePreset,
+  defaultThemePresetKey,
+  themePresets,
+} from "./theme-config";
 
 afterEach(() => {
   clearThemePreset();
 });
 
 describe("theme presets", () => {
+  it("exports a default preset key that resolves to an existing preset", () => {
+    expect(themePresets[defaultThemePresetKey]).toBe(themePresets.academic);
+  });
+
   it("applyThemePreset sets UI, content, and code font variables", () => {
     applyThemePreset(themePresets.academic);
 

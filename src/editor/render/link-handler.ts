@@ -4,6 +4,7 @@ import { CSS } from "../../core/constants/css-classes";
 import { documentContextFacet } from "../document-context";
 import { documentPathFacet } from "../lib/types";
 import { isSafeUrl } from "../../core/lib/url-utils";
+import { LINK_LAYOUT_ATTRIBUTE, linkLayoutForHref } from "../../core/link-layout";
 import { openExternalUrl } from "../lib/open-link";
 
 const maxLinkDecorationCacheSize = 256;
@@ -19,7 +20,10 @@ export function getLinkDecoration(url: string): Decoration {
 
   const linkDeco = Decoration.mark({
     class: CSS.linkRendered,
-    attributes: { "data-url": url },
+    attributes: {
+      "data-url": url,
+      [LINK_LAYOUT_ATTRIBUTE]: linkLayoutForHref(url),
+    },
   });
   linkDecorationCache.set(url, linkDeco);
   if (linkDecorationCache.size > maxLinkDecorationCacheSize) {
@@ -38,16 +42,19 @@ export function getLinkDecoration(url: string): Decoration {
  */
 export function buildResolvedLinkDecoration(
   url: string,
-  override: { className?: string; title?: string; hasOnClick?: boolean } | null,
+  override: { className?: string; title?: string; hasOnClick?: boolean; force?: boolean } | null,
 ): Decoration | null {
   if (!override) return null;
-  if (!override.className && !override.title && !override.hasOnClick) {
+  if (!override.className && !override.title && !override.hasOnClick && !override.force) {
     return null;
   }
   const cls = override.className
     ? `${CSS.linkRendered} ${override.className}`
     : CSS.linkRendered;
-  const attributes: Record<string, string> = { "data-url": url };
+  const attributes: Record<string, string> = {
+    "data-url": url,
+    [LINK_LAYOUT_ATTRIBUTE]: linkLayoutForHref(url),
+  };
   if (override.title) attributes.title = override.title;
   if (override.hasOnClick) attributes["data-link-resolver"] = "1";
   return Decoration.mark({ class: cls, attributes });

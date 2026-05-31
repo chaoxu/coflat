@@ -1,6 +1,6 @@
 {
   "name": "@chaoxu/coflat-editor",
-  "version": "0.2.7",
+  "version": "0.2.8",
   "description": "Math-aware markdown editor library extracted from coflat — CM6 + Lezer + Typora-style ViewPlugins.",
   "type": "module",
   "sideEffects": [
@@ -56,7 +56,8 @@
     "lint": "biome lint . && node scripts/check-layer-boundary.mjs",
     "lint:layers": "node scripts/check-layer-boundary.mjs",
     "prepack": "pnpm build && pnpm publint",
-    "test:e2e": "env -u NO_COLOR -u FORCE_COLOR playwright test",
+    "test:e2e": "env -u NO_COLOR -u FORCE_COLOR playwright test tests/e2e/smoke.spec.ts",
+    "test:e2e:corpus": "node scripts/run-corpus-parity.mjs",
     "e2e:install": "playwright install --with-deps chromium"
   },
   "pnpm": {

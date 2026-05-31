@@ -21,8 +21,10 @@ import {
 import { getBlockManifestEntry } from "../core/constants/block-manifest";
 import {
   CSS,
+  hostReferenceClassNames,
   mathSurfaceClassNames,
 } from "../core/constants/css-classes";
+import { LINK_LAYOUT_ATTRIBUTE, linkLayoutForHref } from "../core/link-layout";
 import {
   DOCUMENT_SURFACE_CLASS,
   documentSurfaceClassNames,
@@ -458,6 +460,8 @@ interface WalkContext {
    *  every block element, inline mark, math placeholder, and plain-text
    *  span (the latter wrapped in `<span class="cf-text">`). */
   sourcePositions: boolean;
+  /** When true, emit source offsets on math placeholders only. */
+  mathSourcePositions: boolean;
   headingCounters: number[];
   blockCounters: Map<string, number>;
   // Footnote tracking
@@ -468,6 +472,15 @@ interface WalkContext {
 function sourcePosAttrs(ctx: WalkContext, from: number, to: number): string {
   if (!ctx.sourcePositions) return "";
   return ` data-source-from="${from}" data-source-to="${to}"`;
+}
+
+function mathSourcePosAttrs(ctx: WalkContext, from: number, to: number): string {
+  if (!ctx.mathSourcePositions) return "";
+  return ` data-source-from="${from}" data-source-to="${to}"`;
+}
+
+function linkLayoutAttr(href: string): string {
+  return ` ${LINK_LAYOUT_ATTRIBUTE}="${linkLayoutForHref(href)}"`;
 }
 
 // ---------------------------------------------------------------------------
@@ -605,7 +618,7 @@ function renderInlineNode(
       const sp = sourcePosAttrs(ctx, node.from, node.to);
       if (isSafeUrl(href)) {
         return {
-          html: `<a href="${escapeHtml(href)}"${sp}>${escapeHtml(href)}</a>`,
+          html: `<a href="${escapeHtml(href)}"${linkLayoutAttr(href)}${sp}>${escapeHtml(href)}</a>`,
           text: href,
           hasMath: false,
         };
@@ -622,7 +635,7 @@ function renderInlineNode(
     case NODE.InlineMath: {
       const raw = source.slice(node.from, node.to);
       const inner = stripMathDelims(raw, false);
-      const sp = sourcePosAttrs(ctx, node.from, node.to);
+      const sp = mathSourcePosAttrs(ctx, node.from, node.to);
       return {
         html: `<span class="${mathSurfaceClassNames(false)}" data-math="${escapeHtml(inner)}"${sp}>${escapeHtml(raw)}</span>`,
         text: raw,
@@ -632,7 +645,7 @@ function renderInlineNode(
     case NODE.DisplayMath: {
       const raw = source.slice(node.from, node.to);
       const inner = stripMathDelims(raw, true);
-      const sp = sourcePosAttrs(ctx, node.from, node.to);
+      const sp = mathSourcePosAttrs(ctx, node.from, node.to);
       return {
         html: `<span class="${mathSurfaceClassNames(true)}" data-math="${escapeHtml(inner)}"${sp}>${escapeHtml(raw)}</span>`,
         text: raw,
@@ -798,7 +811,7 @@ function emitLink(
     return { html: label.html, text: label.text, hasMath: label.hasMath };
   }
 
-  let attrs = ` href="${escapeHtml(href)}"`;
+  let attrs = ` href="${escapeHtml(href)}"${linkLayoutAttr(href)}`;
   if (className) attrs += ` class="${escapeHtml(className)}"`;
   if (title) attrs += ` title="${escapeHtml(title)}"`;
   attrs += sourcePosAttrs(ctx, node.from, node.to);
@@ -833,21 +846,9 @@ function buildReaderRefResolverEnv(
   };
 }
 
-function hostReferenceClassName(
-  resolved: HostReferenceResolution,
-): string {
-  const classes: string[] = [CSS.crossref];
-  for (const className of resolved.className?.split(/\s+/) ?? []) {
-    if (className && !classes.includes(className)) {
-      classes.push(className);
-    }
-  }
-  return classes.join(" ");
-}
-
 function renderReaderHostReference(resolved: HostReferenceResolution): string {
   if (resolved.href && isSafeUrl(resolved.href)) {
-    return `<a href="${escapeHtml(resolved.href)}">${resolved.content}</a>`;
+    return `<a href="${escapeHtml(resolved.href)}"${linkLayoutAttr(resolved.href)}>${resolved.content}</a>`;
   }
   return resolved.content;
 }
@@ -873,7 +874,7 @@ function emitReferenceCluster(
         buildReaderRefResolverEnv(ctx, raw, from, to, ids, locators, index),
       );
       if (resolved) {
-        const cls = hostReferenceClassName(resolved);
+        const cls = hostReferenceClassNames(resolved.className);
         const inner = renderReaderHostReference(resolved);
         parts.push(
           `<span class="${escapeHtml(cls)}" data-ref-key="${escapeHtml(id)}" data-ref-mode="bracketed">${inner}</span>`,
@@ -967,6 +968,8 @@ interface RenderOptions {
    *  `<span class="cf-text" data-source-from=… data-source-to=…>`. Off by
    *  default — output is byte-identical to the un-opted form. */
   sourcePositions?: boolean;
+  /** If true, emit `data-source-from`/`data-source-to` on math spans only. */
+  mathSourcePositions?: boolean;
   /** Block-boundary truncation budget. */
   truncate?: TruncateSpec;
   /** Current document path forwarded to host resolvers. */
@@ -1012,6 +1015,10 @@ function blockSourceAttrs(ctx: WalkContext, from: number, to: number): string {
   return sourceLineAttr(ctx, from) + sourcePosAttrs(ctx, from, to);
 }
 
+function blockMathSourceAttrs(ctx: WalkContext, from: number, to: number): string {
+  return sourceLineAttr(ctx, from) + mathSourcePosAttrs(ctx, from, to);
+}
+
 function renderBlock(ctx: WalkContext, node: SyntaxNode): BlockResult {
   const name = node.name;
 
@@ -1051,7 +1058,7 @@ function renderBlock(ctx: WalkContext, node: SyntaxNode): BlockResult {
       const inner = stripMathDelims(raw, true);
       return {
         html:
-          `<div class="${mathSurfaceClassNames(true)}" data-math="${escapeHtml(inner)}"${blockSourceAttrs(ctx, node.from, node.to)}>` +
+          `<div class="${mathSurfaceClassNames(true)}" data-math="${escapeHtml(inner)}"${blockMathSourceAttrs(ctx, node.from, node.to)}>` +
           escapeHtml(raw) +
           `</div>`,
         text: raw,
@@ -1163,7 +1170,11 @@ function isPandocHeadingAttributeToken(token: string): boolean {
 }
 
 function renderParagraph(ctx: WalkContext, node: SyntaxNode): BlockResult {
-  const inner = renderInline(ctx, node, node.from, node.to);
+  let contentFrom = node.from;
+  let contentTo = node.to;
+  while (contentFrom < contentTo && /\s/.test(ctx.source[contentFrom] ?? "")) contentFrom++;
+  while (contentTo > contentFrom && /\s/.test(ctx.source[contentTo - 1] ?? "")) contentTo--;
+  const inner = renderInline(ctx, node, contentFrom, contentTo);
   // Trim boundary whitespace/newlines for tidy output; interior soft breaks
   // stay available for CSS to preserve rich-editor visual parity.
   const html = inner.html.replace(/^\s+/, "").replace(/\s+$/, "");
@@ -1730,6 +1741,7 @@ function walkDocument(
     resolvers,
     lineOffsets: opts.sourceLineAttribution ? buildLineOffsets(source) : null,
     sourcePositions: !!opts.sourcePositions,
+    mathSourcePositions: !!(opts.sourcePositions || opts.mathSourcePositions),
     headingCounters: [0, 0, 0, 0, 0, 0, 0],
     blockCounters: new Map(),
     footnotesById: new Map(),
@@ -2261,12 +2273,10 @@ function hydrateReferenceElement(
   if (!resolved) return;
 
   el.classList.remove("cf-citation-unresolved", "cf-crossref-unresolved");
-  if (resolved.className) {
-    el.classList.add(...resolved.className.split(/\s+/).filter(Boolean));
-  }
+  el.classList.add(...hostReferenceClassNames(resolved.className).split(/\s+/));
   if (resolved.href && isSafeUrl(resolved.href)) {
     el.innerHTML = sanitize(
-      `<a href="${escapeHtml(resolved.href)}">${resolved.content}</a>`,
+      `<a href="${escapeHtml(resolved.href)}"${linkLayoutAttr(resolved.href)}>${resolved.content}</a>`,
     );
   } else {
     el.innerHTML = sanitize(resolved.content);
@@ -2297,6 +2307,7 @@ function hydrateLinkElement(
   if (!resolved) return;
   if (resolved.href !== undefined && isSafeUrl(resolved.href)) {
     el.setAttribute("href", resolved.href);
+    el.setAttribute(LINK_LAYOUT_ATTRIBUTE, linkLayoutForHref(resolved.href));
   }
   if (resolved.className) {
     el.classList.add(...resolved.className.split(/\s+/).filter(Boolean));

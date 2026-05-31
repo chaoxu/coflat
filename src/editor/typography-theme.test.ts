@@ -24,11 +24,21 @@ describe("typographyThemeStyles", () => {
       borderRadius: "var(--cf-border-radius)",
       padding: "0.1em 0.25em",
     });
+    expect(typographyThemeStyles[".cf-highlight"]).toMatchObject({
+      color: "var(--cf-fg)",
+    });
 
     expect(typographyThemeStyles[".cf-link-rendered"]).toMatchObject({
+      display: "inline",
       color: "var(--cf-color-link, var(--cf-accent))",
       textDecorationThickness: "1px",
       textUnderlineOffset: "2px",
+    });
+    expect(typographyThemeStyles[".cf-link-rendered[data-cf-link-layout='flow']"]).toMatchObject({
+      display: "inline",
+    });
+    expect(typographyThemeStyles[".cf-link-rendered[data-cf-link-layout='atomic']"]).toMatchObject({
+      display: "inline-block",
     });
   });
 });

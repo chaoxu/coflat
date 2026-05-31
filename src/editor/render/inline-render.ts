@@ -24,6 +24,7 @@ import {
   parseInlineFragments,
 } from "../inline-fragments";
 import { isSafeUrl } from "../../core/lib/url-utils";
+import { LINK_LAYOUT_ATTRIBUTE, linkLayoutForHref } from "../../core/link-layout";
 import type { LinkResolver } from "../../core/document-context-types";
 import {
   planReferencePresentation,
@@ -325,6 +326,7 @@ function renderFragment(
       if (className) anchor.className = `${anchor.className} ${className}`;
       if (title) anchor.title = title;
       anchor.href = resolvedHref;
+      anchor.setAttribute(LINK_LAYOUT_ATTRIBUTE, linkLayoutForHref(resolvedHref));
       if (typeof resolved?.onClick === "function") {
         anchor.addEventListener("click", resolved.onClick);
       }

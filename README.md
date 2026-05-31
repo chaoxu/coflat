@@ -105,6 +105,29 @@ surface classes and stylesheet rules:
 pnpm check:package-smoke
 ```
 
+## Parity Checks
+
+The fast browser suite excludes the external corpus gate:
+
+```sh
+pnpm test:e2e
+```
+
+Run the Cosheaf reader/editor parity corpus explicitly when changing shared
+document rendering, theme CSS, or reader/editor reference behavior:
+
+```sh
+pnpm test:e2e:corpus
+```
+
+The corpus runner uses `COFLAT_PARITY_CORPUS_DIR` when set, otherwise it looks
+for `/tmp/coflat-poa-network-game-clean` and `../poa-network-game-clean`. The
+runner splits the corpus into independent Playwright tests so workers can run
+semantic checks for every chunk and pixel checks for every chunk across the
+default surface and every non-default theme preset. Pass Playwright options
+after `--`; for example, `pnpm test:e2e:corpus -- --workers=10` overrides the
+runner's local worker default.
+
 ## Package architecture
 
 The source is organized in three internal layers, enforced by

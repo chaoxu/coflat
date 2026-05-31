@@ -38,7 +38,7 @@ describe("renderToHtml — sourcePositions emission", () => {
     const src = "see [doc](https://x.y) please";
     const r = renderToHtml(src, undefined, { sourcePositions: true });
     expect(r.html).toMatch(
-      /<a href="https:\/\/x\.y" data-source-from="4" data-source-to="22">/,
+      /<a href="https:\/\/x\.y" data-cf-link-layout="flow" data-source-from="4" data-source-to="22">/,
     );
   });
 
@@ -56,6 +56,15 @@ describe("renderToHtml — sourcePositions emission", () => {
     expect(r.html).toMatch(
       /<span class="cf-doc-inline-math cf-math-inline" data-math="[^"]+" data-source-from="4" data-source-to="9">/,
     );
+  });
+
+  it("can emit source positions on math spans without wrapping prose", () => {
+    const src = "the $x^2$ thing";
+    const r = renderToHtml(src, undefined, { mathSourcePositions: true });
+    expect(r.html).toMatch(
+      /<span class="cf-doc-inline-math cf-math-inline" data-math="[^"]+" data-source-from="4" data-source-to="9">/,
+    );
+    expect(r.html).not.toContain('class="cf-text"');
   });
 
   it("emits source positions on a footnote ref", () => {

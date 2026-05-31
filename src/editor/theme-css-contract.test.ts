@@ -97,6 +97,13 @@ describe("theme CSS contract", () => {
     expect(cssRuleBody(css, "[data-section-number]::before")).toContain(
       'content: attr(data-section-number) ".\\2002";',
     );
+    expect(cssRuleBody(css, ".cf-reader a,\n.cf-reader .cf-doc-link")).toContain("display: inline;");
+    expect(cssRuleBody(css, ".cf-reader a[data-cf-link-layout=\"flow\"],\n.cf-reader .cf-doc-link[data-cf-link-layout=\"flow\"]")).toContain(
+      "display: inline;",
+    );
+    expect(cssRuleBody(css, ".cf-reader a[data-cf-link-layout=\"atomic\"],\n.cf-reader .cf-doc-link[data-cf-link-layout=\"atomic\"]")).toContain(
+      "display: inline-block;",
+    );
     expect(cssRuleBody(css, ".cf-reader .cf-doc-paragraph")).toContain("white-space: break-spaces;");
     expect(cssRuleBody(css, ".cf-reader .cf-doc-paragraph")).toContain("word-break: break-word;");
     expect(cssRuleBody(css, ".cf-reader .cf-doc-paragraph")).toContain("overflow-wrap: anywhere;");
@@ -147,6 +154,7 @@ describe("theme CSS contract", () => {
     expect(cssRuleBody(css, ".cf-highlight")).toContain(
       "background-color: var(--cf-mark-bg, rgba(255, 255, 0, 0.2));",
     );
+    expect(cssRuleBody(css, ".cf-highlight")).toContain("color: var(--cf-fg);");
     expect(cssRuleBody(css, ".cf-inline-code")).toContain(
       "background: var(--cf-color-code-bg, var(--cf-hover));",
     );

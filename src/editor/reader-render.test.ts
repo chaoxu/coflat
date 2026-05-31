@@ -78,12 +78,20 @@ describe("renderToHtml — slow path (Lezer)", () => {
   it("renders a [label](url) link", () => {
     const r = renderToHtml("[label](https://example.com)");
     expect(r.html).toMatch(/<a href="https:\/\/example\.com"[^>]*>label<\/a>/);
+    expect(r.html).toContain('data-cf-link-layout="flow"');
   });
 
   it("renders an autolink", () => {
     const r = renderToHtml("<https://example.com>");
-    expect(r.html).toMatch(/<a href="https:\/\/example\.com">/);
+    expect(r.html).toMatch(/<a href="https:\/\/example\.com"[^>]*>/);
+    expect(r.html).toContain('data-cf-link-layout="flow"');
     expect(r.html).toContain("https://example.com</a>");
+  });
+
+  it("marks document links as atomic", () => {
+    const r = renderToHtml("[label](chapter.md)");
+    expect(r.html).toContain('href="chapter.md"');
+    expect(r.html).toContain('data-cf-link-layout="atomic"');
   });
 
   it("renders headings with canonical classes", () => {
@@ -164,6 +172,7 @@ describe("renderToHtml — slow path (Lezer)", () => {
     };
     const r = renderToHtml("[Home](page:home)", { linkResolver });
     expect(r.html).toContain('href="/home"');
+    expect(r.html).toContain('data-cf-link-layout="atomic"');
     expect(r.html).toContain('class="page-link"');
     expect(r.html).toContain('title="Home page"');
   });
@@ -469,7 +478,7 @@ describe("renderToHtml — block-level rendering ()", () => {
         },
         linkResolver: {
           resolve: (href, _text, env) => ({
-            href: `/resolved/${href}`,
+            href: `https://example.com/resolved/${href}`,
             className: `from-${env.documentPath}`,
           }),
         },
@@ -479,9 +488,11 @@ describe("renderToHtml — block-level rendering ()", () => {
 
     const ref = root.querySelector("[data-ref-key='host-page']");
     expect(ref?.classList.contains("cf-citation-unresolved")).toBe(false);
+    expect(ref?.classList.contains("cf-crossref")).toBe(true);
     expect(ref?.innerHTML).toContain("<strong>host-page:");
-    const link = root.querySelector("a[href='/resolved/./docs.md']");
+    const link = root.querySelector("a[href='https://example.com/resolved/./docs.md']");
     expect(link?.className).toContain("from-paper.md");
+    expect(link?.getAttribute("data-cf-link-layout")).toBe("flow");
   });
 
   it("emits data-source-line when sourceLineAttribution is enabled", () => {

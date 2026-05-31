@@ -260,6 +260,7 @@ function resolveLinkDecoration(
   const effectiveUrl = result.href ?? url;
   return buildResolvedLinkDecoration(effectiveUrl, {
     className: result.className,
+    force: result.href !== undefined && result.href !== url,
     title: result.title,
     hasOnClick: typeof result.onClick === "function",
   });

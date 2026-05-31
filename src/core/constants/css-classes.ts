@@ -5,6 +5,7 @@ import {
 
 const MATH_INLINE_CLASS = "cf-math-inline";
 const MATH_DISPLAY_CLASS = "cf-math-display";
+const CROSSREF_CLASS = "cf-crossref";
 
 export function mathSurfaceClassNames(
   isDisplay: boolean,
@@ -15,6 +16,18 @@ export function mathSurfaceClassNames(
     isDisplay ? MATH_DISPLAY_CLASS : MATH_INLINE_CLASS,
     ...classNames,
   );
+}
+
+export function hostReferenceClassNames(
+  className: string | undefined,
+): string {
+  const classNames = [CROSSREF_CLASS];
+  for (const token of className?.split(/\s+/) ?? []) {
+    if (token !== "" && !classNames.includes(token)) {
+      classNames.push(token);
+    }
+  }
+  return classNames.join(" ");
 }
 
 /**
@@ -126,7 +139,7 @@ export const CSS = {
   bibliographyBacklink: "cf-bibliography-backlink",
 
   /** Cross-reference. */
-  crossref: "cf-crossref",
+  crossref: CROSSREF_CLASS,
 
   /** Citation. */
   citation: "cf-citation",
@@ -206,7 +219,7 @@ export const CSS = {
   codeblockSourceClose: "cf-codeblock-source cf-codeblock-source-close",
 
   /** Crossref unresolved state. */
-  crossrefUnresolved: "cf-crossref cf-crossref-unresolved",
+  crossrefUnresolved: `${CROSSREF_CLASS} cf-crossref-unresolved`,
 
   /** Citation narrative variant. */
   citationNarrative: "cf-citation cf-citation-narrative",

@@ -36,7 +36,8 @@ describe("frontmatterDecoration", () => {
     const iter = decos.iter();
     expect(iter.value).not.toBeNull();
     expect(iter.from).toBe(0);
-    expect(iter.to).toBe(doc.indexOf("\nContent"));
+    expect(iter.to).toBe(doc.indexOf("Content"));
+    expect(iter.value?.spec.inclusiveEnd).toBe(false);
   });
 
   it("creates no decorations when no frontmatter", () => {

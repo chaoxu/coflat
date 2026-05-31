@@ -8,7 +8,12 @@
  * Protocols that are safe to use in `href` / `src` attributes.
  * Everything else (javascript:, data:, vbscript:, etc.) is blocked.
  */
-const SAFE_PROTOCOLS = new Set(["http:", "https:", "mailto:", "tel:"]);
+export const SAFE_URL_PROTOCOLS: ReadonlySet<string> = new Set([
+  "http:",
+  "https:",
+  "mailto:",
+  "tel:",
+]);
 
 /**
  * Check whether a URL is safe to embed in `href` or `src` attributes.
@@ -37,7 +42,7 @@ export function isSafeUrl(url: string): boolean {
     // Relative URLs (paths, fragments, query-only) resolve against this
     // safe base and inherit its https: protocol, passing the allowlist.
     const parsed = new URL(cleaned, "https://placeholder.invalid");
-    return SAFE_PROTOCOLS.has(parsed.protocol);
+    return SAFE_URL_PROTOCOLS.has(parsed.protocol);
   } catch (_error) {
     // Malformed URLs that the URL constructor rejects are blocked.
     return false;

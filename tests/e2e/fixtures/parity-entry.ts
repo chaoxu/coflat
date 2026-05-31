@@ -1,8 +1,15 @@
 import "katex/dist/katex.min.css";
 import "../../../src/editor/editor-theme.css";
+import { EditorView } from "@codemirror/view";
 import { applyThemePreset, mountEditor, themePresets } from "../../../editor";
 import { hydrateMath, renderToHtml } from "../../../reader";
+import { parseFrontmatter } from "../../../src/core/parser";
 import { buildReferenceCatalog } from "../../../parse";
+import { CSS } from "../../../src/core/constants/css-classes";
+import {
+  DEFAULT_PARITY_SOURCE,
+  PARITY_SOURCE_KEY,
+} from "./parity-fixture-data";
 
 const params = new URLSearchParams(window.location.search);
 const presetKey = params.get("preset");
@@ -11,56 +18,16 @@ if (presetKey && presetKey in themePresets) {
 }
 document.body.dataset.surface = params.get("surface") ?? "split";
 
-const defaultSource = `# Default Document
-
-This paragraph includes **bold text**, *italic text*, ~~struck text~~,
-==highlighted text==, \`inline code\`, $x + y$, and a
-[reference link](https://example.com).
-
-References should align too: [@karger2000] and [@external-page].
-
-## Main Result
-
-### Supporting Lemma
-
-- unordered item
-- [x] completed task
-
-3. ordered item
-
-| Name | Value |
-| --- | ---: |
-| Alpha | 1 |
-
-\`\`\`ts
-const value = 1;
-\`\`\`
-
-$$
-x^2 + y^2 = z^2
-$$
-
-::: {.definition #def-theme title="Scoped theme"}
-A default theme is applied by the host on the nearest scoped root.
-:::
-
-::: {.theorem #main-result title="Readable column"}
-Every optimal document theme has a readable column and stable theorem rails.
-:::
-
-::: {.proof title="the readable column theorem"}
-The host applies a scoped class, and Coflat surfaces inherit variables from it.
-:::
-`;
-
-const source = window.localStorage.getItem("__coflatParitySource") ?? defaultSource;
+const source = window.localStorage.getItem(PARITY_SOURCE_KEY) ?? DEFAULT_PARITY_SOURCE;
 
 const catalog = buildReferenceCatalog(source);
+const frontmatter = parseFrontmatter(source);
 const context = {
+  mathMacros: frontmatter.config.math ?? {},
   refResolver: {
     resolve(key: string) {
       const target = catalog.uniqueTargetById.get(key);
-      if (target) return { content: target.displayLabel, className: "cf-crossref" };
+      if (target) return { content: target.displayLabel, className: CSS.crossref };
       if (key === "karger2000") return { content: "[1]" };
       if (key === "external-page") return { content: "External Page" };
       return null;
@@ -74,8 +41,11 @@ if (!(readerRoot instanceof HTMLElement) || !(editorRoot instanceof HTMLElement)
   throw new Error("missing parity fixture roots");
 }
 
-readerRoot.innerHTML = renderToHtml(source, context).html;
-await hydrateMath(readerRoot);
+readerRoot.innerHTML = renderToHtml(source, context, { sourcePositions: true }).html;
+for (const textSpan of Array.from(readerRoot.querySelectorAll("span.cf-text"))) {
+  textSpan.replaceWith(document.createTextNode(textSpan.textContent ?? ""));
+}
+await hydrateMath(readerRoot, { mathMacros: context.mathMacros });
 
 const mounted = mountEditor({
   parent: editorRoot,
@@ -83,5 +53,20 @@ const mounted = mountEditor({
   mode: "rich",
   context,
 });
+const editorView = EditorView.findFromDOM(editorRoot.querySelector(".cm-editor") ?? editorRoot);
 
-(window as unknown as { __coflatEditor: typeof mounted }).__coflatEditor = mounted;
+(window as unknown as {
+  __coflatEditor: typeof mounted;
+  __coflatEditorView: EditorView | null;
+  __coflatScrollEditorToPosition: (from: number) => void;
+}).__coflatEditor = mounted;
+(window as unknown as {
+  __coflatEditorView: EditorView | null;
+}).__coflatEditorView = editorView;
+(window as unknown as {
+  __coflatScrollEditorToPosition: (from: number) => void;
+}).__coflatScrollEditorToPosition = (from: number) => {
+  editorView?.dispatch({
+    effects: EditorView.scrollIntoView(from, { y: "center" }),
+  });
+};

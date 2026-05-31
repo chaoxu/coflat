@@ -33,8 +33,37 @@
         display: none;
       }
 
+      body[data-surface="compare"] .parity-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        align-items: start;
+        --cf-sidenote-width: 0px;
+      }
+
+      body[data-surface="compare"] .parity-reader,
+      body[data-surface="compare"] .parity-editor {
+        display: block;
+        min-height: 0;
+      }
+
       #editor-root {
         height: 100vh;
+      }
+
+      body[data-surface="compare"] #editor-root {
+        height: auto;
+        min-height: 0;
+      }
+
+      body[data-surface="compare"] #editor-root .cm-editor,
+      body[data-surface="compare"] #editor-root .cm-scroller {
+        height: auto !important;
+        max-height: none !important;
+        overflow: visible !important;
+      }
+
+      body[data-surface="compare"] #editor-root .cm-content {
+        min-height: 0;
       }
 
       @media (max-width: 800px) {

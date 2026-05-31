@@ -348,7 +348,16 @@ describe("renderInlineMarkdown — escape sequences", () => {
 describe("renderInlineMarkdown — surface policies", () => {
   it("renders links as anchors in document-inline", () => {
     const html = render("[text](https://example.com)", {}, "document-inline");
-    expect(html).toBe('<a class="cf-link-rendered" href="https://example.com">text</a>');
+    expect(html).toBe(
+      '<a class="cf-link-rendered" href="https://example.com" data-cf-link-layout="flow">text</a>',
+    );
+  });
+
+  it("marks document links as atomic", () => {
+    const html = render("[text](chapter.md)", {}, "document-inline");
+    expect(html).toBe(
+      '<a class="cf-link-rendered" href="chapter.md" data-cf-link-layout="atomic">text</a>',
+    );
   });
 
   it("degrades links to inert text in ui-chrome-inline", () => {
