@@ -432,6 +432,16 @@ export function buildTooltipPlanForElement(
     presentation.classify(id, ref.bracketed),
   );
   const hasCrossref = classifications.some((classification) => classification.kind === "crossref");
+  const isCitationWidget = widgetEl.classList.contains(CSS.citation)
+    || widgetEl.classList.contains("cf-citation-narrative");
+  const allKnownBibliographyIds = ref.ids.length > 0 && ref.ids.every((id) => store.has(id));
+
+  if (isCitationWidget && allKnownBibliographyIds) {
+    if (refId && ref.ids.includes(refId)) {
+      return buildCitationItemTooltipPlan(view, refId, store);
+    }
+    return buildCitationTooltipPlan(view, ref.ids, store);
+  }
 
   // Single-id crossref
   if (ref.ids.length === 1 && classifications[0].kind === "crossref") {

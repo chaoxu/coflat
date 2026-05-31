@@ -4,12 +4,13 @@ import "../../src/editor/editor-theme.css";
 import { mountEditor } from "../../editor";
 import {
   createNumericCitationFormatter,
-  parseBibliographyKeys,
 } from "../../src/core/citations/numeric";
-import type { BibStore, CslJsonItem } from "../../src/core/citations/csl-json";
+import { parseBibTeX } from "../../src/core/citations/bibtex-parser";
+import type { BibStore } from "../../src/core/citations/csl-json";
 import type { RefResolver } from "../../src/core/document-context-types";
 import type { FileEntry, FileSystem } from "../../src/core/lib/file-system-types";
 import { fileSystemFacet } from "../../src/editor/lib/types";
+import { hoverPreviewExtension } from "../../src/editor/render/hover-preview";
 import { bibDataEffect } from "../../src/editor/state/bib-data";
 import initialDoc from "./showcase.md?raw";
 import "./style.css";
@@ -62,15 +63,12 @@ const publicFileSystem: FileSystem = {
 };
 
 const bibliographyText = await publicFileSystem.readFile("reference.bib");
-const bibliographyKeys = parseBibliographyKeys(bibliographyText);
-const bibliographyStore: BibStore = new Map<string, CslJsonItem>(
-  bibliographyKeys.map((id) => [id, { id, type: "book" }]),
-);
-const citationFormatter = createNumericCitationFormatter(bibliographyKeys);
-const bibliographyKeySet = new Set(bibliographyKeys);
+const bibliographyItems = parseBibTeX(bibliographyText);
+const bibliographyStore: BibStore = new Map(bibliographyItems.map((item) => [item.id, item]));
+const citationFormatter = createNumericCitationFormatter(bibliographyItems);
 const demoRefResolver: RefResolver = {
   resolve(key, _mode, env) {
-    if (!bibliographyKeySet.has(key)) return null;
+    if (!bibliographyStore.has(key)) return null;
     return {
       className: "cf-citation",
       content: citationFormatter.cite([key], env?.locator ? [env.locator] : []),
@@ -99,6 +97,7 @@ const editor = mountEditor({
   },
   extensions: [
     fileSystemFacet.of(publicFileSystem),
+    hoverPreviewExtension,
     bibliographyBootstrap,
   ],
 });

@@ -155,6 +155,31 @@ test("public demo hydrates bibliography citations", async ({ page }) => {
   await expect(firstCitation).toContainText("[1]");
   await expect(firstCitation).toHaveClass(/cf-citation/);
   await expect(firstCitation).not.toHaveClass(/cf-crossref-unresolved/);
+
+  await firstCitation.hover();
+  const tooltip = page.locator('.cf-hover-preview-tooltip[data-visible="true"]');
+  await expect(tooltip).toContainText("Introduction to Algorithms");
+  await expect(tooltip).toContainText("Cormen");
+});
+
+test("public demo shows hover panels for cross-references", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 826 });
+  await page.goto("/examples/simple/index.html");
+  for (const y of [1000, 1200, 1400, 1600, 1800, 2000, 2200]) {
+    await page.evaluate((scrollY) => window.scrollTo(0, scrollY), y);
+    await page.waitForTimeout(100);
+    if (await page.locator('[aria-label="[@eq:gaussian]"]').count() > 0) {
+      break;
+    }
+  }
+  await expect(page.locator('[aria-label="[@eq:gaussian]"]').first()).toBeVisible();
+
+  const equationReference = page.locator('[aria-label="[@eq:gaussian]"]').first();
+  await equationReference.hover();
+
+  const tooltip = page.locator('.cf-hover-preview-tooltip[data-visible="true"]');
+  await expect(tooltip).toContainText("Eq. (1)");
+  await expect(tooltip).toContainText("e^{-x^2}");
 });
 
 test("blueprint book theme applies to a host-rendered reader document", async ({ page }) => {
