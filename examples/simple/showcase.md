@@ -1,11 +1,11 @@
 # Coflat Showcase
 
-This document demonstrates the default Coflat editor and reader surfaces.
+This document demonstrates the default Coflat editor surface.
 
 ## Numbered Section
 
-The reader should match the editor's full document rhythm for paragraphs,
-lists, code, tables, math, and theorem-like blocks.
+The editor should handle full document rhythm for paragraphs, lists, code,
+tables, math, and theorem-like blocks.
 
 - visible unordered marker
 - `inline code`

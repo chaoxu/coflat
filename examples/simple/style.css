@@ -18,8 +18,6 @@ body {
 
 .simple-shell {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 16px;
   min-height: 100vh;
   padding: 16px;
 }
@@ -42,8 +40,7 @@ body {
   font-weight: 600;
 }
 
-#editor,
-#reader {
+#editor {
   min-width: 0;
   min-height: 0;
   overflow: auto;
@@ -54,13 +51,8 @@ body {
   border: 0;
 }
 
-#reader {
-  padding: 16px 24px;
-}
-
 @media (max-width: 760px) {
   .simple-shell {
-    grid-template-columns: 1fr;
-    grid-template-rows: minmax(420px, 1fr) minmax(420px, 1fr);
+    padding: 8px;
   }
 }
