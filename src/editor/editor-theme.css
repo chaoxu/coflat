@@ -548,7 +548,7 @@
 }
 
 .cf-reader .cf-doc-code-block {
-  margin: var(--cf-spacing-sm) 0 0;
+  margin: 0;
   overflow-x: auto;
   background: var(--cf-subtle);
   border: 0;
@@ -685,10 +685,6 @@
 
 .cm-editor .cm-line {
   padding: 0;
-}
-
-.cm-editor .cm-line:not(.cm-activeLine):not([class*="cf-"]) > br:only-child {
-  display: none;
 }
 
 .cm-editor.cm-focused {

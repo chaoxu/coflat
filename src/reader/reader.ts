@@ -1757,6 +1757,7 @@ function walkDocument(
   }
   let child = root.firstChild;
   let topCount = blocks.length;
+  let previousRenderable: SyntaxNode | null = null;
   let used = 0;
   let truncated: TruncatedInfo | undefined;
 
@@ -1786,14 +1787,26 @@ function walkDocument(
       }
       // Either used===0 (must emit at least this block, even if it busts
       // budget — atomic blocks) or budget still has room. Emit.
+      if (previousRenderable && child.from > previousRenderable.to) {
+        for (const [from, to] of blankLineRangesBetweenBlocks(ctx.source, previousRenderable.to, child.from)) {
+          blocks.push(renderBlankLine(ctx, from, to));
+        }
+      }
       blocks.push(rendered);
       used += cost;
       topCount++;
+      previousRenderable = child;
       child = child.nextSibling;
       continue;
     }
     topCount++;
+    if (previousRenderable && child.from > previousRenderable.to) {
+      for (const [from, to] of blankLineRangesBetweenBlocks(ctx.source, previousRenderable.to, child.from)) {
+        blocks.push(renderBlankLine(ctx, from, to));
+      }
+    }
     blocks.push(renderBlock(ctx, child));
+    previousRenderable = child;
     child = child.nextSibling;
   }
 
@@ -1801,6 +1814,21 @@ function walkDocument(
   // block following the last emitted one — if so, mark truncated.
   if (budgetKind && !truncated && child) {
     truncated = { sourceFrom: child.from, sourceTo: source.length };
+  }
+
+  if (!truncated && previousRenderable && topCount > 1) {
+    const trailingRanges = previousRenderable.to < source.length
+      ? blankLineRangesBetweenBlocks(ctx.source, previousRenderable.to, source.length)
+      : [];
+    for (const [from, to] of trailingRanges) {
+      blocks.push(renderBlankLine(ctx, from, to));
+    }
+    const trailingNewlines = source.match(/\n+$/)?.[0].length ?? 0;
+    const missingTrailingRanges = Math.max(0, trailingNewlines - trailingRanges.length);
+    for (let index = 0; index < missingTrailingRanges; index++) {
+      const from = source.length - missingTrailingRanges + index;
+      blocks.push(renderBlankLine(ctx, from, from + 1));
+    }
   }
 
   // If the document has exactly one top-level block AND it is a Paragraph

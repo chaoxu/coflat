@@ -357,6 +357,23 @@ describe("renderToHtml — block-level rendering ()", () => {
     expect(r.html).toContain('<p class="cf-doc-paragraph cf-block-qed">third</p>');
   });
 
+  it("preserves blank source lines between top-level document blocks", () => {
+    const r = renderToHtml("# Heading\n\nfirst\n\n\n- item\n\nsecond");
+    const blankLines = r.html.match(/class="cf-doc-blank-line"/g) ?? [];
+    expect(blankLines).toHaveLength(4);
+    expect(r.html).toContain(
+      '<h1 class="cf-doc-heading cf-doc-heading--h1" data-section-number="1">Heading</h1><div class="cf-doc-blank-line" aria-hidden="true"><br></div><p class="cf-doc-paragraph">first</p>',
+    );
+    expect(r.html).toContain(
+      '<p class="cf-doc-paragraph">first</p><div class="cf-doc-blank-line" aria-hidden="true"><br></div><div class="cf-doc-blank-line" aria-hidden="true"><br></div><ul class="cf-doc-list cf-doc-list--unordered cf-doc-list--tight">',
+    );
+  });
+
+  it("preserves a trailing blank source line for full documents", () => {
+    const r = renderToHtml("# Heading\n\nbody\n");
+    expect(r.html.endsWith('<div class="cf-doc-blank-line" aria-hidden="true"><br></div>')).toBe(true);
+  });
+
   it("emits inline math placeholder with canonical class + hasMath flag", () => {
     const r = renderToHtml("x is $y^2$ today");
     expect(r.hasMath).toBe(true);
@@ -484,6 +501,7 @@ describe("renderToHtml — block-level rendering ()", () => {
   it("wraps multi-paragraph documents in canonical paragraph classes", () => {
     const r = renderToHtml("first\n\nsecond");
     expect(r.html).toContain('<p class="cf-doc-paragraph">first</p>');
+    expect(r.html).toContain('<div class="cf-doc-blank-line" aria-hidden="true"><br></div>');
     expect(r.html).toContain('<p class="cf-doc-paragraph">second</p>');
   });
 

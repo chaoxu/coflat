@@ -71,7 +71,6 @@ describe("theme CSS contract", () => {
     expect(cssRuleBody(css, ".cm-line")).toContain("line-height: inherit;");
     expect(cssRuleBody(css, ".cm-line")).toContain("padding: 0;");
     expect(cssRuleBody(css, ".cm-editor .cm-line")).toContain("padding: 0;");
-    expect(cssRuleBody(css, '.cm-editor .cm-line:not(.cm-activeLine):not([class*="cf-"]) > br:only-child')).toContain("display: none;");
   });
 
   it("ships full-document reader defaults for host-rendered documents", () => {
@@ -111,7 +110,7 @@ describe("theme CSS contract", () => {
     expect(cssRuleBody(css, ".cf-list-number")).toContain("font-weight: 600;");
     expect(cssRuleBody(css, ".cf-list-number")).toContain("font-variant-numeric: tabular-nums;");
     expect(cssRuleBody(css, ".cf-reader .cf-doc-list-item--check input[type=\"checkbox\"]")).toContain("pointer-events: none;");
-    expect(cssRuleBody(css, ".cf-reader .cf-doc-code-block")).toContain("margin: var(--cf-spacing-sm) 0 0;");
+    expect(cssRuleBody(css, ".cf-reader .cf-doc-code-block")).toContain("margin: 0;");
     expect(cssRuleBody(css, ".cf-reader .cf-doc-code-block")).toContain("padding: 0;");
     expect(cssRuleBody(css, ".cf-reader .cf-doc-code-block")).toContain("border: 0;");
     expect(cssRuleBody(css, ".cf-reader .cf-doc-code-block")).toContain('font-family: var(--cf-code-font, Monaco, "DejaVu Sans Mono", Consolas, monospace);');
