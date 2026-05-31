@@ -1,6 +1,6 @@
 import "../../../src/editor/editor-theme.css";
 import "../../../src/themes/blueprint-book.css";
-import { renderToHtml } from "../../../reader";
+import { hydrateBlockDisclosures, renderToHtml } from "../../../reader";
 
 const root = document.getElementById("theme-root");
 if (!(root instanceof HTMLElement)) {
@@ -47,3 +47,6 @@ root.innerHTML = `
     </main>
   </div>
 `;
+
+const reader = root.querySelector<HTMLElement>(".cf-reader");
+if (reader) hydrateBlockDisclosures(reader);

@@ -10,7 +10,7 @@ instantiate CodeMirror or React.
 The package exports map is the public contract:
 
 - `@chaoxu/coflat/reader`: `renderToHtml`, `renderToText`,
-  reader helpers, and shared context types.
+  hydration helpers, and shared context types.
 - `@chaoxu/coflat/reader/worker`: worker entry for off-main-thread
   rendering.
 - `@chaoxu/coflat/parse`: parser and reference extraction helpers
@@ -151,6 +151,11 @@ With `@chaoxu/coflat/style.css` imported, this surface owns document
 width, padding, content font, line height, headings, paragraph/list rhythm,
 code blocks, tables, blockquotes, math placeholders, and H1/H2 section
 numbering.
+
+Call `hydrateBlockDisclosures` after inserting full reader HTML when theorem
+and definition blocks should be collapsible. The static output keeps header
+text as ordinary selectable text; the hydration pass wires only the triangle
+button to expand or collapse the block body.
 
 Use a compact inline surface only for small embedded fragments: comments,
 notifications, search snippets, hover previews, and metadata cells. Coflat

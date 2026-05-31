@@ -127,6 +127,19 @@ export class ImagePreviewWidget extends LazyWidgetBase {
         img.className = CSS.image;
         img.src = this.state.src;
         img.alt = this.alt;
+        const syncInlineSize = () => {
+          if (this.isBlock || img.naturalWidth <= 0 || img.naturalHeight <= 0) {
+            return;
+          }
+          wrapper.style.width = `${img.naturalWidth}px`;
+          wrapper.style.height = `${img.naturalHeight}px`;
+          img.style.width = "100%";
+          img.style.height = "100%";
+        };
+        img.addEventListener("load", syncInlineSize);
+        if (img.complete) {
+          syncInlineSize();
+        }
         img.addEventListener("error", () => {
           this.renderUnavailablePlaceholder(wrapper);
         });

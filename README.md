@@ -266,7 +266,7 @@ A minimal reader-only host looks like this (~30 lines):
 
 ```tsx
 import { useEffect, useRef } from "react";
-import { renderToHtml, hydrateMath, type DocumentContext } from "@chaoxu/coflat/reader";
+import { hydrateBlockDisclosures, hydrateMath, renderToHtml, type DocumentContext } from "@chaoxu/coflat/reader";
 
 export function CoflatViewer({ source, context }: { source: string; context: DocumentContext }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -274,8 +274,9 @@ export function CoflatViewer({ source, context }: { source: string; context: Doc
     if (!ref.current) return;
     const { html } = renderToHtml(source, context);
     ref.current.innerHTML = html;
+    hydrateBlockDisclosures(ref.current);
     // Optional: hydrate math placeholders with KaTeX (loaded on demand).
-    void hydrateMath(ref.current, { macros: context.mathMacros });
+    void hydrateMath(ref.current, { mathMacros: context.mathMacros });
   }, [source, context]);
   return <div ref={ref} className="coflat-content" />;
 }

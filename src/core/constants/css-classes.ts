@@ -60,6 +60,13 @@ export const CSS = {
   /** Rendered block header widget (label text). */
   blockHeaderRendered: "cf-block-header-rendered",
 
+  /** Reader block disclosure wrapper, body, triangle, and heading content. */
+  blockCollapsible: "cf-doc-block-collapsible",
+  blockDisclosureBody: "cf-block-disclosure-body",
+  blockDisclosureToggle: "cf-block-disclosure-toggle",
+  blockDisclosureToggleCollapsed: "cf-block-disclosure-toggle-collapsed",
+  blockHeadingContent: "cf-block-heading-content",
+
   /** Title paren widgets around user-supplied title text. */
   blockTitleParen: "cf-block-title-paren",
 

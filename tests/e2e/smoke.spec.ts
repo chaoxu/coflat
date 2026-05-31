@@ -1,4 +1,6 @@
 import { expect, type Page, test } from "@playwright/test";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import {
   expectLoadedSplitContentPixelsMatch,
   loadParityPairSurface,
@@ -7,6 +9,33 @@ import {
   PARITY_PIXEL_PRESETS,
   setParitySource,
 } from "./parity-harness";
+
+const PUBLIC_SHOWCASE_SOURCE = readFileSync(
+  join(process.cwd(), "examples/simple/showcase.md"),
+  "utf8",
+);
+const PUBLIC_SHOWCASE_PARITY_SOURCE = PUBLIC_SHOWCASE_SOURCE.replace(
+  "(showcase/hover-preview-figure.svg)",
+  "(/showcase/hover-preview-figure.svg)",
+);
+const PUBLIC_SHOWCASE_PARITY_END = (() => {
+  const index = PUBLIC_SHOWCASE_PARITY_SOURCE.indexOf("\n# Footnotes");
+  if (index < 0) throw new Error("public showcase parity end marker not found");
+  return index;
+})();
+const LINE_HEIGHT_STABILITY_DOC = `# Stable Heading
+
+Plain paragraph with **bold**, \`code\`, $x+1$, and [a link](https://example.com).
+
+::: {.theorem title="Stable block"}
+The theorem body has **bold** text and $y^2$.
+:::
+
+\`\`\`ts
+const value = 1;
+console.log(value);
+\`\`\`
+`;
 
 async function setEditorDoc(page: Page, doc: string, mode: "rich" | "source" = "rich") {
   await page.evaluate(({ doc, mode }) => {
@@ -29,6 +58,55 @@ async function getEditorDoc(page: Page) {
   });
 }
 
+function viewportHeight(page: Page): number {
+  const viewport = page.viewportSize();
+  if (!viewport) throw new Error("missing Playwright viewport");
+  return viewport.height;
+}
+
+async function settleLayout(page: Page): Promise<void> {
+  await page.evaluate(async () => {
+    await document.fonts.ready;
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+  });
+}
+
+async function expectLineHeightStableAfterClick(
+  page: Page,
+  selector: string,
+  label: string,
+): Promise<void> {
+  const line = page.locator(selector);
+  await expect(line, label).toHaveCount(1);
+  await expect(line, label).toBeVisible();
+  const before = await line.evaluate((el) => {
+    const rect = el.getBoundingClientRect();
+    return {
+      height: rect.height,
+      lineHeight: getComputedStyle(el).lineHeight,
+    };
+  });
+
+  await line.click({
+    position: {
+      x: 12,
+      y: Math.max(1, Math.min(before.height - 1, before.height / 2)),
+    },
+  });
+  await settleLayout(page);
+
+  const after = await line.evaluate((el) => {
+    const rect = el.getBoundingClientRect();
+    return {
+      height: rect.height,
+      lineHeight: getComputedStyle(el).lineHeight,
+    };
+  });
+  expect(after.lineHeight, label).toBe(before.lineHeight);
+  expect(Math.abs(after.height - before.height), label).toBeLessThanOrEqual(0.5);
+}
+
 test("editor mounts and accepts input", async ({ page }) => {
   await page.goto("/tests/e2e/fixtures/index.html");
 
@@ -40,6 +118,23 @@ test("editor mounts and accepts input", async ({ page }) => {
   await page.keyboard.type("hello playwright");
 
   await expect(content).toContainText("hello playwright");
+});
+
+test("rich editor cursor movement never changes line height", async ({ page }) => {
+  await page.goto("/tests/e2e/fixtures/index.html");
+  await setEditorDoc(page, LINE_HEIGHT_STABILITY_DOC, "rich");
+  await settleLayout(page);
+
+  for (const [selector, label] of [
+    [".cm-line.cf-doc-heading--h1", "heading line"],
+    [".cm-line.cf-doc-paragraph:has-text('Plain paragraph')", "paragraph line"],
+    [".cm-line.cf-doc-block--theorem.cf-block-header", "theorem header line"],
+    [".cm-line.cf-doc-paragraph:has-text('The theorem body')", "theorem body line"],
+    [".cm-line.cf-codeblock-header", "code block header line"],
+    [".cm-line.cf-codeblock-body:has-text('const value')", "code block body line"],
+  ] as const) {
+    await expectLineHeightStableAfterClick(page, selector, label);
+  }
 });
 
 test("editor supports ordinary list exit and marker removal while writing", async ({ page }) => {
@@ -147,11 +242,11 @@ test("public demo uses page-level scrolling over the editor", async ({ page }) =
 test("public demo sidebar switches to the format guide", async ({ page }) => {
   await page.goto("/examples/simple/index.html");
 
-  await expect(page.getByRole("button", { name: "Showcase" })).toHaveAttribute(
+  await expect(page.getByRole("link", { name: "Showcase" })).toHaveAttribute(
     "aria-current",
     "page",
   );
-  await expect(page.getByRole("button", { name: "Format guide" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Format guide" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Editor" })).toHaveAttribute(
     "aria-current",
     "page",
@@ -161,18 +256,18 @@ test("public demo sidebar switches to the format guide", async ({ page }) => {
   await expect(page.getByRole("link", { name: "FORMAT.md" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Reader API" })).toBeVisible();
 
-  await page.getByRole("button", { name: "Format guide" }).click();
+  await page.getByRole("link", { name: "Format guide" }).click();
 
   await expect(page).toHaveURL(/doc=format/);
   await expect(page).toHaveTitle("Coflat Format Guide");
-  await expect(page.getByRole("button", { name: "Format guide" })).toHaveAttribute(
+  await expect(page.getByRole("link", { name: "Format guide" })).toHaveAttribute(
     "aria-current",
     "page",
   );
   await expect(page.locator(".cm-content")).toContainText("Coflat Document Format");
   await expect(page.locator(".cm-content")).toContainText("pandoc-crossref");
 
-  await page.getByRole("button", { name: "Showcase" }).click();
+  await page.getByRole("link", { name: "Showcase" }).click();
   await expect(page).toHaveURL(/doc=showcase/);
   await expect(page).toHaveTitle("Coflat Editor Showcase");
   await expect(page.locator(".cm-content")).toContainText("Coflat Feature Showcase");
@@ -200,8 +295,95 @@ test("public demo reader surface shows shared hover previews", async ({ page }) 
   expect(tooltipBox).not.toBeNull();
   expect(tooltipBox?.y).toBeGreaterThanOrEqual(0);
   expect((tooltipBox?.y ?? 0) + (tooltipBox?.height ?? 0)).toBeLessThanOrEqual(
-    page.viewportSize()!.height,
+    viewportHeight(page),
   );
+});
+
+test("public demo reader resolves showcase local images", async ({ page }) => {
+  await page.goto("/examples/simple/index.html?doc=showcase&surface=reader");
+
+  const image = page.locator('#reader img.cf-image[alt="Local hover-preview figure"]');
+  await expect(image).toBeVisible();
+  await expect
+    .poll(() => image.evaluate((img) => ({
+      height: (img as HTMLImageElement).naturalHeight,
+      width: (img as HTMLImageElement).naturalWidth,
+    })))
+    .toEqual({ height: 150, width: 257 });
+  await expect(image).toHaveAttribute("src", /\/showcase\/hover-preview-figure\.svg$/);
+});
+
+test("public demo reader resolves internal references without broken math", async ({ page }) => {
+  for (const doc of ["showcase", "format"] as const) {
+    await page.goto(`/examples/simple/index.html?doc=${doc}&surface=reader`);
+    await expect(page.locator("#reader")).toBeVisible();
+    await expect(page.locator("#reader .cf-math-error, #reader .katex-error")).toHaveCount(0);
+    await expect(
+      page.locator("#reader .cf-crossref-unresolved, #reader .cf-citation-unresolved"),
+    ).toHaveCount(0);
+  }
+});
+
+test("public demo reader aligns the collapse rail with the disclosure triangle", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto("/examples/simple/index.html?doc=showcase&surface=reader");
+
+  const theorem = page.locator("#reader #thm\\:hover-preview");
+  await expect(theorem).toBeVisible();
+  await theorem.scrollIntoViewIfNeeded();
+  await page.mouse.move(10, 10);
+
+  const beforeHover = await theorem.evaluate((el) => {
+    const headingText = el.querySelector(":scope > .cf-doc-block-heading > .cf-block-heading-content");
+    const toggle = el.querySelector(":scope > .cf-doc-block-heading > .cf-block-disclosure-toggle");
+    const bodyParagraph = el.querySelector(":scope > .cf-block-disclosure-body .cf-doc-paragraph");
+    if (!(headingText instanceof HTMLElement) || !(toggle instanceof HTMLElement) || !(bodyParagraph instanceof HTMLElement)) {
+      throw new Error("missing theorem disclosure parts");
+    }
+    const blockRect = el.getBoundingClientRect();
+    const textRect = headingText.getBoundingClientRect();
+    const toggleRect = toggle.getBoundingClientRect();
+    const bodyRect = bodyParagraph.getBoundingClientRect();
+    const railStyle = getComputedStyle(el, "::before");
+    const railCenter = blockRect.left + Number.parseFloat(railStyle.left);
+    const toggleCenter = (toggleRect.left + toggleRect.right) / 2;
+    return {
+      bodyTextLeft: bodyRect.left,
+      blockHeight: blockRect.height,
+      blockWidth: blockRect.width,
+      headingTextLeft: textRect.left,
+      railCenter,
+      railOpacity: railStyle.opacity,
+      toggleCenter,
+      toggleOpacity: getComputedStyle(toggle).opacity,
+      toggleTextGap: textRect.left - toggleRect.right,
+    };
+  });
+  expect(beforeHover.railOpacity).toBe("0");
+  expect(beforeHover.toggleOpacity).toBe("0");
+  expect(Math.abs(beforeHover.toggleTextGap - 4)).toBeLessThanOrEqual(0.5);
+  expect(Math.abs(beforeHover.headingTextLeft - beforeHover.bodyTextLeft)).toBeLessThanOrEqual(1);
+  expect(Math.abs(beforeHover.railCenter - beforeHover.toggleCenter)).toBeLessThanOrEqual(0.75);
+
+  await theorem.hover();
+  await expect.poll(() => theorem.evaluate((el) => getComputedStyle(el, "::before").opacity))
+    .toBe("1");
+  await expect.poll(() => theorem.evaluate((el) => {
+    const toggle = el.querySelector(":scope > .cf-doc-block-heading > .cf-block-disclosure-toggle");
+    if (!(toggle instanceof HTMLElement)) throw new Error("missing disclosure toggle");
+    return getComputedStyle(toggle).opacity;
+  })).toBe("1");
+  const afterHover = await theorem.evaluate((el) => {
+    const rect = el.getBoundingClientRect();
+    return {
+      blockHeight: rect.height,
+      blockWidth: rect.width,
+      railOpacity: getComputedStyle(el, "::before").opacity,
+    };
+  });
+  expect(afterHover.railOpacity).toBe("1");
+  expect(Math.abs(afterHover.blockHeight - beforeHover.blockHeight)).toBeLessThanOrEqual(0.5);
+  expect(Math.abs(afterHover.blockWidth - beforeHover.blockWidth)).toBeLessThanOrEqual(0.5);
 });
 
 test("public demo table cell editing does not inherit page-height scrolling", async ({ page }) => {
@@ -273,7 +455,7 @@ test("public demo hydrates bibliography citations", async ({ page }) => {
   expect(tooltipBox).not.toBeNull();
   expect(tooltipBox?.y).toBeGreaterThanOrEqual(0);
   expect((tooltipBox?.y ?? 0) + (tooltipBox?.height ?? 0)).toBeLessThanOrEqual(
-    page.viewportSize()!.height,
+    viewportHeight(page),
   );
 });
 
@@ -299,7 +481,7 @@ test("public demo shows hover panels for cross-references", async ({ page }) => 
   expect(tooltipBox).not.toBeNull();
   expect(tooltipBox?.y).toBeGreaterThanOrEqual(0);
   expect((tooltipBox?.y ?? 0) + (tooltipBox?.height ?? 0)).toBeLessThanOrEqual(
-    page.viewportSize()!.height,
+    viewportHeight(page),
   );
 });
 
@@ -334,17 +516,90 @@ test("blueprint book theme applies to a host-rendered reader document", async ({
 
   await expect(theorem).toHaveAttribute("data-title", "Readable column");
   await expect(proof).toHaveAttribute("data-title", "the readable column theorem");
-  await expect(theorem).toHaveAttribute("open", "");
-  await expect(theorem.locator("> summary")).toContainText("Theorem 1");
-  await expect(theorem.locator("> summary")).toContainText("Readable column");
+  await expect(theorem).toHaveAttribute("data-cf-block-open", "true");
+  const theoremHeader = theorem.locator("> .cf-doc-block-heading");
+  const theoremToggle = theoremHeader.locator("> .cf-block-disclosure-toggle");
+  const theoremHeaderText = theoremHeader.locator("> .cf-block-heading-content");
+  await expect(theoremHeader).toContainText("Theorem 1");
+  await expect(theoremHeader).toContainText("Readable column");
+  await expect(theoremToggle).toHaveText("▼");
+  await expect(theoremToggle).toHaveAttribute("aria-expanded", "true");
   await expect(proof).toContainText("Proof");
   await expect(theorem).toHaveCSS("font-style", "italic");
   await expect(proof).toHaveCSS("font-style", "normal");
   await expect(theorem).toHaveCSS("border-left-width", "2px");
   await expect(proof).toHaveCSS("border-left-width", "1px");
+  const disclosureGeometry = await theorem.evaluate((el) => {
+    const headingText = el.querySelector(":scope > .cf-doc-block-heading > .cf-block-heading-content");
+    const toggle = el.querySelector(":scope > .cf-doc-block-heading > .cf-block-disclosure-toggle");
+    const bodyParagraph = el.querySelector(":scope > .cf-block-disclosure-body .cf-doc-paragraph");
+    if (!(headingText instanceof HTMLElement) || !(toggle instanceof HTMLElement) || !(bodyParagraph instanceof HTMLElement)) {
+      throw new Error("missing theorem disclosure parts");
+    }
+    return {
+      bodyTextLeft: bodyParagraph.getBoundingClientRect().left,
+      headingTextLeft: headingText.getBoundingClientRect().left,
+      toggleRight: toggle.getBoundingClientRect().right,
+      toggleOpacity: getComputedStyle(toggle).opacity,
+      toggleFontFamily: getComputedStyle(toggle).fontFamily,
+      toggleFontSize: getComputedStyle(toggle).fontSize,
+      headingFontSize: getComputedStyle(headingText).fontSize,
+    };
+  });
+  expect(Math.abs(disclosureGeometry.headingTextLeft - disclosureGeometry.bodyTextLeft))
+    .toBeLessThanOrEqual(1);
+  expect(Math.abs(disclosureGeometry.headingTextLeft - disclosureGeometry.toggleRight - 4))
+    .toBeLessThanOrEqual(0.5);
+  expect(disclosureGeometry.toggleOpacity).toBe("0");
+  expect(disclosureGeometry.toggleFontFamily).toContain("KaTeX_Main");
+  expect(disclosureGeometry.toggleFontSize).toBe(disclosureGeometry.headingFontSize);
 
-  await theorem.locator("> summary").click();
-  await expect(theorem).not.toHaveAttribute("open", "");
+  const beforeHover = await theorem.evaluate((el) => {
+    const rect = el.getBoundingClientRect();
+    return {
+      height: rect.height,
+      railOpacity: getComputedStyle(el, "::before").opacity,
+      width: rect.width,
+    };
+  });
+  expect(beforeHover.railOpacity).toBe("0");
+  await theorem.hover();
+  await expect.poll(() => theorem.evaluate((el) => getComputedStyle(el, "::before").opacity))
+    .toBe("1");
+  await expect.poll(() => theoremToggle.evaluate((el) => getComputedStyle(el).opacity))
+    .toBe("1");
+  const afterHover = await theorem.evaluate((el) => {
+    const rect = el.getBoundingClientRect();
+    const toggle = el.querySelector(":scope > .cf-doc-block-heading > .cf-block-disclosure-toggle");
+    if (!(toggle instanceof HTMLElement)) {
+      throw new Error("missing theorem disclosure toggle");
+    }
+    const railStyle = getComputedStyle(el, "::before");
+    return {
+      height: rect.height,
+      railLeft: railStyle.left,
+      railOpacity: railStyle.opacity,
+      railTransform: railStyle.transform,
+      railWidth: railStyle.width,
+      toggleOpacity: getComputedStyle(toggle).opacity,
+      width: rect.width,
+    };
+  });
+  expect(afterHover.railLeft.startsWith("-")).toBe(true);
+  expect(afterHover.railOpacity).toBe("1");
+  expect(afterHover.railTransform).not.toBe("none");
+  expect(afterHover.railWidth).toBe("2px");
+  expect(afterHover.toggleOpacity).toBe("1");
+  expect(Math.abs(afterHover.height - beforeHover.height)).toBeLessThanOrEqual(0.5);
+  expect(Math.abs(afterHover.width - beforeHover.width)).toBeLessThanOrEqual(0.5);
+
+  await theoremHeaderText.click();
+  await expect(theorem).toHaveAttribute("data-cf-block-open", "true");
+
+  await theoremToggle.click();
+  await expect(theorem).toHaveAttribute("data-cf-block-open", "false");
+  await expect(theoremToggle).toHaveText("▶");
+  await expect(theoremToggle).toHaveAttribute("aria-expanded", "false");
   await expect(theorem.locator(".cf-doc-paragraph")).toBeHidden();
 });
 
@@ -417,4 +672,108 @@ test("theme presets keep full reader and CM6 content pixels aligned", async ({ p
     await loadParityPairSurface(page, preset);
     await expectLoadedSplitContentPixelsMatch(page, preset);
   }
+});
+
+test("public showcase keeps reader and CM6 rich editor block geometry aligned", async ({ page }) => {
+  await page.setViewportSize({ width: 2560, height: 7200 });
+
+  await loadParityPairSurface(page, "default", PUBLIC_SHOWCASE_PARITY_SOURCE);
+  const result = await page.evaluate((sourceEnd) => {
+    type Row = {
+      readonly className: string;
+      readonly h: number;
+      readonly range: string;
+      readonly text: string;
+      readonly y: number;
+    };
+    type EditorViewLike = {
+      readonly state: {
+        readonly doc: {
+          readonly length: number;
+          lineAt(pos: number): { readonly from: number; readonly to: number };
+        };
+      };
+      posAtDOM(node: Node, offset?: number): number;
+    };
+    const editorView = (
+      window as typeof window & {
+        __coflatEditorView?: EditorViewLike | null;
+      }
+    ).__coflatEditorView;
+    const rounded = (value: number) => Math.round(value * 100) / 100;
+    const text = (el: Element) => (el.textContent ?? "")
+      .replace(/\s+/g, " ")
+      .replace(/^▼\s*/, "")
+      .trim()
+      .slice(0, 80);
+    const rect = (el: Element) => {
+      const r = el.getBoundingClientRect();
+      return { h: rounded(r.height), y: rounded(r.y) };
+    };
+    const readerRows = Array.from(document.querySelectorAll<HTMLElement>([
+      "#reader-root .cf-doc-title",
+      "#reader-root .cf-doc-heading",
+      "#reader-root .cf-doc-paragraph",
+      "#reader-root .cf-doc-list-item",
+      "#reader-root .cf-doc-display-math",
+      "#reader-root .cf-doc-table-block",
+      "#reader-root .cf-doc-code-block",
+    ].join(","))).flatMap((el): Row[] => {
+      const from = Number(el.dataset.sourceFrom);
+      const to = Number(el.dataset.sourceTo);
+      if (!Number.isFinite(from) || !Number.isFinite(to) || from >= sourceEnd) return [];
+      return [{
+        className: el.className,
+        range: `${from}:${to}`,
+        text: text(el),
+        ...rect(el),
+      }];
+    });
+    const editorRows = Array.from(document.querySelectorAll<HTMLElement>([
+      "#editor-root .cf-doc-title",
+      "#editor-root .cm-line.cf-doc-heading",
+      "#editor-root .cm-line.cf-doc-paragraph",
+      "#editor-root .cf-doc-display-math",
+      "#editor-root .cf-table-widget",
+      "#editor-root .cf-doc-code-block",
+    ].join(","))).flatMap((el): Row[] => {
+      if (el.getBoundingClientRect().height <= 0) return [];
+      let from: number | undefined;
+      let to: number | undefined;
+      if (el.dataset.sourceFrom !== undefined && el.dataset.sourceTo !== undefined) {
+        from = Number(el.dataset.sourceFrom);
+        to = Number(el.dataset.sourceTo);
+      } else if (editorView && el.classList.contains("cm-line")) {
+        from = editorView.posAtDOM(el, 0);
+        const line = editorView.state.doc.lineAt(from);
+        to = Math.min(editorView.state.doc.length, line.to + 1);
+      }
+      if (
+        from === undefined ||
+        to === undefined ||
+        !Number.isFinite(from) ||
+        !Number.isFinite(to) ||
+        from >= sourceEnd
+      ) return [];
+      return [{
+        className: el.className,
+        range: `${from}:${to}`,
+        text: text(el),
+        ...rect(el),
+      }];
+    });
+    const editorByRange = new Map(editorRows.map((row) => [row.range, row]));
+    const mismatches = readerRows.flatMap((reader) => {
+      const editor = editorByRange.get(reader.range);
+      if (!editor) return [];
+      const dy = rounded(editor.y - reader.y);
+      const dh = rounded(editor.h - reader.h);
+      if (Math.abs(dy) <= 1 && Math.abs(dh) <= 2.5) return [];
+      return [{ dh, dy, editor, reader }];
+    });
+    return { compared: readerRows.length, mismatches };
+  }, PUBLIC_SHOWCASE_PARITY_END);
+
+  expect(result.compared).toBeGreaterThan(80);
+  expect(result.mismatches).toEqual([]);
 });

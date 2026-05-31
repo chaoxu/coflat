@@ -3,18 +3,21 @@ import { ViewPlugin } from "@codemirror/view";
 import "../../src/editor/editor-theme.css";
 import { mountEditor } from "../../editor";
 import {
+  hydrateBlockDisclosures,
   hydrateMath,
   hydrateReaderHoverPreviews,
   hydrateReferences,
   renderToHtml,
 } from "../../reader";
+import { buildReferenceCatalog } from "../../parse";
 import {
   createNumericCitationFormatter,
 } from "../../src/core/citations/numeric";
 import { parseBibTeX } from "../../src/core/citations/bibtex-parser";
 import type { BibStore } from "../../src/core/citations/csl-json";
 import { extractYear, formatCslAuthors } from "../../src/core/citations/csl-json";
-import type { RefResolver } from "../../src/core/document-context-types";
+import { CSS } from "../../src/core/constants/css-classes";
+import type { DocumentContext, RefResolver } from "../../src/core/document-context-types";
 import type { FileEntry, FileSystem } from "../../src/core/lib/file-system-types";
 import { fileSystemFacet } from "../../src/editor/lib/types";
 import { bibDataEffect } from "../../src/editor/state/bib-data";
@@ -25,7 +28,7 @@ import "./style.css";
 const editorRoot = document.querySelector<HTMLElement>("#editor");
 const readerRoot = document.querySelector<HTMLElement>("#reader");
 const assetBaseUrl = new URL(import.meta.env.BASE_URL, window.location.origin);
-const docLinks = Array.from(document.querySelectorAll<HTMLButtonElement>(".demo-doc-link"));
+const docLinks = Array.from(document.querySelectorAll<HTMLAnchorElement>(".demo-doc-link"));
 const surfaceLinks = Array.from(document.querySelectorAll<HTMLButtonElement>(".demo-surface-link"));
 const docs = {
   showcase: {
@@ -39,6 +42,9 @@ const docs = {
 } as const;
 type DemoDocId = keyof typeof docs;
 type DemoSurfaceId = "editor" | "reader";
+let currentDocId: DemoDocId = "showcase";
+let currentSurfaceId: DemoSurfaceId = "editor";
+let cleanupReaderHover: (() => void) | null = null;
 
 if (!editorRoot || !readerRoot) {
   throw new Error("Missing simple example roots.");
@@ -90,18 +96,35 @@ const bibliographyText = await publicFileSystem.readFile("reference.bib");
 const bibliographyItems = parseBibTeX(bibliographyText);
 const bibliographyStore: BibStore = new Map(bibliographyItems.map((item) => [item.id, item]));
 const citationFormatter = createNumericCitationFormatter(bibliographyItems);
+const referenceCatalogs = new Map<DemoDocId, ReturnType<typeof buildReferenceCatalog>>();
+
+function referenceCatalogForDoc(id: DemoDocId): ReturnType<typeof buildReferenceCatalog> {
+  const cached = referenceCatalogs.get(id);
+  if (cached) return cached;
+  const catalog = buildReferenceCatalog(docs[id].source);
+  referenceCatalogs.set(id, catalog);
+  return catalog;
+}
+
 const demoRefResolver: RefResolver = {
   resolve(key, _mode, env) {
-    if (!bibliographyStore.has(key)) return null;
-    return {
-      className: "cf-citation",
-      content: citationFormatter.cite([key], env?.locator ? [env.locator] : []),
-    };
+    if (bibliographyStore.has(key)) {
+      return {
+        className: "cf-citation",
+        content: citationFormatter.cite([key], env?.locator ? [env.locator] : []),
+      };
+    }
+
+    const target = referenceCatalogForDoc(currentDocId).uniqueTargetById.get(key);
+    return target
+      ? { className: CSS.crossref, content: target.displayLabel }
+      : null;
   },
 };
 const documentContext = {
+  fileSystem: publicFileSystem,
   refResolver: demoRefResolver,
-};
+} satisfies DocumentContext;
 const bibliographyBootstrap = ViewPlugin.define((view) => {
   queueMicrotask(() => {
     view.dispatch({
@@ -123,6 +146,22 @@ function setCurrentPageAttribute(el: HTMLElement, active: boolean): void {
   }
 }
 
+function demoUrl(docId: DemoDocId, surfaceId: DemoSurfaceId): string {
+  const url = new URL(window.location.href);
+  url.searchParams.set("doc", docId);
+  url.searchParams.set("surface", surfaceId);
+  return `${url.pathname}${url.search}${url.hash}`;
+}
+
+function updateDocLinkHrefs(): void {
+  for (const link of docLinks) {
+    const docId = link.dataset.docId ?? null;
+    if (isDemoDocId(docId)) {
+      link.href = demoUrl(docId, currentSurfaceId);
+    }
+  }
+}
+
 const editor = mountEditor({
   parent: mountedEditorRoot,
   doc: initialDoc,
@@ -133,10 +172,6 @@ const editor = mountEditor({
     bibliographyBootstrap,
   ],
 });
-
-let currentDocId: DemoDocId = "showcase";
-let currentSurfaceId: DemoSurfaceId = "editor";
-let cleanupReaderHover: (() => void) | null = null;
 
 function isDemoDocId(value: string | null): value is DemoDocId {
   return value === "showcase" || value === "format";
@@ -165,6 +200,7 @@ function renderReaderDoc(): void {
   cleanupReaderHover?.();
   const result = renderToHtml(doc.source, documentContext, { sourcePositions: true });
   mountedReaderRoot.innerHTML = result.html;
+  hydrateBlockDisclosures(mountedReaderRoot);
   hydrateReferences(mountedReaderRoot, documentContext, { source: doc.source });
   void hydrateMath(mountedReaderRoot);
   cleanupReaderHover = hydrateReaderHoverPreviews(mountedReaderRoot, {
@@ -182,6 +218,7 @@ function setActiveSurface(id: DemoSurfaceId): void {
   for (const link of surfaceLinks) {
     setCurrentPageAttribute(link, link.dataset.surfaceId === id);
   }
+  updateDocLinkHrefs();
   const url = new URL(window.location.href);
   url.searchParams.set("surface", id);
   window.history.replaceState(null, "", url);
@@ -214,9 +251,10 @@ function setActiveDoc(id: DemoDocId): void {
 }
 
 for (const link of docLinks) {
-  link.addEventListener("click", () => {
+  link.addEventListener("click", (event) => {
     const docId = link.dataset.docId ?? null;
     if (isDemoDocId(docId)) {
+      event.preventDefault();
       setActiveDoc(docId);
     }
   });

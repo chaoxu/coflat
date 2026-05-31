@@ -117,11 +117,25 @@ function frontmatterShouldRebuild(tr: Transaction): boolean {
   return isFrontmatterActive(tr.startState) !== isFrontmatterActive(tr.state);
 }
 
+function frontmatterVisualEnd(state: EditorState, frontmatterEnd: number): number {
+  let visualEnd = frontmatterEnd;
+  const doc = state.doc;
+  // The reader drops YAML frontmatter and its separator whitespace as one
+  // document shell; rich mode should replace the same visual range.
+  while (visualEnd < doc.length) {
+    const line = doc.lineAt(visualEnd);
+    if (line.text.trim() !== "") break;
+    visualEnd = line.to < doc.length ? line.to + 1 : line.to;
+  }
+  return visualEnd;
+}
+
 /** Build decorations for the frontmatter region. */
 function buildDecorations(state: EditorState): DecorationSet {
   const { end, config } = state.field(frontmatterField);
   if (end <= 0) return Decoration.none;
   const active = isFrontmatterActive(state);
+  const visualEnd = frontmatterVisualEnd(state, end);
 
   if (shouldShowFrontmatterSource(state)) {
     const decos: Range<Decoration>[] = [];
@@ -151,9 +165,9 @@ function buildDecorations(state: EditorState): DecorationSet {
         widget,
         block: true,
         inclusiveEnd: false,
-      }).range(0, end),
+      }).range(0, visualEnd),
     ]);
   }
 
-  return Decoration.set([Decoration.replace({ inclusiveEnd: false }).range(0, end)]);
+  return Decoration.set([Decoration.replace({ inclusiveEnd: false }).range(0, visualEnd)]);
 }

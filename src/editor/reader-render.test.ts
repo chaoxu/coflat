@@ -157,6 +157,18 @@ describe("renderToHtml — slow path (Lezer)", () => {
     expect(r.html).toContain("$y^2$");
   });
 
+  it("strips equation labels from display math placeholders and numbers them", () => {
+    const r = renderToHtml("$$\nx^2\n$$ {#eq:first}\n\n\\[\ny^2\n\\] {#eq:second}");
+    expect(r.html).toContain('id="eq:first"');
+    expect(r.html).toContain('id="eq:second"');
+    expect(r.html).toContain('data-equation-number="1"');
+    expect(r.html).toContain('data-equation-number="2"');
+    expect(r.html).toContain("cf-math-display-numbered");
+    expect(r.html).toContain('data-math="x^2"');
+    expect(r.html).toContain('data-math="y^2"');
+    expect(r.html).not.toContain('data-math="$$');
+  });
+
   it("applies LinkResolver overrides (href, className, title)", () => {
     const linkResolver: LinkResolver = {
       resolve(href) {
@@ -342,13 +354,25 @@ describe("renderToHtml — block-level rendering ()", () => {
 
   it("renders fenced divs with class and data-* attributes", () => {
     const r = renderToHtml("::: {.theorem #thm-1 title=\"Pythagoras\"}\nbody\n:::");
-    expect(r.html).toContain("<details");
-    expect(r.html).toContain('open=""');
+    expect(r.html).toContain('cf-doc-block-collapsible');
+    expect(r.html).toContain('data-cf-block-open="true"');
+    expect(r.html).toContain('<button class="cf-block-disclosure-toggle" type="button" aria-expanded="true" aria-label="Collapse block">▼</button>');
+    expect(r.html).toContain('<span class="cf-block-heading-content">');
+    expect(r.html).toContain('<div class="cf-block-disclosure-body">');
     expect(r.html).toContain('<span class="cf-block-header-rendered">Theorem 1</span>');
     expect(r.html).toContain('<span class="cf-block-attr-title"><span class="cf-block-title-paren">(</span><span>Pythagoras</span><span class="cf-block-title-paren">)</span></span>');
     expect(r.html).toContain('cf-doc-block--theorem');
     expect(r.html).toContain('id="thm-1"');
     expect(r.html).toContain('data-title="Pythagoras"');
+  });
+
+  it("renders fenced div attribute titles with inline richness", () => {
+    const r = renderToHtml("::: {.problem title=\"**3SUM** and $x^2$\"}\nbody\n:::");
+    expect(r.html).toContain('<span class="cf-block-attr-title">');
+    expect(r.html).toContain("<strong>3SUM</strong>");
+    expect(r.html).toContain('class="cf-doc-inline-math cf-math-inline"');
+    expect(r.html).toContain('data-math="x^2"');
+    expect(r.hasMath).toBe(true);
   });
 
   it("renders proof headers inline with the first paragraph", () => {

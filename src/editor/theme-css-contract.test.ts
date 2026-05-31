@@ -143,9 +143,45 @@ describe("theme CSS contract", () => {
     expect(cssRuleBody(css, ".cf-reader .cf-doc-block")).toContain("margin: 0;");
     expect(cssRuleBody(css, ".cf-reader .cf-doc-block:not(.cm-line)")).toContain("margin: 0;");
     expect(cssRuleBody(css, ".cf-reader .cf-doc-blank-line")).toContain("line-height: inherit;");
-    expect(cssRuleBody(css, ".cf-reader details.cf-doc-block > .cf-doc-block-heading")).toContain("display: block;");
-    expect(cssRuleBody(css, ".cf-reader details.cf-doc-block > .cf-doc-block-heading")).toContain("list-style: none;");
+    expect(cssRuleBody(css, ".cf-reader .cf-doc-block-collapsible > .cf-doc-block-heading,\n.cf-reader details.cf-doc-block > .cf-doc-block-heading")).toContain("display: block;");
+    expect(cssRuleBody(css, ".cf-reader .cf-doc-block-collapsible > .cf-doc-block-heading,\n.cf-reader details.cf-doc-block > .cf-doc-block-heading")).toContain("position: relative;");
+    expect(cssRuleBody(css, ".cf-reader .cf-doc-block-collapsible > .cf-doc-block-heading,\n.cf-reader details.cf-doc-block > .cf-doc-block-heading")).toContain("list-style: none;");
+    expect(cssRuleBody(css, ".cf-reader .cf-doc-block-collapsible")).toContain(
+      "position: relative;",
+    );
+    expect(cssRuleBody(css, ".cf-reader .cf-doc-block-collapsible::before")).toContain(
+      "left: calc(-0.5em - var(--cf-spacing-xs));",
+    );
+    expect(cssRuleBody(css, ".cf-reader .cf-doc-block-collapsible::before")).toContain(
+      "transform: translateX(-50%);",
+    );
+    expect(cssRuleBody(css, ".cf-reader .cf-doc-block-collapsible::before")).toContain(
+      "width: var(--cf-border-width-accent, 2px);",
+    );
+    expect(cssRuleBody(css, ".cf-reader .cf-doc-block-collapsible:hover::before,\n.cf-reader .cf-doc-block-collapsible:focus-within::before")).toContain(
+      "opacity: 1;",
+    );
+    expect(cssRuleBody(css, ".cf-reader .cf-block-disclosure-toggle")).toContain("appearance: none;");
+    expect(cssRuleBody(css, ".cf-reader .cf-block-disclosure-toggle")).toContain("display: block;");
+    expect(cssRuleBody(css, ".cf-reader .cf-block-disclosure-toggle")).toContain("font: inherit;");
+    expect(cssRuleBody(css, ".cf-reader .cf-block-disclosure-toggle")).toContain("opacity: 0;");
+    expect(cssRuleBody(css, ".cf-reader .cf-block-disclosure-toggle")).toContain("position: absolute;");
+    expect(cssRuleBody(css, ".cf-reader .cf-block-disclosure-toggle")).toContain("right: 100%;");
+    expect(cssRuleBody(css, ".cf-reader .cf-block-disclosure-toggle")).toContain("transition: opacity");
+    expect(cssRuleBody(css, ".cf-reader .cf-block-disclosure-toggle")).not.toMatch(/\bfont-(?:family|size)\s*:/);
+    expect(cssRuleBody(css, ".cf-reader .cf-doc-block-collapsible:hover > .cf-doc-block-heading > .cf-block-disclosure-toggle,\n.cf-reader .cf-doc-block-collapsible:focus-within > .cf-doc-block-heading > .cf-block-disclosure-toggle")).toContain("opacity: 1;");
+    expect(cssRuleBody(css, ".cf-reader .cf-block-disclosure-toggle:hover,\n.cf-reader .cf-block-disclosure-toggle:focus-visible,\n.cf-reader .cf-block-disclosure-toggle-collapsed")).toContain("opacity: 1;");
+    expect(cssRuleBody(css, ".cf-reader .cf-block-disclosure-body[hidden]")).toContain("display: none;");
     expect(cssRuleBody(css, ".cf-block-header-rendered")).toContain("line-height: 0;");
+  });
+
+  it("keeps cursor-state block source classes metric-neutral", () => {
+    const css = readRepoFile("editor/editor-theme.css");
+    const blockSource = cssRuleBody(css, ".cf-block-source");
+
+    expect(blockSource).toContain("line-height: inherit;");
+    expect(blockSource).not.toMatch(/\bfont-(?:family|size|style)\s*:/);
+    expect(blockSource).not.toMatch(/\b(?:padding|margin|border)\s*:/);
   });
 
   it("keeps shared inline mark styling available outside CM6", () => {

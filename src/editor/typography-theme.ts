@@ -177,6 +177,14 @@ export const typographyThemeStyles = {
     fontFamily: monoFont,
     color: "var(--cf-fg)",
   },
+  /* Raw block markers can appear when the cursor enters structure syntax.
+   * Keep their text metrics out of the line box so cursor movement never
+   * changes row height. */
+  ".cf-block-header .tok-processingInstruction, .cf-block-source .tok-processingInstruction":
+    {
+      lineHeight: "0",
+      verticalAlign: "baseline",
+    },
 
   /* Override: rendered list markers use the document content font.
    * @lezer/markdown tags ListMark as processingInstruction for bullet

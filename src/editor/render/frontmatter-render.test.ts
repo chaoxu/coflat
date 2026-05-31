@@ -40,6 +40,17 @@ describe("frontmatterDecoration", () => {
     expect(iter.value?.spec.inclusiveEnd).toBe(false);
   });
 
+  it("hides the blank separator after frontmatter in rich rendering", () => {
+    const doc = "---\ntitle: Hello\n---\n\nContent";
+    const state = createState(doc);
+    const decos = state.field(frontmatterDecorationField);
+    const iter = decos.iter();
+
+    expect(iter.value).not.toBeNull();
+    expect(iter.from).toBe(0);
+    expect(iter.to).toBe(doc.indexOf("Content"));
+  });
+
   it("creates no decorations when no frontmatter", () => {
     const state = createState("# No frontmatter");
     const decos = state.field(frontmatterDecorationField);

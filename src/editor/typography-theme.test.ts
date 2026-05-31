@@ -16,6 +16,12 @@ describe("typographyThemeStyles", () => {
         verticalAlign: "baseline",
       });
     }
+    expect(typographyThemeStyles[
+      ".cf-block-header .tok-processingInstruction, .cf-block-source .tok-processingInstruction"
+    ]).toMatchObject({
+      lineHeight: "0",
+      verticalAlign: "baseline",
+    });
   });
 
   it("uses reader/editor shared tokens for rendered inline code and links", () => {

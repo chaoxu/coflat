@@ -639,6 +639,13 @@
   font-weight: 700;
 }
 
+.cf-reader .cf-image {
+  display: inline-block;
+  max-width: 100%;
+  max-height: 400px;
+  vertical-align: middle;
+}
+
 .cf-reader .cf-doc-display-math {
   margin: var(--cf-doc-display-math-margin, 0);
   text-align: center;
@@ -1488,9 +1495,81 @@
   line-height: inherit;
 }
 
+.cf-reader .cf-doc-block-collapsible > .cf-doc-block-heading,
 .cf-reader details.cf-doc-block > .cf-doc-block-heading {
   display: block;
+  position: relative;
   list-style: none;
+  cursor: default;
+}
+
+.cf-reader .cf-doc-block-collapsible {
+  --cf-block-disclosure-indicator-color: color-mix(in srgb, var(--cf-fg) 45%, transparent);
+  position: relative;
+}
+
+.cf-reader .cf-doc-block-collapsible::before {
+  background: var(--cf-block-disclosure-indicator-color);
+  bottom: 0;
+  content: "";
+  left: calc(-0.5em - var(--cf-spacing-xs));
+  opacity: 0;
+  pointer-events: none;
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  transition: opacity var(--cf-transition, 0.15s ease);
+  width: var(--cf-border-width-accent, 2px);
+}
+
+.cf-reader .cf-doc-block-collapsible:hover::before,
+.cf-reader .cf-doc-block-collapsible:focus-within::before {
+  opacity: 1;
+}
+
+.cf-reader .cf-block-heading-content {
+  min-width: 0;
+}
+
+.cf-reader .cf-block-disclosure-toggle {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  color: var(--cf-border);
+  cursor: pointer;
+  display: block;
+  font: inherit;
+  line-height: inherit;
+  margin: 0;
+  margin-right: var(--cf-spacing-xs);
+  opacity: 0;
+  padding: 0;
+  position: absolute;
+  right: 100%;
+  top: 0;
+  transition: opacity var(--cf-transition, 0.15s ease);
+  user-select: none;
+}
+
+.cf-reader .cf-doc-block-collapsible:hover > .cf-doc-block-heading > .cf-block-disclosure-toggle,
+.cf-reader .cf-doc-block-collapsible:focus-within > .cf-doc-block-heading > .cf-block-disclosure-toggle {
+  opacity: 1;
+}
+
+.cf-reader .cf-block-disclosure-toggle:hover,
+.cf-reader .cf-block-disclosure-toggle:focus-visible,
+.cf-reader .cf-block-disclosure-toggle-collapsed {
+  opacity: 1;
+  color: var(--cf-fg);
+}
+
+.cf-reader .cf-block-disclosure-toggle:focus-visible {
+  outline: 1px solid currentColor;
+  outline-offset: 2px;
+}
+
+.cf-reader .cf-block-disclosure-body[hidden] {
+  display: none;
 }
 
 .cf-reader details.cf-doc-block > .cf-doc-block-heading::marker {
@@ -1667,13 +1746,12 @@
   padding: 0.1em 0.25em;
 }
 
-/* Block source syntax — monospace font for ::: fence syntax and closing fence lines.
- * Applied as a mark decoration on the opening fence syntax (not the title text),
- * and as a line decoration on the closing fence (which has no title content). */
+/* Block source state.
+ * This class can be applied to a CM6 line when the cursor enters block
+ * structure. It must stay metric-neutral: source token spans provide syntax
+ * styling, but the line class itself must never change line-box height. */
 .cf-block-source {
-  font-family: var(--cf-code-font, Monaco, "DejaVu Sans Mono", Consolas, monospace);
-  font-size: 0.85em;
-  font-style: normal;
+  line-height: inherit;
 }
 
 /* Fence guide lines — no visual styling here; box-shadow is applied per depth

@@ -202,18 +202,34 @@
   margin: var(--cf-block-margin);
 }
 
+.cf-theme-blueprint-book .cf-reader .cf-doc-block-collapsible,
 .cf-theme-blueprint-book .cf-reader details.cf-doc-block {
   display: block;
 }
 
 .cf-theme-blueprint-book .cf-reader .cf-doc-block-heading {
   color: #0a0a14;
-  cursor: pointer;
+  cursor: default;
   font-family: var(--cf-content-font);
   font-style: normal;
   font-weight: 700;
   line-height: 1.5;
-  user-select: none;
+  user-select: text;
+}
+
+.cf-theme-blueprint-book .cf-reader .cf-doc-block-collapsible {
+  --cf-block-disclosure-indicator-color: #536878;
+}
+
+.cf-theme-blueprint-book .cf-reader .cf-block-disclosure-toggle {
+  color: #536878;
+  line-height: 1.5;
+}
+
+.cf-theme-blueprint-book .cf-reader .cf-block-disclosure-toggle:hover,
+.cf-theme-blueprint-book .cf-reader .cf-block-disclosure-toggle:focus-visible,
+.cf-theme-blueprint-book .cf-reader .cf-block-disclosure-toggle-collapsed {
+  color: #0a0a14;
 }
 
 .cf-theme-blueprint-book .cf-reader .cf-doc-block--proof > .cf-doc-block-heading {

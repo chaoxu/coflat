@@ -15,6 +15,7 @@ export {
   renderToHtml,
   renderToText,
   mapDomRangeToSource,
+  hydrateBlockDisclosures,
   hydrateMath,
   hydrateReaderHoverPreviews,
   hydrateReferences,

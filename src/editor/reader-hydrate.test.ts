@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { hydrateMath, renderToHtml } from "../../reader";
+import { hydrateBlockDisclosures, hydrateMath, renderToHtml } from "../../reader";
 
 function makeRoot(html: string): HTMLElement {
   const root = document.createElement("div");
@@ -56,6 +56,19 @@ describe("hydrateMath", () => {
     expect(placeholder?.innerHTML).toContain("katex-display");
     expect(placeholder?.innerHTML).toContain("katex-mathml");
     expect(placeholder?.getAttribute("data-math-hydrated")).toBe("true");
+  });
+
+  it("preserves reader equation numbers while hydrating display math", async () => {
+    const { html } = renderToHtml("$$y=mx+b$$ {#eq:line}");
+    const root = makeRoot(html);
+    const placeholder = requireMathPlaceholder(root);
+    expect(placeholder.classList.contains("cf-math-display-numbered")).toBe(true);
+
+    await hydrateMath(root);
+
+    expect(placeholder.querySelector(".cf-math-display-content")).not.toBeNull();
+    expect(placeholder.querySelector(".cf-math-display-number")?.textContent).toBe("(1)");
+    expect(placeholder.getAttribute("data-math-hydrated")).toBe("true");
   });
 
   it("on invalid LaTeX, keeps original text and adds error markers", async () => {
@@ -125,6 +138,59 @@ describe("hydrateMath — KaTeX import laziness", () => {
     const elapsed = performance.now() - start;
     // Generous bound — synchronous resolve should complete instantly.
     expect(elapsed).toBeLessThan(50);
+  });
+});
+
+describe("hydrateBlockDisclosures", () => {
+  it("toggles only from the disclosure triangle, not the block header text", () => {
+    const { html } = renderToHtml("::: {.theorem title=\"Readable column\"}\nbody\n:::");
+    const root = makeRoot(html);
+    const block = root.querySelector<HTMLElement>(".cf-doc-block-collapsible");
+    const button = root.querySelector<HTMLButtonElement>(".cf-block-disclosure-toggle");
+    const headingText = root.querySelector<HTMLElement>(".cf-block-heading-content");
+    const body = root.querySelector<HTMLElement>(".cf-block-disclosure-body");
+    expect(block).not.toBeNull();
+    expect(button).not.toBeNull();
+    expect(headingText).not.toBeNull();
+    expect(body).not.toBeNull();
+
+    hydrateBlockDisclosures(root);
+
+    expect(block?.getAttribute("data-cf-block-open")).toBe("true");
+    expect(button?.textContent).toBe("▼");
+    expect(button?.getAttribute("aria-expanded")).toBe("true");
+    expect(body?.hidden).toBe(false);
+
+    headingText?.click();
+    expect(block?.getAttribute("data-cf-block-open")).toBe("true");
+    expect(body?.hidden).toBe(false);
+
+    button?.click();
+    expect(block?.getAttribute("data-cf-block-open")).toBe("false");
+    expect(button?.textContent).toBe("▶");
+    expect(button?.getAttribute("aria-expanded")).toBe("false");
+    expect(body?.hidden).toBe(true);
+
+    button?.click();
+    expect(block?.getAttribute("data-cf-block-open")).toBe("true");
+    expect(button?.textContent).toBe("▼");
+    expect(button?.getAttribute("aria-expanded")).toBe("true");
+    expect(body?.hidden).toBe(false);
+  });
+
+  it("is idempotent across repeated hydration calls", () => {
+    const { html } = renderToHtml("::: {.definition}\nbody\n:::");
+    const root = makeRoot(html);
+    const button = root.querySelector<HTMLButtonElement>(".cf-block-disclosure-toggle");
+    const block = root.querySelector<HTMLElement>(".cf-doc-block-collapsible");
+    expect(button).not.toBeNull();
+    expect(block).not.toBeNull();
+
+    hydrateBlockDisclosures(root);
+    hydrateBlockDisclosures(root);
+
+    button?.click();
+    expect(block?.getAttribute("data-cf-block-open")).toBe("false");
   });
 });
 

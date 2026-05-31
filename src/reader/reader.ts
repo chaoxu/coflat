@@ -25,6 +25,7 @@ import {
   mathSurfaceClassNames,
 } from "../core/constants/css-classes";
 import { LINK_LAYOUT_ATTRIBUTE, linkLayoutForHref } from "../core/link-layout";
+import { readBracedLabelId } from "../core/parser/label-utils";
 import {
   DOCUMENT_SURFACE_CLASS,
   documentSurfaceClassNames,
@@ -175,19 +176,64 @@ function nextHeadingNumber(ctx: WalkContext, level: number, unnumbered: boolean)
   return ctx.headingCounters.slice(1, level + 1).join(".");
 }
 
-function renderBlockSummaryHtml(type: string, title: string | undefined, number: number | undefined): string {
+function renderInlineSnippet(ctx: WalkContext, source: string): BlockResult {
+  const tree = parseSource(source);
+  const snippetCtx: WalkContext = {
+    ...ctx,
+    source,
+    lineOffsets: null,
+    sourcePositions: false,
+    mathSourcePositions: false,
+    headingCounters: [...ctx.headingCounters],
+    blockCounters: new Map(ctx.blockCounters),
+    footnotesById: new Map(),
+    footnotesInOrder: [],
+  };
+  const root = tree.topNode;
+  const first = root.firstChild;
+  if (first?.name === NODE.Paragraph && first.nextSibling === null) {
+    return renderInline(snippetCtx, first, first.from, first.to);
+  }
+  return {
+    html: escapeHtml(source),
+    text: source,
+    hasMath: false,
+  };
+}
+
+function renderBlockSummary(ctx: WalkContext, type: string, title: string | undefined, number: number | undefined): BlockResult {
   const header = number === undefined ? blockTitle(type) : `${blockTitle(type)} ${number}`;
   const escapedHeader = escapeHtml(type === "proof" ? "Proof" : header);
   if (!title || type === "proof") {
-    return `<span class="cf-block-header-rendered">${escapedHeader}</span>`;
+    return {
+      html: `<span class="cf-block-header-rendered">${escapedHeader}</span>`,
+      text: header,
+      hasMath: false,
+    };
   }
+  const renderedTitle = renderInlineSnippet(ctx, title);
   return (
-    `<span class="cf-block-header-rendered">${escapedHeader}</span>` +
-    `<span class="cf-block-attr-title">` +
-    `<span class="cf-block-title-paren">(</span>` +
-    `<span>${escapeHtml(title)}</span>` +
-    `<span class="cf-block-title-paren">)</span>` +
-    `</span>`
+    {
+      html:
+        `<span class="cf-block-header-rendered">${escapedHeader}</span>` +
+        `<span class="cf-block-attr-title">` +
+        `<span class="cf-block-title-paren">(</span>` +
+        `<span>${renderedTitle.html}</span>` +
+        `<span class="cf-block-title-paren">)</span>` +
+        `</span>`,
+      text: `${header} (${renderedTitle.text})`,
+      hasMath: renderedTitle.hasMath,
+    }
+  );
+}
+
+function renderBlockDisclosure(summaryHtml: string, bodyHtml: string): string {
+  return (
+    `<div class="cf-doc-block-heading">` +
+    `<button class="${CSS.blockDisclosureToggle}" type="button" aria-expanded="true" aria-label="Collapse block">▼</button>` +
+    `<span class="${CSS.blockHeadingContent}">${summaryHtml}</span>` +
+    `</div>` +
+    `<div class="${CSS.blockDisclosureBody}">${bodyHtml}</div>`
   );
 }
 
@@ -470,6 +516,7 @@ interface WalkContext {
   mathSourcePositions: boolean;
   headingCounters: number[];
   blockCounters: Map<string, number>;
+  equationCounter: number;
   // Footnote tracking
   footnotesById: Map<string, FootnoteEntry>;
   footnotesInOrder: FootnoteEntry[];
@@ -738,6 +785,21 @@ function stripMathDelims(raw: string, display: boolean): string {
     return raw.slice(2, -2);
   }
   return raw;
+}
+
+function displayMathLatex(ctx: WalkContext, node: SyntaxNode): string {
+  const marks = node.getChildren("DisplayMathMark");
+  if (marks.length >= 2) {
+    return ctx.source.slice(marks[0].to, marks[marks.length - 1].from).trim();
+  }
+  const label = node.getChild(NODE.EquationLabel);
+  const sourceEnd = label ? label.from : node.to;
+  return stripMathDelims(ctx.source.slice(node.from, sourceEnd).trim(), true).trim();
+}
+
+function equationLabelId(ctx: WalkContext, node: SyntaxNode): string | null {
+  const label = node.getChild(NODE.EquationLabel);
+  return label ? readBracedLabelId(ctx.source, label.from, label.to, "eq:") : null;
 }
 
 function emitLink(
@@ -1061,10 +1123,20 @@ function renderBlock(ctx: WalkContext, node: SyntaxNode): BlockResult {
       return renderFootnoteDef(ctx, node);
     case NODE.DisplayMath: {
       const raw = ctx.source.slice(node.from, node.to);
-      const inner = stripMathDelims(raw, true);
+      const inner = displayMathLatex(ctx, node);
+      const equationId = equationLabelId(ctx, node);
+      const equationNumber = equationId ? ++ctx.equationCounter : undefined;
+      const classes = mathSurfaceClassNames(
+        true,
+        equationNumber !== undefined && CSS.mathDisplayNumbered,
+      );
+      const idAttr = equationId ? ` id="${escapeHtml(equationId)}"` : "";
+      const numberAttr = equationNumber !== undefined
+        ? ` data-equation-number="${equationNumber}"`
+        : "";
       return {
         html:
-          `<div class="${mathSurfaceClassNames(true)}" data-math="${escapeHtml(inner)}"${blockMathSourceAttrs(ctx, node.from, node.to)}>` +
+          `<div class="${classes}"${idAttr} data-math="${escapeHtml(inner)}"${numberAttr}${blockMathSourceAttrs(ctx, node.from, node.to)}>` +
           escapeHtml(raw) +
           `</div>`,
         text: raw,
@@ -1547,7 +1619,13 @@ function renderFencedDiv(ctx: WalkContext, node: SyntaxNode): BlockResult {
   if (manifestEntry?.specialBehavior === "qed") {
     addClassToLastHtmlBlock(blocks, CSS.blockQed);
   }
+  const collapsibleBlock = Boolean(
+    normalizedClassName &&
+    manifestEntry?.headerPosition !== "inline" &&
+    isCollapsibleBlock(normalizedClassName),
+  );
   const classes = [blockClasses(normalizedClassName || undefined)];
+  if (collapsibleBlock) classes.push(CSS.blockCollapsible);
 
   let attrs = ` class="${classes.join(" ")}"`;
   if (id) attrs += ` id="${escapeHtml(id)}"`;
@@ -1559,19 +1637,20 @@ function renderFencedDiv(ctx: WalkContext, node: SyntaxNode): BlockResult {
   const sourceAttrs = blockSourceAttrs(ctx, node.from, node.to);
   const title = kvs.title;
   const number = normalizedClassName ? nextBlockNumber(ctx, normalizedClassName) : undefined;
-  const summaryHtml = normalizedClassName
-    ? renderBlockSummaryHtml(normalizedClassName, title, number)
-    : "";
+  const summary = normalizedClassName
+    ? renderBlockSummary(ctx, normalizedClassName, title, number)
+    : emptyBlock();
+  const summaryHtml = summary.html;
   const html = manifestEntry?.headerPosition === "inline"
     ? renderProofBlockHtml(attrs, sourceAttrs, summaryHtml, bodyHtml)
-    : normalizedClassName && isCollapsibleBlock(normalizedClassName)
-    ? `<details${attrs}${sourceAttrs} open><summary class="cf-doc-block-heading">${summaryHtml}</summary>${bodyHtml}</details>`
+    : collapsibleBlock
+    ? `<div${attrs}${sourceAttrs} data-cf-block-open="true">${renderBlockDisclosure(summaryHtml, bodyHtml)}</div>`
     : `<div${attrs}${sourceAttrs}>${bodyHtml}</div>`;
 
   return {
     html,
     text: body.text,
-    hasMath: body.hasMath,
+    hasMath: summary.hasMath || body.hasMath,
   };
 }
 
@@ -1750,6 +1829,7 @@ function walkDocument(
     mathSourcePositions: !!(opts.sourcePositions || opts.mathSourcePositions),
     headingCounters: [0, 0, 0, 0, 0, 0, 0],
     blockCounters: new Map(),
+    equationCounter: 0,
     footnotesById: new Map(),
     footnotesInOrder: [],
   };
@@ -1898,7 +1978,7 @@ const ALLOWED_TAGS = [
   "blockquote",
   "pre", "code",
   "em", "strong", "del", "mark",
-  "a", "img",
+  "a", "img", "button",
   "hr",
   "table", "thead", "tbody", "tr", "th", "td",
   "sup", "sub",
@@ -1906,7 +1986,7 @@ const ALLOWED_TAGS = [
 ];
 const ALLOWED_ATTR = [
   "href", "src", "alt", "title", "class", "id", "start", "open",
-  "type", "checked", "disabled", "tabindex", "aria-disabled",
+  "type", "checked", "disabled", "tabindex", "aria-disabled", "aria-expanded", "aria-label",
   "data-math", "data-lang", "data-checked", "data-align",
   "data-ref-key", "data-ref-mode", "data-source-line",
   "style",
@@ -2229,6 +2309,71 @@ function countTextCharsBefore(root: Element, target: Node): number {
     child = child.nextSibling;
   }
   return found ? count : -1;
+}
+
+// ---------------------------------------------------------------------------
+// Block disclosure hydration.
+// ---------------------------------------------------------------------------
+
+const BLOCK_DISCLOSURE_HYDRATED_ATTR = "data-cf-block-disclosure-hydrated";
+const BLOCK_OPEN_ATTR = "data-cf-block-open";
+const BLOCK_DISCLOSURE_OPEN_ICON = "▼";
+const BLOCK_DISCLOSURE_CLOSED_ICON = "▶";
+
+function directChildWithClass(parent: HTMLElement, className: string): HTMLElement | null {
+  for (const child of Array.from(parent.children)) {
+    if (child instanceof HTMLElement && child.classList.contains(className)) return child;
+  }
+  return null;
+}
+
+function blockDisclosureParts(block: HTMLElement): {
+  body: HTMLElement;
+  toggle: HTMLButtonElement;
+} | null {
+  const heading = directChildWithClass(block, "cf-doc-block-heading");
+  const body = directChildWithClass(block, CSS.blockDisclosureBody);
+  const toggle = heading?.querySelector<HTMLElement>(`.${CSS.blockDisclosureToggle}`);
+  if (!(body instanceof HTMLElement) || !(toggle instanceof HTMLButtonElement)) return null;
+  return { body, toggle };
+}
+
+function setBlockDisclosureState(block: HTMLElement, expanded: boolean): void {
+  const parts = blockDisclosureParts(block);
+  if (!parts) return;
+  block.setAttribute(BLOCK_OPEN_ATTR, expanded ? "true" : "false");
+  parts.body.hidden = !expanded;
+  parts.toggle.textContent = expanded ? BLOCK_DISCLOSURE_OPEN_ICON : BLOCK_DISCLOSURE_CLOSED_ICON;
+  parts.toggle.classList.toggle(CSS.blockDisclosureToggleCollapsed, !expanded);
+  parts.toggle.setAttribute("aria-expanded", expanded ? "true" : "false");
+  parts.toggle.setAttribute("aria-label", expanded ? "Collapse block" : "Expand block");
+}
+
+/**
+ * Attach disclosure behavior to static reader block headers.
+ *
+ * `renderToHtml` emits normal header text plus a triangle button. This
+ * hydration pass is intentionally narrow: only the triangle toggles the block,
+ * so selecting or clicking the header label itself never collapses content.
+ */
+export function hydrateBlockDisclosures(root: HTMLElement): void {
+  const blocks = [
+    ...(root.classList.contains(CSS.blockCollapsible) ? [root] : []),
+    ...Array.from(root.querySelectorAll<HTMLElement>(`.${CSS.blockCollapsible}`)),
+  ];
+
+  for (const block of blocks) {
+    const parts = blockDisclosureParts(block);
+    if (!parts) continue;
+    const expanded = block.getAttribute(BLOCK_OPEN_ATTR) !== "false";
+    setBlockDisclosureState(block, expanded);
+
+    if (block.getAttribute(BLOCK_DISCLOSURE_HYDRATED_ATTR) === "true") continue;
+    parts.toggle.addEventListener("click", () => {
+      setBlockDisclosureState(block, block.getAttribute(BLOCK_OPEN_ATTR) === "false");
+    });
+    block.setAttribute(BLOCK_DISCLOSURE_HYDRATED_ATTR, "true");
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -2706,6 +2851,13 @@ export async function hydrateMath(
       content.className = CSS.mathDisplayContent;
       content.innerHTML = html;
       el.replaceChildren(content);
+      const equationNumber = el.dataset.equationNumber;
+      if (equationNumber) {
+        const number = document.createElement("span");
+        number.className = CSS.mathDisplayNumber;
+        number.textContent = `(${equationNumber})`;
+        el.appendChild(number);
+      }
     } else {
       el.innerHTML = html;
     }
