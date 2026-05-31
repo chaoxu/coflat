@@ -342,7 +342,10 @@
 
 .cf-doc-surface {
   color: var(--cf-fg);
-  background: var(--cf-bg);
+  /* Inherit the embedding context's background instead of painting our own,
+     so the surface matches whatever it's placed on (e.g. chat turns). Standalone
+     readers still get a background from .cf-theme-scope / .cf-reader-shell. */
+  background: transparent;
 }
 
 .cf-doc-flow {
