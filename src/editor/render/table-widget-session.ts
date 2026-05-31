@@ -61,6 +61,10 @@ export function destroyActiveInlineEditor(): DestroyedInlineEditor | null {
   const { controller, view: inlineView, cell, owner } = activeInlineEditor;
   const text = inlineView.state.doc.toString();
   cell.classList.remove("cf-table-cell-editing");
+  cell.style.removeProperty("width");
+  cell.style.removeProperty("min-width");
+  cell.style.removeProperty("max-width");
+  cell.style.removeProperty("min-height");
   controller.destroy();
   cell.innerHTML = "";
   activeInlineEditor = null;

@@ -21,6 +21,7 @@ import {
   shouldCommitBlurredInlineEditor,
   TableWidget,
 } from "./table-widget";
+import { destroyActiveInlineEditor } from "./table-widget-session";
 
 // jsdom lacks ResizeObserver — provide a no-op stub.
 class ResizeObserverStub {
@@ -42,6 +43,7 @@ class ResizeObserverStub {
 }
 
 beforeEach(() => {
+  destroyActiveInlineEditor();
   ResizeObserverStub.instances.length = 0;
   vi.stubGlobal("ResizeObserver", ResizeObserverStub);
 });
@@ -355,6 +357,55 @@ describe("TableWidget source range attributes", () => {
 
     expect(event.defaultPrevented).toBe(true);
     expect(bubbled).not.toHaveBeenCalled();
+  });
+
+  it("locks cell geometry while the inline editor is open", () => {
+    const widget = new TableWidget(makeTable(), "| A | B |\n|---|---|\n| 1 | 2 |", 0, {});
+    const dom = widget.toDOM(makeStubView());
+    const bodyCell = dom.querySelector<HTMLElement>("tbody td");
+    expect(bodyCell).not.toBeNull();
+    if (!bodyCell) {
+      throw new Error("expected body table cell");
+    }
+
+    vi.spyOn(bodyCell, "getBoundingClientRect").mockReturnValue({
+      x: 0,
+      y: 0,
+      top: 0,
+      left: 0,
+      right: 120,
+      bottom: 36,
+      width: 120,
+      height: 36,
+      toJSON: () => ({}),
+    });
+
+    bodyCell.dispatchEvent(new MouseEvent("mousedown", {
+      bubbles: true,
+      cancelable: true,
+    }));
+
+    expect(bodyCell.style.width).toBe("120px");
+    expect(bodyCell.style.minWidth).toBe("120px");
+    expect(bodyCell.style.maxWidth).toBe("120px");
+    expect(bodyCell.style.minHeight).toBe("36px");
+
+    const inlineEditorContent = bodyCell.querySelector<HTMLElement>(".cm-content");
+    expect(inlineEditorContent).not.toBeNull();
+    if (!inlineEditorContent) {
+      throw new Error("expected inline table cell editor");
+    }
+
+    inlineEditorContent.dispatchEvent(new KeyboardEvent("keydown", {
+      bubbles: true,
+      cancelable: true,
+      key: "Escape",
+    }));
+
+    expect(bodyCell.style.width).toBe("");
+    expect(bodyCell.style.minWidth).toBe("");
+    expect(bodyCell.style.maxWidth).toBe("");
+    expect(bodyCell.style.minHeight).toBe("");
   });
 });
 

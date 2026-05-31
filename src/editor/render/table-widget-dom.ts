@@ -151,6 +151,16 @@ export function buildTableWidgetDOM(options: TableWidgetDomOptions): HTMLTableEl
   ): void => {
     clearActivePreviewCell();
     const rawText = options.getRawCellText(address);
+    const renderedRect = cell.getBoundingClientRect();
+    if (renderedRect.width > 0) {
+      const renderedWidth = `${renderedRect.width}px`;
+      cell.style.width = renderedWidth;
+      cell.style.minWidth = renderedWidth;
+      cell.style.maxWidth = renderedWidth;
+    }
+    if (renderedRect.height > 0) {
+      cell.style.minHeight = `${renderedRect.height}px`;
+    }
     cell.innerHTML = "";
     cell.classList.add("cf-table-cell-editing");
 
