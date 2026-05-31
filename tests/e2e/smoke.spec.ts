@@ -105,6 +105,45 @@ test("rich editor keeps a usable writing column on narrow viewports", async ({ p
   expect(lineWidth).toBeGreaterThan(240);
 });
 
+test("public demo uses page-level scrolling over the editor", async ({ page }) => {
+  await page.goto("/examples/simple/index.html");
+
+  const scroller = page.locator(".cm-scroller");
+  await expect(scroller).toBeVisible();
+
+  const scrollStyles = await scroller.evaluate((el) => {
+    const style = getComputedStyle(el);
+    return {
+      clientHeight: el.clientHeight,
+      overflowY: style.overflowY,
+      overscrollBehaviorY: style.overscrollBehaviorY,
+      scrollHeight: el.scrollHeight,
+    };
+  });
+  expect(scrollStyles.overflowY).toBe("visible");
+  expect(scrollStyles.overscrollBehaviorY).toBe("auto");
+  expect(scrollStyles.scrollHeight).toBe(scrollStyles.clientHeight);
+
+  await page.evaluate(() => window.scrollTo(0, 0));
+  const box = await scroller.boundingBox();
+  if (!box) {
+    throw new Error("Missing public demo editor scroller");
+  }
+
+  await page.mouse.move(
+    box.x + Math.min(40, box.width / 2),
+    box.y + Math.min(300, box.height / 2),
+  );
+  for (let i = 0; i < 8; i += 1) {
+    await page.mouse.wheel(0, 700);
+  }
+
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(1000);
+  await expect
+    .poll(() => page.evaluate(() => document.body.innerText.includes("This footnote has bold")))
+    .toBe(true);
+});
+
 test("blueprint book theme applies to a host-rendered reader document", async ({ page }) => {
   await page.goto("/tests/e2e/fixtures/theme.html");
 
