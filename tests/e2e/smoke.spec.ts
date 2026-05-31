@@ -108,7 +108,7 @@ test("rich editor keeps a usable writing column on narrow viewports", async ({ p
 test("public demo uses page-level scrolling over the editor", async ({ page }) => {
   await page.goto("/examples/simple/index.html");
 
-  const scroller = page.locator(".cm-scroller");
+  const scroller = page.locator("#editor > .cm-editor > .cm-scroller");
   await expect(scroller).toBeVisible();
 
   const scrollStyles = await scroller.evaluate((el) => {
@@ -142,6 +142,55 @@ test("public demo uses page-level scrolling over the editor", async ({ page }) =
   await expect
     .poll(() => page.evaluate(() => document.body.innerText.includes("This footnote has bold")))
     .toBe(true);
+});
+
+test("public demo table cell editing does not inherit page-height scrolling", async ({ page }) => {
+  await page.goto("/examples/simple/index.html");
+
+  for (const y of [2500, 3000, 3500, 4000, 4500]) {
+    await page.evaluate((scrollY) => window.scrollTo(0, scrollY), y);
+    await page.waitForTimeout(100);
+    if (await page.locator(".cf-table-widget td").nth(16).count()) {
+      break;
+    }
+  }
+
+  const cell = page.getByRole("cell", { name: /Edit this cell/ });
+  await expect(cell).toContainText("Edit this cell");
+  await cell.scrollIntoViewIfNeeded();
+
+  const before = await cell.evaluate((el) => ({
+    cellHeight: el.getBoundingClientRect().height,
+    rowHeight: el.closest("tr")?.getBoundingClientRect().height ?? 0,
+  }));
+
+  await cell.dblclick();
+  const activeCell = page.locator(".cf-table-cell-editing");
+  await expect(activeCell).toBeVisible();
+
+  const after = await activeCell.evaluate((el) => {
+    const editor = el.querySelector(".cm-editor");
+    const scroller = el.querySelector(".cm-scroller");
+    const editorStyle = editor ? getComputedStyle(editor) : null;
+    const scrollerStyle = scroller ? getComputedStyle(scroller) : null;
+    return {
+      cellHeight: el.getBoundingClientRect().height,
+      editorHeight: editor?.getBoundingClientRect().height ?? 0,
+      editorMinHeight: editorStyle?.minHeight ?? "",
+      rowHeight: el.closest("tr")?.getBoundingClientRect().height ?? 0,
+      scrollerHeight: scroller?.getBoundingClientRect().height ?? 0,
+      scrollerMinHeight: scrollerStyle?.minHeight ?? "",
+      viewportHeight: window.innerHeight,
+    };
+  });
+
+  expect(after.rowHeight).toBeLessThan(160);
+  expect(after.cellHeight).toBeLessThan(160);
+  expect(after.editorHeight).toBeLessThan(120);
+  expect(after.scrollerHeight).toBeLessThan(120);
+  expect(after.scrollerMinHeight).not.toBe(`${after.viewportHeight}px`);
+  expect(after.rowHeight).toBeLessThan(before.rowHeight + 120);
+  expect(after.cellHeight).toBeLessThan(before.cellHeight + 120);
 });
 
 test("public demo hydrates bibliography citations", async ({ page }) => {

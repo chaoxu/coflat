@@ -20,14 +20,14 @@ body {
   min-width: 0;
 }
 
-#editor .cm-editor {
+#editor > .cm-editor {
   height: auto;
   min-height: 100vh;
   overflow: visible;
   border: 0;
 }
 
-#editor .cm-scroller {
+#editor > .cm-editor > .cm-scroller {
   height: auto;
   min-height: 100vh;
   overflow: visible;
