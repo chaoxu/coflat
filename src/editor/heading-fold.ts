@@ -1,8 +1,9 @@
 /**
- * Heading-based folding for the editor.
+ * Document folding for the editor.
  *
  * Collapses everything under a heading until the next heading of
- * equal or higher level. Fold toggles appear inline next to headings
+ * equal or higher level, and semantic fenced blocks under their header.
+ * Fold toggles appear inline next to headings and block headers
  * (not in a separate gutter column).
  */
 
@@ -26,25 +27,41 @@ import {
   unfoldEffect,
   foldedRanges,
 } from "@codemirror/language";
+import { isCollapsibleBlockType } from "../core/constants/block-manifest";
 import { buildDecorations, RenderWidget } from "./render/render-core";
-import type { HeadingSemantics } from "./semantics/document";
+import type { FencedDivSemantics, HeadingSemantics } from "./semantics/document";
 import {
   documentAnalysisField,
   getDocumentAnalysisSliceRevision,
 } from "./state/document-analysis";
 
-interface HeadingFoldSection {
-  readonly headingFrom: number;
+type FoldKind = "section" | "block";
+
+interface FoldSection {
+  readonly lineFrom: number;
   readonly foldFrom: number;
   readonly foldTo: number;
+  readonly kind: FoldKind;
   readonly level: number;
+}
+
+interface HeadingFoldSection extends FoldSection {
+  readonly kind: "section";
+  readonly headingFrom: number;
+}
+
+interface BlockFoldSection extends FoldSection {
+  readonly kind: "block";
+  readonly blockFrom: number;
 }
 
 interface HeadingFoldState {
   readonly headings: readonly HeadingSemantics[];
+  readonly blockSections: readonly BlockFoldSection[];
   readonly boundaryIndices: readonly (number | null)[];
   readonly sectionsByHeadingIndex: readonly (HeadingFoldSection | null)[];
   readonly sectionByHeadingFrom: ReadonlyMap<number, HeadingFoldSection>;
+  readonly foldableByLineFrom: ReadonlyMap<number, FoldSection>;
   readonly decorations: DecorationSet;
 }
 
@@ -52,6 +69,12 @@ function buildSectionByHeadingFrom(
   sections: readonly HeadingFoldSection[],
 ): ReadonlyMap<number, HeadingFoldSection> {
   return new Map(sections.map((section) => [section.headingFrom, section]));
+}
+
+function buildFoldableByLineFrom(
+  sections: readonly FoldSection[],
+): ReadonlyMap<number, FoldSection> {
+  return new Map(sections.map((section) => [section.lineFrom, section]));
 }
 
 function foldToBeforeHeading(state: EditorState, headingFrom: number): number {
@@ -127,12 +150,58 @@ function createHeadingFoldSection(
 
   return foldTo > foldFrom
     ? {
+        kind: "section",
+        lineFrom: heading.from,
         headingFrom: heading.from,
         foldFrom,
         foldTo,
         level: heading.level,
       }
     : null;
+}
+
+function createBlockFoldSection(
+  state: EditorState,
+  div: FencedDivSemantics,
+): BlockFoldSection | null {
+  const blockType = div.primaryClass?.toLowerCase();
+  if (
+    !isCollapsibleBlockType(blockType)
+    || div.singleLine
+    || div.isSelfClosing
+    || div.closeFenceFrom < 0
+    || div.closeFenceTo <= div.openFenceTo
+  ) {
+    return null;
+  }
+
+  const openLine = state.doc.lineAt(div.openFenceFrom);
+  const closeLine = state.doc.lineAt(div.closeFenceTo);
+  const foldFrom = openLine.to;
+  const foldTo = closeLine.to;
+
+  return foldTo > foldFrom
+    ? {
+        kind: "block",
+        lineFrom: openLine.from,
+        blockFrom: openLine.from,
+        foldFrom,
+        foldTo,
+        level: 0,
+      }
+    : null;
+}
+
+function buildBlockFoldSections(
+  state: EditorState,
+  divs: readonly FencedDivSemantics[],
+): readonly BlockFoldSection[] {
+  const sections: BlockFoldSection[] = [];
+  for (const div of divs) {
+    const section = createBlockFoldSection(state, div);
+    if (section) sections.push(section);
+  }
+  return sections;
 }
 
 function sameHeadingTopology(
@@ -194,6 +263,8 @@ function sameHeadingFoldSection(
   return left === right || (
     left !== null
     && right !== null
+    && left.kind === right.kind
+    && left.lineFrom === right.lineFrom
     && left.headingFrom === right.headingFrom
     && left.foldFrom === right.foldFrom
     && left.foldTo === right.foldTo
@@ -209,28 +280,36 @@ function sameHeadingFoldSection(
  */
 const headingFoldService = foldService.of((state, lineStart, _lineEnd) => {
   const foldState = state.field(headingFoldField, false);
-  const section = foldState?.sectionByHeadingFrom.get(lineStart);
+  const section = foldState?.foldableByLineFrom.get(lineStart);
   return section ? { from: section.foldFrom, to: section.foldTo } : null;
 });
 
-/** Widget that renders a fold/unfold toggle inline with a heading. */
+/** Widget that renders a fold/unfold toggle inline with a heading or block. */
 class FoldToggleWidget extends RenderWidget {
   constructor(
     private readonly pos: number,
     private readonly folded: boolean,
     private readonly level: number,
+    private readonly kind: FoldKind,
   ) {
     super();
   }
 
   toDOM(view: EditorView): HTMLElement {
     const span = document.createElement("span");
-    const classes = ["cf-fold-toggle", `cf-fold-h${this.level}`];
+    const classes = [
+      "cf-fold-toggle",
+      this.kind === "section" ? `cf-fold-h${this.level}` : "cf-fold-block",
+    ];
     if (this.folded) classes.push("cf-fold-toggle-folded");
     span.className = classes.join(" ");
     span.textContent = this.folded ? "▶" : "▼";
     span.setAttribute("role", "button");
-    span.setAttribute("aria-label", this.folded ? "Unfold section" : "Fold section");
+    const labelTarget = this.kind === "section" ? "section" : "block";
+    span.setAttribute(
+      "aria-label",
+      this.folded ? `Unfold ${labelTarget}` : `Fold ${labelTarget}`,
+    );
 
     const pos = this.pos;
     span.addEventListener("mousedown", (e) => {
@@ -265,14 +344,17 @@ class FoldToggleWidget extends RenderWidget {
   }
 
   eq(other: FoldToggleWidget): boolean {
-    return this.pos === other.pos && this.folded === other.folded && this.level === other.level;
+    return this.pos === other.pos
+      && this.folded === other.folded
+      && this.level === other.level
+      && this.kind === other.kind;
   }
 }
 
-/** Build fold toggle decorations for all foldable headings. */
+/** Build fold toggle decorations for all foldable headings and blocks. */
 function buildFoldToggleItems(
   state: EditorState,
-  sections: readonly HeadingFoldSection[],
+  sections: readonly FoldSection[],
 ): Range<Decoration>[] {
   const items: Range<Decoration>[] = [];
   const folded = foldedRanges(state);
@@ -284,15 +366,16 @@ function buildFoldToggleItems(
     });
 
     const widget = new FoldToggleWidget(
-      section.headingFrom,
+      section.lineFrom,
       isFolded,
       section.level,
+      section.kind,
     );
     items.push(
-      Decoration.line({ class: "cf-fold-line" }).range(section.headingFrom),
+      Decoration.line({ class: "cf-fold-line" }).range(section.lineFrom),
     );
     items.push(
-      Decoration.widget({ widget, side: -1 }).range(section.headingFrom),
+      Decoration.widget({ widget, side: -1 }).range(section.lineFrom),
     );
   }
 
@@ -301,7 +384,7 @@ function buildFoldToggleItems(
 
 function buildFoldToggles(
   state: EditorState,
-  sections: readonly HeadingFoldSection[],
+  sections: readonly FoldSection[],
 ): DecorationSet {
   if (sections.length === 0) return Decoration.none;
   const items = buildFoldToggleItems(state, sections);
@@ -309,20 +392,25 @@ function buildFoldToggles(
 }
 
 function createHeadingFoldState(state: EditorState): HeadingFoldState {
-  const headings = state.field(documentAnalysisField).headings;
+  const analysis = state.field(documentAnalysisField);
+  const headings = analysis.headings;
   const boundaryIndices = buildHeadingBoundaryIndices(headings);
   const sectionsByHeadingIndex = buildHeadingFoldSections(
     state,
     headings,
     boundaryIndices,
   );
-  const sections = collectSections(sectionsByHeadingIndex);
+  const headingSections = collectSections(sectionsByHeadingIndex);
+  const blockSections = buildBlockFoldSections(state, analysis.fencedDivs);
+  const foldableSections = [...headingSections, ...blockSections];
   return {
     headings,
+    blockSections,
     boundaryIndices,
     sectionsByHeadingIndex,
-    sectionByHeadingFrom: buildSectionByHeadingFrom(sections),
-    decorations: buildFoldToggles(state, sections),
+    sectionByHeadingFrom: buildSectionByHeadingFrom(headingSections),
+    foldableByLineFrom: buildFoldableByLineFrom(foldableSections),
+    decorations: buildFoldToggles(state, foldableSections),
   };
 }
 
@@ -378,6 +466,12 @@ const headingFoldField = StateField.define<HeadingFoldState>({
     const after = tr.state.field(documentAnalysisField);
     const headingsChanged = getDocumentAnalysisSliceRevision(before, "headings")
       !== getDocumentAnalysisSliceRevision(after, "headings");
+    const fencedDivsChanged = getDocumentAnalysisSliceRevision(before, "fencedDivs")
+      !== getDocumentAnalysisSliceRevision(after, "fencedDivs");
+
+    if (fencedDivsChanged) {
+      return createHeadingFoldState(tr.state);
+    }
 
     if (tr.docChanged || headingsChanged) {
       const nextHeadings = after.headings;
@@ -430,9 +524,14 @@ const headingFoldField = StateField.define<HeadingFoldState>({
 
       return {
         headings: nextHeadings,
+        blockSections: value.blockSections,
         boundaryIndices: value.boundaryIndices,
         sectionsByHeadingIndex,
         sectionByHeadingFrom,
+        foldableByLineFrom: buildFoldableByLineFrom([
+          ...collectSections(sectionsByHeadingIndex),
+          ...value.blockSections,
+        ]),
         decorations: updateFoldToggles(
           tr,
           value.decorations,
@@ -448,7 +547,10 @@ const headingFoldField = StateField.define<HeadingFoldState>({
         ...value,
         decorations: buildFoldToggles(
           tr.state,
-          collectSections(value.sectionsByHeadingIndex),
+          [
+            ...collectSections(value.sectionsByHeadingIndex),
+            ...value.blockSections,
+          ],
         ),
       };
     }
@@ -457,6 +559,7 @@ const headingFoldField = StateField.define<HeadingFoldState>({
   },
   compare(a, b) {
     return a.sectionsByHeadingIndex === b.sectionsByHeadingIndex
+      && a.blockSections === b.blockSections
       && a.decorations === b.decorations;
   },
   provide(field) {

@@ -67,6 +67,11 @@ export const CSS = {
   blockDisclosureToggleCollapsed: "cf-block-disclosure-toggle-collapsed",
   blockHeadingContent: "cf-block-heading-content",
 
+  /** Reader section disclosure heading, body, and triangle. */
+  sectionHeadingCollapsible: "cf-doc-section-heading-collapsible",
+  sectionDisclosureBody: "cf-section-disclosure-body",
+  sectionDisclosureToggle: "cf-section-disclosure-toggle",
+
   /** Title paren widgets around user-supplied title text. */
   blockTitleParen: "cf-block-title-paren",
 

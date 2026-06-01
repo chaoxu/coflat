@@ -142,6 +142,57 @@ describe("hydrateMath — KaTeX import laziness", () => {
 });
 
 describe("hydrateBlockDisclosures", () => {
+  it("adds section disclosures without making heading text a toggle", () => {
+    const { html } = renderToHtml([
+      "# Intro",
+      "",
+      "intro body",
+      "",
+      "## Nested",
+      "",
+      "nested body",
+      "",
+      "# Next",
+    ].join("\n"));
+    const root = makeRoot(html);
+
+    hydrateBlockDisclosures(root);
+
+    const headings = root.querySelectorAll<HTMLElement>(".cf-doc-section-heading-collapsible");
+    expect(headings).toHaveLength(2);
+
+    const introHeading = headings[0];
+    const introButton = introHeading?.querySelector<HTMLButtonElement>(":scope > .cf-section-disclosure-toggle");
+    const introBody = introHeading?.nextElementSibling as HTMLElement | null;
+    expect(introButton).not.toBeNull();
+    expect(introButton?.textContent).toBe("▼");
+    expect(introButton?.getAttribute("aria-expanded")).toBe("true");
+    expect(introBody?.classList.contains("cf-section-disclosure-body")).toBe(true);
+    expect(introBody?.textContent).toContain("intro body");
+    expect(introBody?.querySelector(".cf-doc-heading--h2")).not.toBeNull();
+    expect(introBody?.textContent).not.toContain("Next");
+
+    introHeading?.click();
+    expect(introHeading?.getAttribute("data-cf-section-open")).toBe("true");
+    expect(introBody?.hidden).toBe(false);
+
+    introButton?.click();
+    expect(introHeading?.getAttribute("data-cf-section-open")).toBe("false");
+    expect(introButton?.textContent).toBe("▶");
+    expect(introButton?.getAttribute("aria-expanded")).toBe("false");
+    expect(introBody?.hidden).toBe(true);
+  });
+
+  it("hydrates section disclosures idempotently", () => {
+    const { html } = renderToHtml("# Intro\n\nbody");
+    const root = makeRoot(html);
+
+    hydrateBlockDisclosures(root);
+    hydrateBlockDisclosures(root);
+
+    expect(root.querySelectorAll(".cf-section-disclosure-toggle")).toHaveLength(1);
+  });
+
   it("toggles only from the disclosure triangle, not the block header text", () => {
     const { html } = renderToHtml("::: {.theorem title=\"Readable column\"}\nbody\n:::");
     const root = makeRoot(html);

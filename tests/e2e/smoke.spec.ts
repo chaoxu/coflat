@@ -433,6 +433,64 @@ test("public demo reader aligns the collapse rail with the disclosure triangle",
   expect(Math.abs(afterHover.blockWidth - beforeHover.blockWidth)).toBeLessThanOrEqual(0.5);
 });
 
+test("public demo exposes matching section and block disclosure controls", async ({ page }) => {
+  await page.goto("/examples/simple/index.html?doc=showcase&surface=reader");
+  await expect(page.locator("#reader")).toBeVisible();
+
+  expect(await page.locator("#reader .cf-section-disclosure-toggle").count()).toBeGreaterThan(0);
+  expect(await page.locator("#reader .cf-doc-block-collapsible > .cf-doc-block-heading > .cf-block-disclosure-toggle").count()).toBeGreaterThan(0);
+
+  const readerSectionButton = page.locator("#reader .cf-doc-section-heading-collapsible > .cf-section-disclosure-toggle").first();
+  await readerSectionButton.click({ force: true });
+  expect(await page.locator("#reader .cf-doc-section-heading-collapsible").first().evaluate((heading) => {
+    const body = heading.nextElementSibling;
+    return {
+      expanded: heading.getAttribute("data-cf-section-open"),
+      hidden: body instanceof HTMLElement ? body.hidden : null,
+      text: heading.querySelector(".cf-section-disclosure-toggle")?.textContent,
+    };
+  })).toEqual({
+    expanded: "false",
+    hidden: true,
+    text: "▶",
+  });
+
+  const readerBlockButton = page.locator('#reader [id="thm:hover-preview"] > .cf-doc-block-heading > .cf-block-disclosure-toggle');
+  await readerBlockButton.click({ force: true });
+  expect(await page.locator('#reader [id="thm:hover-preview"]').evaluate((block) => {
+    const body = block.querySelector(":scope > .cf-block-disclosure-body");
+    return {
+      expanded: block.getAttribute("data-cf-block-open"),
+      hidden: body instanceof HTMLElement ? body.hidden : null,
+      text: block.querySelector(":scope > .cf-doc-block-heading > .cf-block-disclosure-toggle")?.textContent,
+    };
+  })).toEqual({
+    expanded: "false",
+    hidden: true,
+    text: "▶",
+  });
+
+  await page.goto("/examples/simple/index.html?doc=showcase&surface=editor");
+  await expect(page.locator("#editor .cm-editor")).toBeVisible();
+  await settleLayout(page);
+  await page.evaluate(() => window.scrollTo(0, 2400));
+  await settleLayout(page);
+
+  await expect.poll(() => page.locator("#editor .cf-fold-block").count()).toBeGreaterThan(0);
+  const editorBlockButton = page.locator("#editor .cf-fold-block").first();
+  await expect(editorBlockButton).toHaveAttribute("aria-label", "Fold block");
+  await editorBlockButton.click({ force: true });
+  await expect(editorBlockButton).toHaveText("▶");
+  await expect(editorBlockButton).toHaveAttribute("aria-label", "Unfold block");
+
+  const editorSectionButton = page.locator('#editor .cm-line.cf-fold-line:has-text("Block Hover Preview Coverage") .cf-fold-h1');
+  await expect(editorSectionButton).toHaveCount(1);
+  await expect(editorSectionButton).toHaveAttribute("aria-label", "Fold section");
+  await editorSectionButton.click({ force: true });
+  await expect(editorSectionButton).toHaveText("▶");
+  await expect(editorSectionButton).toHaveAttribute("aria-label", "Unfold section");
+});
+
 test("public demo table cell editing does not inherit page-height scrolling", async ({ page }) => {
   await page.goto("/examples/simple/index.html");
 

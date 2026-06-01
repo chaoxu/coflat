@@ -149,6 +149,16 @@ export function getBlockManifestEntry(blockType: string | undefined): BlockManif
   return blockType ? BLOCK_MANIFEST_BY_NAME.get(blockType) : undefined;
 }
 
+export function isCollapsibleBlockType(blockType: string | undefined): boolean {
+  const entry = getBlockManifestEntry(blockType);
+  return Boolean(
+    blockType
+    && entry?.latexExportKind === "environment"
+    && entry.headerPosition !== "inline"
+    && entry.displayHeader !== false,
+  );
+}
+
 export function isKnownManifestBlockType(blockType: string): boolean {
   return BLOCK_MANIFEST_BY_NAME.has(blockType);
 }

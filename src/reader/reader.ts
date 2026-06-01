@@ -18,7 +18,10 @@ import {
   BRACKETED_REFERENCE_EXACT_RE,
   parseReferenceClusterBody,
 } from "../core/lib/reference-grammar";
-import { getBlockManifestEntry } from "../core/constants/block-manifest";
+import {
+  getBlockManifestEntry,
+  isCollapsibleBlockType,
+} from "../core/constants/block-manifest";
 import {
   CSS,
   hostReferenceClassNames,
@@ -72,6 +75,8 @@ const BLOCK_DISCLOSURE_OPEN_ICON = "▼";
 const BLOCK_DISCLOSURE_CLOSED_ICON = "▶";
 const BLOCK_DISCLOSURE_COLLAPSE_LABEL = "Collapse block";
 const BLOCK_DISCLOSURE_EXPAND_LABEL = "Expand block";
+const SECTION_DISCLOSURE_COLLAPSE_LABEL = "Collapse section";
+const SECTION_DISCLOSURE_EXPAND_LABEL = "Expand section";
 
 // ---------------------------------------------------------------------------
 // Parser (lazy: only constructed when the fast path can't handle the input).
@@ -250,11 +255,6 @@ function renderStaticBlockHeader(summaryHtml: string, bodyHtml: string): string 
     `</div>` +
     `<div class="${CSS.blockDisclosureBody}">${bodyHtml}</div>`
   );
-}
-
-function isCollapsibleBlock(type: string): boolean {
-  const entry = getBlockManifestEntry(type);
-  return entry?.latexExportKind === "environment" && entry.displayHeader !== false;
 }
 
 function addRootClass(html: string, className: string): string {
@@ -1643,8 +1643,7 @@ function renderFencedDiv(ctx: WalkContext, node: SyntaxNode): BlockResult {
   }
   const collapsibleBlock = Boolean(
     normalizedClassName &&
-    manifestEntry?.headerPosition !== "inline" &&
-    isCollapsibleBlock(normalizedClassName),
+    isCollapsibleBlockType(normalizedClassName),
   );
   const interactiveBlock = collapsibleBlock && ctx.interactiveBlockDisclosures;
   const classes = [blockClasses(normalizedClassName || undefined)];
@@ -2347,6 +2346,8 @@ function countTextCharsBefore(root: Element, target: Node): number {
 
 const BLOCK_DISCLOSURE_HYDRATED_ATTR = "data-cf-block-disclosure-hydrated";
 const BLOCK_OPEN_ATTR = "data-cf-block-open";
+const SECTION_DISCLOSURE_HYDRATED_ATTR = "data-cf-section-disclosure-hydrated";
+const SECTION_OPEN_ATTR = "data-cf-section-open";
 
 function blockDisclosureParts(block: HTMLElement): {
   body: HTMLElement;
@@ -2403,6 +2404,90 @@ export function hydrateBlockDisclosures(root: HTMLElement): void {
     });
     block.setAttribute(BLOCK_DISCLOSURE_HYDRATED_ATTR, "true");
   }
+
+  hydrateSectionDisclosures(root);
+}
+
+function headingElementLevel(heading: HTMLElement): number {
+  const tagMatch = /^H([1-6])$/.exec(heading.tagName);
+  if (tagMatch) return Number(tagMatch[1]);
+  for (let level = 1; level <= 6; level++) {
+    if (heading.classList.contains(DOCUMENT_SURFACE_CLASS.headingLevel(level))) {
+      return level;
+    }
+  }
+  return 0;
+}
+
+function isSectionBoundaryNode(node: Node, level: number): boolean {
+  if (!(node instanceof HTMLElement)) return false;
+  if (!node.classList.contains(DOCUMENT_SURFACE_CLASS.heading)) return false;
+  const boundaryLevel = headingElementLevel(node);
+  return boundaryLevel > 0 && boundaryLevel <= level;
+}
+
+function createSectionDisclosureToggle(): HTMLButtonElement {
+  const toggle = document.createElement("button");
+  toggle.className = `${CSS.blockDisclosureToggle} ${CSS.sectionDisclosureToggle}`;
+  toggle.type = "button";
+  return toggle;
+}
+
+function applySectionDisclosureState(
+  heading: HTMLElement,
+  body: HTMLElement,
+  toggle: HTMLButtonElement,
+  expanded: boolean,
+): void {
+  heading.setAttribute(SECTION_OPEN_ATTR, expanded ? "true" : "false");
+  body.hidden = !expanded;
+  toggle.textContent = expanded ? BLOCK_DISCLOSURE_OPEN_ICON : BLOCK_DISCLOSURE_CLOSED_ICON;
+  toggle.classList.toggle(CSS.blockDisclosureToggleCollapsed, !expanded);
+  toggle.setAttribute("aria-expanded", expanded ? "true" : "false");
+  toggle.setAttribute("aria-label", expanded ? SECTION_DISCLOSURE_COLLAPSE_LABEL : SECTION_DISCLOSURE_EXPAND_LABEL);
+}
+
+function hydrateSectionDisclosures(root: HTMLElement): void {
+  if (root.getAttribute(SECTION_DISCLOSURE_HYDRATED_ATTR) === "true") return;
+
+  const headings = [
+    ...(root.classList.contains(DOCUMENT_SURFACE_CLASS.heading) ? [root] : []),
+    ...Array.from(root.querySelectorAll<HTMLElement>(`.${DOCUMENT_SURFACE_CLASS.heading}`)),
+  ];
+
+  for (let index = headings.length - 1; index >= 0; index--) {
+    const heading = headings[index];
+    const level = headingElementLevel(heading);
+    if (level === 0) continue;
+
+    const body = document.createElement("div");
+    body.className = CSS.sectionDisclosureBody;
+
+    let sibling = heading.nextSibling;
+    while (sibling && !isSectionBoundaryNode(sibling, level)) {
+      const next = sibling.nextSibling;
+      body.appendChild(sibling);
+      sibling = next;
+    }
+
+    if (!body.firstChild) continue;
+
+    const toggle = createSectionDisclosureToggle();
+    heading.classList.add(CSS.sectionHeadingCollapsible);
+    heading.insertBefore(toggle, heading.firstChild);
+    heading.after(body);
+    applySectionDisclosureState(heading, body, toggle, true);
+    toggle.addEventListener("click", () => {
+      applySectionDisclosureState(
+        heading,
+        body,
+        toggle,
+        heading.getAttribute(SECTION_OPEN_ATTR) === "false",
+      );
+    });
+  }
+
+  root.setAttribute(SECTION_DISCLOSURE_HYDRATED_ATTR, "true");
 }
 
 // ---------------------------------------------------------------------------

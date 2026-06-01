@@ -163,6 +163,12 @@ describe("theme CSS contract", () => {
     expect(cssRuleBody(css, ".cf-reader .cf-doc-block-collapsible > .cf-block-disclosure-body")).toContain(
       "position: relative;",
     );
+    expect(cssRuleBody(css, ".cf-reader .cf-doc-section-heading-collapsible")).toContain(
+      "position: relative;",
+    );
+    expect(cssRuleBody(css, ".cf-reader .cf-section-disclosure-body")).toContain(
+      "position: relative;",
+    );
     const collapsibleRail = cssRuleBody(css, ".cf-reader .cf-doc-block-collapsible > .cf-block-disclosure-body::before");
     expect(collapsibleRail).toContain(
       "left: calc(-0.5em - var(--cf-spacing-xs));",
@@ -172,6 +178,9 @@ describe("theme CSS contract", () => {
     );
     expect(collapsibleRail).toContain(
       "width: var(--cf-border-width-accent, 2px);",
+    );
+    expect(cssRuleBody(css, ".cf-reader .cf-section-disclosure-body::before")).toContain(
+      "left: calc(-0.5em - var(--cf-spacing-xs));",
     );
     expect(cssRuleBody(css, ".cf-reader .cf-doc-block-collapsible:hover > .cf-block-disclosure-body::before,\n.cf-reader .cf-doc-block-collapsible:focus-within > .cf-block-disclosure-body::before")).toContain(
       "opacity: 1;",
@@ -185,9 +194,10 @@ describe("theme CSS contract", () => {
     expect(disclosureToggle).toContain("right: 100%;");
     expect(disclosureToggle).toContain("transition: opacity");
     expect(disclosureToggle).not.toMatch(/\bfont-(?:family|size)\s*:/);
-    expect(cssRuleBody(css, ".cf-reader .cf-doc-block-collapsible:hover > .cf-doc-block-heading > .cf-block-disclosure-toggle,\n.cf-reader .cf-doc-block-collapsible:focus-within > .cf-doc-block-heading > .cf-block-disclosure-toggle")).toContain("opacity: 1;");
+    expect(cssRuleBody(css, ".cf-reader .cf-doc-block-collapsible:hover > .cf-doc-block-heading > .cf-block-disclosure-toggle,\n.cf-reader .cf-doc-block-collapsible:focus-within > .cf-doc-block-heading > .cf-block-disclosure-toggle,\n.cf-reader .cf-doc-section-heading-collapsible:hover > .cf-block-disclosure-toggle,\n.cf-reader .cf-doc-section-heading-collapsible:focus-within > .cf-block-disclosure-toggle")).toContain("opacity: 1;");
     expect(cssRuleBody(css, ".cf-reader .cf-block-disclosure-toggle:hover,\n.cf-reader .cf-block-disclosure-toggle:focus-visible,\n.cf-reader .cf-block-disclosure-toggle-collapsed")).toContain("opacity: 1;");
     expect(cssRuleBody(css, ".cf-reader .cf-block-disclosure-body[hidden]")).toContain("display: none;");
+    expect(cssRuleBody(css, ".cf-reader .cf-section-disclosure-body[hidden]")).toContain("display: none;");
     expect(cssRuleBody(css, ".cf-block-header-rendered")).toContain("line-height: 0;");
   });
 

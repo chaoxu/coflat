@@ -1527,7 +1527,30 @@
   position: relative;
 }
 
+.cf-reader .cf-doc-section-heading-collapsible {
+  position: relative;
+}
+
+.cf-reader .cf-section-disclosure-body {
+  --cf-block-disclosure-indicator-color: color-mix(in srgb, var(--cf-fg) 45%, transparent);
+  position: relative;
+}
+
 .cf-reader .cf-doc-block-collapsible > .cf-block-disclosure-body::before {
+  background: var(--cf-block-disclosure-indicator-color);
+  bottom: 0;
+  content: "";
+  left: calc(-0.5em - var(--cf-spacing-xs));
+  opacity: 0;
+  pointer-events: none;
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  transition: opacity var(--cf-transition, 0.15s ease);
+  width: var(--cf-border-width-accent, 2px);
+}
+
+.cf-reader .cf-section-disclosure-body::before {
   background: var(--cf-block-disclosure-indicator-color);
   bottom: 0;
   content: "";
@@ -1543,6 +1566,13 @@
 
 .cf-reader .cf-doc-block-collapsible:hover > .cf-block-disclosure-body::before,
 .cf-reader .cf-doc-block-collapsible:focus-within > .cf-block-disclosure-body::before {
+  opacity: 1;
+}
+
+.cf-reader .cf-doc-section-heading-collapsible:hover + .cf-section-disclosure-body::before,
+.cf-reader .cf-doc-section-heading-collapsible:focus-within + .cf-section-disclosure-body::before,
+.cf-reader .cf-section-disclosure-body:hover::before,
+.cf-reader .cf-section-disclosure-body:focus-within::before {
   opacity: 1;
 }
 
@@ -1571,7 +1601,9 @@
 }
 
 .cf-reader .cf-doc-block-collapsible:hover > .cf-doc-block-heading > .cf-block-disclosure-toggle,
-.cf-reader .cf-doc-block-collapsible:focus-within > .cf-doc-block-heading > .cf-block-disclosure-toggle {
+.cf-reader .cf-doc-block-collapsible:focus-within > .cf-doc-block-heading > .cf-block-disclosure-toggle,
+.cf-reader .cf-doc-section-heading-collapsible:hover > .cf-block-disclosure-toggle,
+.cf-reader .cf-doc-section-heading-collapsible:focus-within > .cf-block-disclosure-toggle {
   opacity: 1;
 }
 
@@ -1588,6 +1620,10 @@
 }
 
 .cf-reader .cf-block-disclosure-body[hidden] {
+  display: none;
+}
+
+.cf-reader .cf-section-disclosure-body[hidden] {
   display: none;
 }
 

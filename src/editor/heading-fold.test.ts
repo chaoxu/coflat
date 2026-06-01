@@ -12,6 +12,7 @@ import {
   _headingFoldFieldForTest as headingFoldField,
   headingFold,
 } from "./heading-fold";
+import { markdownExtensions } from "../core/parser";
 
 function getFoldRange(
   view: EditorView,
@@ -217,5 +218,47 @@ describe("headingFold", () => {
 
     expect(isRangeFolded(view, range)).toBe(true);
     expect(getFoldToggles(view)[1]?.textContent).toBe("▶");
+  });
+
+  it("folds semantic fenced blocks from the block header line", () => {
+    const doc = [
+      "::: {.theorem title=\"Block fold\"}",
+      "body",
+      ":::",
+      "",
+      "# After",
+      "tail",
+    ].join("\n");
+
+    view = createTestView(doc, {
+      extensions: [markdown({ extensions: markdownExtensions }), codeFolding(), headingFold],
+    });
+
+    const range = getFoldRange(view, 1);
+    expect(range).toEqual({
+      from: view.state.doc.line(1).to,
+      to: view.state.doc.line(3).to,
+    });
+
+    const blockToggle = getFoldToggles(view).find((toggle) =>
+      toggle.classList.contains("cf-fold-block")
+    );
+    expect(blockToggle).not.toBeUndefined();
+    expect(blockToggle?.getAttribute("aria-label")).toBe("Fold block");
+
+    if (!range || !blockToggle) {
+      throw new Error("expected a foldable semantic block");
+    }
+
+    blockToggle.dispatchEvent(
+      new MouseEvent("mousedown", { bubbles: true, cancelable: true }),
+    );
+
+    expect(isRangeFolded(view, range)).toBe(true);
+    const updatedBlockToggle = getFoldToggles(view).find((toggle) =>
+      toggle.classList.contains("cf-fold-block")
+    );
+    expect(updatedBlockToggle?.textContent).toBe("▶");
+    expect(updatedBlockToggle?.getAttribute("aria-label")).toBe("Unfold block");
   });
 });
