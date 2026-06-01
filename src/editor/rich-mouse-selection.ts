@@ -1,5 +1,6 @@
-import type { EditorSelection } from "@codemirror/state";
+import { EditorSelection, type Extension } from "@codemirror/state";
 import { EditorView, type ViewUpdate } from "@codemirror/view";
+import { DOCUMENT_SURFACE_CLASS } from "../core/document-surface-classes";
 import { CSS } from "../core/constants/css-classes";
 import {
   clampToLineBounds,
@@ -78,11 +79,23 @@ function resolveVisibleLineTarget(
   const bounds = lineBoundsForElement(view, line);
   if (!bounds) return null;
   return (
-    coordTargetAtPoint(view, x, y, bounds)
-    ?? 
     domCaretTargetAtPoint(view, x, y, line, bounds)
+    ?? coordTargetAtPoint(view, x, y, bounds)
     ?? fallbackTargetForLine(line, bounds, x)
   );
+}
+
+function isTaskListLineTarget(
+  view: EditorView,
+  x: number,
+  y: number,
+  target: EventTarget | null,
+): boolean {
+  if (target instanceof HTMLInputElement && target.type === "checkbox") {
+    return false;
+  }
+  const line = lineElementAtPoint(view, { x, y }, target);
+  return Boolean(line?.classList.contains(DOCUMENT_SURFACE_CLASS.listItemCheck));
 }
 
 function isContentSurfaceTarget(
@@ -189,7 +202,33 @@ function createRichMouseSelectionStyle(
   };
 }
 
-export const richMouseSelectionStyle = EditorView.mouseSelectionStyle.of((view, event) => {
+const richTaskListMouseDownGuard = EditorView.domEventHandlers({
+  mousedown(event: MouseEvent, view: EditorView) {
+    if (!isRichLikeMode(view)) return false;
+    if (!isPlainPrimaryMouseEvent(event) || event.detail !== 1) return false;
+    if (startsOnRenderedMath(view, event.clientX, event.clientY, event.target)) return false;
+    if (startsOnWidgetOwnedSurface(view, event.clientX, event.clientY, event.target)) return false;
+    if (!isTaskListLineTarget(view, event.clientX, event.clientY, event.target)) return false;
+
+    const target = resolveVisibleLineTarget(
+      view,
+      event.clientX,
+      event.clientY,
+      event.target,
+    );
+    if (!target) return false;
+
+    event.preventDefault();
+    view.dispatch({
+      selection: EditorSelection.create([EditorSelection.cursor(target.pos, target.assoc)]),
+      scrollIntoView: false,
+    });
+    view.focus();
+    return true;
+  },
+});
+
+const richMouseSelectionStyleExtension = EditorView.mouseSelectionStyle.of((view, event) => {
   if (!isRichLikeMode(view)) return null;
   if (!isPlainPrimaryMouseEvent(event) || event.detail !== 1) return null;
   if (startsOnRenderedMath(view, event.clientX, event.clientY, event.target)) return null;
@@ -214,3 +253,8 @@ export const richMouseSelectionStyle = EditorView.mouseSelectionStyle.of((view, 
 
   return null;
 });
+
+export const richMouseSelectionStyle: Extension = [
+  richTaskListMouseDownGuard,
+  richMouseSelectionStyleExtension,
+];
