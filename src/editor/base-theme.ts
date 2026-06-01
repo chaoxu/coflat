@@ -14,6 +14,7 @@ export const baseThemeStyles = {
   "&": {
     fontSize: "var(--cf-base-font-size, 16px)",
     fontFamily: "var(--cf-content-font, KaTeX_Main, 'Times New Roman', serif)",
+    position: "relative",
   },
   ".cm-content": {
     fontFamily: "var(--cf-content-font, KaTeX_Main, 'Times New Roman', serif)",
@@ -42,23 +43,18 @@ export const baseThemeStyles = {
   ".cf-fold-rail-line": {
     position: "relative",
   },
-  ".cf-fold-rail-line::before": {
+  ".cf-fold-rail-overlay": {
     background: "var(--cf-block-disclosure-indicator-color, color-mix(in srgb, var(--cf-fg) 45%, transparent))",
-    bottom: "0",
-    content: "\"\"",
-    left: "calc(-0.5em - var(--cf-spacing-xs))",
     pointerEvents: "none",
     position: "absolute",
-    top: "0",
     transform: "translateX(-50%)",
+    transition: "opacity var(--cf-transition, 0.15s ease)",
     width: "var(--cf-border-width-accent, 2px)",
+    zIndex: "1",
   },
-  ".cf-fold-rail-line-block::before": {
-    fontSize: "var(--cf-ui-font-size-base)",
+  ".cf-fold-rail-overlay[hidden]": {
+    display: "none",
   },
-  ".cf-fold-rail-h1::before": { fontSize: "24px" },
-  ".cf-fold-rail-h2::before": { fontSize: "20px" },
-  ".cf-fold-rail-h3::before": { fontSize: "16px" },
   ".cf-fold-toggle": {
     position: "absolute",
     right: "100%",

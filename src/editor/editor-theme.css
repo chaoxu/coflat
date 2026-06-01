@@ -1547,29 +1547,14 @@
   width: var(--cf-border-width-accent, 2px);
 }
 
-.cf-reader .cf-doc-block-collapsible:hover > .cf-block-disclosure-body::before,
-.cf-reader .cf-doc-block-collapsible:focus-within > .cf-block-disclosure-body::before {
+.cf-reader .cf-doc-block-collapsible:has(> .cf-doc-block-heading > .cf-block-disclosure-toggle:hover) > .cf-block-disclosure-body::before,
+.cf-reader .cf-doc-block-collapsible:has(> .cf-doc-block-heading > .cf-block-disclosure-toggle:focus-visible) > .cf-block-disclosure-body::before {
   opacity: 1;
 }
 
-.cf-reader .cf-doc-section-heading-collapsible:hover + .cf-section-disclosure-body::before,
-.cf-reader .cf-doc-section-heading-collapsible:focus-within + .cf-section-disclosure-body::before,
-.cf-reader .cf-section-disclosure-body:hover::before,
-.cf-reader .cf-section-disclosure-body:focus-within::before {
+.cf-reader .cf-doc-section-heading-collapsible:has(> .cf-section-disclosure-toggle:hover) + .cf-section-disclosure-body::before,
+.cf-reader .cf-doc-section-heading-collapsible:has(> .cf-section-disclosure-toggle:focus-visible) + .cf-section-disclosure-body::before {
   opacity: 1;
-}
-
-.cf-reader .cf-doc-block-collapsible:has(.cf-doc-block-collapsible:hover) > .cf-block-disclosure-body::before,
-.cf-reader .cf-doc-block-collapsible:has(.cf-doc-block-collapsible:focus-within) > .cf-block-disclosure-body::before,
-.cf-reader .cf-doc-block-collapsible:has(.cf-doc-section-heading-collapsible:hover) > .cf-block-disclosure-body::before,
-.cf-reader .cf-doc-block-collapsible:has(.cf-doc-section-heading-collapsible:focus-within) > .cf-block-disclosure-body::before,
-.cf-reader .cf-section-disclosure-body:has(.cf-doc-block-collapsible:hover)::before,
-.cf-reader .cf-section-disclosure-body:has(.cf-doc-block-collapsible:focus-within)::before,
-.cf-reader .cf-section-disclosure-body:has(.cf-doc-section-heading-collapsible:hover)::before,
-.cf-reader .cf-section-disclosure-body:has(.cf-doc-section-heading-collapsible:focus-within)::before,
-.cf-reader .cf-section-disclosure-body:has(.cf-section-disclosure-body:hover)::before,
-.cf-reader .cf-section-disclosure-body:has(.cf-section-disclosure-body:focus-within)::before {
-  opacity: 0;
 }
 
 .cf-reader .cf-block-heading-content {

@@ -408,15 +408,22 @@ test("public demo reader aligns the collapse rail with the disclosure triangle",
 
   await theorem.hover();
   await expect.poll(() => theorem.evaluate((el) => {
-    const body = el.querySelector(":scope > .cf-block-disclosure-body");
-    if (!(body instanceof HTMLElement)) throw new Error("missing disclosure body");
-    return getComputedStyle(body, "::before").opacity;
-  }))
-    .toBe("1");
-  await expect.poll(() => theorem.evaluate((el) => {
     const toggle = el.querySelector(":scope > .cf-doc-block-heading > .cf-block-disclosure-toggle");
     if (!(toggle instanceof HTMLElement)) throw new Error("missing disclosure toggle");
     return getComputedStyle(toggle).opacity;
+  })).toBe("1");
+  expect(await theorem.evaluate((el) => {
+    const body = el.querySelector(":scope > .cf-block-disclosure-body");
+    if (!(body instanceof HTMLElement)) throw new Error("missing disclosure body");
+    return getComputedStyle(body, "::before").opacity;
+  })).toBe("0");
+
+  const theoremToggle = theorem.locator("> .cf-doc-block-heading > .cf-block-disclosure-toggle");
+  await theoremToggle.hover();
+  await expect.poll(() => theorem.evaluate((el) => {
+    const body = el.querySelector(":scope > .cf-block-disclosure-body");
+    if (!(body instanceof HTMLElement)) throw new Error("missing disclosure body");
+    return getComputedStyle(body, "::before").opacity;
   })).toBe("1");
   const afterHover = await theorem.evaluate((el) => {
     const rect = el.getBoundingClientRect();
@@ -438,14 +445,50 @@ test("public demo editor shows matching collapse rails", async ({ page }) => {
   await page.goto("/examples/simple/index.html?doc=showcase&surface=editor");
   await expect(page.locator("#editor .cm-editor")).toBeVisible();
   await settleLayout(page);
-  await page.evaluate(() => window.scrollTo(0, 2400));
+
+  const numberedHeading = page.locator('#editor .cm-line.cf-doc-heading--h1[data-section-number="2"]');
+  await numberedHeading.scrollIntoViewIfNeeded();
+  const headingBeforeHover = await numberedHeading.evaluate((heading) => {
+    const rect = heading.getBoundingClientRect();
+    return {
+      beforeContent: getComputedStyle(heading, "::before").content,
+      height: rect.height,
+      text: heading.textContent,
+      width: rect.width,
+    };
+  });
+  await numberedHeading.hover();
+  await expect.poll(() => numberedHeading.locator(".cf-fold-toggle").evaluate((toggle) =>
+    getComputedStyle(toggle).opacity
+  )).toBe("1");
+  await expect(page.locator('#editor .cf-fold-rail-overlay[data-cf-visible="true"]')).toHaveCount(0);
+  const headingAfterHover = await numberedHeading.evaluate((heading) => {
+    const rect = heading.getBoundingClientRect();
+    return {
+      beforeContent: getComputedStyle(heading, "::before").content,
+      height: rect.height,
+      text: heading.textContent,
+      width: rect.width,
+    };
+  });
+  expect(headingAfterHover).toEqual(headingBeforeHover);
+
+  await page.evaluate(() => window.scrollTo(0, 1950));
   await settleLayout(page);
   await page.mouse.move(10, 10);
 
   await expect.poll(() => page.locator("#editor .cf-fold-block").count()).toBeGreaterThan(0);
-  await expect(page.locator("#editor .cf-fold-rail-line")).toHaveCount(0);
+  await expect(page.locator('#editor .cf-fold-rail-overlay[data-cf-visible="true"]')).toHaveCount(0);
 
-  const blockToggle = page.locator("#editor .cf-fold-block").filter({ visible: true }).first();
+  const blockHeader = page.locator("#editor .cm-line.cf-fold-line", { hasText: "Hover Preview Stress Test" });
+  await expect(blockHeader).toBeVisible();
+  await blockHeader.hover();
+  await expect.poll(() => blockHeader.locator(".cf-fold-toggle").evaluate((toggle) =>
+    getComputedStyle(toggle).opacity
+  )).toBe("1");
+  await expect(page.locator('#editor .cf-fold-rail-overlay[data-cf-visible="true"]')).toHaveCount(0);
+
+  const blockToggle = blockHeader.locator(".cf-fold-block");
   await expect(blockToggle).toBeVisible();
   await blockToggle.hover();
   await expect.poll(() => page.locator("#editor .cf-fold-rail-line-block").count()).toBeGreaterThan(0);
@@ -458,30 +501,45 @@ test("public demo editor shows matching collapse rails", async ({ page }) => {
 
   const railGeometry = await page.evaluate(() => {
     const toggle = document.querySelector("#editor .cf-fold-rail-heading-active .cf-fold-toggle");
-    const railLine = document.querySelector("#editor .cf-fold-rail-line-block");
-    if (!(toggle instanceof HTMLElement) || !(railLine instanceof HTMLElement)) {
+    const overlay = document.querySelector('#editor .cf-fold-rail-overlay[data-cf-visible="true"]');
+    const activeHeading = document.querySelector("#editor .cf-fold-rail-heading-active");
+    const displayMath = [...document.querySelectorAll("#editor .cf-doc-display-math")].find((el) => {
+      if (!(activeHeading instanceof HTMLElement)) return false;
+      const headingRect = activeHeading.getBoundingClientRect();
+      const mathRect = el.getBoundingClientRect();
+      return mathRect.top > headingRect.bottom && mathRect.top < headingRect.bottom + 220;
+    });
+    if (!(toggle instanceof HTMLElement) || !(overlay instanceof HTMLElement) || !(activeHeading instanceof HTMLElement) || !(displayMath instanceof HTMLElement)) {
       throw new Error("missing editor rail parts");
     }
     const toggleRect = toggle.getBoundingClientRect();
-    const lineRect = railLine.getBoundingClientRect();
-    const railStyle = getComputedStyle(railLine, "::before");
+    const headingRect = activeHeading.getBoundingClientRect();
+    const overlayRect = overlay.getBoundingClientRect();
+    const mathRect = displayMath.getBoundingClientRect();
     return {
-      lineHeight: lineRect.height,
-      railBackground: railStyle.backgroundColor,
-      railCenter: lineRect.left + Number.parseFloat(railStyle.left),
-      railWidth: railStyle.width,
+      displayMathBottom: mathRect.bottom,
+      displayMathTop: mathRect.top,
+      headerBottom: headingRect.bottom,
+      overlayBackground: getComputedStyle(overlay).backgroundColor,
+      overlayBottom: overlayRect.bottom,
+      overlayCenter: (overlayRect.left + overlayRect.right) / 2,
+      overlayTop: overlayRect.top,
+      overlayWidth: getComputedStyle(overlay).width,
       toggleCenter: (toggleRect.left + toggleRect.right) / 2,
       toggleOpacity: getComputedStyle(toggle).opacity,
     };
   });
-  expect(railGeometry.lineHeight).toBeGreaterThan(0);
-  expect(railGeometry.railBackground).not.toBe("rgba(0, 0, 0, 0)");
-  expect(railGeometry.railWidth).toBe("2px");
-  expect(Math.abs(railGeometry.railCenter - railGeometry.toggleCenter)).toBeLessThanOrEqual(0.75);
+  expect(railGeometry.overlayBackground).not.toBe("rgba(0, 0, 0, 0)");
+  expect(railGeometry.overlayWidth).toBe("2px");
+  expect(railGeometry.overlayTop).toBeGreaterThanOrEqual(railGeometry.headerBottom - 0.5);
+  expect(railGeometry.overlayTop).toBeLessThanOrEqual(railGeometry.headerBottom + 0.5);
+  expect(railGeometry.overlayTop).toBeLessThanOrEqual(railGeometry.displayMathTop + 0.5);
+  expect(railGeometry.overlayBottom).toBeGreaterThanOrEqual(railGeometry.displayMathBottom - 0.5);
+  expect(Math.abs(railGeometry.overlayCenter - railGeometry.toggleCenter)).toBeLessThanOrEqual(0.75);
   expect(railGeometry.toggleOpacity).toBe("1");
 
   await page.mouse.move(10, 10);
-  await expect(page.locator("#editor .cf-fold-rail-line")).toHaveCount(0);
+  await expect(page.locator('#editor .cf-fold-rail-overlay[data-cf-visible="true"]')).toHaveCount(0);
 });
 
 test("public demo reader shows only the deepest nested disclosure rail", async ({ page }) => {
@@ -494,6 +552,14 @@ test("public demo reader shows only the deepest nested disclosure rail", async (
   await page.mouse.move(10, 10);
 
   await theorem.hover();
+  expect(await theorem.evaluate((block) => {
+    const body = block.querySelector(":scope > .cf-block-disclosure-body");
+    if (!(body instanceof HTMLElement)) throw new Error("missing theorem body");
+    return getComputedStyle(body, "::before").opacity;
+  })).toBe("0");
+
+  const theoremToggle = theorem.locator("> .cf-doc-block-heading > .cf-block-disclosure-toggle");
+  await theoremToggle.hover();
   await expect.poll(() => theorem.evaluate((block) => {
     const body = block.querySelector(":scope > .cf-block-disclosure-body");
     if (!(body instanceof HTMLElement)) throw new Error("missing theorem body");
@@ -743,6 +809,14 @@ test("blueprint book theme applies to a host-rendered reader document", async ({
   });
   expect(beforeHover.railOpacity).toBe("0");
   await theorem.hover();
+  expect(await theorem.evaluate((el) => {
+    const body = el.querySelector(":scope > .cf-block-disclosure-body");
+    if (!(body instanceof HTMLElement)) throw new Error("missing theorem disclosure body");
+    return getComputedStyle(body, "::before").opacity;
+  })).toBe("0");
+  await expect.poll(() => theoremToggle.evaluate((el) => getComputedStyle(el).opacity))
+    .toBe("1");
+  await theoremToggle.hover();
   await expect.poll(() => theorem.evaluate((el) => {
     const body = el.querySelector(":scope > .cf-block-disclosure-body");
     if (!(body instanceof HTMLElement)) throw new Error("missing theorem disclosure body");

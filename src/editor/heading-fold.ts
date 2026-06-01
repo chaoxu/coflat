@@ -19,6 +19,8 @@ import {
   Decoration,
   type DecorationSet,
   EditorView,
+  ViewPlugin,
+  type ViewUpdate,
   keymap,
 } from "@codemirror/view";
 import {
@@ -73,13 +75,6 @@ function buildFoldableByLineFrom(
   sections: readonly FoldSection[],
 ): ReadonlyMap<number, FoldSection> {
   return new Map(sections.map((section) => [section.lineFrom, section]));
-}
-
-function allFoldSections(state: HeadingFoldState): readonly FoldSection[] {
-  return [
-    ...collectSections(state.sectionsByHeadingIndex),
-    ...state.blockSections,
-  ];
 }
 
 function sameFoldSection(left: FoldSection | null, right: FoldSection | null): boolean {
@@ -484,6 +479,90 @@ const activeFoldRailField = StateField.define<ActiveFoldRailState>({
   },
 });
 
+interface FoldRailOverlayMeasure {
+  readonly visible: boolean;
+  readonly height?: number;
+  readonly left?: number;
+  readonly top?: number;
+}
+
+class FoldRailOverlayView {
+  private readonly rail: HTMLDivElement;
+
+  constructor(private readonly view: EditorView) {
+    this.rail = document.createElement("div");
+    this.rail.className = "cf-fold-rail-overlay";
+    this.rail.hidden = true;
+    this.rail.dataset.cfVisible = "false";
+    view.dom.appendChild(this.rail);
+    this.scheduleMeasure();
+  }
+
+  update(update: ViewUpdate): void {
+    if (
+      update.docChanged
+      || update.geometryChanged
+      || update.viewportChanged
+      || update.startState.field(activeFoldRailField) !== update.state.field(activeFoldRailField)
+    ) {
+      this.scheduleMeasure();
+    }
+  }
+
+  destroy(): void {
+    this.rail.remove();
+  }
+
+  private scheduleMeasure(): void {
+    this.view.requestMeasure({
+      read: () => this.readMeasure(),
+      write: (measure) => this.writeMeasure(measure),
+    });
+  }
+
+  private readMeasure(): FoldRailOverlayMeasure {
+    const active = this.view.state.field(activeFoldRailField, false);
+    if (!active?.section) return { visible: false };
+
+    const heading = this.view.dom.querySelector<HTMLElement>(".cf-fold-rail-heading-active");
+    const toggle = heading?.querySelector<HTMLElement>(".cf-fold-toggle");
+    const bodyLines = [...this.view.dom.querySelectorAll<HTMLElement>(".cf-fold-rail-line")];
+    if (!heading || !toggle || bodyLines.length === 0) return { visible: false };
+
+    const editorRect = this.view.dom.getBoundingClientRect();
+    const headingRect = heading.getBoundingClientRect();
+    const toggleRect = toggle.getBoundingClientRect();
+    const bottom = bodyLines.reduce(
+      (max, line) => Math.max(max, line.getBoundingClientRect().bottom),
+      headingRect.bottom,
+    );
+
+    return {
+      visible: bottom > headingRect.bottom,
+      height: Math.max(0, bottom - headingRect.bottom),
+      left: (toggleRect.left + toggleRect.right) / 2 - editorRect.left,
+      top: headingRect.bottom - editorRect.top,
+    };
+  }
+
+  private writeMeasure(measure: FoldRailOverlayMeasure): void {
+    if (!measure.visible) {
+      this.rail.hidden = true;
+      this.rail.dataset.cfVisible = "false";
+      this.rail.style.height = "0px";
+      return;
+    }
+
+    this.rail.hidden = false;
+    this.rail.dataset.cfVisible = "true";
+    this.rail.style.height = `${measure.height}px`;
+    this.rail.style.left = `${measure.left}px`;
+    this.rail.style.top = `${measure.top}px`;
+  }
+}
+
+const foldRailOverlay = ViewPlugin.fromClass(FoldRailOverlayView);
+
 function findFoldSectionAtLineFrom(
   state: EditorState,
   lineFrom: number,
@@ -491,58 +570,11 @@ function findFoldSectionAtLineFrom(
   return state.field(headingFoldField, false)?.foldableByLineFrom.get(lineFrom) ?? null;
 }
 
-function findFoldSectionAtPosition(
-  state: EditorState,
-  pos: number,
-): FoldSection | null {
-  const foldState = state.field(headingFoldField, false);
-  if (!foldState) return null;
-
-  const line = state.doc.lineAt(pos);
-  const lineSection = foldState.foldableByLineFrom.get(line.from);
-  if (lineSection) return lineSection;
-
-  let best: FoldSection | null = null;
-  for (const section of allFoldSections(foldState)) {
-    if (line.to <= section.foldFrom || line.from > section.foldTo) continue;
-    if (!best || section.foldTo - section.foldFrom < best.foldTo - best.foldFrom) {
-      best = section;
-    }
-  }
-  return best;
-}
-
-function foldSectionFromMouseEvent(
-  view: EditorView,
-  event: MouseEvent,
-): FoldSection | null {
-  const target = event.target;
-  if (target instanceof Element) {
-    const toggle = target.closest<HTMLElement>(".cf-fold-toggle");
-    const lineFrom = toggle?.dataset.cfFoldLineFrom;
-    if (lineFrom) {
-      return findFoldSectionAtLineFrom(view.state, Number(lineFrom));
-    }
-  }
-
-  const pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
-  return pos === null ? null : findFoldSectionAtPosition(view.state, pos);
-}
-
 function setActiveFoldRail(view: EditorView, section: FoldSection | null): void {
   const current = view.state.field(activeFoldRailField, false)?.section ?? null;
   if (sameFoldSection(current, section)) return;
   view.dispatch({ effects: setActiveFoldRailEffect.of(section) });
 }
-
-const foldRailHoverHandlers = EditorView.domEventHandlers({
-  mousemove(event, view) {
-    setActiveFoldRail(view, foldSectionFromMouseEvent(view, event));
-  },
-  mouseleave(_event, view) {
-    setActiveFoldRail(view, null);
-  },
-});
 
 function createHeadingFoldState(state: EditorState): HeadingFoldState {
   const analysis = state.field(documentAnalysisField);
@@ -717,7 +749,7 @@ export const headingFold: Extension = [
   headingFoldService,
   headingFoldField,
   activeFoldRailField,
-  foldRailHoverHandlers,
+  foldRailOverlay,
   keymap.of(foldKeymap),
 ];
 
