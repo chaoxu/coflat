@@ -77,6 +77,14 @@ const BLOCK_DISCLOSURE_COLLAPSE_LABEL = "Collapse block";
 const BLOCK_DISCLOSURE_EXPAND_LABEL = "Expand block";
 const SECTION_DISCLOSURE_COLLAPSE_LABEL = "Collapse section";
 const SECTION_DISCLOSURE_EXPAND_LABEL = "Expand section";
+const BLOCK_DISCLOSURE_LABELS = {
+  collapse: BLOCK_DISCLOSURE_COLLAPSE_LABEL,
+  expand: BLOCK_DISCLOSURE_EXPAND_LABEL,
+} as const;
+const SECTION_DISCLOSURE_LABELS = {
+  collapse: SECTION_DISCLOSURE_COLLAPSE_LABEL,
+  expand: SECTION_DISCLOSURE_EXPAND_LABEL,
+} as const;
 
 // ---------------------------------------------------------------------------
 // Parser (lazy: only constructed when the fast path can't handle the input).
@@ -2341,7 +2349,7 @@ function countTextCharsBefore(root: Element, target: Node): number {
 }
 
 // ---------------------------------------------------------------------------
-// Block disclosure hydration.
+// Reader disclosure hydration.
 // ---------------------------------------------------------------------------
 
 const BLOCK_DISCLOSURE_HYDRATED_ATTR = "data-cf-block-disclosure-hydrated";
@@ -2349,10 +2357,17 @@ const BLOCK_OPEN_ATTR = "data-cf-block-open";
 const SECTION_DISCLOSURE_HYDRATED_ATTR = "data-cf-section-disclosure-hydrated";
 const SECTION_OPEN_ATTR = "data-cf-section-open";
 
-function blockDisclosureParts(block: HTMLElement): {
-  body: HTMLElement;
-  toggle: HTMLButtonElement;
-} | null {
+interface DisclosureLabels {
+  readonly collapse: string;
+  readonly expand: string;
+}
+
+interface DisclosureParts {
+  readonly body: HTMLElement;
+  readonly toggle: HTMLButtonElement;
+}
+
+function blockDisclosureParts(block: HTMLElement): DisclosureParts | null {
   const heading = block.querySelector<HTMLElement>(":scope > .cf-doc-block-heading");
   const body = block.querySelector<HTMLElement>(`:scope > .${CSS.blockDisclosureBody}`);
   const toggle = heading?.querySelector<HTMLElement>(`:scope > .${CSS.blockDisclosureToggle}`);
@@ -2360,17 +2375,27 @@ function blockDisclosureParts(block: HTMLElement): {
   return { body, toggle };
 }
 
-function applyBlockDisclosureState(
-  block: HTMLElement,
-  parts: { body: HTMLElement; toggle: HTMLButtonElement },
+function applyDisclosureState(
+  owner: HTMLElement,
+  openAttr: string,
+  parts: DisclosureParts,
   expanded: boolean,
+  labels: DisclosureLabels,
 ): void {
-  block.setAttribute(BLOCK_OPEN_ATTR, expanded ? "true" : "false");
+  owner.setAttribute(openAttr, expanded ? "true" : "false");
   parts.body.hidden = !expanded;
   parts.toggle.textContent = expanded ? BLOCK_DISCLOSURE_OPEN_ICON : BLOCK_DISCLOSURE_CLOSED_ICON;
   parts.toggle.classList.toggle(CSS.blockDisclosureToggleCollapsed, !expanded);
   parts.toggle.setAttribute("aria-expanded", expanded ? "true" : "false");
-  parts.toggle.setAttribute("aria-label", expanded ? BLOCK_DISCLOSURE_COLLAPSE_LABEL : BLOCK_DISCLOSURE_EXPAND_LABEL);
+  parts.toggle.setAttribute("aria-label", expanded ? labels.collapse : labels.expand);
+}
+
+function applyBlockDisclosureState(
+  block: HTMLElement,
+  parts: DisclosureParts,
+  expanded: boolean,
+): void {
+  applyDisclosureState(block, BLOCK_OPEN_ATTR, parts, expanded, BLOCK_DISCLOSURE_LABELS);
 }
 
 function setBlockDisclosureState(block: HTMLElement, expanded: boolean): void {
@@ -2386,7 +2411,7 @@ function setBlockDisclosureState(block: HTMLElement, expanded: boolean): void {
  * hydration pass is intentionally narrow: only the triangle toggles the block,
  * so selecting or clicking the header label itself never collapses content.
  */
-export function hydrateBlockDisclosures(root: HTMLElement): void {
+function hydrateSemanticBlockDisclosures(root: HTMLElement): void {
   const blocks = [
     ...(root.classList.contains(CSS.blockCollapsible) ? [root] : []),
     ...Array.from(root.querySelectorAll<HTMLElement>(`.${CSS.blockCollapsible}`)),
@@ -2404,8 +2429,21 @@ export function hydrateBlockDisclosures(root: HTMLElement): void {
     });
     block.setAttribute(BLOCK_DISCLOSURE_HYDRATED_ATTR, "true");
   }
+}
 
-  hydrateSectionDisclosures(root);
+function applySectionDisclosureState(
+  heading: HTMLElement,
+  body: HTMLElement,
+  toggle: HTMLButtonElement,
+  expanded: boolean,
+): void {
+  applyDisclosureState(
+    heading,
+    SECTION_OPEN_ATTR,
+    { body, toggle },
+    expanded,
+    SECTION_DISCLOSURE_LABELS,
+  );
 }
 
 function headingElementLevel(heading: HTMLElement): number {
@@ -2431,20 +2469,6 @@ function createSectionDisclosureToggle(): HTMLButtonElement {
   toggle.className = `${CSS.blockDisclosureToggle} ${CSS.sectionDisclosureToggle}`;
   toggle.type = "button";
   return toggle;
-}
-
-function applySectionDisclosureState(
-  heading: HTMLElement,
-  body: HTMLElement,
-  toggle: HTMLButtonElement,
-  expanded: boolean,
-): void {
-  heading.setAttribute(SECTION_OPEN_ATTR, expanded ? "true" : "false");
-  body.hidden = !expanded;
-  toggle.textContent = expanded ? BLOCK_DISCLOSURE_OPEN_ICON : BLOCK_DISCLOSURE_CLOSED_ICON;
-  toggle.classList.toggle(CSS.blockDisclosureToggleCollapsed, !expanded);
-  toggle.setAttribute("aria-expanded", expanded ? "true" : "false");
-  toggle.setAttribute("aria-label", expanded ? SECTION_DISCLOSURE_COLLAPSE_LABEL : SECTION_DISCLOSURE_EXPAND_LABEL);
 }
 
 function hydrateSectionDisclosures(root: HTMLElement): void {
@@ -2488,6 +2512,20 @@ function hydrateSectionDisclosures(root: HTMLElement): void {
   }
 
   root.setAttribute(SECTION_DISCLOSURE_HYDRATED_ATTR, "true");
+}
+
+/** Attach reader disclosure behavior for semantic blocks and sections. */
+export function hydrateReaderDisclosures(root: HTMLElement): void {
+  hydrateSemanticBlockDisclosures(root);
+  hydrateSectionDisclosures(root);
+}
+
+/**
+ * Backward-compatible alias for hosts that adopted block disclosures before
+ * section disclosures were hydrated by the reader.
+ */
+export function hydrateBlockDisclosures(root: HTMLElement): void {
+  hydrateReaderDisclosures(root);
 }
 
 // ---------------------------------------------------------------------------

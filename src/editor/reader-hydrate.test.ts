@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
-import { hydrateBlockDisclosures, hydrateMath, renderToHtml } from "../../reader";
+import {
+  hydrateBlockDisclosures,
+  hydrateMath,
+  hydrateReaderDisclosures,
+  renderToHtml,
+} from "../../reader";
 
 function makeRoot(html: string): HTMLElement {
   const root = document.createElement("div");
@@ -141,7 +146,7 @@ describe("hydrateMath — KaTeX import laziness", () => {
   });
 });
 
-describe("hydrateBlockDisclosures", () => {
+describe("hydrateReaderDisclosures", () => {
   it("adds section disclosures without making heading text a toggle", () => {
     const { html } = renderToHtml([
       "# Intro",
@@ -156,7 +161,7 @@ describe("hydrateBlockDisclosures", () => {
     ].join("\n"));
     const root = makeRoot(html);
 
-    hydrateBlockDisclosures(root);
+    hydrateReaderDisclosures(root);
 
     const headings = root.querySelectorAll<HTMLElement>(".cf-doc-section-heading-collapsible");
     expect(headings).toHaveLength(2);
@@ -187,7 +192,16 @@ describe("hydrateBlockDisclosures", () => {
     const { html } = renderToHtml("# Intro\n\nbody");
     const root = makeRoot(html);
 
-    hydrateBlockDisclosures(root);
+    hydrateReaderDisclosures(root);
+    hydrateReaderDisclosures(root);
+
+    expect(root.querySelectorAll(".cf-section-disclosure-toggle")).toHaveLength(1);
+  });
+
+  it("keeps the block disclosure hydrator as a compatibility alias", () => {
+    const { html } = renderToHtml("# Intro\n\nbody");
+    const root = makeRoot(html);
+
     hydrateBlockDisclosures(root);
 
     expect(root.querySelectorAll(".cf-section-disclosure-toggle")).toHaveLength(1);
@@ -205,7 +219,7 @@ describe("hydrateBlockDisclosures", () => {
     expect(headingText).not.toBeNull();
     expect(body).not.toBeNull();
 
-    hydrateBlockDisclosures(root);
+    hydrateReaderDisclosures(root);
 
     expect(block?.getAttribute("data-cf-block-open")).toBe("true");
     expect(button?.textContent).toBe("▼");
@@ -237,8 +251,8 @@ describe("hydrateBlockDisclosures", () => {
     expect(button).not.toBeNull();
     expect(block).not.toBeNull();
 
-    hydrateBlockDisclosures(root);
-    hydrateBlockDisclosures(root);
+    hydrateReaderDisclosures(root);
+    hydrateReaderDisclosures(root);
 
     button?.click();
     expect(block?.getAttribute("data-cf-block-open")).toBe("false");

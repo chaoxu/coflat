@@ -3,7 +3,7 @@ import { ViewPlugin } from "@codemirror/view";
 import "../../src/editor/editor-theme.css";
 import { mountEditor } from "../../editor";
 import {
-  hydrateBlockDisclosures,
+  hydrateReaderDisclosures,
   hydrateMath,
   hydrateReaderHoverPreviews,
   hydrateReferences,
@@ -197,7 +197,7 @@ function renderReaderDoc(): void {
   cleanupReaderHover?.();
   const result = renderToHtml(doc.source, documentContext, { sourcePositions: true });
   mountedReaderRoot.innerHTML = result.html;
-  hydrateBlockDisclosures(mountedReaderRoot);
+  hydrateReaderDisclosures(mountedReaderRoot);
   hydrateReferences(mountedReaderRoot, documentContext, { source: doc.source });
   void hydrateMath(mountedReaderRoot);
   cleanupReaderHover = hydrateReaderHoverPreviews(mountedReaderRoot, {

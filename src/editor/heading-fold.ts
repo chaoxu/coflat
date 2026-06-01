@@ -52,7 +52,6 @@ interface HeadingFoldSection extends FoldSection {
 
 interface BlockFoldSection extends FoldSection {
   readonly kind: "block";
-  readonly blockFrom: number;
 }
 
 interface HeadingFoldState {
@@ -60,15 +59,8 @@ interface HeadingFoldState {
   readonly blockSections: readonly BlockFoldSection[];
   readonly boundaryIndices: readonly (number | null)[];
   readonly sectionsByHeadingIndex: readonly (HeadingFoldSection | null)[];
-  readonly sectionByHeadingFrom: ReadonlyMap<number, HeadingFoldSection>;
   readonly foldableByLineFrom: ReadonlyMap<number, FoldSection>;
   readonly decorations: DecorationSet;
-}
-
-function buildSectionByHeadingFrom(
-  sections: readonly HeadingFoldSection[],
-): ReadonlyMap<number, HeadingFoldSection> {
-  return new Map(sections.map((section) => [section.headingFrom, section]));
 }
 
 function buildFoldableByLineFrom(
@@ -184,7 +176,6 @@ function createBlockFoldSection(
     ? {
         kind: "block",
         lineFrom: openLine.from,
-        blockFrom: openLine.from,
         foldFrom,
         foldTo,
         level: 0,
@@ -408,7 +399,6 @@ function createHeadingFoldState(state: EditorState): HeadingFoldState {
     blockSections,
     boundaryIndices,
     sectionsByHeadingIndex,
-    sectionByHeadingFrom: buildSectionByHeadingFrom(headingSections),
     foldableByLineFrom: buildFoldableByLineFrom(foldableSections),
     decorations: buildFoldToggles(state, foldableSections),
   };
@@ -494,7 +484,6 @@ const headingFoldField = StateField.define<HeadingFoldState>({
       }
 
       const sectionsByHeadingIndex = [...value.sectionsByHeadingIndex];
-      const sectionByHeadingFrom = new Map(value.sectionByHeadingFrom);
       let sectionsChanged = false;
 
       for (const index of affectedHeadingIndices) {
@@ -509,12 +498,6 @@ const headingFoldField = StateField.define<HeadingFoldState>({
           continue;
         }
         sectionsByHeadingIndex[index] = nextSection;
-        if (previousSection) {
-          sectionByHeadingFrom.delete(previousSection.headingFrom);
-        }
-        if (nextSection) {
-          sectionByHeadingFrom.set(nextSection.headingFrom, nextSection);
-        }
         sectionsChanged = true;
       }
 
@@ -527,7 +510,6 @@ const headingFoldField = StateField.define<HeadingFoldState>({
         blockSections: value.blockSections,
         boundaryIndices: value.boundaryIndices,
         sectionsByHeadingIndex,
-        sectionByHeadingFrom,
         foldableByLineFrom: buildFoldableByLineFrom([
           ...collectSections(sectionsByHeadingIndex),
           ...value.blockSections,

@@ -2,7 +2,11 @@ import "katex/dist/katex.min.css";
 import "../../../src/editor/editor-theme.css";
 import { EditorView } from "@codemirror/view";
 import { applyThemePreset, mountEditor, themePresets } from "../../../editor";
-import { hydrateBlockDisclosures, hydrateMath, renderToHtml } from "../../../reader";
+import {
+  hydrateMath,
+  hydrateReaderDisclosures,
+  renderToHtml,
+} from "../../../reader";
 import { parseFrontmatter } from "../../../src/core/parser";
 import { buildReferenceCatalog } from "../../../parse";
 import { CSS } from "../../../src/core/constants/css-classes";
@@ -40,7 +44,7 @@ const readerRoot = requiredHTMLElement("reader-root");
 const editorRoot = requiredHTMLElement("editor-root");
 
 readerRoot.innerHTML = renderToHtml(source, context, { sourcePositions: true }).html;
-hydrateBlockDisclosures(readerRoot);
+hydrateReaderDisclosures(readerRoot);
 for (const textSpan of Array.from(readerRoot.querySelectorAll("span.cf-text"))) {
   textSpan.replaceWith(document.createTextNode(textSpan.textContent ?? ""));
 }
