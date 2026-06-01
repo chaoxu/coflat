@@ -45,6 +45,15 @@ describe("theme CSS contract", () => {
     expect(cssRuleBody(css, ".cf-hover-preview-unresolved")).toContain(
       "color: var(--cf-muted);",
     );
+    expect(cssRuleBody(css, ".cf-preview-surface-body .cf-doc-list")).toContain(
+      "padding-left: 0;",
+    );
+    expect(cssRuleBody(css, ".cf-preview-surface-body .cf-doc-list--unordered,\n.cf-preview-surface-body .cf-doc-list--ordered")).toContain(
+      "list-style: none;",
+    );
+    expect(cssRuleBody(css, ".cf-preview-surface-body .cf-doc-list-item")).toContain(
+      "display: block;",
+    );
     expect(cssRuleBody(css, ".cf-shell-surface-label")).toContain(
       "color: var(--cf-bg);",
     );

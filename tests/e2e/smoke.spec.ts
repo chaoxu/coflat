@@ -339,6 +339,11 @@ test("public demo reader block hover previews are inert", async ({ page }) => {
   await expect(tooltip).toContainText("Hover Preview Stress Test");
   await expect(tooltip.locator(".cf-block-disclosure-toggle")).toHaveCount(0);
   await expect(tooltip.locator(".cf-doc-block-collapsible")).toHaveCount(0);
+  const previewList = tooltip.locator(".cf-doc-list--unordered").first();
+  const previewListItem = tooltip.locator(".cf-doc-list-item").first();
+  await expect(previewList).toHaveCSS("list-style-type", "none");
+  await expect(previewList).toHaveCSS("padding-left", "0px");
+  await expect(previewListItem).toHaveCSS("display", "block");
   await expectTooltipWithinViewport(page, tooltip);
 });
 

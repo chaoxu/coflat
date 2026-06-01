@@ -1078,6 +1078,21 @@
   margin: 0.2em 0;
 }
 
+.cf-preview-surface-body .cf-doc-list {
+  margin: 0;
+  padding-left: 0;
+}
+
+.cf-preview-surface-body .cf-doc-list--unordered,
+.cf-preview-surface-body .cf-doc-list--ordered {
+  list-style: none;
+}
+
+.cf-preview-surface-body .cf-doc-list-item {
+  display: block;
+  margin: 0;
+}
+
 /* ── Hover preview tooltip (appended to document.body) ─────────────────────
  * Used when sidenote margin is collapsed to show footnote content.
  * Styled to match shadcn HoverCard visual language. */
