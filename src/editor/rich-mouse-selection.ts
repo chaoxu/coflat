@@ -1,5 +1,5 @@
-import { EditorSelection, type Extension } from "@codemirror/state";
-import { EditorView, type ViewUpdate } from "@codemirror/view";
+import { EditorSelection, Prec, type Extension } from "@codemirror/state";
+import { EditorView, ViewPlugin, type ViewUpdate } from "@codemirror/view";
 import { DOCUMENT_SURFACE_CLASS } from "../core/document-surface-classes";
 import { CSS } from "../core/constants/css-classes";
 import {
@@ -85,17 +85,35 @@ function resolveVisibleLineTarget(
   );
 }
 
-function isTaskListLineTarget(
+function isCheckboxTarget(target: EventTarget | null): boolean {
+  return target instanceof HTMLInputElement && target.type === "checkbox";
+}
+
+function isPlainRenderedLineTarget(
   view: EditorView,
   x: number,
   y: number,
   target: EventTarget | null,
 ): boolean {
-  if (target instanceof HTMLInputElement && target.type === "checkbox") {
-    return false;
-  }
+  if (isCheckboxTarget(target)) return false;
   const line = lineElementAtPoint(view, { x, y }, target);
-  return Boolean(line?.classList.contains(DOCUMENT_SURFACE_CLASS.listItemCheck));
+  return Boolean(line);
+}
+
+function isImmediatePointGuardLineTarget(
+  view: EditorView,
+  x: number,
+  y: number,
+  target: EventTarget | null,
+): boolean {
+  const line = lineElementAtPoint(view, { x, y }, target);
+  if (isCheckboxTarget(target) || !line) return false;
+  return (
+    line.classList.contains(DOCUMENT_SURFACE_CLASS.listItemCheck) ||
+    line.classList.contains(CSS.codeblockHeader) ||
+    line.classList.contains(CSS.codeblockBody) ||
+    line.classList.contains(CSS.codeblockLast)
+  );
 }
 
 function isContentSurfaceTarget(
@@ -202,13 +220,52 @@ function createRichMouseSelectionStyle(
   };
 }
 
-const richTaskListMouseDownGuard = EditorView.domEventHandlers({
-  mousedown(event: MouseEvent, view: EditorView) {
+function dispatchPointSelection(
+  view: EditorView,
+  target: PointerSelectionTarget,
+): void {
+  if (!view.dom.isConnected) return;
+  view.dispatch({
+    selection: EditorSelection.create([EditorSelection.cursor(target.pos, target.assoc)]),
+    scrollIntoView: false,
+  });
+  view.focus();
+}
+
+function dispatchPointSelectionAfterDefault(
+  view: EditorView,
+  target: PointerSelectionTarget,
+): void {
+  window.setTimeout(() => dispatchPointSelection(view, target), 0);
+  window.setTimeout(() => dispatchPointSelection(view, target), 25);
+}
+
+const richPointClickGuardPlugin = ViewPlugin.fromClass(class {
+  private pendingTarget: PointerSelectionTarget | null = null;
+  private pendingTargetUntil = 0;
+
+  private rememberTarget(target: PointerSelectionTarget): void {
+    this.pendingTarget = target;
+    this.pendingTargetUntil = Date.now() + 750;
+  }
+
+  private readonly onKeyDown = () => {
+    if (!this.pendingTarget || Date.now() > this.pendingTargetUntil) {
+      this.pendingTarget = null;
+      return;
+    }
+    dispatchPointSelection(this.view, this.pendingTarget);
+    this.pendingTarget = null;
+  };
+
+  private readonly onMouseDown = (event: MouseEvent) => {
+    const view = this.view;
+    if (!view.dom.contains(event.target as Node | null)) return false;
     if (!isRichLikeMode(view)) return false;
     if (!isPlainPrimaryMouseEvent(event) || event.detail !== 1) return false;
     if (startsOnRenderedMath(view, event.clientX, event.clientY, event.target)) return false;
     if (startsOnWidgetOwnedSurface(view, event.clientX, event.clientY, event.target)) return false;
-    if (!isTaskListLineTarget(view, event.clientX, event.clientY, event.target)) return false;
+    if (!isImmediatePointGuardLineTarget(view, event.clientX, event.clientY, event.target)) return false;
 
     const target = resolveVisibleLineTarget(
       view,
@@ -219,13 +276,57 @@ const richTaskListMouseDownGuard = EditorView.domEventHandlers({
     if (!target) return false;
 
     event.preventDefault();
-    view.dispatch({
-      selection: EditorSelection.create([EditorSelection.cursor(target.pos, target.assoc)]),
-      scrollIntoView: false,
-    });
-    view.focus();
+    event.stopPropagation();
+    event.stopImmediatePropagation();
+    this.rememberTarget(target);
+    dispatchPointSelection(view, target);
+    dispatchPointSelectionAfterDefault(view, target);
     return true;
-  },
+  };
+
+  private readonly onClick = (event: MouseEvent) => {
+    const view = this.view;
+    if (this.pendingTarget && Date.now() <= this.pendingTargetUntil) {
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+      dispatchPointSelection(view, this.pendingTarget);
+      dispatchPointSelectionAfterDefault(view, this.pendingTarget);
+      return true;
+    }
+    if (!view.dom.contains(event.target as Node | null)) return false;
+    if (!isRichLikeMode(view)) return false;
+    if (!isPlainPrimaryMouseEvent(event) || event.detail !== 1) return false;
+    if (startsOnRenderedMath(view, event.clientX, event.clientY, event.target)) return false;
+    if (startsOnWidgetOwnedSurface(view, event.clientX, event.clientY, event.target)) return false;
+    if (!isPlainRenderedLineTarget(view, event.clientX, event.clientY, event.target)) return false;
+
+    const target = resolveVisibleLineTarget(
+      view,
+      event.clientX,
+      event.clientY,
+      event.target,
+    );
+    if (!target) return false;
+
+    event.stopPropagation();
+    event.stopImmediatePropagation();
+    dispatchPointSelection(view, target);
+    return true;
+  };
+
+  constructor(private readonly view: EditorView) {
+    view.dom.ownerDocument.addEventListener("mousedown", this.onMouseDown, true);
+    view.dom.ownerDocument.addEventListener("click", this.onClick, true);
+    view.dom.ownerDocument.defaultView?.addEventListener("keydown", this.onKeyDown, true);
+    view.dom.ownerDocument.defaultView?.addEventListener("beforeinput", this.onKeyDown, true);
+  }
+
+  destroy() {
+    this.view.dom.ownerDocument.removeEventListener("mousedown", this.onMouseDown, true);
+    this.view.dom.ownerDocument.removeEventListener("click", this.onClick, true);
+    this.view.dom.ownerDocument.defaultView?.removeEventListener("keydown", this.onKeyDown, true);
+    this.view.dom.ownerDocument.defaultView?.removeEventListener("beforeinput", this.onKeyDown, true);
+  }
 });
 
 const richMouseSelectionStyleExtension = EditorView.mouseSelectionStyle.of((view, event) => {
@@ -255,6 +356,6 @@ const richMouseSelectionStyleExtension = EditorView.mouseSelectionStyle.of((view
 });
 
 export const richMouseSelectionStyle: Extension = [
-  richTaskListMouseDownGuard,
+  Prec.highest(richPointClickGuardPlugin),
   richMouseSelectionStyleExtension,
 ];

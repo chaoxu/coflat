@@ -244,6 +244,73 @@ test("rich editor keeps task-list point clicks on the clicked row", async ({ pag
   }
 });
 
+test("public demo point clicks stay on representative rendered rows", async ({ page }) => {
+  const cases = [
+    {
+      name: "paragraph",
+      scrollY: 0,
+      text: "canonical single-page Coflat showcase",
+      expected: "exZercises the editor",
+    },
+    {
+      name: "heading",
+      scrollY: 0,
+      text: "Frontmatter and Structure Editing",
+      expected: "FrontZmatter and Structure Editing",
+    },
+    {
+      name: "ordinary list",
+      scrollY: 0,
+      text: "ordinary navigation should keep",
+      expected: "ordinary nZavigation",
+    },
+    {
+      name: "task list",
+      scrollY: 3589,
+      text: "Inline rendering surfaces",
+      expected: "InlineZ rendering surfaces",
+    },
+    {
+      name: "code header",
+      scrollY: 4050,
+      text: "haskell",
+      expected: "haskellZ",
+    },
+    {
+      name: "code body",
+      scrollY: 4050,
+      text: "fibonacci :: Int -> Int",
+      expected: "fibonaccZi :: Int",
+    },
+  ] as const;
+
+  for (const item of cases) {
+    await page.goto("/examples/simple/index.html?doc=showcase&surface=editor");
+    await expect(page.locator("#editor .cm-editor")).toBeVisible();
+    await page.evaluate((scrollY) => window.scrollTo(0, scrollY), item.scrollY);
+    await settleLayout(page);
+
+    const line = page.locator(".cm-line", { hasText: item.text }).first();
+    await expect(line, item.name).toBeVisible();
+    const point = await line.evaluate((el) => {
+      const rect = el.getBoundingClientRect();
+      const input = el.querySelector('input[type="checkbox"]');
+      const x = input instanceof HTMLElement
+        ? input.getBoundingClientRect().right + 45
+        : rect.left + 80;
+      return {
+        x: Math.min(rect.right - 8, x),
+        y: rect.top + rect.height / 2,
+      };
+    });
+
+    await page.mouse.click(point.x, point.y);
+    await page.keyboard.type("Z");
+
+    await expect(page.locator(".cm-line", { hasText: item.expected }).first(), item.name).toBeVisible();
+  }
+});
+
 test("editor supports ordinary list exit and marker removal while writing", async ({ page }) => {
   await page.goto("/tests/e2e/fixtures/index.html");
   await setEditorDoc(page, "- item", "source");
