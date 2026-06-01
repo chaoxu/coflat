@@ -10,6 +10,7 @@ import {
   DEFAULT_PARITY_SOURCE,
   PARITY_SOURCE_KEY,
 } from "./parity-fixture-data";
+import { requiredHTMLElement } from "./utils";
 
 const params = new URLSearchParams(window.location.search);
 const presetKey = params.get("preset");
@@ -35,11 +36,8 @@ const context = {
   },
 };
 
-const readerRoot = document.getElementById("reader-root");
-const editorRoot = document.getElementById("editor-root");
-if (!(readerRoot instanceof HTMLElement) || !(editorRoot instanceof HTMLElement)) {
-  throw new Error("missing parity fixture roots");
-}
+const readerRoot = requiredHTMLElement("reader-root");
+const editorRoot = requiredHTMLElement("editor-root");
 
 readerRoot.innerHTML = renderToHtml(source, context, { sourcePositions: true }).html;
 hydrateBlockDisclosures(readerRoot);

@@ -1,11 +1,9 @@
 import "../../../src/editor/editor-theme.css";
 import "../../../src/themes/blueprint-book.css";
 import { hydrateBlockDisclosures, renderToHtml } from "../../../reader";
+import { requiredHTMLElement } from "./utils";
 
-const root = document.getElementById("theme-root");
-if (!(root instanceof HTMLElement)) {
-  throw new Error("missing #theme-root");
-}
+const root = requiredHTMLElement("theme-root");
 
 const source = `# Blueprint Document
 

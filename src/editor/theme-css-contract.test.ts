@@ -143,32 +143,36 @@ describe("theme CSS contract", () => {
     expect(cssRuleBody(css, ".cf-reader .cf-doc-block")).toContain("margin: 0;");
     expect(cssRuleBody(css, ".cf-reader .cf-doc-block:not(.cm-line)")).toContain("margin: 0;");
     expect(cssRuleBody(css, ".cf-reader .cf-doc-blank-line")).toContain("line-height: inherit;");
-    expect(cssRuleBody(css, ".cf-reader .cf-doc-block-collapsible > .cf-doc-block-heading,\n.cf-reader details.cf-doc-block > .cf-doc-block-heading")).toContain("display: block;");
-    expect(cssRuleBody(css, ".cf-reader .cf-doc-block-collapsible > .cf-doc-block-heading,\n.cf-reader details.cf-doc-block > .cf-doc-block-heading")).toContain("position: relative;");
-    expect(cssRuleBody(css, ".cf-reader .cf-doc-block-collapsible > .cf-doc-block-heading,\n.cf-reader details.cf-doc-block > .cf-doc-block-heading")).toContain("list-style: none;");
-    expect(cssRuleBody(css, ".cf-reader .cf-doc-block-collapsible")).toContain(
+    const collapsibleHeading = cssRuleBody(css, ".cf-reader .cf-doc-block-collapsible > .cf-doc-block-heading,\n.cf-reader details.cf-doc-block > .cf-doc-block-heading");
+    expect(collapsibleHeading).toContain("display: block;");
+    expect(collapsibleHeading).toContain("position: relative;");
+    expect(collapsibleHeading).toContain("list-style: none;");
+    const collapsibleBlock = cssRuleBody(css, ".cf-reader .cf-doc-block-collapsible");
+    expect(collapsibleBlock).toContain(
       "position: relative;",
     );
-    expect(cssRuleBody(css, ".cf-reader .cf-doc-block-collapsible::before")).toContain(
+    const collapsibleRail = cssRuleBody(css, ".cf-reader .cf-doc-block-collapsible::before");
+    expect(collapsibleRail).toContain(
       "left: calc(-0.5em - var(--cf-spacing-xs));",
     );
-    expect(cssRuleBody(css, ".cf-reader .cf-doc-block-collapsible::before")).toContain(
+    expect(collapsibleRail).toContain(
       "transform: translateX(-50%);",
     );
-    expect(cssRuleBody(css, ".cf-reader .cf-doc-block-collapsible::before")).toContain(
+    expect(collapsibleRail).toContain(
       "width: var(--cf-border-width-accent, 2px);",
     );
     expect(cssRuleBody(css, ".cf-reader .cf-doc-block-collapsible:hover::before,\n.cf-reader .cf-doc-block-collapsible:focus-within::before")).toContain(
       "opacity: 1;",
     );
-    expect(cssRuleBody(css, ".cf-reader .cf-block-disclosure-toggle")).toContain("appearance: none;");
-    expect(cssRuleBody(css, ".cf-reader .cf-block-disclosure-toggle")).toContain("display: block;");
-    expect(cssRuleBody(css, ".cf-reader .cf-block-disclosure-toggle")).toContain("font: inherit;");
-    expect(cssRuleBody(css, ".cf-reader .cf-block-disclosure-toggle")).toContain("opacity: 0;");
-    expect(cssRuleBody(css, ".cf-reader .cf-block-disclosure-toggle")).toContain("position: absolute;");
-    expect(cssRuleBody(css, ".cf-reader .cf-block-disclosure-toggle")).toContain("right: 100%;");
-    expect(cssRuleBody(css, ".cf-reader .cf-block-disclosure-toggle")).toContain("transition: opacity");
-    expect(cssRuleBody(css, ".cf-reader .cf-block-disclosure-toggle")).not.toMatch(/\bfont-(?:family|size)\s*:/);
+    const disclosureToggle = cssRuleBody(css, ".cf-reader .cf-block-disclosure-toggle");
+    expect(disclosureToggle).toContain("appearance: none;");
+    expect(disclosureToggle).toContain("display: block;");
+    expect(disclosureToggle).toContain("font: inherit;");
+    expect(disclosureToggle).toContain("opacity: 0;");
+    expect(disclosureToggle).toContain("position: absolute;");
+    expect(disclosureToggle).toContain("right: 100%;");
+    expect(disclosureToggle).toContain("transition: opacity");
+    expect(disclosureToggle).not.toMatch(/\bfont-(?:family|size)\s*:/);
     expect(cssRuleBody(css, ".cf-reader .cf-doc-block-collapsible:hover > .cf-doc-block-heading > .cf-block-disclosure-toggle,\n.cf-reader .cf-doc-block-collapsible:focus-within > .cf-doc-block-heading > .cf-block-disclosure-toggle")).toContain("opacity: 1;");
     expect(cssRuleBody(css, ".cf-reader .cf-block-disclosure-toggle:hover,\n.cf-reader .cf-block-disclosure-toggle:focus-visible,\n.cf-reader .cf-block-disclosure-toggle-collapsed")).toContain("opacity: 1;");
     expect(cssRuleBody(css, ".cf-reader .cf-block-disclosure-body[hidden]")).toContain("display: none;");

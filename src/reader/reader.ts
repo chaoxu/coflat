@@ -68,6 +68,11 @@ export type {
   FileSystem,
 } from "../core/lib/file-system-types";
 
+const BLOCK_DISCLOSURE_OPEN_ICON = "▼";
+const BLOCK_DISCLOSURE_CLOSED_ICON = "▶";
+const BLOCK_DISCLOSURE_COLLAPSE_LABEL = "Collapse block";
+const BLOCK_DISCLOSURE_EXPAND_LABEL = "Expand block";
+
 // ---------------------------------------------------------------------------
 // Parser (lazy: only constructed when the fast path can't handle the input).
 //
@@ -216,10 +221,10 @@ function renderBlockSummary(ctx: WalkContext, type: string, title: string | unde
     {
       html:
         `<span class="cf-block-header-rendered">${escapedHeader}</span>` +
-        `<span class="cf-block-attr-title">` +
-        `<span class="cf-block-title-paren">(</span>` +
+        `<span class="${CSS.blockAttrTitle}">` +
+        `<span class="${CSS.blockTitleParen}">(</span>` +
         `<span>${renderedTitle.html}</span>` +
-        `<span class="cf-block-title-paren">)</span>` +
+        `<span class="${CSS.blockTitleParen}">)</span>` +
         `</span>`,
       text: `${header} (${renderedTitle.text})`,
       hasMath: renderedTitle.hasMath,
@@ -230,7 +235,7 @@ function renderBlockSummary(ctx: WalkContext, type: string, title: string | unde
 function renderBlockDisclosure(summaryHtml: string, bodyHtml: string): string {
   return (
     `<div class="cf-doc-block-heading">` +
-    `<button class="${CSS.blockDisclosureToggle}" type="button" aria-expanded="true" aria-label="Collapse block">▼</button>` +
+    `<button class="${CSS.blockDisclosureToggle}" type="button" aria-expanded="true" aria-label="${BLOCK_DISCLOSURE_COLLAPSE_LABEL}">${BLOCK_DISCLOSURE_OPEN_ICON}</button>` +
     `<span class="${CSS.blockHeadingContent}">${summaryHtml}</span>` +
     `</div>` +
     `<div class="${CSS.blockDisclosureBody}">${bodyHtml}</div>`
@@ -958,7 +963,7 @@ function emitReferenceCluster(
     textParts.push(display);
   }
 
-  const inner = parts.join("");
+  const inner = parts.join("; ");
   const html = ctx.sourcePositions
     ? `<span class="cf-citation-cluster"${sourcePosAttrs(ctx, from, to)}>${inner}</span>`
     : inner;
@@ -2317,36 +2322,35 @@ function countTextCharsBefore(root: Element, target: Node): number {
 
 const BLOCK_DISCLOSURE_HYDRATED_ATTR = "data-cf-block-disclosure-hydrated";
 const BLOCK_OPEN_ATTR = "data-cf-block-open";
-const BLOCK_DISCLOSURE_OPEN_ICON = "▼";
-const BLOCK_DISCLOSURE_CLOSED_ICON = "▶";
-
-function directChildWithClass(parent: HTMLElement, className: string): HTMLElement | null {
-  for (const child of Array.from(parent.children)) {
-    if (child instanceof HTMLElement && child.classList.contains(className)) return child;
-  }
-  return null;
-}
 
 function blockDisclosureParts(block: HTMLElement): {
   body: HTMLElement;
   toggle: HTMLButtonElement;
 } | null {
-  const heading = directChildWithClass(block, "cf-doc-block-heading");
-  const body = directChildWithClass(block, CSS.blockDisclosureBody);
-  const toggle = heading?.querySelector<HTMLElement>(`.${CSS.blockDisclosureToggle}`);
+  const heading = block.querySelector<HTMLElement>(":scope > .cf-doc-block-heading");
+  const body = block.querySelector<HTMLElement>(`:scope > .${CSS.blockDisclosureBody}`);
+  const toggle = heading?.querySelector<HTMLElement>(`:scope > .${CSS.blockDisclosureToggle}`);
   if (!(body instanceof HTMLElement) || !(toggle instanceof HTMLButtonElement)) return null;
   return { body, toggle };
 }
 
-function setBlockDisclosureState(block: HTMLElement, expanded: boolean): void {
-  const parts = blockDisclosureParts(block);
-  if (!parts) return;
+function applyBlockDisclosureState(
+  block: HTMLElement,
+  parts: { body: HTMLElement; toggle: HTMLButtonElement },
+  expanded: boolean,
+): void {
   block.setAttribute(BLOCK_OPEN_ATTR, expanded ? "true" : "false");
   parts.body.hidden = !expanded;
   parts.toggle.textContent = expanded ? BLOCK_DISCLOSURE_OPEN_ICON : BLOCK_DISCLOSURE_CLOSED_ICON;
   parts.toggle.classList.toggle(CSS.blockDisclosureToggleCollapsed, !expanded);
   parts.toggle.setAttribute("aria-expanded", expanded ? "true" : "false");
-  parts.toggle.setAttribute("aria-label", expanded ? "Collapse block" : "Expand block");
+  parts.toggle.setAttribute("aria-label", expanded ? BLOCK_DISCLOSURE_COLLAPSE_LABEL : BLOCK_DISCLOSURE_EXPAND_LABEL);
+}
+
+function setBlockDisclosureState(block: HTMLElement, expanded: boolean): void {
+  const parts = blockDisclosureParts(block);
+  if (!parts) return;
+  applyBlockDisclosureState(block, parts, expanded);
 }
 
 /**
@@ -2366,7 +2370,7 @@ export function hydrateBlockDisclosures(root: HTMLElement): void {
     const parts = blockDisclosureParts(block);
     if (!parts) continue;
     const expanded = block.getAttribute(BLOCK_OPEN_ATTR) !== "false";
-    setBlockDisclosureState(block, expanded);
+    applyBlockDisclosureState(block, parts, expanded);
 
     if (block.getAttribute(BLOCK_DISCLOSURE_HYDRATED_ATTR) === "true") continue;
     parts.toggle.addEventListener("click", () => {
@@ -2718,7 +2722,8 @@ export function hydrateReaderHoverPreviews(
   };
 
   const hideTooltip = () => {
-    void loadTooltipModule().then((module) => module.hideFloatingTooltip());
+    if (!tooltipModulePromise) return;
+    void tooltipModulePromise.then((module) => module.hideFloatingTooltip());
   };
 
   const onMouseOver = (event: MouseEvent) => {

@@ -147,10 +147,7 @@ function setCurrentPageAttribute(el: HTMLElement, active: boolean): void {
 }
 
 function demoUrl(docId: DemoDocId, surfaceId: DemoSurfaceId): string {
-  const url = new URL(window.location.href);
-  url.searchParams.set("doc", docId);
-  url.searchParams.set("surface", surfaceId);
-  return `${url.pathname}${url.search}${url.hash}`;
+  return `?doc=${docId}&surface=${surfaceId}`;
 }
 
 function updateDocLinkHrefs(): void {

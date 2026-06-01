@@ -1,9 +1,7 @@
 import { mountEditor } from "../../../editor";
+import { requiredHTMLElement } from "./utils";
 
-const root = document.getElementById("editor-root");
-if (!(root instanceof HTMLElement)) {
-  throw new Error("missing #editor-root");
-}
+const root = requiredHTMLElement("editor-root");
 
 const mounted = mountEditor({
   parent: root,

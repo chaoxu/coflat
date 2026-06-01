@@ -1,4 +1,4 @@
-import { expect, type Page, test } from "@playwright/test";
+import { expect, type Locator, type Page, test } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
@@ -62,6 +62,23 @@ function viewportHeight(page: Page): number {
   const viewport = page.viewportSize();
   if (!viewport) throw new Error("missing Playwright viewport");
   return viewport.height;
+}
+
+async function expectTooltipWithinViewport(page: Page, tooltip: Locator): Promise<void> {
+  const tooltipBox = await tooltip.boundingBox();
+  expect(tooltipBox).not.toBeNull();
+  expect(tooltipBox?.y).toBeGreaterThanOrEqual(0);
+  expect((tooltipBox?.y ?? 0) + (tooltipBox?.height ?? 0)).toBeLessThanOrEqual(
+    viewportHeight(page),
+  );
+}
+
+async function scrollThroughUntil(page: Page, yPositions: readonly number[], locator: Locator): Promise<void> {
+  for (const y of yPositions) {
+    await page.evaluate((scrollY) => window.scrollTo(0, scrollY), y);
+    await page.waitForTimeout(100);
+    if (await locator.count() > 0) return;
+  }
 }
 
 async function settleLayout(page: Page): Promise<void> {
@@ -291,12 +308,7 @@ test("public demo reader surface shows shared hover previews", async ({ page }) 
 
   const tooltip = page.locator('.cf-hover-preview-tooltip[data-visible="true"]');
   await expect(tooltip).toContainText("E = mc^2");
-  const tooltipBox = await tooltip.boundingBox();
-  expect(tooltipBox).not.toBeNull();
-  expect(tooltipBox?.y).toBeGreaterThanOrEqual(0);
-  expect((tooltipBox?.y ?? 0) + (tooltipBox?.height ?? 0)).toBeLessThanOrEqual(
-    viewportHeight(page),
-  );
+  await expectTooltipWithinViewport(page, tooltip);
 });
 
 test("public demo reader resolves showcase local images", async ({ page }) => {
@@ -389,13 +401,7 @@ test("public demo reader aligns the collapse rail with the disclosure triangle",
 test("public demo table cell editing does not inherit page-height scrolling", async ({ page }) => {
   await page.goto("/examples/simple/index.html");
 
-  for (const y of [2500, 3000, 3500, 4000, 4500]) {
-    await page.evaluate((scrollY) => window.scrollTo(0, scrollY), y);
-    await page.waitForTimeout(100);
-    if (await page.locator(".cf-table-widget td").nth(16).count()) {
-      break;
-    }
-  }
+  await scrollThroughUntil(page, [2500, 3000, 3500, 4000, 4500], page.locator(".cf-table-widget td").nth(16));
 
   const cell = page.getByRole("cell", { name: /Edit this cell/ });
   await expect(cell).toContainText("Edit this cell");
@@ -451,38 +457,22 @@ test("public demo hydrates bibliography citations", async ({ page }) => {
   const tooltip = page.locator('.cf-hover-preview-tooltip[data-visible="true"]');
   await expect(tooltip).toContainText("Introduction to Algorithms");
   await expect(tooltip).toContainText("Cormen");
-  const tooltipBox = await tooltip.boundingBox();
-  expect(tooltipBox).not.toBeNull();
-  expect(tooltipBox?.y).toBeGreaterThanOrEqual(0);
-  expect((tooltipBox?.y ?? 0) + (tooltipBox?.height ?? 0)).toBeLessThanOrEqual(
-    viewportHeight(page),
-  );
+  await expectTooltipWithinViewport(page, tooltip);
 });
 
 test("public demo shows hover panels for cross-references", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 826 });
   await page.goto("/examples/simple/index.html");
-  for (const y of [1000, 1200, 1400, 1600, 1800, 2000, 2200]) {
-    await page.evaluate((scrollY) => window.scrollTo(0, scrollY), y);
-    await page.waitForTimeout(100);
-    if (await page.locator('[aria-label="[@eq:gaussian]"]').count() > 0) {
-      break;
-    }
-  }
-  await expect(page.locator('[aria-label="[@eq:gaussian]"]').first()).toBeVisible();
+  const gaussianReference = page.locator('[aria-label="[@eq:gaussian]"]').first();
+  await scrollThroughUntil(page, [1000, 1200, 1400, 1600, 1800, 2000, 2200], gaussianReference);
+  await expect(gaussianReference).toBeVisible();
 
-  const equationReference = page.locator('[aria-label="[@eq:gaussian]"]').first();
-  await equationReference.hover();
+  await gaussianReference.hover();
 
   const tooltip = page.locator('.cf-hover-preview-tooltip[data-visible="true"]');
   await expect(tooltip).toContainText("Eq. (1)");
   await expect(tooltip).toContainText("e^{-x^2}");
-  const tooltipBox = await tooltip.boundingBox();
-  expect(tooltipBox).not.toBeNull();
-  expect(tooltipBox?.y).toBeGreaterThanOrEqual(0);
-  expect((tooltipBox?.y ?? 0) + (tooltipBox?.height ?? 0)).toBeLessThanOrEqual(
-    viewportHeight(page),
-  );
+  await expectTooltipWithinViewport(page, tooltip);
 });
 
 test("blueprint book theme applies to a host-rendered reader document", async ({ page }) => {

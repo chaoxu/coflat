@@ -469,6 +469,31 @@ describe("renderToHtml — block-level rendering ()", () => {
     ]);
   });
 
+  it("separates rendered reader reference clusters", () => {
+    const r = renderToHtml(
+      "See [@thm:main; @eq:gaussian].",
+      {
+        refResolver: {
+          resolve: (key) => ({
+            content: key === "thm:main" ? "Theorem 1" : "Eq. (1)",
+            className: "cf-crossref",
+          }),
+        },
+      },
+      { sourcePositions: true },
+    );
+
+    const root = document.createElement("div");
+    root.innerHTML = r.html;
+    const cluster = root.querySelector(".cf-citation-cluster");
+    expect(cluster?.textContent).toBe("Theorem 1; Eq. (1)");
+
+    const refs = root.querySelectorAll("[data-ref-key]");
+    expect(refs).toHaveLength(2);
+    expect(refs[0].textContent).toBe("Theorem 1");
+    expect(refs[1].textContent).toBe("Eq. (1)");
+  });
+
   it("uses shared crossref classes for resolved reader crossrefs", () => {
     const r = renderToHtml("see [@prop:main]", {
       refResolver: {
