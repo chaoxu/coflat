@@ -179,6 +179,9 @@ describe("theme CSS contract", () => {
     expect(cssRuleBody(css, ".cf-reader .cf-doc-block-collapsible:hover > .cf-block-disclosure-body::before,\n.cf-reader .cf-doc-block-collapsible:focus-within > .cf-block-disclosure-body::before")).toContain(
       "opacity: 1;",
     );
+    expect(cssRuleBody(css, ".cf-reader .cf-doc-block-collapsible:has(.cf-doc-block-collapsible:hover) > .cf-block-disclosure-body::before,\n.cf-reader .cf-doc-block-collapsible:has(.cf-doc-block-collapsible:focus-within) > .cf-block-disclosure-body::before,\n.cf-reader .cf-doc-block-collapsible:has(.cf-doc-section-heading-collapsible:hover) > .cf-block-disclosure-body::before,\n.cf-reader .cf-doc-block-collapsible:has(.cf-doc-section-heading-collapsible:focus-within) > .cf-block-disclosure-body::before,\n.cf-reader .cf-section-disclosure-body:has(.cf-doc-block-collapsible:hover)::before,\n.cf-reader .cf-section-disclosure-body:has(.cf-doc-block-collapsible:focus-within)::before,\n.cf-reader .cf-section-disclosure-body:has(.cf-doc-section-heading-collapsible:hover)::before,\n.cf-reader .cf-section-disclosure-body:has(.cf-doc-section-heading-collapsible:focus-within)::before,\n.cf-reader .cf-section-disclosure-body:has(.cf-section-disclosure-body:hover)::before,\n.cf-reader .cf-section-disclosure-body:has(.cf-section-disclosure-body:focus-within)::before")).toContain(
+      "opacity: 0;",
+    );
     const disclosureToggle = cssRuleBody(css, ".cf-reader .cf-block-disclosure-toggle");
     expect(disclosureToggle).toContain("appearance: none;");
     expect(disclosureToggle).toContain("display: block;");

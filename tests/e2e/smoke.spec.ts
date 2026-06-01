@@ -433,6 +433,42 @@ test("public demo reader aligns the collapse rail with the disclosure triangle",
   expect(Math.abs(afterHover.blockWidth - beforeHover.blockWidth)).toBeLessThanOrEqual(0.5);
 });
 
+test("public demo reader shows only the deepest nested disclosure rail", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto("/examples/simple/index.html?doc=showcase&surface=reader");
+
+  const theorem = page.locator("#reader #thm\\:hover-preview");
+  await expect(theorem).toBeVisible();
+  await theorem.scrollIntoViewIfNeeded();
+  await page.mouse.move(10, 10);
+
+  await theorem.hover();
+  await expect.poll(() => theorem.evaluate((block) => {
+    const body = block.querySelector(":scope > .cf-block-disclosure-body");
+    if (!(body instanceof HTMLElement)) throw new Error("missing theorem body");
+    return getComputedStyle(body, "::before").opacity;
+  })).toBe("1");
+  await expect.poll(() => theorem.evaluate((block) => {
+    const sectionBody = block.closest(".cf-section-disclosure-body");
+    if (!(sectionBody instanceof HTMLElement)) throw new Error("missing containing section body");
+    return getComputedStyle(sectionBody, "::before").opacity;
+  })).toBe("0");
+
+  const sectionToggle = page.locator('#reader .cf-doc-section-heading-collapsible:has-text("Block Hover Preview Coverage") > .cf-section-disclosure-toggle');
+  await expect(sectionToggle).toHaveCount(1);
+  await sectionToggle.hover();
+  await expect.poll(() => page.locator('#reader .cf-doc-section-heading-collapsible:has-text("Block Hover Preview Coverage")').evaluate((heading) => {
+    const body = heading.nextElementSibling;
+    if (!(body instanceof HTMLElement)) throw new Error("missing section body");
+    return getComputedStyle(body, "::before").opacity;
+  })).toBe("1");
+  await expect.poll(() => theorem.evaluate((block) => {
+    const body = block.querySelector(":scope > .cf-block-disclosure-body");
+    if (!(body instanceof HTMLElement)) throw new Error("missing theorem body");
+    return getComputedStyle(body, "::before").opacity;
+  })).toBe("0");
+});
+
 test("public demo exposes matching section and block disclosure controls", async ({ page }) => {
   await page.goto("/examples/simple/index.html?doc=showcase&surface=reader");
   await expect(page.locator("#reader")).toBeVisible();
