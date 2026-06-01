@@ -31,6 +31,7 @@ describe("cursor-stable theme contract", () => {
   it("keeps cursor/active state classes from changing line-box metrics", () => {
     expectMetricNeutral(".cm-activeLine", baseThemeStyles[".cm-activeLine"]);
     expectMetricNeutral(".cf-focus-dimmed", baseThemeStyles[".cf-focus-dimmed"]);
+    expectMetricNeutral(".cf-fold-rail-line", baseThemeStyles[".cf-fold-rail-line"]);
     expectMetricNeutral(".cf-table-cell-editing", blockThemeStyles[".cf-table-cell-editing"]);
     expectMetricNeutral(".cf-table-cell-active", blockThemeStyles[".cf-table-cell-active"]);
     expectMetricNeutral(".cf-codeblock-source", codeThemeStyles[".cf-codeblock-source"]);

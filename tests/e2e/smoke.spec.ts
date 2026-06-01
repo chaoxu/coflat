@@ -433,6 +433,57 @@ test("public demo reader aligns the collapse rail with the disclosure triangle",
   expect(Math.abs(afterHover.blockWidth - beforeHover.blockWidth)).toBeLessThanOrEqual(0.5);
 });
 
+test("public demo editor shows matching collapse rails", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto("/examples/simple/index.html?doc=showcase&surface=editor");
+  await expect(page.locator("#editor .cm-editor")).toBeVisible();
+  await settleLayout(page);
+  await page.evaluate(() => window.scrollTo(0, 2400));
+  await settleLayout(page);
+  await page.mouse.move(10, 10);
+
+  await expect.poll(() => page.locator("#editor .cf-fold-block").count()).toBeGreaterThan(0);
+  await expect(page.locator("#editor .cf-fold-rail-line")).toHaveCount(0);
+
+  const blockToggle = page.locator("#editor .cf-fold-block").filter({ visible: true }).first();
+  await expect(blockToggle).toBeVisible();
+  await blockToggle.hover();
+  await expect.poll(() => page.locator("#editor .cf-fold-rail-line-block").count()).toBeGreaterThan(0);
+  await expect(page.locator("#editor .cf-fold-line.cf-fold-rail-line")).toHaveCount(0);
+  await expect.poll(() =>
+    page.locator("#editor .cf-fold-rail-heading-active .cf-fold-toggle").evaluate((el) =>
+      getComputedStyle(el).opacity
+    )
+  ).toBe("1");
+
+  const railGeometry = await page.evaluate(() => {
+    const toggle = document.querySelector("#editor .cf-fold-rail-heading-active .cf-fold-toggle");
+    const railLine = document.querySelector("#editor .cf-fold-rail-line-block");
+    if (!(toggle instanceof HTMLElement) || !(railLine instanceof HTMLElement)) {
+      throw new Error("missing editor rail parts");
+    }
+    const toggleRect = toggle.getBoundingClientRect();
+    const lineRect = railLine.getBoundingClientRect();
+    const railStyle = getComputedStyle(railLine, "::before");
+    return {
+      lineHeight: lineRect.height,
+      railBackground: railStyle.backgroundColor,
+      railCenter: lineRect.left + Number.parseFloat(railStyle.left),
+      railWidth: railStyle.width,
+      toggleCenter: (toggleRect.left + toggleRect.right) / 2,
+      toggleOpacity: getComputedStyle(toggle).opacity,
+    };
+  });
+  expect(railGeometry.lineHeight).toBeGreaterThan(0);
+  expect(railGeometry.railBackground).not.toBe("rgba(0, 0, 0, 0)");
+  expect(railGeometry.railWidth).toBe("2px");
+  expect(Math.abs(railGeometry.railCenter - railGeometry.toggleCenter)).toBeLessThanOrEqual(0.75);
+  expect(railGeometry.toggleOpacity).toBe("1");
+
+  await page.mouse.move(10, 10);
+  await expect(page.locator("#editor .cf-fold-rail-line")).toHaveCount(0);
+});
+
 test("public demo reader shows only the deepest nested disclosure rail", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto("/examples/simple/index.html?doc=showcase&surface=reader");

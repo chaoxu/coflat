@@ -7,9 +7,11 @@ import {
   foldService,
 } from "@codemirror/language";
 import type { EditorView } from "@codemirror/view";
-import { createTestView } from "./test-utils";
+import { createTestView, getDecorationSpecs, hasLineClassAt } from "./test-utils";
 import {
+  _activeFoldRailFieldForTest as activeFoldRailField,
   _headingFoldFieldForTest as headingFoldField,
+  _setActiveFoldRailEffectForTest as setActiveFoldRailEffect,
   headingFold,
 } from "./heading-fold";
 import { markdownExtensions } from "../core/parser";
@@ -260,5 +262,41 @@ describe("headingFold", () => {
     );
     expect(updatedBlockToggle?.textContent).toBe("▶");
     expect(updatedBlockToggle?.getAttribute("aria-label")).toBe("Unfold block");
+  });
+
+  it("shows editor fold rails for the hovered block toggle body only", () => {
+    const doc = [
+      "::: {.theorem title=\"Block fold\"}",
+      "body",
+      ":::",
+      "",
+      "# After",
+      "tail",
+    ].join("\n");
+
+    view = createTestView(doc, {
+      extensions: [markdown({ extensions: markdownExtensions }), codeFolding(), headingFold],
+    });
+
+    const blockToggle = getFoldToggles(view).find((toggle) =>
+      toggle.classList.contains("cf-fold-block")
+    );
+    if (!blockToggle) {
+      throw new Error("expected a foldable semantic block");
+    }
+
+    const section = view.state.field(headingFoldField).blockSections[0];
+    view.dispatch({ effects: setActiveFoldRailEffect.of(section) });
+
+    const active = view.state.field(activeFoldRailField);
+    const specs = getDecorationSpecs(active.decorations);
+    expect(active.section?.kind).toBe("block");
+    expect(hasLineClassAt(specs, view.state.doc.line(1).from, "cf-fold-rail-line")).toBe(false);
+    expect(hasLineClassAt(specs, view.state.doc.line(2).from, "cf-fold-rail-line-block")).toBe(true);
+    expect(hasLineClassAt(specs, view.state.doc.line(3).from, "cf-fold-rail-line-block")).toBe(true);
+    expect(hasLineClassAt(specs, view.state.doc.line(5).from, "cf-fold-rail-line")).toBe(false);
+
+    view.dispatch({ effects: setActiveFoldRailEffect.of(null) });
+    expect(getDecorationSpecs(view.state.field(activeFoldRailField).decorations)).toHaveLength(0);
   });
 });

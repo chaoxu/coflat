@@ -39,6 +39,26 @@ export const baseThemeStyles = {
   ".cf-fold-line": {
     position: "relative",
   },
+  ".cf-fold-rail-line": {
+    position: "relative",
+  },
+  ".cf-fold-rail-line::before": {
+    background: "var(--cf-block-disclosure-indicator-color, color-mix(in srgb, var(--cf-fg) 45%, transparent))",
+    bottom: "0",
+    content: "\"\"",
+    left: "calc(-0.5em - var(--cf-spacing-xs))",
+    pointerEvents: "none",
+    position: "absolute",
+    top: "0",
+    transform: "translateX(-50%)",
+    width: "var(--cf-border-width-accent, 2px)",
+  },
+  ".cf-fold-rail-line-block::before": {
+    fontSize: "var(--cf-ui-font-size-base)",
+  },
+  ".cf-fold-rail-h1::before": { fontSize: "24px" },
+  ".cf-fold-rail-h2::before": { fontSize: "20px" },
+  ".cf-fold-rail-h3::before": { fontSize: "16px" },
   ".cf-fold-toggle": {
     position: "absolute",
     right: "100%",
@@ -54,6 +74,9 @@ export const baseThemeStyles = {
   },
   /* Show fold toggle when hovering the heading line */
   ".cm-line:hover .cf-fold-toggle": {
+    opacity: "1",
+  },
+  ".cf-fold-rail-heading-active .cf-fold-toggle": {
     opacity: "1",
   },
   /* Always show fold toggle when section is folded */

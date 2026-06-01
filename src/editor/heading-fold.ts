@@ -11,6 +11,7 @@ import {
   type EditorState,
   type Extension,
   type Range,
+  StateEffect,
   StateField,
   type Transaction,
 } from "@codemirror/state";
@@ -63,10 +64,34 @@ interface HeadingFoldState {
   readonly decorations: DecorationSet;
 }
 
+interface ActiveFoldRailState {
+  readonly section: FoldSection | null;
+  readonly decorations: DecorationSet;
+}
+
 function buildFoldableByLineFrom(
   sections: readonly FoldSection[],
 ): ReadonlyMap<number, FoldSection> {
   return new Map(sections.map((section) => [section.lineFrom, section]));
+}
+
+function allFoldSections(state: HeadingFoldState): readonly FoldSection[] {
+  return [
+    ...collectSections(state.sectionsByHeadingIndex),
+    ...state.blockSections,
+  ];
+}
+
+function sameFoldSection(left: FoldSection | null, right: FoldSection | null): boolean {
+  return left === right || (
+    left !== null
+    && right !== null
+    && left.kind === right.kind
+    && left.lineFrom === right.lineFrom
+    && left.foldFrom === right.foldFrom
+    && left.foldTo === right.foldTo
+    && left.level === right.level
+  );
 }
 
 function foldToBeforeHeading(state: EditorState, headingFrom: number): number {
@@ -295,6 +320,7 @@ class FoldToggleWidget extends RenderWidget {
     if (this.folded) classes.push("cf-fold-toggle-folded");
     span.className = classes.join(" ");
     span.textContent = this.folded ? "▶" : "▼";
+    span.dataset.cfFoldLineFrom = String(this.pos);
     span.setAttribute("role", "button");
     const labelTarget = this.kind === "section" ? "section" : "block";
     span.setAttribute(
@@ -303,6 +329,14 @@ class FoldToggleWidget extends RenderWidget {
     );
 
     const pos = this.pos;
+    const showFoldRail = () => {
+      setActiveFoldRail(view, findFoldSectionAtLineFrom(view.state, pos));
+    };
+    span.addEventListener("mouseenter", showFoldRail);
+    span.addEventListener("mousemove", showFoldRail);
+    span.addEventListener("mouseleave", () => {
+      setActiveFoldRail(view, null);
+    });
     span.addEventListener("mousedown", (e) => {
       try {
         e.preventDefault();
@@ -381,6 +415,134 @@ function buildFoldToggles(
   const items = buildFoldToggleItems(state, sections);
   return buildDecorations(items);
 }
+
+function buildFoldRailDecorations(
+  state: EditorState,
+  section: FoldSection | null,
+): DecorationSet {
+  if (!section || section.foldTo <= section.foldFrom || section.foldFrom >= state.doc.length) {
+    return Decoration.none;
+  }
+
+  const items: Range<Decoration>[] = [];
+  items.push(
+    Decoration.line({ class: "cf-fold-rail-heading-active" }).range(section.lineFrom),
+  );
+  const firstBodyPos = Math.min(section.foldFrom + 1, state.doc.length);
+  const firstLine = state.doc.lineAt(firstBodyPos);
+  const lastLine = state.doc.lineAt(Math.min(section.foldTo, state.doc.length));
+  const className = [
+    "cf-fold-rail-line",
+    `cf-fold-rail-line-${section.kind}`,
+    section.kind === "section" ? `cf-fold-rail-h${section.level}` : "",
+  ].filter(Boolean).join(" ");
+
+  for (let lineNumber = firstLine.number; lineNumber <= lastLine.number; lineNumber++) {
+    items.push(Decoration.line({ class: className }).range(state.doc.line(lineNumber).from));
+  }
+
+  return buildDecorations(items);
+}
+
+function activeFoldRailState(
+  state: EditorState,
+  section: FoldSection | null,
+): ActiveFoldRailState {
+  return {
+    section,
+    decorations: buildFoldRailDecorations(state, section),
+  };
+}
+
+const setActiveFoldRailEffect = StateEffect.define<FoldSection | null>();
+
+const activeFoldRailField = StateField.define<ActiveFoldRailState>({
+  create(state) {
+    return activeFoldRailState(state, null);
+  },
+  update(value, tr) {
+    let nextSection = tr.docChanged ? null : value.section;
+
+    for (const effect of tr.effects) {
+      if (effect.is(setActiveFoldRailEffect)) {
+        nextSection = effect.value;
+      }
+    }
+
+    if (sameFoldSection(value.section, nextSection) && !tr.docChanged) {
+      return value;
+    }
+
+    return activeFoldRailState(tr.state, nextSection);
+  },
+  compare(a, b) {
+    return sameFoldSection(a.section, b.section)
+      && a.decorations === b.decorations;
+  },
+  provide(field) {
+    return EditorView.decorations.from(field, (value) => value.decorations);
+  },
+});
+
+function findFoldSectionAtLineFrom(
+  state: EditorState,
+  lineFrom: number,
+): FoldSection | null {
+  return state.field(headingFoldField, false)?.foldableByLineFrom.get(lineFrom) ?? null;
+}
+
+function findFoldSectionAtPosition(
+  state: EditorState,
+  pos: number,
+): FoldSection | null {
+  const foldState = state.field(headingFoldField, false);
+  if (!foldState) return null;
+
+  const line = state.doc.lineAt(pos);
+  const lineSection = foldState.foldableByLineFrom.get(line.from);
+  if (lineSection) return lineSection;
+
+  let best: FoldSection | null = null;
+  for (const section of allFoldSections(foldState)) {
+    if (line.to <= section.foldFrom || line.from > section.foldTo) continue;
+    if (!best || section.foldTo - section.foldFrom < best.foldTo - best.foldFrom) {
+      best = section;
+    }
+  }
+  return best;
+}
+
+function foldSectionFromMouseEvent(
+  view: EditorView,
+  event: MouseEvent,
+): FoldSection | null {
+  const target = event.target;
+  if (target instanceof Element) {
+    const toggle = target.closest<HTMLElement>(".cf-fold-toggle");
+    const lineFrom = toggle?.dataset.cfFoldLineFrom;
+    if (lineFrom) {
+      return findFoldSectionAtLineFrom(view.state, Number(lineFrom));
+    }
+  }
+
+  const pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
+  return pos === null ? null : findFoldSectionAtPosition(view.state, pos);
+}
+
+function setActiveFoldRail(view: EditorView, section: FoldSection | null): void {
+  const current = view.state.field(activeFoldRailField, false)?.section ?? null;
+  if (sameFoldSection(current, section)) return;
+  view.dispatch({ effects: setActiveFoldRailEffect.of(section) });
+}
+
+const foldRailHoverHandlers = EditorView.domEventHandlers({
+  mousemove(event, view) {
+    setActiveFoldRail(view, foldSectionFromMouseEvent(view, event));
+  },
+  mouseleave(_event, view) {
+    setActiveFoldRail(view, null);
+  },
+});
 
 function createHeadingFoldState(state: EditorState): HeadingFoldState {
   const analysis = state.field(documentAnalysisField);
@@ -554,7 +716,13 @@ export const headingFold: Extension = [
   documentAnalysisField,
   headingFoldService,
   headingFoldField,
+  activeFoldRailField,
+  foldRailHoverHandlers,
   keymap.of(foldKeymap),
 ];
 
-export { headingFoldField as _headingFoldFieldForTest };
+export {
+  activeFoldRailField as _activeFoldRailFieldForTest,
+  headingFoldField as _headingFoldFieldForTest,
+  setActiveFoldRailEffect as _setActiveFoldRailEffectForTest,
+};
