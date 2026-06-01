@@ -21,6 +21,7 @@ import {
 import { isFencedCode } from "../lib/syntax-tree-helpers";
 import {
   activateStructureEditAt,
+  getActiveStructureEditTarget,
   hasStructureEditEffect,
   isCodeFenceStructureEditActive,
 } from "../state/cm-structure-edit";
@@ -141,6 +142,13 @@ function joinClasses(...classes: Array<string | false | null | undefined>): stri
 }
 
 const codeBlockStructureRevisionChanged = createChangeChecker(getCodeBlockStructureRevision);
+
+const activeCodeFenceSourceChanged = createChangeChecker((state) => {
+  const active = getActiveStructureEditTarget(state);
+  return active?.kind === "code-fence"
+    ? `${active.openFenceFrom}:${active.openFenceTo}`
+    : "";
+});
 
 interface DecorationRebuildRange {
   readonly from: number;
@@ -495,6 +503,7 @@ export const codeBlockDecorationField = createDecorationStateField({
     if (
       tr.effects.some((e) => e.is(focusEffect)) ||
       hasStructureEditEffect(tr) ||
+      activeCodeFenceSourceChanged(tr) ||
       structureChanged
     ) {
       return buildCodeBlockDecorations(tr.state);

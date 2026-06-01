@@ -422,6 +422,29 @@ describe("codeBlockDecorationField", () => {
     expect(hasBlockReplacementClassAt(specs, state.doc.line(3).from, CSS.blockClosingFence)).toBe(true);
   });
 
+  it("rerenders the opening fence when selection leaves code-fence source inside the same block", () => {
+    const baseState = createTestState(TWO_BLOCKS, 0, true);
+    const target = createStructureEditTargetAt(baseState, 0);
+    if (!target || target.kind !== "code-fence") {
+      throw new Error("expected code-fence structure target");
+    }
+    const active = applyStateEffects(
+      baseState,
+      setStructureEditTargetEffect.of(target),
+    );
+
+    const rerendered = active.update({
+      selection: { anchor: TWO_BLOCKS.indexOf("console.log") },
+    }).state;
+    const specs = getDecoSpecs(rerendered);
+
+    expect(hasLineClassAt(specs, rerendered.doc.line(1).from, CSS.codeblockSourceOpen)).toBe(false);
+    expect(specs.some((spec) =>
+      spec.widgetClass === "CodeBlockLanguageWidget" &&
+      spec.from === rerendered.doc.line(1).from
+    )).toBe(true);
+  });
+
   it("closing fence stays hidden even when selection is on it", () => {
     // In practice atomicRanges prevent cursor from landing here, but
     // the decoration must still hide it correctly.

@@ -241,6 +241,44 @@ test("rich editor rerenders a block header after clicking body text", async ({ p
   await expect(header).toContainText("Theorem 1");
 });
 
+test("rich editor rerenders a code header after clicking code body text", async ({ page }) => {
+  await page.goto("/examples/simple/index.html?doc=showcase&surface=editor");
+  await expect(page.locator("#editor .cm-editor")).toBeVisible();
+  await page.evaluate(() => window.scrollTo(0, 4050));
+  await settleLayout(page);
+
+  const language = page.locator("#editor .cf-codeblock-language", { hasText: "haskell" }).first();
+  await expect(language).toBeVisible();
+  const languagePoint = await language.evaluate((el) => {
+    const rect = el.getBoundingClientRect();
+    return {
+      x: rect.left + rect.width / 2,
+      y: rect.top + rect.height / 2,
+    };
+  });
+  await page.mouse.click(languagePoint.x, languagePoint.y);
+  await expect(page.locator("#editor .cm-line.cf-codeblock-source-open", {
+    hasText: "```haskell",
+  })).toBeVisible();
+
+  const body = page.locator("#editor .cm-line", {
+    hasText: "fibonacci :: Int -> Int",
+  }).first();
+  const bodyPoint = await body.evaluate((el) => {
+    const rect = el.getBoundingClientRect();
+    return {
+      x: rect.left + 160,
+      y: rect.top + rect.height / 2,
+    };
+  });
+  await page.mouse.click(bodyPoint.x, bodyPoint.y);
+
+  await expect(page.locator("#editor .cm-line.cf-codeblock-source-open", {
+    hasText: "```haskell",
+  })).toHaveCount(0);
+  await expect(page.locator("#editor .cf-codeblock-language", { hasText: "haskell" })).toBeVisible();
+});
+
 test("rich editor keeps task-list point clicks on the clicked row", async ({ page }) => {
   const labels = [
     "Inline rendering surfaces",
