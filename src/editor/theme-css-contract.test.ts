@@ -186,6 +186,7 @@ describe("theme CSS contract", () => {
     expect(disclosureToggle).toContain("appearance: none;");
     expect(disclosureToggle).toContain("display: block;");
     expect(disclosureToggle).toContain("font: inherit;");
+    expect(disclosureToggle).toContain("font-style: normal;");
     expect(disclosureToggle).toContain("opacity: 0;");
     expect(disclosureToggle).toContain("position: absolute;");
     expect(disclosureToggle).toContain("right: 100%;");

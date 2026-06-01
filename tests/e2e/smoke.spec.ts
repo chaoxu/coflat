@@ -492,7 +492,9 @@ test("public demo exposes matching section and block disclosure controls", async
   });
 
   const readerBlockButton = page.locator('#reader [id="thm:hover-preview"] > .cf-doc-block-heading > .cf-block-disclosure-toggle');
+  await expect(readerBlockButton).toHaveCSS("font-style", "normal");
   await readerBlockButton.click({ force: true });
+  await expect(readerBlockButton).toHaveCSS("font-style", "normal");
   expect(await page.locator('#reader [id="thm:hover-preview"]').evaluate((block) => {
     const body = block.querySelector(":scope > .cf-block-disclosure-body");
     return {
@@ -515,9 +517,11 @@ test("public demo exposes matching section and block disclosure controls", async
   await expect.poll(() => page.locator("#editor .cf-fold-block").count()).toBeGreaterThan(0);
   const editorBlockButton = page.locator("#editor .cf-fold-block").first();
   await expect(editorBlockButton).toHaveAttribute("aria-label", "Fold block");
+  await expect(editorBlockButton).toHaveCSS("font-style", "normal");
   await editorBlockButton.click({ force: true });
   await expect(editorBlockButton).toHaveText("▶");
   await expect(editorBlockButton).toHaveAttribute("aria-label", "Unfold block");
+  await expect(editorBlockButton).toHaveCSS("font-style", "normal");
 
   const editorSectionButton = page.locator('#editor .cm-line.cf-fold-line:has-text("Block Hover Preview Coverage") .cf-fold-h1');
   await expect(editorSectionButton).toHaveCount(1);
@@ -643,6 +647,7 @@ test("blueprint book theme applies to a host-rendered reader document", async ({
   await expect(theoremHeader).toContainText("Readable column");
   await expect(theoremToggle).toHaveText("▼");
   await expect(theoremToggle).toHaveAttribute("aria-expanded", "true");
+  await expect(theoremToggle).toHaveCSS("font-style", "normal");
   await expect(proof).toContainText("Proof");
   await expect(theorem).toHaveCSS("font-style", "italic");
   await expect(proof).toHaveCSS("font-style", "normal");
@@ -723,6 +728,13 @@ test("blueprint book theme applies to a host-rendered reader document", async ({
   expect(afterHover.toggleOpacity).toBe("1");
   expect(Math.abs(afterHover.height - beforeHover.height)).toBeLessThanOrEqual(0.5);
   expect(Math.abs(afterHover.width - beforeHover.width)).toBeLessThanOrEqual(0.5);
+
+  await theoremToggle.click({ force: true });
+  await expect(theoremToggle).toHaveText("▶");
+  await expect(theoremToggle).toHaveCSS("font-style", "normal");
+  await theoremToggle.click({ force: true });
+  await expect(theoremToggle).toHaveText("▼");
+  await expect(theoremToggle).toHaveCSS("font-style", "normal");
 
   await theoremHeaderText.click();
   await expect(theorem).toHaveAttribute("data-cf-block-open", "true");

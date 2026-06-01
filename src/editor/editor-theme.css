@@ -1584,6 +1584,7 @@
   cursor: pointer;
   display: block;
   font: inherit;
+  font-style: normal;
   line-height: inherit;
   margin: 0;
   margin-right: var(--cf-spacing-xs);

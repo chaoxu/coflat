@@ -45,6 +45,7 @@ export const baseThemeStyles = {
     marginRight: "var(--cf-spacing-xs)",
     color: "var(--cf-border)",
     fontSize: "var(--cf-ui-font-size-base)",
+    fontStyle: "normal",
     cursor: "pointer",
     userSelect: "none",
     lineHeight: "inherit",
