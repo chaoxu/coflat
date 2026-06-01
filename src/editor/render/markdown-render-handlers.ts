@@ -95,6 +95,17 @@ const styleMap: Readonly<Record<string, Decoration>> = {
   InlineCode: inlineCodeDecoration,
 };
 
+const activeLineDelimiterMarks: readonly {
+  readonly delimiter: string;
+  readonly decoration: Decoration;
+}[] = [
+  { delimiter: "**", decoration: boldDecoration },
+  { delimiter: "__", decoration: boldDecoration },
+  { delimiter: "~~", decoration: strikethroughDecoration },
+  { delimiter: "*", decoration: italicDecoration },
+  { delimiter: "_", decoration: italicDecoration },
+];
+
 class HorizontalRuleWidget extends WidgetType {
   override toDOM(): HTMLElement {
     const hr = document.createElement("hr");
@@ -139,6 +150,11 @@ export interface MarkdownHandlerContext {
   readonly items: Range<Decoration>[];
   /** Set by ATXHeading handler, read by HeaderMark handler. */
   cursorInHeading: boolean;
+}
+
+interface MarkdownRange {
+  readonly from: number;
+  readonly to: number;
 }
 
 /** Entry in the markdown node handler registry. */
@@ -358,6 +374,51 @@ MARKDOWN_HANDLERS.set("HorizontalRule", { cursorSensitive: true, handle: handleH
 MARKDOWN_HANDLERS.set("LinkReference", { cursorSensitive: false, handle: () => false });
 MARKDOWN_HANDLERS.set("Escape", { cursorSensitive: true, handle: handleEscape });
 MARKDOWN_HANDLERS.set("ListMark", { cursorSensitive: false, handle: handleListMark });
+
+/**
+ * While typing inside an active inline marker pair, CommonMark flanking rules
+ * can temporarily reject the emphasis node, for example `**foo **`. Keep the
+ * active-line styling stable while the cursor remains inside the pair; once the
+ * cursor leaves, the parsed Markdown semantics take over again.
+ */
+export function addActiveLineTypingSupplements(
+  ctx: MarkdownHandlerContext,
+  ranges: readonly MarkdownRange[],
+): void {
+  if (!ctx.focused) return;
+  const { state } = ctx;
+  const selection = state.selection.main;
+  if (!selection.empty) return;
+
+  const line = state.doc.lineAt(selection.from);
+  if (!ranges.some((range) => line.from <= range.to && range.from <= line.to)) {
+    return;
+  }
+  const cursor = selection.from - line.from;
+  for (const { delimiter, decoration } of activeLineDelimiterMarks) {
+    const open = line.text.lastIndexOf(delimiter, Math.max(0, cursor - 1));
+    if (open < 0) continue;
+    const contentFrom = open + delimiter.length;
+    if (cursor < contentFrom) continue;
+
+    const close = line.text.indexOf(delimiter, Math.max(cursor, contentFrom));
+    if (close < 0 || close <= contentFrom) continue;
+
+    const from = line.from + contentFrom;
+    const to = line.from + close;
+    if (ctx.items.some((item) =>
+      item.from <= from &&
+      item.to >= to &&
+      item.value === decoration
+    )) {
+      return;
+    }
+    ctx.items.push(
+      decoration.range(from, to),
+    );
+    return;
+  }
+}
 
 export const CURSOR_SENSITIVE_NODES = new Set(
   [...MARKDOWN_HANDLERS].filter(([, h]) => h.cursorSensitive).map(([name]) => name),

@@ -1,5 +1,6 @@
 import { describe, expect, it, afterEach } from "vitest";
 import { Decoration, EditorView, type ViewUpdate } from "@codemirror/view";
+import { StateEffect } from "@codemirror/state";
 import { markdown } from "@codemirror/lang-markdown";
 import {
   computeMarkdownContextChangeRanges,
@@ -11,6 +12,7 @@ import {
   _collectMarkdownItemsForTest as collectMarkdownItems,
   _clearLinkDecorationCacheForTest as clearLinkDecorationCache,
   _linkDecorationCacheSizeForTest as linkDecorationCacheSize,
+  _setMarkdownRevealFrozenForTest as setMarkdownRevealFrozen,
 } from "./markdown-render";
 import {
   createCursorSensitiveViewPlugin,
@@ -120,6 +122,60 @@ describe("markdownRenderPlugin (Decoration.mark approach)", () => {
   it("creates a view with the plugin without errors", () => {
     view = createView("# Hello\n\nSome **bold** text");
     expect(view.state.doc.toString()).toBe("# Hello\n\nSome **bold** text");
+  });
+
+  it("freezes cursor-sensitive source reveal during pointer interactions", () => {
+    const doc = "# Heading\n\nbody";
+    view = createView(doc, doc.length);
+    let specs = getAllDecorationSpecs(view);
+    expect(specs).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ from: 0, to: 2 }),
+      ]),
+    );
+
+    view.dispatch({ effects: setMarkdownRevealFrozen.of(true) });
+    view.dispatch({ selection: { anchor: 2 } });
+    specs = getAllDecorationSpecs(view);
+    expect(specs).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ from: 0, to: 2 }),
+      ]),
+    );
+
+    view.dispatch({ effects: setMarkdownRevealFrozen.of(false) });
+    specs = getAllDecorationSpecs(view);
+    expect(specs.some((spec) => spec.from === 0 && spec.to === 2)).toBe(false);
+  });
+
+  it("does not freeze table widget pointer interactions", () => {
+    const effects: unknown[] = [];
+    const doc = "| A |\n| --- |\n| Edit this cell |";
+    view = createTestView(doc, {
+      extensions: [
+        markdown({ extensions: markdownExtensions }),
+        markdownRenderPlugin,
+        EditorView.updateListener.of((update) => {
+          for (const tr of update.transactions) {
+            effects.push(...tr.effects);
+          }
+        }),
+      ],
+    });
+    view.dispatch({ effects: focusEffect.of(true) });
+
+    const target = document.createElement("td");
+    target.className = "cf-table-widget";
+    view.contentDOM.appendChild(target);
+    target.dispatchEvent(new PointerEvent("pointerdown", {
+      bubbles: true,
+      button: 0,
+    }));
+
+    expect(effects.some((effect) =>
+      effect instanceof StateEffect &&
+      effect.is(setMarkdownRevealFrozen)
+    )).toBe(false);
   });
 
   it("handles empty document", () => {
@@ -347,6 +403,22 @@ describe("markdownRenderPlugin (Decoration.mark approach)", () => {
       view = createView("**bold** rest", 12);
       const delims = getSourceDelimiters(view);
       expect(delims.length).toBe(0);
+    });
+
+    it("keeps active bold styling while typing before a trailing-space closer", () => {
+      const doc = "**foo **";
+      view = createView(doc, doc.indexOf("foo") + 2);
+      const items = collectMarkdownItems(
+        view,
+        [{ from: 0, to: view.state.doc.length }],
+        () => false,
+      );
+
+      expect(items.some((item) =>
+        item.from === 2 &&
+        item.to === doc.length - 2 &&
+        item.value.spec.class === CSS.bold
+      )).toBe(true);
     });
 
     it("applies compact reveal metrics to link source marks and URL content", () => {

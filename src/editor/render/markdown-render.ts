@@ -1,9 +1,17 @@
 import {
   Decoration,
   EditorView,
+  ViewPlugin,
   type ViewUpdate,
 } from "@codemirror/view";
-import { type EditorState, type Range, type Extension, type Transaction } from "@codemirror/state";
+import {
+  type EditorState,
+  type Range,
+  type Extension,
+  StateEffect,
+  StateField,
+  type Transaction,
+} from "@codemirror/state";
 import { ensureSyntaxTree, syntaxTree } from "@codemirror/language";
 import type { SyntaxNodeRef, Tree } from "@lezer/common";
 import {
@@ -22,6 +30,7 @@ import {
   openRenderedLinkAtEvent,
 } from "./link-handler";
 import {
+  addActiveLineTypingSupplements,
   CURSOR_SENSITIVE_NODES,
   MARKDOWN_HANDLERS,
   type MarkdownHandlerContext,
@@ -32,6 +41,92 @@ import {
 } from "./focus-state";
 
 const MARKDOWN_LAYOUT_PARSE_TIMEOUT_MS = 1000;
+const MARKDOWN_REVEAL_FREEZE_TAIL_MS = 100;
+
+const setMarkdownRevealFrozen = StateEffect.define<boolean>();
+
+const markdownRevealFrozenField = StateField.define<boolean>({
+  create: () => false,
+  update(frozen, tr) {
+    for (const effect of tr.effects) {
+      if (effect.is(setMarkdownRevealFrozen)) return effect.value;
+    }
+    return frozen;
+  },
+});
+
+function transactionUnfreezesMarkdownReveal(tr: Transaction): boolean {
+  return tr.effects.some((effect) =>
+    effect.is(setMarkdownRevealFrozen) && effect.value === false
+  );
+}
+
+function shouldFreezeMarkdownRevealForPointerTarget(
+  target: EventTarget | null,
+  view: EditorView,
+): boolean {
+  if (!(target instanceof Node) || !view.contentDOM.contains(target)) {
+    return false;
+  }
+  const targetElement = target instanceof Element ? target : target.parentElement;
+  if (
+    targetElement &&
+    targetElement.closest(".cf-table-widget")
+  ) {
+    return false;
+  }
+  return true;
+}
+
+const markdownRevealFreezePlugin: Extension = ViewPlugin.fromClass(class {
+  view: EditorView;
+  private pointerDownInContent = false;
+  private releaseTimer: number | null = null;
+
+  private readonly onPointerDown = (event: PointerEvent) => {
+    if (event.button !== 0) return;
+    if (!shouldFreezeMarkdownRevealForPointerTarget(event.target, this.view)) return;
+    this.pointerDownInContent = true;
+    if (this.releaseTimer !== null) {
+      window.clearTimeout(this.releaseTimer);
+      this.releaseTimer = null;
+    }
+    if (!this.view.state.field(markdownRevealFrozenField)) {
+      this.view.dispatch({ effects: setMarkdownRevealFrozen.of(true) });
+    }
+  };
+
+  private readonly onPointerRelease = () => {
+    if (!this.pointerDownInContent) return;
+    this.pointerDownInContent = false;
+    if (this.releaseTimer !== null) {
+      window.clearTimeout(this.releaseTimer);
+    }
+    this.releaseTimer = window.setTimeout(() => {
+      this.releaseTimer = null;
+      if (!this.view.state.field(markdownRevealFrozenField)) return;
+      try {
+        this.view.dispatch({ effects: setMarkdownRevealFrozen.of(false) });
+      } catch {
+        // The view may be destroyed while the release timer is pending.
+      }
+    }, MARKDOWN_REVEAL_FREEZE_TAIL_MS);
+  };
+
+  constructor(view: EditorView) {
+    this.view = view;
+    view.dom.addEventListener("pointerdown", this.onPointerDown, true);
+    window.addEventListener("pointerup", this.onPointerRelease);
+    window.addEventListener("pointercancel", this.onPointerRelease);
+  }
+
+  destroy() {
+    this.view.dom.removeEventListener("pointerdown", this.onPointerDown, true);
+    window.removeEventListener("pointerup", this.onPointerRelease);
+    window.removeEventListener("pointercancel", this.onPointerRelease);
+    if (this.releaseTimer !== null) window.clearTimeout(this.releaseTimer);
+  }
+});
 
 function markdownLayoutTree(state: EditorState): Tree {
   return ensureSyntaxTree(
@@ -402,6 +497,7 @@ function collectMarkdownItemsForState(
       },
     });
   }
+  addActiveLineTypingSupplements(ctx, ranges);
 
   return ctx.items;
 }
@@ -449,7 +545,11 @@ const markdownDecorationField = createLifecycleDecorationStateField({
     return syntaxTree(afterState) !== syntaxTree(beforeState);
   },
   contextChanged(tr) {
+    if (tr.state.field(markdownRevealFrozenField, false)) return false;
     return computeMarkdownContextChangeRangesForTransaction(tr).length > 0;
+  },
+  shouldRebuild(tr) {
+    return transactionUnfreezesMarkdownReveal(tr);
   },
   contextUpdateMode: "dirty-ranges",
   dirtyRangeFn(tr, context) {
@@ -471,6 +571,10 @@ const renderedLinkEventHandlers = EditorView.domEventHandlers({
 export const markdownRenderPlugin: Extension = [
   editorFocusField,
   focusTracker,
+  markdownRevealFrozenField,
+  markdownRevealFreezePlugin,
   markdownDecorationField,
   renderedLinkEventHandlers,
 ];
+
+export const _setMarkdownRevealFrozenForTest = setMarkdownRevealFrozen;

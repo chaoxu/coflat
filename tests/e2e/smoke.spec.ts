@@ -124,6 +124,32 @@ async function expectLineHeightStableAfterClick(
   expect(Math.abs(after.height - before.height), label).toBeLessThanOrEqual(0.5);
 }
 
+async function textRect(locator: Locator, text: string) {
+  return locator.evaluate((el, targetText) => {
+    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+    let node = walker.nextNode();
+    while (node) {
+      const value = node.nodeValue ?? "";
+      const index = value.indexOf(targetText);
+      if (index >= 0) {
+        const range = document.createRange();
+        range.setStart(node, index);
+        range.setEnd(node, index + targetText.length);
+        const rect = range.getClientRects()[0];
+        if (!rect) throw new Error(`missing text rect for ${targetText}`);
+        return {
+          left: rect.left,
+          top: rect.top,
+          height: rect.height,
+          width: rect.width,
+        };
+      }
+      node = walker.nextNode();
+    }
+    throw new Error(`missing text node for ${targetText}`);
+  }, text);
+}
+
 test("editor mounts and accepts input", async ({ page }) => {
   await page.goto("/tests/e2e/fixtures/index.html");
 
@@ -152,6 +178,26 @@ test("rich editor cursor movement never changes line height", async ({ page }) =
   ] as const) {
     await expectLineHeightStableAfterClick(page, selector, label);
   }
+});
+
+test("rich editor does not reveal heading source while pointer is down", async ({ page }) => {
+  await page.goto("/tests/e2e/fixtures/index.html");
+  await setEditorDoc(page, "# Stable Heading\n\nPlain paragraph.", "rich");
+  await settleLayout(page);
+
+  const heading = page.locator(".cm-line.cf-doc-heading--h1");
+  await expect(heading).toBeVisible();
+  const before = await textRect(heading, "Stable Heading");
+
+  await page.mouse.move(before.left + 4, before.top + before.height / 2);
+  await page.mouse.down();
+  await page.waitForTimeout(50);
+
+  const during = await textRect(heading, "Stable Heading");
+  expect(Math.abs(during.left - before.left)).toBeLessThanOrEqual(0.5);
+  expect(Math.abs(during.width - before.width)).toBeLessThanOrEqual(0.5);
+
+  await page.mouse.up();
 });
 
 test("editor supports ordinary list exit and marker removal while writing", async ({ page }) => {

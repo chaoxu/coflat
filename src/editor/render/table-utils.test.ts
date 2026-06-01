@@ -103,6 +103,32 @@ describe("parseTable", () => {
     expect(result.rows[0].cells[2].content).toBe("");
   });
 
+  it("preserves explicit blank cells in the middle of a row", () => {
+    const result = mustParse([
+      "| A | B | C |",
+      "| --- | --- | --- |",
+      "| 1 |   | 3 |",
+    ]);
+    expect(result.rows[0].cells).toEqual([
+      { content: "1" },
+      { content: "" },
+      { content: "3" },
+    ]);
+  });
+
+  it("preserves explicit blank leading and trailing cells", () => {
+    const result = mustParse([
+      "| A | B | C |",
+      "| --- | --- | --- |",
+      "|   | 2 |   |",
+    ]);
+    expect(result.rows[0].cells).toEqual([
+      { content: "" },
+      { content: "2" },
+      { content: "" },
+    ]);
+  });
+
   it("handles escaped pipes in cells", () => {
     const result = mustParse([
       "| A | B |",
