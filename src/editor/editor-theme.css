@@ -1508,7 +1508,11 @@
   position: relative;
 }
 
-.cf-reader .cf-doc-block-collapsible::before {
+.cf-reader .cf-doc-block-collapsible > .cf-block-disclosure-body {
+  position: relative;
+}
+
+.cf-reader .cf-doc-block-collapsible > .cf-block-disclosure-body::before {
   background: var(--cf-block-disclosure-indicator-color);
   bottom: 0;
   content: "";
@@ -1522,8 +1526,8 @@
   width: var(--cf-border-width-accent, 2px);
 }
 
-.cf-reader .cf-doc-block-collapsible:hover::before,
-.cf-reader .cf-doc-block-collapsible:focus-within::before {
+.cf-reader .cf-doc-block-collapsible:hover > .cf-block-disclosure-body::before,
+.cf-reader .cf-doc-block-collapsible:focus-within > .cf-block-disclosure-body::before {
   opacity: 1;
 }
 

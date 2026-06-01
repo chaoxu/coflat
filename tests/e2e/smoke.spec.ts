@@ -325,6 +325,23 @@ test("public demo reader resolves showcase local images", async ({ page }) => {
   await expect(image).toHaveAttribute("src", /\/showcase\/hover-preview-figure\.svg$/);
 });
 
+test("public demo reader block hover previews are inert", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 826 });
+  await page.goto("/examples/simple/index.html?doc=showcase&surface=reader");
+
+  const blockReference = page.locator('#reader [data-ref-key="thm:hover-preview"]').first();
+  await scrollThroughUntil(page, [1500, 1800, 2000, 2200, 2400], blockReference);
+  await expect(blockReference).toBeVisible();
+
+  await blockReference.hover();
+
+  const tooltip = page.locator('.cf-hover-preview-tooltip[data-visible="true"]');
+  await expect(tooltip).toContainText("Hover Preview Stress Test");
+  await expect(tooltip.locator(".cf-block-disclosure-toggle")).toHaveCount(0);
+  await expect(tooltip.locator(".cf-doc-block-collapsible")).toHaveCount(0);
+  await expectTooltipWithinViewport(page, tooltip);
+});
+
 test("public demo reader resolves internal references without broken math", async ({ page }) => {
   for (const doc of ["showcase", "format"] as const) {
     await page.goto(`/examples/simple/index.html?doc=${doc}&surface=reader`);
@@ -348,24 +365,30 @@ test("public demo reader aligns the collapse rail with the disclosure triangle",
   const beforeHover = await theorem.evaluate((el) => {
     const headingText = el.querySelector(":scope > .cf-doc-block-heading > .cf-block-heading-content");
     const toggle = el.querySelector(":scope > .cf-doc-block-heading > .cf-block-disclosure-toggle");
+    const body = el.querySelector(":scope > .cf-block-disclosure-body");
     const bodyParagraph = el.querySelector(":scope > .cf-block-disclosure-body .cf-doc-paragraph");
-    if (!(headingText instanceof HTMLElement) || !(toggle instanceof HTMLElement) || !(bodyParagraph instanceof HTMLElement)) {
+    if (!(headingText instanceof HTMLElement) || !(toggle instanceof HTMLElement) || !(body instanceof HTMLElement) || !(bodyParagraph instanceof HTMLElement)) {
       throw new Error("missing theorem disclosure parts");
     }
     const blockRect = el.getBoundingClientRect();
+    const headingRect = headingText.getBoundingClientRect();
     const textRect = headingText.getBoundingClientRect();
     const toggleRect = toggle.getBoundingClientRect();
+    const bodyWrapperRect = body.getBoundingClientRect();
     const bodyRect = bodyParagraph.getBoundingClientRect();
-    const railStyle = getComputedStyle(el, "::before");
-    const railCenter = blockRect.left + Number.parseFloat(railStyle.left);
+    const railStyle = getComputedStyle(body, "::before");
+    const railCenter = bodyWrapperRect.left + Number.parseFloat(railStyle.left);
+    const railTop = bodyWrapperRect.top + Number.parseFloat(railStyle.top);
     const toggleCenter = (toggleRect.left + toggleRect.right) / 2;
     return {
       bodyTextLeft: bodyRect.left,
       blockHeight: blockRect.height,
       blockWidth: blockRect.width,
+      headingBottom: headingRect.bottom,
       headingTextLeft: textRect.left,
       railCenter,
       railOpacity: railStyle.opacity,
+      railTop,
       toggleCenter,
       toggleOpacity: getComputedStyle(toggle).opacity,
       toggleTextGap: textRect.left - toggleRect.right,
@@ -376,9 +399,14 @@ test("public demo reader aligns the collapse rail with the disclosure triangle",
   expect(Math.abs(beforeHover.toggleTextGap - 4)).toBeLessThanOrEqual(0.5);
   expect(Math.abs(beforeHover.headingTextLeft - beforeHover.bodyTextLeft)).toBeLessThanOrEqual(1);
   expect(Math.abs(beforeHover.railCenter - beforeHover.toggleCenter)).toBeLessThanOrEqual(0.75);
+  expect(beforeHover.railTop).toBeGreaterThanOrEqual(beforeHover.headingBottom - 0.5);
 
   await theorem.hover();
-  await expect.poll(() => theorem.evaluate((el) => getComputedStyle(el, "::before").opacity))
+  await expect.poll(() => theorem.evaluate((el) => {
+    const body = el.querySelector(":scope > .cf-block-disclosure-body");
+    if (!(body instanceof HTMLElement)) throw new Error("missing disclosure body");
+    return getComputedStyle(body, "::before").opacity;
+  }))
     .toBe("1");
   await expect.poll(() => theorem.evaluate((el) => {
     const toggle = el.querySelector(":scope > .cf-doc-block-heading > .cf-block-disclosure-toggle");
@@ -387,10 +415,12 @@ test("public demo reader aligns the collapse rail with the disclosure triangle",
   })).toBe("1");
   const afterHover = await theorem.evaluate((el) => {
     const rect = el.getBoundingClientRect();
+    const body = el.querySelector(":scope > .cf-block-disclosure-body");
+    if (!(body instanceof HTMLElement)) throw new Error("missing disclosure body");
     return {
       blockHeight: rect.height,
       blockWidth: rect.width,
-      railOpacity: getComputedStyle(el, "::before").opacity,
+      railOpacity: getComputedStyle(body, "::before").opacity,
     };
   });
   expect(afterHover.railOpacity).toBe("1");
@@ -546,15 +576,23 @@ test("blueprint book theme applies to a host-rendered reader document", async ({
 
   const beforeHover = await theorem.evaluate((el) => {
     const rect = el.getBoundingClientRect();
+    const body = el.querySelector(":scope > .cf-block-disclosure-body");
+    if (!(body instanceof HTMLElement)) {
+      throw new Error("missing theorem disclosure body");
+    }
     return {
       height: rect.height,
-      railOpacity: getComputedStyle(el, "::before").opacity,
+      railOpacity: getComputedStyle(body, "::before").opacity,
       width: rect.width,
     };
   });
   expect(beforeHover.railOpacity).toBe("0");
   await theorem.hover();
-  await expect.poll(() => theorem.evaluate((el) => getComputedStyle(el, "::before").opacity))
+  await expect.poll(() => theorem.evaluate((el) => {
+    const body = el.querySelector(":scope > .cf-block-disclosure-body");
+    if (!(body instanceof HTMLElement)) throw new Error("missing theorem disclosure body");
+    return getComputedStyle(body, "::before").opacity;
+  }))
     .toBe("1");
   await expect.poll(() => theoremToggle.evaluate((el) => getComputedStyle(el).opacity))
     .toBe("1");
@@ -564,7 +602,11 @@ test("blueprint book theme applies to a host-rendered reader document", async ({
     if (!(toggle instanceof HTMLElement)) {
       throw new Error("missing theorem disclosure toggle");
     }
-    const railStyle = getComputedStyle(el, "::before");
+    const body = el.querySelector(":scope > .cf-block-disclosure-body");
+    if (!(body instanceof HTMLElement)) {
+      throw new Error("missing theorem disclosure body");
+    }
+    const railStyle = getComputedStyle(body, "::before");
     return {
       height: rect.height,
       railLeft: railStyle.left,

@@ -189,6 +189,7 @@ function renderInlineSnippet(ctx: WalkContext, source: string): BlockResult {
     lineOffsets: null,
     sourcePositions: false,
     mathSourcePositions: false,
+    interactiveBlockDisclosures: ctx.interactiveBlockDisclosures,
     headingCounters: [...ctx.headingCounters],
     blockCounters: new Map(ctx.blockCounters),
     footnotesById: new Map(),
@@ -236,6 +237,15 @@ function renderBlockDisclosure(summaryHtml: string, bodyHtml: string): string {
   return (
     `<div class="cf-doc-block-heading">` +
     `<button class="${CSS.blockDisclosureToggle}" type="button" aria-expanded="true" aria-label="${BLOCK_DISCLOSURE_COLLAPSE_LABEL}">${BLOCK_DISCLOSURE_OPEN_ICON}</button>` +
+    `<span class="${CSS.blockHeadingContent}">${summaryHtml}</span>` +
+    `</div>` +
+    `<div class="${CSS.blockDisclosureBody}">${bodyHtml}</div>`
+  );
+}
+
+function renderStaticBlockHeader(summaryHtml: string, bodyHtml: string): string {
+  return (
+    `<div class="cf-doc-block-heading">` +
     `<span class="${CSS.blockHeadingContent}">${summaryHtml}</span>` +
     `</div>` +
     `<div class="${CSS.blockDisclosureBody}">${bodyHtml}</div>`
@@ -519,6 +529,8 @@ interface WalkContext {
   sourcePositions: boolean;
   /** When true, emit source offsets on math placeholders only. */
   mathSourcePositions: boolean;
+  /** When false, render semantic block headers without interactive disclosure controls. */
+  interactiveBlockDisclosures: boolean;
   headingCounters: number[];
   blockCounters: Map<string, number>;
   equationCounter: number;
@@ -1047,6 +1059,11 @@ interface RenderOptions {
   truncate?: TruncateSpec;
   /** Current document path forwarded to host resolvers. */
   documentPath?: string;
+  /**
+   * Emit interactive disclosure controls for semantic blocks. Defaults to true.
+   * Set false for inert preview surfaces such as hover cards.
+   */
+  interactiveBlockDisclosures?: boolean;
 }
 
 interface TruncatedInfo {
@@ -1629,8 +1646,9 @@ function renderFencedDiv(ctx: WalkContext, node: SyntaxNode): BlockResult {
     manifestEntry?.headerPosition !== "inline" &&
     isCollapsibleBlock(normalizedClassName),
   );
+  const interactiveBlock = collapsibleBlock && ctx.interactiveBlockDisclosures;
   const classes = [blockClasses(normalizedClassName || undefined)];
-  if (collapsibleBlock) classes.push(CSS.blockCollapsible);
+  if (interactiveBlock) classes.push(CSS.blockCollapsible);
 
   let attrs = ` class="${classes.join(" ")}"`;
   if (id) attrs += ` id="${escapeHtml(id)}"`;
@@ -1648,8 +1666,10 @@ function renderFencedDiv(ctx: WalkContext, node: SyntaxNode): BlockResult {
   const summaryHtml = summary.html;
   const html = manifestEntry?.headerPosition === "inline"
     ? renderProofBlockHtml(attrs, sourceAttrs, summaryHtml, bodyHtml)
-    : collapsibleBlock
+    : interactiveBlock
     ? `<div${attrs}${sourceAttrs} data-cf-block-open="true">${renderBlockDisclosure(summaryHtml, bodyHtml)}</div>`
+    : collapsibleBlock
+    ? `<div${attrs}${sourceAttrs}>${renderStaticBlockHeader(summaryHtml, bodyHtml)}</div>`
     : `<div${attrs}${sourceAttrs}>${bodyHtml}</div>`;
 
   return {
@@ -1832,6 +1852,7 @@ function walkDocument(
     lineOffsets: opts.sourceLineAttribution ? buildLineOffsets(source) : null,
     sourcePositions: !!opts.sourcePositions,
     mathSourcePositions: !!(opts.sourcePositions || opts.mathSourcePositions),
+    interactiveBlockDisclosures: opts.interactiveBlockDisclosures !== false,
     headingCounters: [0, 0, 0, 0, 0, 0, 0],
     blockCounters: new Map(),
     equationCounter: 0,
@@ -2079,6 +2100,10 @@ void ALLOWED_ATTR_RE;
  * runs in `<span class="cf-text">`. Used by {@link mapDomRangeToSource}
  * to invert the rendering. Off by default — the un-opted output is
  * byte-identical to the form without it.
+ *
+ * `opts.interactiveBlockDisclosures` (default `true`) controls whether
+ * semantic block headers emit disclosure buttons. Inert preview surfaces
+ * set it to `false` while retaining the same header/body markup.
  */
 export function renderToHtml(
   source: string,
@@ -2563,7 +2588,9 @@ function renderReaderPreviewSource(
   mathMacros: Record<string, string> | undefined,
 ): HTMLElement {
   const body = createReaderHoverBody();
-  body.innerHTML = renderToHtml(source, context).html;
+  body.innerHTML = renderToHtml(source, context, {
+    interactiveBlockDisclosures: false,
+  }).html;
   void hydrateMath(body, { mathMacros: mathMacros ?? context?.mathMacros });
   return body;
 }

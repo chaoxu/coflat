@@ -151,7 +151,10 @@ describe("theme CSS contract", () => {
     expect(collapsibleBlock).toContain(
       "position: relative;",
     );
-    const collapsibleRail = cssRuleBody(css, ".cf-reader .cf-doc-block-collapsible::before");
+    expect(cssRuleBody(css, ".cf-reader .cf-doc-block-collapsible > .cf-block-disclosure-body")).toContain(
+      "position: relative;",
+    );
+    const collapsibleRail = cssRuleBody(css, ".cf-reader .cf-doc-block-collapsible > .cf-block-disclosure-body::before");
     expect(collapsibleRail).toContain(
       "left: calc(-0.5em - var(--cf-spacing-xs));",
     );
@@ -161,7 +164,7 @@ describe("theme CSS contract", () => {
     expect(collapsibleRail).toContain(
       "width: var(--cf-border-width-accent, 2px);",
     );
-    expect(cssRuleBody(css, ".cf-reader .cf-doc-block-collapsible:hover::before,\n.cf-reader .cf-doc-block-collapsible:focus-within::before")).toContain(
+    expect(cssRuleBody(css, ".cf-reader .cf-doc-block-collapsible:hover > .cf-block-disclosure-body::before,\n.cf-reader .cf-doc-block-collapsible:focus-within > .cf-block-disclosure-body::before")).toContain(
       "opacity: 1;",
     );
     const disclosureToggle = cssRuleBody(css, ".cf-reader .cf-block-disclosure-toggle");

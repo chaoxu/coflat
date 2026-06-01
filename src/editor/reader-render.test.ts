@@ -366,6 +366,20 @@ describe("renderToHtml — block-level rendering ()", () => {
     expect(r.html).toContain('data-title="Pythagoras"');
   });
 
+  it("can render semantic block headers without disclosure controls for inert previews", () => {
+    const r = renderToHtml(
+      "::: {.theorem #thm-1 title=\"Pythagoras\"}\nbody\n:::",
+      undefined,
+      { interactiveBlockDisclosures: false },
+    );
+    expect(r.html).toContain('<div class="cf-doc-block-heading">');
+    expect(r.html).toContain('<span class="cf-block-heading-content">');
+    expect(r.html).toContain('<span class="cf-block-header-rendered">Theorem 1</span>');
+    expect(r.html).not.toContain('cf-doc-block-collapsible');
+    expect(r.html).not.toContain('cf-block-disclosure-toggle');
+    expect(r.html).not.toContain('data-cf-block-open');
+  });
+
   it("renders fenced div attribute titles with inline richness", () => {
     const r = renderToHtml("::: {.problem title=\"**3SUM** and $x^2$\"}\nbody\n:::");
     expect(r.html).toContain('<span class="cf-block-attr-title">');
