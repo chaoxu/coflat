@@ -206,6 +206,24 @@ describe("blockDecorationField", () => {
     expect(hasLineClassAt(specs, proofLine, CSS.blockHeaderCollapsed)).toBe(false);
   });
 
+  it("rerenders the opener when selection leaves the active structure source range inside the same block", () => {
+    const base = createTestState(TWO_BLOCKS, 0, true);
+    const active = applyStateEffects(
+      base,
+      setStructureEditTargetEffect.of(createFencedStructureEditTarget(base, 0)),
+    );
+    const bodyPos = active.doc.sliceString(0).indexOf("Content");
+    const rerendered = active.update({ selection: { anchor: bodyPos } }).state;
+    const specs = getDecoSpecs(rerendered);
+    const theoremLine = rerendered.doc.line(1);
+
+    expect(hasLineClassAt(specs, theoremLine.from, CSS.blockSource)).toBe(false);
+    expect(specs.some((spec) =>
+      spec.widgetClass === "BlockHeaderWidget" &&
+      spec.from === theoremLine.from
+    )).toBe(true);
+  });
+
   it("hides closing fence when cursor is not on it", () => {
     // Cursor on line 2 (content, not fence)
     const contentPos = TWO_BLOCKS.indexOf("Content");

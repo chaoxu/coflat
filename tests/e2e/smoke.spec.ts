@@ -200,6 +200,47 @@ test("rich editor does not reveal heading source while pointer is down", async (
   await page.mouse.up();
 });
 
+test("rich editor rerenders a block header after clicking body text", async ({ page }) => {
+  await page.goto("/examples/simple/index.html?doc=showcase&surface=editor");
+  await expect(page.locator("#editor .cm-editor")).toBeVisible();
+  await page.evaluate(() => window.scrollTo(0, 1900));
+  await settleLayout(page);
+
+  const header = page.locator("#editor .cm-line.cf-block-header", {
+    hasText: "Hover Preview Stress Test",
+  }).first();
+  await expect(header).toContainText("Theorem 1");
+
+  const headerPoint = await header.evaluate((el) => {
+    const rect = el.getBoundingClientRect();
+    return {
+      x: rect.left + 140,
+      y: rect.top + rect.height / 2,
+    };
+  });
+  await page.mouse.click(headerPoint.x, headerPoint.y);
+  await expect(page.locator("#editor .cm-line.cf-block-source", {
+    hasText: "thm:hover-preview",
+  })).toBeVisible();
+
+  const body = page.locator("#editor .cm-line", {
+    hasText: "This referenced block exists",
+  }).first();
+  const bodyPoint = await body.evaluate((el) => {
+    const rect = el.getBoundingClientRect();
+    return {
+      x: rect.left + 200,
+      y: rect.top + rect.height / 2,
+    };
+  });
+  await page.mouse.click(bodyPoint.x, bodyPoint.y);
+
+  await expect(page.locator("#editor .cm-line.cf-block-source", {
+    hasText: "thm:hover-preview",
+  })).toHaveCount(0);
+  await expect(header).toContainText("Theorem 1");
+});
+
 test("rich editor keeps task-list point clicks on the clicked row", async ({ page }) => {
   const labels = [
     "Inline rendering surfaces",

@@ -21,6 +21,7 @@ import {
 import { CSS } from "../../core/constants/css-classes";
 import { activeFencedOpenFenceStarts } from "../state/shell-ownership";
 import {
+  getActiveStructureEditTarget,
   hasStructureEditEffect,
   isFencedStructureSourceEditActive,
 } from "../state/cm-structure-edit";
@@ -316,6 +317,13 @@ const activeShellStartsChanged = createChangeChecker({
   equals: sameNumberSet,
 });
 
+const activeFencedStructureSourceChanged = createChangeChecker((state) => {
+  const active = getActiveStructureEditTarget(state);
+  return active?.kind === "fenced-opener"
+    ? `${active.openFenceFrom}:${active.editFrom}:${active.editTo}:${active.revealFrom}:${active.revealTo}`
+    : "";
+});
+
 const fencedDivRenderRevisionChanged = createChangeChecker(getFencedDivRenderRevision);
 
 const blockDecorationDependencyChanged = createChangeChecker(
@@ -326,6 +334,7 @@ const blockDecorationDependencyChanged = createChangeChecker(
 
 function blockDecorationInputsChanged(tr: Transaction): boolean {
   return hasStructureEditEffect(tr)
+    || activeFencedStructureSourceChanged(tr)
     || fencedDivRenderRevisionChanged(tr)
     || blockDecorationDependencyChanged(tr);
 }
