@@ -200,6 +200,55 @@ test("rich editor does not reveal heading source while pointer is down", async (
   await page.mouse.up();
 });
 
+test("rich editor keeps task-list point clicks on the clicked row", async ({ page }) => {
+  await page.goto("/tests/e2e/fixtures/index.html");
+  const doc = [
+    "- [x] Inline rendering surfaces are unified",
+    "- [x] Explicit structure editing is field-scoped",
+    "- [x] Stable shell overlay tracks the rendered surface",
+    "- [ ] Add even more browser-level regression scenarios",
+  ].join("\n");
+
+  const labels = [
+    "Inline rendering surfaces",
+    "Explicit structure editing",
+    "Stable shell overlay",
+    "browser-level regression",
+  ];
+
+  for (let rowIndex = 0; rowIndex < labels.length; rowIndex += 1) {
+    await setEditorDoc(page, doc, "rich");
+    await settleLayout(page);
+
+    const line = page.locator(".cm-line", { hasText: labels[rowIndex] });
+    await expect(line).toHaveCount(1);
+    const point = await line.evaluate((el) => {
+      const input = el.querySelector('input[type="checkbox"]');
+      if (!(input instanceof HTMLElement)) {
+        throw new Error("missing task checkbox");
+      }
+      const lineRect = el.getBoundingClientRect();
+      const inputRect = input.getBoundingClientRect();
+      return {
+        x: inputRect.right + 45,
+        y: lineRect.top + lineRect.height / 2,
+      };
+    });
+
+    await page.mouse.click(point.x, point.y);
+    await page.keyboard.type("Z");
+
+    await expect.poll(() => getEditorDoc(page)).toContain("Z");
+    const lines = (await getEditorDoc(page)).split("\n");
+    expect(lines[rowIndex], labels[rowIndex]).toContain("Z");
+    for (let i = 0; i < lines.length; i += 1) {
+      if (i !== rowIndex) {
+        expect(lines[i], `${labels[rowIndex]} did not edit row ${i + 1}`).not.toContain("Z");
+      }
+    }
+  }
+});
+
 test("editor supports ordinary list exit and marker removal while writing", async ({ page }) => {
   await page.goto("/tests/e2e/fixtures/index.html");
   await setEditorDoc(page, "- item", "source");

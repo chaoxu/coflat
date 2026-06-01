@@ -86,15 +86,15 @@ export function lineBoundsForElement(
   view: EditorView,
   line: HTMLElement,
 ): EditorLineBounds | null {
-  const from = safePosAtDOM(view, line, 0);
-  if (from === null) return null;
+  const pos = safePosAtDOM(view, line, 0);
+  if (pos === null) return null;
 
-  const to = safePosAtDOM(view, line, line.childNodes.length) ?? from;
+  const docLine = view.state.doc.lineAt(pos);
   return {
-    from,
-    to,
-    fromLine: view.state.doc.lineAt(from).number,
-    toLine: view.state.doc.lineAt(to).number,
+    from: docLine.from,
+    to: docLine.to,
+    fromLine: docLine.number,
+    toLine: docLine.number,
   };
 }
 
