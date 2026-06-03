@@ -547,6 +547,60 @@ test("public demo reader surface shows shared hover previews", async ({ page }) 
   await expectTooltipWithinViewport(page, tooltip);
 });
 
+test("public format guide keeps reader and editor code block wrapping aligned", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+
+  await page.goto("/examples/simple/index.html?doc=format&surface=reader");
+  const readerCode = page.locator("#reader .cf-doc-code-block code", {
+    hasText: "markdown+fenced_divs",
+  }).first();
+  await expect(readerCode).toBeVisible();
+  const readerMetrics = await readerCode.evaluate((el) => {
+    const rect = el.getBoundingClientRect();
+    const style = getComputedStyle(el);
+    return {
+      height: rect.height,
+      lineHeight: Number.parseFloat(style.lineHeight),
+      overflowWrap: style.overflowWrap,
+      scrollWidth: el.scrollWidth,
+      clientWidth: el.clientWidth,
+      whiteSpace: style.whiteSpace,
+      wordBreak: style.wordBreak,
+    };
+  });
+
+  await page.goto("/examples/simple/index.html?doc=format&surface=editor");
+  await expect(page.locator("#editor .cm-editor")).toBeVisible();
+  const editorCode = page.locator("#editor .cm-line.cf-codeblock-last", {
+    hasText: "markdown+fenced_divs",
+  }).first();
+  await expect(editorCode).toBeVisible();
+  const editorMetrics = await editorCode.evaluate((el) => {
+    const rect = el.getBoundingClientRect();
+    const style = getComputedStyle(el);
+    return {
+      height: rect.height,
+      lineHeight: Number.parseFloat(style.lineHeight),
+      overflowWrap: style.overflowWrap,
+      scrollWidth: el.scrollWidth,
+      clientWidth: el.clientWidth,
+      whiteSpace: style.whiteSpace,
+      wordBreak: style.wordBreak,
+    };
+  });
+
+  expect(readerMetrics.whiteSpace).toBe("pre");
+  expect(editorMetrics.whiteSpace).toBe("pre");
+  expect(readerMetrics.overflowWrap).toBe("normal");
+  expect(editorMetrics.overflowWrap).toBe("normal");
+  expect(readerMetrics.wordBreak).toBe("normal");
+  expect(editorMetrics.wordBreak).toBe("normal");
+  expect(readerMetrics.scrollWidth).toBeGreaterThan(readerMetrics.clientWidth);
+  expect(editorMetrics.scrollWidth).toBeGreaterThan(editorMetrics.clientWidth);
+  expect(editorMetrics.height).toBeLessThanOrEqual(editorMetrics.lineHeight + 1);
+  expect(readerMetrics.height).toBeLessThanOrEqual(readerMetrics.lineHeight + 1);
+});
+
 test("public demo reader resolves showcase local images", async ({ page }) => {
   await page.goto("/examples/simple/index.html?doc=showcase&surface=reader");
 

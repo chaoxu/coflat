@@ -720,6 +720,14 @@
   padding: 0;
 }
 
+.cm-lineWrapping .cm-line.cf-codeblock-header,
+.cm-lineWrapping .cm-line.cf-codeblock-body,
+.cm-lineWrapping .cm-line.cf-codeblock-last {
+  white-space: pre;
+  word-break: normal;
+  overflow-wrap: normal;
+}
+
 .cm-editor .cm-line {
   padding: 0;
 }
