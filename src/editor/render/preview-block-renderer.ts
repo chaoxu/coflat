@@ -23,6 +23,10 @@ import {
 } from "../../core/parser";
 import { readBracedLabelId } from "../../core/parser/label-utils";
 import {
+  isLooseListNode,
+  orderedListStartNumber,
+} from "../../core/parser/list-shape";
+import {
   analyzeDocumentSemantics,
   stringTextSource,
   type DocumentSemantics,
@@ -272,12 +276,12 @@ function renderList(
 ): void {
   const list = document.createElement(tag);
   if (tag === "ol") {
-    const start = orderedListStart(node, context.doc);
+    const start = orderedListStartNumber(node, context.doc);
     if (start !== 1) {
       list.setAttribute("start", String(start));
     }
   }
-  const loose = isLooseList(node, context.doc);
+  const loose = isLooseListNode(node, context.doc);
   let isTaskList = false;
   let child = node.firstChild;
 
@@ -308,27 +312,6 @@ function renderList(
     loose ? DOCUMENT_SURFACE_CLASS.listLoose : DOCUMENT_SURFACE_CLASS.listTight,
   );
   parent.appendChild(list);
-}
-
-function orderedListStart(node: SyntaxNode, doc: string): number {
-  const mark = node.getChild("ListItem")?.getChild("ListMark");
-  if (!mark) return 1;
-  const n = parseInt(doc.slice(mark.from, mark.to).match(/(\d+)/)?.[1] ?? "", 10);
-  return Number.isNaN(n) ? 1 : n;
-}
-
-// Loose = a blank-line gap between sibling items, matching the reader's rule.
-function isLooseList(node: SyntaxNode, doc: string): boolean {
-  let prevItem: SyntaxNode | null = null;
-  let child = node.firstChild;
-  while (child) {
-    if (child.name === "ListItem") {
-      if (prevItem && /\n\s*\n/.test(doc.slice(prevItem.to, child.from))) return true;
-      prevItem = child;
-    }
-    child = child.nextSibling;
-  }
-  return false;
 }
 
 // Matches the reader's unwrap rule: an item whose content is exactly one
