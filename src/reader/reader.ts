@@ -1217,8 +1217,9 @@ function renderHeading(ctx: WalkContext, node: SyntaxNode, level: number): Block
   const numberingAttr = attrs?.unnumbered
     ? ' data-heading-numbering="none"'
     : ` data-section-number="${headingNumber}"`;
+  const idAttr = attrs?.id ? ` id="${escapeHtml(attrs.id)}"` : "";
   return {
-    html: `<h${level} class="${headingClasses(level, attrs?.unnumbered)}"${numberingAttr}${blockSourceAttrs(ctx, node.from, node.to)}>${inner.html}</h${level}>`,
+    html: `<h${level} class="${headingClasses(level, attrs?.unnumbered)}"${idAttr}${numberingAttr}${blockSourceAttrs(ctx, node.from, node.to)}>${inner.html}</h${level}>`,
     text: inner.text,
     hasMath: inner.hasMath,
   };
@@ -1227,6 +1228,7 @@ function renderHeading(ctx: WalkContext, node: SyntaxNode, level: number): Block
 interface HeadingAttributeInfo {
   contentTo: number;
   unnumbered: boolean;
+  id?: string;
 }
 
 function parsePandocHeadingAttributes(
@@ -1249,9 +1251,11 @@ function parsePandocHeadingAttributes(
   if (!tokens.every(isPandocHeadingAttributeToken)) return null;
   let strippedTo = open;
   while (strippedTo > contentFrom && /\s/.test(source[strippedTo - 1] ?? "")) strippedTo--;
+  const idToken = tokens.find((token) => token.startsWith("#"));
   return {
     contentTo: strippedTo,
     unnumbered: tokens.includes("-") || tokens.includes(".unnumbered"),
+    id: idToken?.slice(1),
   };
 }
 

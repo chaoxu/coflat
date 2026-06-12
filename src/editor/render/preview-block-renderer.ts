@@ -11,6 +11,10 @@ import {
   type BlockManifestEntry,
 } from "../../core/constants/block-manifest";
 import { CSS } from "../../core/constants/css-classes";
+import {
+  DOCUMENT_SURFACE_CLASS,
+  documentSurfaceClassNames,
+} from "../../core/document-surface-classes";
 import type { BlockCounterEntry } from "../../core/lib/file-system-types";
 import {
   extractRawFrontmatter,
@@ -50,6 +54,16 @@ export interface PreviewBlockRenderOptions {
 
 const previewParser = baseParser.configure(htmlRenderExtensions);
 
+/**
+ * Render markdown into preview DOM.
+ *
+ * Block-level structure, cf-doc-* classes, and data attributes follow the
+ * reader's emission contract; preview-reader-parity.test.ts locks the two
+ * pipelines together. Sanitization boundary: this pipeline builds DOM via
+ * createElement/textContent only — never raw HTML — so untrusted source
+ * cannot inject markup. The one innerHTML consumer downstream
+ * (reference widgets) receives HTML its caller already sanitized.
+ */
 export function renderPreviewBlockContentToDom(
   container: HTMLElement,
   text: string,
@@ -118,9 +132,12 @@ function renderNode(
     case "OrderedList":
       renderList(parent, node, context, "ol");
       return;
-    case "HorizontalRule":
-      parent.appendChild(document.createElement("hr"));
+    case "HorizontalRule": {
+      const hr = document.createElement("hr");
+      hr.className = CSS.block("hr");
+      parent.appendChild(hr);
       return;
+    }
     case "FencedDiv":
       renderFencedDiv(parent, node, context);
       return;
@@ -183,6 +200,7 @@ function renderParagraph(
   context: PreviewRenderContext,
 ): void {
   const paragraph = document.createElement("p");
+  paragraph.className = DOCUMENT_SURFACE_CLASS.paragraph;
   appendInlineNode(paragraph, node, context);
   parent.appendChild(paragraph);
 }
@@ -196,6 +214,18 @@ function renderHeading(
   const fallbackLevel = Number(node.name[node.name.length - 1]);
   const level = heading?.level ?? fallbackLevel;
   const element = document.createElement(`h${level}`) as HTMLHeadingElement;
+  element.className = documentSurfaceClassNames(
+    DOCUMENT_SURFACE_CLASS.heading,
+    DOCUMENT_SURFACE_CLASS.headingLevel(level),
+    heading?.unnumbered && DOCUMENT_SURFACE_CLASS.headingUnnumbered,
+  );
+  if (heading) {
+    if (heading.unnumbered) {
+      element.dataset.headingNumbering = "none";
+    } else {
+      element.dataset.sectionNumber = heading.number;
+    }
+  }
 
   if (heading?.id) {
     element.id = heading.id;
@@ -221,7 +251,9 @@ function renderFencedCode(
   const language = codeInfo ? context.doc.slice(codeInfo.from, codeInfo.to).trim() : "";
   const codeText = node.getChild("CodeText");
 
+  pre.className = DOCUMENT_SURFACE_CLASS.codeBlock;
   if (language) {
+    pre.dataset.lang = language;
     const languageToken = language.split(/\s+/)[0] ?? "";
     if (/^[A-Za-z0-9_-]+$/.test(languageToken)) {
       code.classList.add(`language-${languageToken}`);
@@ -239,58 +271,88 @@ function renderList(
   tag: "ul" | "ol",
 ): void {
   const list = document.createElement(tag);
+  if (tag === "ol") {
+    const start = orderedListStart(node, context.doc);
+    if (start !== 1) {
+      list.setAttribute("start", String(start));
+    }
+  }
   const loose = isLooseList(node, context.doc);
+  let isTaskList = false;
   let child = node.firstChild;
 
   while (child) {
     if (child.name === "ListItem") {
       const item = document.createElement("li");
-      renderListItem(item, child, context, loose);
+      const taskMarker = child.getChild("Task")?.getChild("TaskMarker") ?? null;
+      const isTask = taskMarker !== null;
+      isTaskList ||= isTask;
+      item.className = documentSurfaceClassNames(
+        DOCUMENT_SURFACE_CLASS.listItem,
+        isTask && DOCUMENT_SURFACE_CLASS.listItemCheck,
+      );
+      if (taskMarker) {
+        const checked = context.doc.slice(taskMarker.from, taskMarker.to) !== "[ ]";
+        item.dataset.checked = String(checked);
+      }
+      renderListItem(item, child, context);
       list.appendChild(item);
     }
     child = child.nextSibling;
   }
 
+  list.className = documentSurfaceClassNames(
+    DOCUMENT_SURFACE_CLASS.list,
+    tag === "ol" ? DOCUMENT_SURFACE_CLASS.listOrdered : DOCUMENT_SURFACE_CLASS.listUnordered,
+    isTaskList && DOCUMENT_SURFACE_CLASS.listCheck,
+    loose ? DOCUMENT_SURFACE_CLASS.listLoose : DOCUMENT_SURFACE_CLASS.listTight,
+  );
   parent.appendChild(list);
 }
 
-function isLooseList(node: SyntaxNode, doc: string): boolean {
-  let item = node.firstChild;
-  while (item) {
-    if (item.name === "ListItem" && isLooseListItem(item, doc)) return true;
-    item = item.nextSibling;
-  }
-  return false;
+function orderedListStart(node: SyntaxNode, doc: string): number {
+  const mark = node.getChild("ListItem")?.getChild("ListMark");
+  if (!mark) return 1;
+  const n = parseInt(doc.slice(mark.from, mark.to).match(/(\d+)/)?.[1] ?? "", 10);
+  return Number.isNaN(n) ? 1 : n;
 }
 
-function isLooseListItem(node: SyntaxNode, doc: string): boolean {
-  let paragraphCount = 0;
-  let previousBlock: SyntaxNode | null = null;
+// Loose = a blank-line gap between sibling items, matching the reader's rule.
+function isLooseList(node: SyntaxNode, doc: string): boolean {
+  let prevItem: SyntaxNode | null = null;
   let child = node.firstChild;
-
   while (child) {
-    if (child.name !== "ListMark") {
-      if (previousBlock && hasBlankLineBetween(doc, previousBlock, child)) return true;
-      if (child.name === "Paragraph") paragraphCount += 1;
-      if (paragraphCount > 1) return true;
-      previousBlock = child;
+    if (child.name === "ListItem") {
+      if (prevItem && /\n\s*\n/.test(doc.slice(prevItem.to, child.from))) return true;
+      prevItem = child;
     }
     child = child.nextSibling;
   }
-
   return false;
 }
 
-function hasBlankLineBetween(doc: string, left: SyntaxNode, right: SyntaxNode): boolean {
-  return /\r?\n[ \t]*\r?\n/.test(doc.slice(left.to, right.from));
+// Matches the reader's unwrap rule: an item whose content is exactly one
+// paragraph renders it inline; anything else keeps block wrappers.
+function isSingleParagraphItem(node: SyntaxNode): boolean {
+  let blockCount = 0;
+  let onlyParagraph = true;
+  let child = node.firstChild;
+  while (child) {
+    if (child.name !== "ListMark") {
+      blockCount += 1;
+      if (child.name !== "Paragraph" && child.name !== "Task") onlyParagraph = false;
+    }
+    child = child.nextSibling;
+  }
+  return blockCount === 1 && onlyParagraph;
 }
 
 function renderListItem(
   parent: HTMLElement,
   node: SyntaxNode,
   context: PreviewRenderContext,
-  loose: boolean,
 ): void {
+  const inlineOnly = isSingleParagraphItem(node);
   let child = node.firstChild;
 
   while (child) {
@@ -300,17 +362,13 @@ function renderListItem(
     }
 
     if (child.name === "Task") {
-      renderTaskListItem(parent, child, context, loose);
+      renderTaskListItem(parent, child, context, !inlineOnly);
       child = child.nextSibling;
       continue;
     }
 
-    if (child.name === "Paragraph") {
-      if (loose) {
-        renderParagraph(parent, child, context);
-      } else {
-        appendInlineNode(parent, child, context);
-      }
+    if (child.name === "Paragraph" && inlineOnly) {
+      appendInlineNode(parent, child, context);
       child = child.nextSibling;
       continue;
     }
@@ -324,22 +382,30 @@ function renderTaskListItem(
   parent: HTMLElement,
   node: SyntaxNode,
   context: PreviewRenderContext,
-  loose: boolean,
+  wrap: boolean,
 ): void {
-  const target = loose ? document.createElement("p") : parent;
+  const target = wrap ? document.createElement("p") : parent;
+  if (wrap) {
+    target.className = DOCUMENT_SURFACE_CLASS.paragraph;
+  }
   const taskMarker = node.getChild("TaskMarker");
   if (taskMarker) {
     const markerText = context.doc.slice(taskMarker.from, taskMarker.to);
     const input = document.createElement("input");
     input.type = "checkbox";
-    input.disabled = true;
+    // Non-interactive without `disabled`, matching the reader's emission
+    // (disabled checkboxes gray out in some user agents).
+    input.tabIndex = -1;
+    input.setAttribute("aria-disabled", "true");
     input.checked = markerText !== "[ ]";
-    target.appendChild(input);
+    // The checkbox sits directly in the <li>, before any paragraph wrapper,
+    // matching the reader's emission.
+    parent.appendChild(input);
+    parent.appendChild(document.createTextNode(" "));
 
     const contentStart = Math.min(taskMarker.to + 1, node.to);
     const content = context.doc.slice(contentStart, node.to).trim();
     if (content) {
-      target.appendChild(document.createTextNode(" "));
       renderInlineMarkdown(
         target,
         content,
@@ -352,7 +418,7 @@ function renderTaskListItem(
     appendInlineNode(target, node, context);
   }
 
-  if (loose) {
+  if (wrap && target.hasChildNodes()) {
     parent.appendChild(target);
   }
 }
@@ -546,6 +612,7 @@ function renderBlockquote(
   context: PreviewRenderContext,
 ): void {
   const blockquote = document.createElement("blockquote");
+  blockquote.className = DOCUMENT_SURFACE_CLASS.blockquote;
   renderChildNodes(blockquote, node, context);
   parent.appendChild(blockquote);
 }

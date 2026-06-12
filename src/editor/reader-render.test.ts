@@ -129,6 +129,7 @@ describe("renderToHtml — slow path (Lezer)", () => {
   it("strips non-numbering Pandoc heading attributes from visible text", () => {
     const r = renderToHtml("## A target {#sec:a .appendix}");
     expect(r.html).toContain('class="cf-doc-heading cf-doc-heading--h2"');
+    expect(r.html).toContain('id="sec:a"');
     expect(r.html).toContain('data-section-number="0.1"');
     expect(r.html).toContain(">A target</h2>");
     expect(r.html).not.toContain("{#sec:a");
