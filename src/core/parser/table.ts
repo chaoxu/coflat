@@ -219,3 +219,29 @@ export const tableExtension: MarkdownConfig = {
     },
   ],
 };
+
+/**
+ * Parse a table delimiter row (e.g. `| :--- | ---: |`) into per-column
+ * alignments. Delimiter rows contain only `|`, `:`, `-`, and whitespace,
+ * so a plain pipe split is exact here (no span-aware scanning needed).
+ *
+ * Shared by the reader and the editor preview so both emit identical
+ * alignment for the same source.
+ */
+export function parseTableDelimiterAlignments(
+  delimiterRow: string,
+): ("center" | "left" | "right" | null)[] {
+  return delimiterRow
+    .replace(/^\s*\|/, "")
+    .replace(/\|\s*$/, "")
+    .split("|")
+    .map((cell) => cell.trim())
+    .map((cell) => {
+      const left = cell.startsWith(":");
+      const right = cell.endsWith(":");
+      if (left && right) return "center";
+      if (right) return "right";
+      if (left) return "left";
+      return null;
+    });
+}

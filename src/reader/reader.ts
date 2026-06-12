@@ -40,6 +40,7 @@ import {
   createPreviewSurfaceHeader,
 } from "../core/preview-surface";
 import { extractDivClass } from "../core/parser/fenced-div-attrs";
+import { parseTableDelimiterAlignments } from "../core/parser/table";
 import type {
   CitationFormatter,
   DocumentContext,
@@ -1518,14 +1519,7 @@ function inferTableAlign(ctx: WalkContext, node: SyntaxNode): (string | null)[] 
   for (const d of delims) {
     const raw = ctx.source.slice(d.from, d.to);
     if (!raw.includes("-")) continue;
-    return raw.split("|").map((c) => c.trim()).filter((c) => c.includes("-")).map((c) => {
-      const left = c.startsWith(":");
-      const right = c.endsWith(":");
-      if (left && right) return "center";
-      if (right) return "right";
-      if (left) return "left";
-      return null;
-    });
+    return parseTableDelimiterAlignments(raw);
   }
   return [];
 }
