@@ -128,7 +128,7 @@ function headingClasses(level: number, unnumbered = false): string {
   return documentSurfaceClassNames(
     DOCUMENT_SURFACE_CLASS.heading,
     DOCUMENT_SURFACE_CLASS.headingLevel(level),
-    unnumbered && "cf-doc-heading--unnumbered",
+    unnumbered && DOCUMENT_SURFACE_CLASS.headingUnnumbered,
   );
 }
 
@@ -210,7 +210,7 @@ function renderBlockSummary(ctx: WalkContext, type: string, title: string | unde
   const escapedHeader = escapeHtml(type === "proof" ? "Proof" : header);
   if (!title || type === "proof") {
     return {
-      html: `<span class="cf-block-header-rendered">${escapedHeader}</span>`,
+      html: `<span class="${CSS.blockHeaderRendered}">${escapedHeader}</span>`,
       text: header,
       hasMath: false,
     };
@@ -219,7 +219,7 @@ function renderBlockSummary(ctx: WalkContext, type: string, title: string | unde
   return (
     {
       html:
-        `<span class="cf-block-header-rendered">${escapedHeader}</span>` +
+        `<span class="${CSS.blockHeaderRendered}">${escapedHeader}</span>` +
         `<span class="${CSS.blockAttrTitle}">` +
         `<span class="${CSS.blockTitleParen}">(</span>` +
         `<span>${renderedTitle.html}</span>` +
@@ -233,7 +233,7 @@ function renderBlockSummary(ctx: WalkContext, type: string, title: string | unde
 
 function renderBlockDisclosure(summaryHtml: string, bodyHtml: string): string {
   return (
-    `<div class="cf-doc-block-heading">` +
+    `<div class="${DOCUMENT_SURFACE_CLASS.blockHeading}">` +
     `<button class="${CSS.blockDisclosureToggle}" type="button" aria-expanded="true" aria-label="${BLOCK_DISCLOSURE_COLLAPSE_LABEL}">${BLOCK_DISCLOSURE_OPEN_ICON}</button>` +
     `<span class="${CSS.blockHeadingContent}">${summaryHtml}</span>` +
     `</div>` +
@@ -243,7 +243,7 @@ function renderBlockDisclosure(summaryHtml: string, bodyHtml: string): string {
 
 function renderStaticBlockHeader(summaryHtml: string, bodyHtml: string): string {
   return (
-    `<div class="cf-doc-block-heading">` +
+    `<div class="${DOCUMENT_SURFACE_CLASS.blockHeading}">` +
     `<span class="${CSS.blockHeadingContent}">${summaryHtml}</span>` +
     `</div>` +
     `<div class="${CSS.blockDisclosureBody}">${bodyHtml}</div>`
@@ -278,7 +278,7 @@ function renderProofBlockHtml(attrs: string, sourceAttrs: string, summaryHtml: s
   if (!firstParagraph?.[1] || !/\bclass="[^"]*\bcf-doc-paragraph\b[^"]*"/.test(firstParagraph[1])) {
     return (
       `<div${attrs}${sourceAttrs}>` +
-      `<p class="${paragraphClasses}"><span class="cf-doc-block-heading">${summaryHtml}</span></p>` +
+      `<p class="${paragraphClasses}"><span class="${DOCUMENT_SURFACE_CLASS.blockHeading}">${summaryHtml}</span></p>` +
       bodyHtml +
       `</div>`
     );
@@ -288,7 +288,7 @@ function renderProofBlockHtml(attrs: string, sourceAttrs: string, summaryHtml: s
   if (closeStart < 0) {
     return (
       `<div${attrs}${sourceAttrs}>` +
-      `<p class="${paragraphClasses}"><span class="cf-doc-block-heading">${summaryHtml}</span></p>` +
+      `<p class="${paragraphClasses}"><span class="${DOCUMENT_SURFACE_CLASS.blockHeading}">${summaryHtml}</span></p>` +
       bodyHtml +
       `</div>`
     );
@@ -299,7 +299,7 @@ function renderProofBlockHtml(attrs: string, sourceAttrs: string, summaryHtml: s
   return (
     `<div${attrs}${sourceAttrs}>` +
     `<p${paragraphAttrs}>` +
-    `<span class="cf-doc-block-heading">${summaryHtml}</span>` +
+    `<span class="${DOCUMENT_SURFACE_CLASS.blockHeading}">${summaryHtml}</span>` +
     firstInner +
     `</p>` +
     rest +
@@ -564,7 +564,7 @@ function renderInline(
   function emitText(slice: string, sliceFrom: number, sliceTo: number): void {
     if (slice.length === 0) return;
     if (ctx.sourcePositions) {
-      html += `<span class="cf-text" data-source-from="${sliceFrom}" data-source-to="${sliceTo}">${escapeHtml(slice)}</span>`;
+      html += `<span class="${CSS.text}" data-source-from="${sliceFrom}" data-source-to="${sliceTo}">${escapeHtml(slice)}</span>`;
     } else {
       html += escapeHtml(slice);
     }
@@ -654,7 +654,7 @@ function renderInlineNode(
       const inner = renderInline(ctx, node, node.from, node.to);
       const sp = sourcePosAttrs(ctx, node.from, node.to);
       return {
-        html: `<mark class="cf-highlight"${sp}>${inner.html}</mark>`,
+        html: `<mark class="${CSS.highlight}"${sp}>${inner.html}</mark>`,
         text: inner.text,
         hasMath: inner.hasMath,
       };
@@ -688,7 +688,7 @@ function renderInlineNode(
       }
       if (ctx.sourcePositions) {
         return {
-          html: `<span class="cf-text"${sp}>${escapeHtml(href)}</span>`,
+          html: `<span class="${CSS.text}"${sp}>${escapeHtml(href)}</span>`,
           text: href,
           hasMath: false,
         };
@@ -742,7 +742,7 @@ function renderInlineNode(
       const sp = sourcePosAttrs(ctx, node.from, node.to);
       return {
         html:
-          `<sup class="cf-footnote-ref"${sp}>` +
+          `<sup class="${CSS.footnoteRef}"${sp}>` +
           `<a href="#fn-${escapeHtml(safeId)}" id="fnref-${escapeHtml(safeId)}">${entry.number}</a>` +
           `</sup>`,
         text: `[${entry.number}]`,
@@ -754,7 +754,7 @@ function renderInlineNode(
       const ch = raw.length >= 2 ? raw.slice(1) : raw;
       if (ctx.sourcePositions) {
         const sp = sourcePosAttrs(ctx, node.from, node.to);
-        return { html: `<span class="cf-text"${sp}>${escapeHtml(ch)}</span>`, text: ch, hasMath: false };
+        return { html: `<span class="${CSS.text}"${sp}>${escapeHtml(ch)}</span>`, text: ch, hasMath: false };
       }
       return { html: escapeHtml(ch), text: ch, hasMath: false };
     }
@@ -762,7 +762,7 @@ function renderInlineNode(
       const raw = source.slice(node.from, node.to);
       if (ctx.sourcePositions) {
         const sp = sourcePosAttrs(ctx, node.from, node.to);
-        return { html: `<span class="cf-text"${sp}>${escapeHtml(raw)}</span>`, text: raw, hasMath: false };
+        return { html: `<span class="${CSS.text}"${sp}>${escapeHtml(raw)}</span>`, text: raw, hasMath: false };
       }
       return { html: escapeHtml(raw), text: raw, hasMath: false };
     }
@@ -772,7 +772,7 @@ function renderInlineNode(
   const raw = source.slice(node.from, node.to);
   if (ctx.sourcePositions) {
     const sp = sourcePosAttrs(ctx, node.from, node.to);
-    return { html: `<span class="cf-text"${sp}>${escapeHtml(raw)}</span>`, text: raw, hasMath: false };
+    return { html: `<span class="${CSS.text}"${sp}>${escapeHtml(raw)}</span>`, text: raw, hasMath: false };
   }
   return { html: escapeHtml(raw), text: raw, hasMath: false };
 }
@@ -970,7 +970,7 @@ function emitReferenceCluster(
 
   const inner = parts.join("; ");
   const html = ctx.sourcePositions
-    ? `<span class="cf-citation-cluster"${sourcePosAttrs(ctx, from, to)}>${inner}</span>`
+    ? `<span class="${CSS.citationCluster}"${sourcePosAttrs(ctx, from, to)}>${inner}</span>`
     : inner;
   return {
     html,
@@ -1016,7 +1016,7 @@ function emitImage(
   if (!isSafeUrl(src)) {
     if (ctx.sourcePositions) {
       return {
-        html: `<span class="cf-text"${sp}>${escapeHtml(alt)}</span>`,
+        html: `<span class="${CSS.text}"${sp}>${escapeHtml(alt)}</span>`,
         text: alt,
         hasMath: false,
       };
@@ -1024,7 +1024,7 @@ function emitImage(
     return { html: escapeHtml(alt), text: alt, hasMath: false };
   }
   return {
-    html: `<img class="cf-image" src="${escapeHtml(src)}" alt="${escapeHtml(alt)}"${sp}>`,
+    html: `<img class="${CSS.image}" src="${escapeHtml(src)}" alt="${escapeHtml(alt)}"${sp}>`,
     text: alt,
     hasMath: false,
   };
@@ -1410,8 +1410,8 @@ function renderListItem(
     text = (task.checked ? "[x] " : "[ ] ") + text;
   }
   const marker = ordered
-    ? `<span class="cf-list-number">${number}.</span> `
-    : `<span class="cf-list-bullet">•</span> `;
+    ? `<span class="${CSS.listNumber}">${number}.</span> `
+    : `<span class="${CSS.listBullet}">•</span> `;
   return {
     html: `<li class="${classes.join(" ")}"${dataAttrs}${blockSourceAttrs(ctx, node.from, node.to)}>${marker}${inner}</li>`,
     text,
@@ -1739,13 +1739,13 @@ function renderFootnotesList(ctx: WalkContext): string {
   for (const fn of ctx.footnotesInOrder) {
     if (!fn.hasRef && !fn.bodyHtml) continue;
     const safeId = encodeURIComponent(fn.id);
-    const back = ` <a href="#fnref-${escapeHtml(safeId)}" class="cf-footnote-backref">↩</a>`;
+    const back = ` <a href="#fnref-${escapeHtml(safeId)}" class="${CSS.footnoteBackref}">↩</a>`;
     items.push(
-      `<li id="fn-${escapeHtml(safeId)}" class="cf-footnote-item">${fn.bodyHtml}${back}</li>`,
+      `<li id="fn-${escapeHtml(safeId)}" class="${CSS.footnoteItem}">${fn.bodyHtml}${back}</li>`,
     );
   }
   if (items.length === 0) return "";
-  return `<ol class="cf-footnotes">${items.join("")}</ol>`;
+  return `<ol class="${CSS.footnotes}">${items.join("")}</ol>`;
 }
 
 // ---------------------------------------------------------------------------
@@ -1966,7 +1966,7 @@ function walkDocument(
   }
 
   if (truncated) {
-    const marker = `<span class="cf-truncation-marker" data-source-from="${truncated.sourceFrom}" data-source-to="${truncated.sourceTo}"></span>`;
+    const marker = `<span class="${CSS.truncationMarker}" data-source-from="${truncated.sourceFrom}" data-source-to="${truncated.sourceTo}"></span>`;
     combined = {
       html: combined.html + marker,
       text: combined.text,
@@ -2560,7 +2560,7 @@ function hydrateReferenceElement(
   });
   if (!resolved) return;
 
-  el.classList.remove("cf-citation-unresolved", "cf-crossref-unresolved");
+  el.classList.remove(CSS.citationUnresolvedMarker, CSS.crossrefUnresolvedMarker);
   el.classList.add(...hostReferenceClassNames(resolved.className).split(/\s+/));
   if (resolved.href && isSafeUrl(resolved.href)) {
     el.innerHTML = sanitize(
@@ -2622,7 +2622,7 @@ export function hydrateReferences(
 ): void {
   for (const el of Array.from(
     root.querySelectorAll<HTMLElement>(
-      ".cf-citation-unresolved[data-ref-key], .cf-crossref-unresolved[data-ref-key]",
+      `.${CSS.citationUnresolvedMarker}[data-ref-key], .${CSS.crossrefUnresolvedMarker}[data-ref-key]`,
     ),
   )) {
     hydrateReferenceElement(el, ctx, opts);
@@ -2981,7 +2981,7 @@ export async function hydrateMath(
       });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
-      el.classList.add("cf-math-error");
+      el.classList.add(CSS.mathError);
       el.setAttribute("data-math-error", message);
       continue;
     }

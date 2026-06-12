@@ -224,7 +224,7 @@ function buildDegradedCitationItem(
     : raw;
   const keyAttr = singleKey ? ` data-ref-key="${escapeHtml(singleKey)}"` : "";
   const html =
-    `<span class="cf-citation cf-citation-unresolved"`
+    `<span class="${CSS.citationUnresolved}"`
     + keyAttr
     + ` data-ref-mode="${mode}">${escapeHtml(display)}</span>`;
   return {
