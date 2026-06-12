@@ -6,7 +6,7 @@ import { markdownExtensions } from "../core/parser";
 import { documentAnalysisField } from "./state/document-analysis";
 import { applyStateEffects } from "./test-utils";
 import { frontmatterField } from "./state/frontmatter-state";
-import { programmaticDocumentChangeAnnotation } from "./programmatic-document-change";
+import { programmaticDocumentChangeAnnotation } from "./state/programmatic-document-change";
 import {
   activeStructureEditField,
   createFencedStructureEditTarget,

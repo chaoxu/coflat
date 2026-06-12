@@ -15,7 +15,7 @@ import {
   type ScrollToLineOptions,
   type ScrollToPositionOptions,
 } from "./src/editor/headless/per-file-panels";
-import { programmaticDocumentChangeAnnotation } from "./src/editor/programmatic-document-change";
+import { programmaticDocumentChangeAnnotation } from "./src/editor/state/programmatic-document-change";
 import {
   autocompleteSourcesFacet,
   requestHandlerFacet,

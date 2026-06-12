@@ -1,7 +1,7 @@
 import type { EditorView } from "@codemirror/view";
 import { CSS } from "../../core/constants";
 import { collectImageTargets } from "../lib/markdown/image-targets";
-import { createPreviewSurfaceBody } from "../preview-surface";
+import { createPreviewSurfaceBody } from "../../core/preview-surface";
 import {
   createLocalMediaDependencies,
   getLocalMediaPreviewDependency,
