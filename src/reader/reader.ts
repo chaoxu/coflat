@@ -14,6 +14,7 @@ import createDOMPurify from "dompurify";
 import { htmlRenderExtensions, parseFrontmatter } from "../core/parser";
 import { NODE } from "../core/constants/node-types";
 import { isSafeUrl } from "../core/lib/url-utils";
+import { escapeHtml } from "../core/lib/html-escape";
 import {
   BRACKETED_REFERENCE_EXACT_RE,
   parseReferenceClusterBody,
@@ -122,22 +123,6 @@ const FAST_PATH_RE = /[$[:`#^<>\n|-]|^---\n/m;
 // ---------------------------------------------------------------------------
 // HTML / text escaping.
 // ---------------------------------------------------------------------------
-
-function escapeHtml(s: string): string {
-  let out = "";
-  for (let i = 0; i < s.length; i++) {
-    const c = s.charCodeAt(i);
-    switch (c) {
-      case 38: out += "&amp;"; break;   // &
-      case 60: out += "&lt;"; break;    // <
-      case 62: out += "&gt;"; break;    // >
-      case 34: out += "&quot;"; break;  // "
-      case 39: out += "&#39;"; break;   // '
-      default: out += s[i];
-    }
-  }
-  return out;
-}
 
 function headingClasses(level: number, unnumbered = false): string {
   return documentSurfaceClassNames(
