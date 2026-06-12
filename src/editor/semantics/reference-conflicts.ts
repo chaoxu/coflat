@@ -1,4 +1,4 @@
-import { isLikelyLocalReferenceId } from "../lib/markdown/label-graph";
+import { isLikelyLocalReferenceId } from "../lib/markdown/label-model";
 import type { DocumentAnalysis, ReferenceSemantics } from "./document";
 import {
   buildDocumentReferenceCatalog,
