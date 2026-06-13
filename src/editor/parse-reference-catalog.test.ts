@@ -52,4 +52,29 @@ describe("buildReferenceCatalog", () => {
     expect(analyzeReferences(fixture).targets.map((target) => target.displayLabel))
       .toEqual(buildReferenceCatalog(fixture).targets.map((target) => target.displayLabel));
   });
+
+  it("annotates targets and references with 1-based line numbers", () => {
+    const catalog = buildReferenceCatalog(fixture);
+    expect(catalog.uniqueTargetById.get("sec:intro")?.line).toBe(1);
+    expect(catalog.uniqueTargetById.get("def:main")?.line).toBe(3);
+    expect(catalog.uniqueTargetById.get("thm:main")?.line).toBe(7);
+    const eq = catalog.uniqueTargetById.get("eq:one");
+    expect(eq?.line).toBeGreaterThanOrEqual(11);
+    expect(eq?.line).toBeLessThanOrEqual(13);
+    // The single citation cluster sits on the last line of the fixture.
+    expect(catalog.references[0]?.line).toBe(15);
+  });
+
+  it("counts lines over the full source, including frontmatter", () => {
+    const withFrontmatter = [
+      "---",
+      "title: Doc",
+      "---",
+      "",
+      "# Heading {#sec:h}",
+    ].join("\n");
+    // Heading is on source line 5, not line 1 of the frontmatter-stripped body.
+    expect(buildReferenceCatalog(withFrontmatter).uniqueTargetById.get("sec:h")?.line)
+      .toBe(5);
+  });
 });
