@@ -40,6 +40,10 @@ import {
   createPreviewSurfaceHeader,
 } from "../core/preview-surface";
 import { extractDivClass } from "../core/parser/fenced-div-attrs";
+import {
+  isLooseListNode,
+  orderedListStartNumber,
+} from "../core/parser/list-shape";
 import { parseTableDelimiterAlignments } from "../core/parser/table";
 import type {
   CitationFormatter,
@@ -1217,8 +1221,9 @@ function renderHeading(ctx: WalkContext, node: SyntaxNode, level: number): Block
   const numberingAttr = attrs?.unnumbered
     ? ' data-heading-numbering="none"'
     : ` data-section-number="${headingNumber}"`;
+  const idAttr = attrs?.id ? ` id="${escapeHtml(attrs.id)}"` : "";
   return {
-    html: `<h${level} class="${headingClasses(level, attrs?.unnumbered)}"${numberingAttr}${blockSourceAttrs(ctx, node.from, node.to)}>${inner.html}</h${level}>`,
+    html: `<h${level} class="${headingClasses(level, attrs?.unnumbered)}"${idAttr}${numberingAttr}${blockSourceAttrs(ctx, node.from, node.to)}>${inner.html}</h${level}>`,
     text: inner.text,
     hasMath: inner.hasMath,
   };
@@ -1227,6 +1232,7 @@ function renderHeading(ctx: WalkContext, node: SyntaxNode, level: number): Block
 interface HeadingAttributeInfo {
   contentTo: number;
   unnumbered: boolean;
+  id?: string;
 }
 
 function parsePandocHeadingAttributes(
@@ -1249,9 +1255,11 @@ function parsePandocHeadingAttributes(
   if (!tokens.every(isPandocHeadingAttributeToken)) return null;
   let strippedTo = open;
   while (strippedTo > contentFrom && /\s/.test(source[strippedTo - 1] ?? "")) strippedTo--;
+  const idToken = tokens.find((token) => token.startsWith("#"));
   return {
     contentTo: strippedTo,
     unnumbered: tokens.includes("-") || tokens.includes(".unnumbered"),
+    id: idToken?.slice(1),
   };
 }
 
@@ -1282,24 +1290,17 @@ function renderParagraph(ctx: WalkContext, node: SyntaxNode): BlockResult {
 function renderList(ctx: WalkContext, node: SyntaxNode, ordered: boolean): BlockResult {
   const items: BlockResult[] = [];
   let isTaskList = false;
-  let isLoose = false;
-  const startNumber = ordered ? orderedListStart(ctx, node) : 1;
+  const isLoose = isLooseListNode(node, ctx.source);
+  const startNumber = ordered ? orderedListStartNumber(node, ctx.source) : 1;
   let itemIndex = 0;
 
-  // Detect loose by checking for blank-line gaps between items.
-  let prevItem: SyntaxNode | null = null;
   let child = node.firstChild;
   while (child) {
     if (child.name === NODE.ListItem) {
-      if (prevItem) {
-        const between = ctx.source.slice(prevItem.to, child.from);
-        if (/\n\s*\n/.test(between)) isLoose = true;
-      }
       const item = renderListItem(ctx, child, ordered, startNumber + itemIndex);
       itemIndex++;
       if (item.html.includes(DOCUMENT_SURFACE_CLASS.listItemCheck)) isTaskList = true;
       items.push(item);
-      prevItem = child;
     }
     child = child.nextSibling;
   }
@@ -1319,18 +1320,6 @@ function renderList(ctx: WalkContext, node: SyntaxNode, ordered: boolean): Block
     text: items.map((b) => b.text).join("\n"),
     hasMath: items.some((b) => b.hasMath),
   };
-}
-
-function orderedListStart(ctx: WalkContext, node: SyntaxNode): number {
-  const firstItem = node.getChild(NODE.ListItem);
-  if (!firstItem) return 1;
-  const mark = firstItem.getChild("ListMark");
-  if (!mark) return 1;
-  const markText = ctx.source.slice(mark.from, mark.to);
-  const m = markText.match(/(\d+)/);
-  if (!m) return 1;
-  const n = parseInt(m[1], 10);
-  return Number.isNaN(n) ? 1 : n;
 }
 
 function renderListItem(
