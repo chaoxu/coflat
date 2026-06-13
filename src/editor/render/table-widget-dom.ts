@@ -3,6 +3,7 @@ import {
   DOCUMENT_SURFACE_CLASS,
   documentSurfaceClassNames,
 } from "../../core/document-surface-classes";
+import { CSS } from "../../core/constants/css-classes";
 import { createInlineEditorController } from "../inline-editor";
 import { documentContextFacet } from "../document-context";
 import { coarseHitTestPosition, preciseHitTestPosition } from "../lib/editor-hit-test";
@@ -162,7 +163,7 @@ export function buildTableWidgetDOM(options: TableWidgetDomOptions): HTMLTableEl
       cell.style.minHeight = `${renderedRect.height}px`;
     }
     cell.innerHTML = "";
-    cell.classList.add("cf-table-cell-editing");
+    cell.classList.add(CSS.tableCellEditing);
 
     const rootView = options.getRootView();
     const bibData = rootView?.state.field?.(bibDataField, false);

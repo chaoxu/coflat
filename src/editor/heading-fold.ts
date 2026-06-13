@@ -31,6 +31,7 @@ import {
   foldedRanges,
 } from "@codemirror/language";
 import { isCollapsibleBlockType } from "../core/constants/block-manifest";
+import { CSS } from "../core/constants/css-classes";
 import { buildDecorations, RenderWidget } from "./render/render-core";
 import type { FencedDivSemantics, HeadingSemantics } from "./semantics/document";
 import {
@@ -309,10 +310,10 @@ class FoldToggleWidget extends RenderWidget {
   toDOM(view: EditorView): HTMLElement {
     const span = document.createElement("span");
     const classes = [
-      "cf-fold-toggle",
-      this.kind === "section" ? `cf-fold-h${this.level}` : "cf-fold-block",
+      CSS.foldToggle,
+      this.kind === "section" ? CSS.foldHeading(this.level) : "cf-fold-block",
     ];
-    if (this.folded) classes.push("cf-fold-toggle-folded");
+    if (this.folded) classes.push(CSS.foldToggleFolded);
     span.className = classes.join(" ");
     span.textContent = this.folded ? "▶" : "▼";
     span.dataset.cfFoldLineFrom = String(this.pos);
@@ -392,7 +393,7 @@ function buildFoldToggleItems(
       section.kind,
     );
     items.push(
-      Decoration.line({ class: "cf-fold-line" }).range(section.lineFrom),
+      Decoration.line({ class: CSS.foldLine }).range(section.lineFrom),
     );
     items.push(
       Decoration.widget({ widget, side: -1 }).range(section.lineFrom),

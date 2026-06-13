@@ -237,7 +237,7 @@ export function buildSidenoteDecorations(state: EditorState): DecorationSet {
     if (collapsed) {
       // Collapsed mode: hide entire definition line (content shown in footnote section).
       items.push(
-        Decoration.line({ class: "cf-sidenote-def-line" }).range(def.from),
+        Decoration.line({ class: CSS.sidenoteDefLine }).range(def.from),
       );
       items.push(
         Decoration.replace({}).range(def.from, def.to),
@@ -251,7 +251,7 @@ export function buildSidenoteDecorations(state: EditorState): DecorationSet {
 
     // Apply line styling for footnote body (smaller font, muted color).
     items.push(
-      Decoration.line({ class: "cf-sidenote-def-body" }).range(def.from),
+      Decoration.line({ class: CSS.sidenoteDefBody }).range(def.from),
     );
 
     // Hide [^id]: label via Decoration.replace with a small number widget.

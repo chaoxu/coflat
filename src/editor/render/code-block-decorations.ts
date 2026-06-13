@@ -99,7 +99,7 @@ class CopyButtonWidget extends ShellWidget {
 
   toDOM(): HTMLElement {
     const btn = document.createElement("button");
-    btn.className = "cf-codeblock-copy";
+    btn.className = CSS.codeblockCopy;
     btn.type = "button";
     btn.setAttribute("aria-label", "Copy code to clipboard");
     btn.appendChild(createLucideIcon(copyIconNode));

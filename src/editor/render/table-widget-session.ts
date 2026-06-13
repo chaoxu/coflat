@@ -1,4 +1,5 @@
 import type { EditorView } from "@codemirror/view";
+import { CSS } from "../../core/constants/css-classes";
 import type { InlineEditorController } from "../inline-editor";
 import type { TableRange } from "./table-discovery";
 import type { TableBoundaryHandoffDirection } from "./table-widget-navigation";
@@ -60,7 +61,7 @@ export function destroyActiveInlineEditor(): DestroyedInlineEditor | null {
   if (!activeInlineEditor) return null;
   const { controller, view: inlineView, cell, owner } = activeInlineEditor;
   const text = inlineView.state.doc.toString();
-  cell.classList.remove("cf-table-cell-editing");
+  cell.classList.remove(CSS.tableCellEditing);
   cell.style.removeProperty("width");
   cell.style.removeProperty("min-width");
   cell.style.removeProperty("max-width");
@@ -88,7 +89,7 @@ export function restoreDestroyedInlineEditorLocally(
 
 export function clearActivePreviewCell(): void {
   if (!activePreviewCell) return;
-  activePreviewCell.cell.classList.remove("cf-table-cell-active");
+  activePreviewCell.cell.classList.remove(CSS.tableCellActive);
   activePreviewCell.cell.removeAttribute("tabindex");
   activePreviewCell = null;
 }
@@ -102,7 +103,7 @@ export function setActivePreviewCell(
     return;
   }
   clearActivePreviewCell();
-  cell.classList.add("cf-table-cell-active");
+  cell.classList.add(CSS.tableCellActive);
   cell.tabIndex = -1;
   focusWithoutScrolling(cell);
   activePreviewCell = { cell, owner };

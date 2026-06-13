@@ -81,7 +81,7 @@ const headingLineByLevel: Record<string, Decoration> = {
   }),
 };
 
-const highlightDecoration = Decoration.mark({ class: "cf-highlight" });
+const highlightDecoration = Decoration.mark({ class: CSS.highlight });
 const boldDecoration = Decoration.mark({ class: CSS.bold });
 const italicDecoration = Decoration.mark({ class: CSS.italic });
 const strikethroughDecoration = Decoration.mark({ class: CSS.strikethrough });
@@ -109,7 +109,7 @@ const activeLineDelimiterMarks: readonly {
 class HorizontalRuleWidget extends WidgetType {
   override toDOM(): HTMLElement {
     const hr = document.createElement("hr");
-    hr.className = "cf-hr";
+    hr.className = CSS.hr;
     hr.setAttribute("aria-hidden", "true");
     return hr;
   }
