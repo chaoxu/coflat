@@ -3,6 +3,7 @@ import {
   DOCUMENT_SURFACE_CLASS,
   documentSurfaceClassNames,
 } from "../../core/document-surface-classes";
+import { CSS } from "../../core/constants/css-classes";
 import type { InlineReferenceRenderContext } from "./inline-render";
 import type { TableRange } from "./table-discovery";
 import type { ParsedTable } from "./table-utils";
@@ -167,7 +168,7 @@ export class TableWidget extends ShellWidget implements
     this.ensureSourceRange();
     container.className = documentSurfaceClassNames(
       DOCUMENT_SURFACE_CLASS.tableBlock,
-      "cf-table-widget",
+      CSS.tableWidget,
     );
     container.dataset.tableTextHash = this.tableText;
     container.dataset.tableFrom = String(this.tableFrom);

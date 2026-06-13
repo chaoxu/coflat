@@ -20,7 +20,7 @@ export class FootnoteDefLabelWidget extends SimpleTextRenderWidget {
   ) {
     super({
       tagName: "sup",
-      className: "cf-sidenote-def-label",
+      className: CSS.sidenoteDefLabel,
       text: String(number),
     });
   }
@@ -126,26 +126,26 @@ export class FootnoteInlineWidget extends WidgetType {
     }
 
     const wrapper = document.createElement("div");
-    wrapper.className = "cf-footnote-inline";
+    wrapper.className = CSS.footnoteInline;
     wrapper.setAttribute("aria-label", `Footnote ${this.id} content`);
 
     const header = document.createElement("div");
-    header.className = "cf-footnote-inline-header";
+    header.className = CSS.footnoteInlineHeader;
 
     const num = document.createElement("sup");
-    num.className = "cf-footnote-inline-number";
+    num.className = CSS.footnoteInlineNumber;
     num.textContent = String(this.number);
     header.appendChild(num);
 
     const editBtn = document.createElement("button");
-    editBtn.className = "cf-footnote-inline-edit";
+    editBtn.className = CSS.footnoteInlineEdit;
     editBtn.textContent = "Edit";
     editBtn.title = "Navigate to footnote definition";
     header.appendChild(editBtn);
     wrapper.appendChild(header);
 
     const body = document.createElement("div");
-    body.className = "cf-footnote-inline-body";
+    body.className = CSS.footnoteInlineBody;
     renderDocumentFragmentToDom(body, {
       kind: "footnote",
       text: this.content,

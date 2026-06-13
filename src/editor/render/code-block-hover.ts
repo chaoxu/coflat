@@ -4,6 +4,7 @@ import {
   ViewPlugin,
   type ViewUpdate,
 } from "@codemirror/view";
+import { CSS } from "../../core/constants/css-classes";
 import { isCodeFenceStructureEditActive } from "../state/cm-structure-edit";
 import { findFencedBlockAt } from "../fenced-block/model";
 import {
@@ -104,21 +105,21 @@ class CodeBlockHoverPlugin {
     }
 
     const headerEl = getLineElement(this.view, block.openFenceFrom);
-    if (!headerEl || !headerEl.classList.contains("cf-codeblock-header")) {
+    if (!headerEl || !headerEl.classList.contains(CSS.codeblockHeader)) {
       this.clearHoveredHeader();
       return;
     }
 
     if (this.hoveredHeaderEl && this.hoveredHeaderEl !== headerEl) {
-      this.hoveredHeaderEl.classList.remove("cf-codeblock-hovered");
+      this.hoveredHeaderEl.classList.remove(CSS.codeblockHovered);
     }
     this.hoveredHeaderEl = headerEl;
-    this.hoveredHeaderEl.classList.add("cf-codeblock-hovered");
+    this.hoveredHeaderEl.classList.add(CSS.codeblockHovered);
   }
 
   private clearHoveredHeader(): void {
     if (this.hoveredHeaderEl) {
-      this.hoveredHeaderEl.classList.remove("cf-codeblock-hovered");
+      this.hoveredHeaderEl.classList.remove(CSS.codeblockHovered);
       this.hoveredHeaderEl = null;
     }
     this.hoveredBlockOpenFence = null;

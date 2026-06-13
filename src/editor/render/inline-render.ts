@@ -248,7 +248,7 @@ function renderFragment(
 
     case "code": {
       const code = document.createElement("code");
-      code.className = "cf-inline-code";
+      code.className = CSS.inlineCode;
       code.textContent = fragment.text;
       container.appendChild(code);
       return;

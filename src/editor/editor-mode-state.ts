@@ -2,6 +2,7 @@ import { syntaxHighlighting } from "@codemirror/language";
 import { StateEffect, StateField } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { classHighlighter } from "@lezer/highlight";
+import { CSS } from "../core/constants/css-classes";
 import { cm6RichRenderExtensions } from "./render/cm6-rich-render-extensions";
 import {
   editableCompartment,
@@ -46,7 +47,7 @@ export function setEditorMode(view: EditorView, mode: EditorMode): void {
       effects.push(renderCompartment.reconfigure([]));
       effects.push(editableCompartment.reconfigure([]));
       effects.push(modeClassCompartment.reconfigure(
-        EditorView.editorAttributes.of({ class: "cf-source-mode" }),
+        EditorView.editorAttributes.of({ class: CSS.sourceMode }),
       ));
       effects.push(syntaxHighlightCompartment.reconfigure(sourceSyntaxHighlightingExtension));
       break;
