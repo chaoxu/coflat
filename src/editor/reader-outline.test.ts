@@ -78,6 +78,16 @@ describe("renderToHtml outline option", () => {
     expect(outline).toEqual([{ id: "title", text: "Title", level: 1 }]);
   });
 
+  it("does not include headings past a truncation boundary in the outline", () => {
+    const { outline } = renderToHtml(
+      "# Kept\n\nbody\n\n# Dropped",
+      undefined,
+      { outline: true, truncate: { lines: 1 } },
+    );
+    // The second heading is truncated away, so it must not appear in the outline.
+    expect(outline?.map((o) => o.id)).toEqual(["kept"]);
+  });
+
   it("does not change html output when the option is off", () => {
     expect(renderToHtml(doc).html).toBe(renderToHtml(doc, undefined, {}).html);
   });

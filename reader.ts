@@ -22,7 +22,7 @@ export {
   hydrateReferences,
   type HydrateMathOptions,
   type HydrateReferencesOptions,
-  type OutlineEntry,
+  type ReaderOutlineEntry,
   type ReaderHoverPreviewEnv,
   type ReaderHoverPreviewOptions,
   type BlockCounterEntry,

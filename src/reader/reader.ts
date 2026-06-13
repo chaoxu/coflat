@@ -195,6 +195,8 @@ function renderInlineSnippet(ctx: WalkContext, source: string): BlockResult {
     mathSourcePositions: false,
     interactiveBlockDisclosures: ctx.interactiveBlockDisclosures,
     collectOutline: false,
+    outline: [],
+    usedHeadingIds: new Set(),
     headingCounters: [...ctx.headingCounters],
     blockCounters: new Map(ctx.blockCounters),
     footnotesById: new Map(),
@@ -507,7 +509,7 @@ interface WalkContext {
   /** When true, emit ids on all headings and accumulate {@link outline}. */
   collectOutline: boolean;
   /** Headings in document order; populated only when {@link collectOutline}. */
-  outline: OutlineEntry[];
+  outline: ReaderOutlineEntry[];
   /** Heading ids already emitted, for slug de-duplication. */
   usedHeadingIds: Set<string>;
   headingCounters: number[];
@@ -1030,7 +1032,7 @@ type TruncateSpec = { lines: number } | { chars: number };
  * deduplicated slug of `text`. `number` is coflat's canonical section number
  * (e.g. `"2.1"`), absent for unnumbered headings.
  */
-export interface OutlineEntry {
+export interface ReaderOutlineEntry {
   readonly id: string;
   readonly text: string;
   readonly level: number;
@@ -1042,7 +1044,7 @@ interface RenderOptions {
   sourceLineAttribution?: boolean;
   /**
    * If true, emit a stable `id` on every heading (an explicit Pandoc `{#id}`
-   * when present, else a deduplicated slug) and return an {@link OutlineEntry}
+   * when present, else a deduplicated slug) and return an {@link ReaderOutlineEntry}
    * list in document order. Off by default — the un-opted output is
    * byte-identical to the form without it (only explicitly-labeled headings
    * carry ids).
@@ -1251,6 +1253,8 @@ function reserveExplicitHeadingIds(ctx: WalkContext, tree: Tree): void {
       const { from, to } = headingContentRange(ctx.source, node.node);
       const attrs = parsePandocHeadingAttributes(ctx.source, from, to);
       if (attrs?.id) ctx.usedHeadingIds.add(attrs.id);
+      // A heading can't contain another heading — skip its inline subtree.
+      return false;
     },
   });
 }
@@ -1878,7 +1882,7 @@ function walkDocument(
   tree: Tree,
   resolvers: Resolvers,
   opts: RenderOptions,
-): BlockResult & { truncated?: TruncatedInfo; outline: OutlineEntry[] } {
+): BlockResult & { truncated?: TruncatedInfo; outline: ReaderOutlineEntry[] } {
   const frontmatter = parseFrontmatter(source);
   const frontmatterEnd = frontmatter.end;
   const ctx: WalkContext = {
@@ -1936,6 +1940,8 @@ function walkDocument(
       const fnIdSnapshot = new Map(ctx.footnotesById);
       const headingCounterSnapshot = [...ctx.headingCounters];
       const blockCounterSnapshot = new Map(ctx.blockCounters);
+      const outlineLen = ctx.outline.length;
+      const usedHeadingIdsSnapshot = new Set(ctx.usedHeadingIds);
       const rendered = renderBlock(ctx, child);
       const cost = budgetKind === "lines"
         ? blockLineCost(source, child)
@@ -1946,6 +1952,8 @@ function walkDocument(
         ctx.footnotesById = fnIdSnapshot;
         ctx.headingCounters = headingCounterSnapshot;
         ctx.blockCounters = blockCounterSnapshot;
+        ctx.outline.length = outlineLen;
+        ctx.usedHeadingIds = usedHeadingIdsSnapshot;
         truncated = { sourceFrom: child.from, sourceTo: source.length };
         break;
       }
@@ -2149,7 +2157,7 @@ export function renderToHtml(
   source: string,
   ctx?: DocumentContext,
   opts: RenderOptions = {},
-): { html: string; hasMath: boolean; truncated?: TruncatedInfo; outline?: OutlineEntry[] } {
+): { html: string; hasMath: boolean; truncated?: TruncatedInfo; outline?: ReaderOutlineEntry[] } {
   const resolvers = buildResolvers(ctx, opts.documentPath);
 
   if (
@@ -2165,7 +2173,7 @@ export function renderToHtml(
 
   const tree = parseSource(source);
   const result = walkDocument(source, tree, resolvers, opts);
-  const out: { html: string; hasMath: boolean; truncated?: TruncatedInfo; outline?: OutlineEntry[] } = {
+  const out: { html: string; hasMath: boolean; truncated?: TruncatedInfo; outline?: ReaderOutlineEntry[] } = {
     html: sanitize(result.html),
     hasMath: result.hasMath,
   };
