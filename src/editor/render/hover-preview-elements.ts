@@ -3,7 +3,7 @@ import { renderDocumentFragmentToDom } from "../document-surfaces";
 import {
   createPreviewSurfaceContent,
   createPreviewSurfaceHeader,
-} from "../preview-surface";
+} from "../../core/preview-surface";
 
 export function createHoverPreviewHeader(
   text: string,

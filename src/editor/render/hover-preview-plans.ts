@@ -9,7 +9,7 @@ import { blockCounterField, type NumberedBlock } from "../state/block-counter";
 import { mathMacrosField } from "../state/math-macros";
 import { renderKatex } from "./math-widget";
 import { renderPreviewBlockContentToDom } from "./preview-block-renderer";
-import { createPreviewSurfaceBody } from "../preview-surface";
+import { createPreviewSurfaceBody } from "../../core/preview-surface";
 import { documentAnalysisField } from "../state/document-analysis";
 import {
   EMPTY_LOCAL_MEDIA_DEPENDENCIES,
