@@ -194,6 +194,7 @@ function renderInlineSnippet(ctx: WalkContext, source: string): BlockResult {
     sourcePositions: false,
     mathSourcePositions: false,
     interactiveBlockDisclosures: ctx.interactiveBlockDisclosures,
+    collectOutline: false,
     headingCounters: [...ctx.headingCounters],
     blockCounters: new Map(ctx.blockCounters),
     footnotesById: new Map(),
@@ -503,6 +504,12 @@ interface WalkContext {
   mathSourcePositions: boolean;
   /** When false, render semantic block headers without interactive disclosure controls. */
   interactiveBlockDisclosures: boolean;
+  /** When true, emit ids on all headings and accumulate {@link outline}. */
+  collectOutline: boolean;
+  /** Headings in document order; populated only when {@link collectOutline}. */
+  outline: OutlineEntry[];
+  /** Heading ids already emitted, for slug de-duplication. */
+  usedHeadingIds: Set<string>;
   headingCounters: number[];
   blockCounters: Map<string, number>;
   equationCounter: number;
@@ -1015,9 +1022,32 @@ function emitImage(
 
 type TruncateSpec = { lines: number } | { chars: number };
 
+/**
+ * One heading in a document outline, in document order.
+ *
+ * `id` is the anchor that {@link renderToHtml} emits on the heading element
+ * when `opts.outline` is set — an explicit Pandoc `{#id}` when present, else a
+ * deduplicated slug of `text`. `number` is coflat's canonical section number
+ * (e.g. `"2.1"`), absent for unnumbered headings.
+ */
+export interface OutlineEntry {
+  readonly id: string;
+  readonly text: string;
+  readonly level: number;
+  readonly number?: string;
+}
+
 interface RenderOptions {
   /** If true, emit `data-source-line` on every block-level element. */
   sourceLineAttribution?: boolean;
+  /**
+   * If true, emit a stable `id` on every heading (an explicit Pandoc `{#id}`
+   * when present, else a deduplicated slug) and return an {@link OutlineEntry}
+   * list in document order. Off by default — the un-opted output is
+   * byte-identical to the form without it (only explicitly-labeled headings
+   * carry ids).
+   */
+  outline?: boolean;
   /** If true, emit `data-source-from`/`data-source-to` byte offsets on
    *  every block element, every inline mark (`<strong>`, `<em>`, `<del>`,
    *  `<code>`, `<a>`, `<sup class="cf-footnote-ref">`, `<span data-math>`,
@@ -1161,31 +1191,73 @@ function headingLevelFor(name: string): number {
   return 0;
 }
 
-function renderHeading(ctx: WalkContext, node: SyntaxNode, level: number): BlockResult {
-  // Skip the HeaderMark child(ren) by rendering inline over [contentStart, contentEnd).
-  // For ATX, content starts after `#+` and optional space; for Setext, content is
-  // the line before the `===`/`---` underline.
+/** Canonical heading slug: fold diacritics, lowercase, non-alphanumeric runs →
+ *  "-", trimmed. Diacritic folding (NFKD + combining-mark strip) keeps accented
+ *  headings readable ("Méthodes" → "methodes") instead of degrading to "m-thodes". */
+function slugifyHeading(text: string): string {
+  return text
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+/** A heading id unique within the document, de-duplicating with a numeric
+ *  suffix. Empty slugs (headings with no alphanumerics) fall back to "section". */
+function uniqueHeadingId(base: string, used: Set<string>): string {
+  const root = base || "section";
+  let candidate = root;
+  let n = 2;
+  while (used.has(candidate)) candidate = `${root}-${n++}`;
+  used.add(candidate);
+  return candidate;
+}
+
+/** Source range of a heading's inline content, excluding the `#+`/underline
+ *  HeaderMark(s). Shared by {@link renderHeading} and the explicit-id pre-pass. */
+function headingContentRange(source: string, node: SyntaxNode): { from: number; to: number } {
+  // For ATX, content starts after `#+` and optional space; for Setext, content
+  // is the line before the `===`/`---` underline.
   let contentFrom = node.from;
   let contentTo = node.to;
-
   const headerMark = node.getChild("HeaderMark");
   if (headerMark && headerMark.from === node.from) {
     // ATX: skip leading marks + one space.
     contentFrom = headerMark.to;
-    while (contentFrom < contentTo && ctx.source[contentFrom] === " ") contentFrom++;
+    while (contentFrom < contentTo && source[contentFrom] === " ") contentFrom++;
     // Strip trailing closing `#+` and whitespace.
-    while (contentTo > contentFrom && ctx.source[contentTo - 1] === " ") contentTo--;
+    while (contentTo > contentFrom && source[contentTo - 1] === " ") contentTo--;
     // The Lezer tree may include a closing HeaderMark child at the end.
     const trailing = node.lastChild;
     if (trailing && trailing.name === "HeaderMark" && trailing.from !== headerMark.from) {
       contentTo = trailing.from;
-      while (contentTo > contentFrom && ctx.source[contentTo - 1] === " ") contentTo--;
+      while (contentTo > contentFrom && source[contentTo - 1] === " ") contentTo--;
     }
   } else if (headerMark && headerMark.from > node.from) {
     // Setext: content is everything before the underline mark.
     contentTo = headerMark.from;
-    while (contentTo > contentFrom && /\s/.test(ctx.source[contentTo - 1] ?? "")) contentTo--;
+    while (contentTo > contentFrom && /\s/.test(source[contentTo - 1] ?? "")) contentTo--;
   }
+  return { from: contentFrom, to: contentTo };
+}
+
+/** Reserve every explicit `{#id}` heading id so auto-slugs yield to author-set
+ *  anchors (explicit ids win; an auto-slug that would collide gets suffixed). */
+function reserveExplicitHeadingIds(ctx: WalkContext, tree: Tree): void {
+  tree.iterate({
+    enter(node) {
+      if (!headingLevelFor(node.name)) return;
+      const { from, to } = headingContentRange(ctx.source, node.node);
+      const attrs = parsePandocHeadingAttributes(ctx.source, from, to);
+      if (attrs?.id) ctx.usedHeadingIds.add(attrs.id);
+    },
+  });
+}
+
+function renderHeading(ctx: WalkContext, node: SyntaxNode, level: number): BlockResult {
+  const { from: contentFrom, to: contentRangeEnd } = headingContentRange(ctx.source, node);
+  let contentTo = contentRangeEnd;
 
   const attrs = parsePandocHeadingAttributes(ctx.source, contentFrom, contentTo);
   if (attrs) contentTo = attrs.contentTo;
@@ -1195,7 +1267,21 @@ function renderHeading(ctx: WalkContext, node: SyntaxNode, level: number): Block
   const numberingAttr = attrs?.unnumbered
     ? ' data-heading-numbering="none"'
     : ` data-section-number="${headingNumber}"`;
-  const idAttr = attrs?.id ? ` id="${escapeHtml(attrs.id)}"` : "";
+
+  // Default: an id only for explicitly-labeled headings (byte-identical to the
+  // pre-outline output). With `opts.outline`, every heading gets a stable id
+  // (explicit `{#id}` or a deduplicated slug) and contributes an outline entry.
+  let headingId = attrs?.id;
+  if (ctx.collectOutline) {
+    if (headingId) ctx.usedHeadingIds.add(headingId);
+    else headingId = uniqueHeadingId(slugifyHeading(inner.text), ctx.usedHeadingIds);
+    ctx.outline.push(
+      attrs?.unnumbered
+        ? { id: headingId, text: inner.text, level }
+        : { id: headingId, text: inner.text, level, number: headingNumber },
+    );
+  }
+  const idAttr = headingId ? ` id="${escapeHtml(headingId)}"` : "";
   return {
     html: `<h${level} class="${headingClasses(level, attrs?.unnumbered)}"${idAttr}${numberingAttr}${blockSourceAttrs(ctx, node.from, node.to)}>${inner.html}</h${level}>`,
     text: inner.text,
@@ -1792,7 +1878,7 @@ function walkDocument(
   tree: Tree,
   resolvers: Resolvers,
   opts: RenderOptions,
-): BlockResult & { truncated?: TruncatedInfo } {
+): BlockResult & { truncated?: TruncatedInfo; outline: OutlineEntry[] } {
   const frontmatter = parseFrontmatter(source);
   const frontmatterEnd = frontmatter.end;
   const ctx: WalkContext = {
@@ -1802,12 +1888,17 @@ function walkDocument(
     sourcePositions: !!opts.sourcePositions,
     mathSourcePositions: !!(opts.sourcePositions || opts.mathSourcePositions),
     interactiveBlockDisclosures: opts.interactiveBlockDisclosures !== false,
+    collectOutline: !!opts.outline,
+    outline: [],
+    usedHeadingIds: new Set(),
     headingCounters: [0, 0, 0, 0, 0, 0, 0],
     blockCounters: new Map(),
     equationCounter: 0,
     footnotesById: new Map(),
     footnotesInOrder: [],
   };
+
+  if (ctx.collectOutline) reserveExplicitHeadingIds(ctx, tree);
 
   const truncate = opts.truncate;
   const budgetKind: "lines" | "chars" | null = truncate
@@ -1939,7 +2030,7 @@ function walkDocument(
       hasMath: combined.hasMath,
     };
   }
-  return { ...combined, truncated };
+  return { ...combined, truncated, outline: ctx.outline };
 }
 
 // ---------------------------------------------------------------------------
@@ -2058,14 +2149,15 @@ export function renderToHtml(
   source: string,
   ctx?: DocumentContext,
   opts: RenderOptions = {},
-): { html: string; hasMath: boolean; truncated?: TruncatedInfo } {
+): { html: string; hasMath: boolean; truncated?: TruncatedInfo; outline?: OutlineEntry[] } {
   const resolvers = buildResolvers(ctx, opts.documentPath);
 
   if (
     !FAST_PATH_RE.test(source) &&
     !opts.sourceLineAttribution &&
     !opts.sourcePositions &&
-    !opts.truncate
+    !opts.truncate &&
+    !opts.outline
   ) {
     const fast = fastRenderInline(source);
     return { html: sanitize(fast.html), hasMath: false };
@@ -2073,11 +2165,12 @@ export function renderToHtml(
 
   const tree = parseSource(source);
   const result = walkDocument(source, tree, resolvers, opts);
-  const out: { html: string; hasMath: boolean; truncated?: TruncatedInfo } = {
+  const out: { html: string; hasMath: boolean; truncated?: TruncatedInfo; outline?: OutlineEntry[] } = {
     html: sanitize(result.html),
     hasMath: result.hasMath,
   };
   if (result.truncated) out.truncated = result.truncated;
+  if (opts.outline) out.outline = result.outline;
   return out;
 }
 
