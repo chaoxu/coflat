@@ -6,7 +6,7 @@ import {
   createPreviewSurfaceContent,
   createPreviewSurfaceHeader,
   createPreviewSurfaceShell,
-} from "./preview-surface";
+} from "../core/preview-surface";
 
 describe("preview surface helpers", () => {
   it("creates shell and content elements with shared base classes", () => {

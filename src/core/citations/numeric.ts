@@ -1,4 +1,5 @@
 import type { CitationFormatter } from "../document-context-types";
+import { escapeHtml } from "../lib/html-escape";
 
 export interface NumericCitationEntry {
   readonly id: string;
@@ -6,13 +7,6 @@ export interface NumericCitationEntry {
 
 const BIB_ENTRY_RE = /@([A-Za-z]+)\s*[{(]\s*([^,\s{}()]+)\s*,/g;
 const SKIPPED_BIB_TYPES = new Set(["comment", "preamble", "string"]);
-
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
-}
 
 function normalizeEntries(
   entries: readonly string[] | readonly NumericCitationEntry[] = [],

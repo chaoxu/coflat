@@ -157,6 +157,29 @@ export const CSS = {
   citation: "cf-citation",
   citationPreview: "cf-citation-preview",
 
+  /** Reader citation cluster wrapper ("[@a; @b]" spans). */
+  citationCluster: "cf-citation-cluster",
+
+  /** Unresolved citation: "cf-citation cf-citation-unresolved". */
+  citationUnresolved: "cf-citation cf-citation-unresolved",
+
+  /** Bare unresolved marker tokens; reader hydration removes these once a
+   *  host resolver resolves the reference. */
+  citationUnresolvedMarker: "cf-citation-unresolved",
+  crossrefUnresolvedMarker: "cf-crossref-unresolved",
+
+  /** Plain-text run wrapper emitted when `sourcePositions` is on. */
+  text: "cf-text",
+
+  /** Reader truncation continuation marker (`truncate` render option). */
+  truncationMarker: "cf-truncation-marker",
+
+  /** Reader footnote reference and footnote list. */
+  footnoteRef: "cf-footnote-ref",
+  footnoteItem: "cf-footnote-item",
+  footnoteBackref: "cf-footnote-backref",
+  footnotes: "cf-footnotes",
+
   /** Shared preview surfaces. */
   previewSurfaceShell: "cf-preview-surface-shell",
   previewSurfaceContent: "cf-preview-surface-content",

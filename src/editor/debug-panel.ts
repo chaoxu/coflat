@@ -1,4 +1,5 @@
 import { Transaction, type Extension, type Text } from "@codemirror/state";
+import { escapeHtml } from "../core/lib/html-escape";
 import { type EditorView, ViewPlugin, type ViewUpdate } from "@codemirror/view";
 import type { FencedDivInfo } from "./fenced-block/model";
 import {
@@ -27,13 +28,6 @@ import {
 const MAX_DOC_INSERT_PREVIEW_CHARS = 120;
 const MIN_SCROLL_LOG_DELTA_PX = 48;
 const MIN_SCROLL_LOG_INTERVAL_MS = 120;
-
-function escapeHtml(text: string): string {
-  return text
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;");
-}
 
 function currentLineClasses(view: EditorView): string[] {
   try {

@@ -17,6 +17,7 @@ import {
 } from "@codemirror/view";
 import { type ChangeSet, type EditorState, type Extension, type Range, type Transaction } from "@codemirror/state";
 import { CSS } from "../../core/constants/css-classes";
+import { escapeHtml } from "../../core/lib/html-escape";
 import { forEachOverlappingOrderedRange } from "../lib/range-helpers";
 import type { CitationFormatter } from "../../core/document-context-types";
 import type { BibStore } from "../state/bib-data";
@@ -206,21 +207,6 @@ export function planReferenceRendering(
   return items;
 }
 
-function escapeAttr(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
-}
-
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
-}
 
 function buildDegradedCitationItem(
   ids: readonly string[],
@@ -236,9 +222,9 @@ function buildDegradedCitationItem(
   const display = singleKey
     ? (bracketed ? `[@${singleKey}]` : `@${singleKey}`)
     : raw;
-  const keyAttr = singleKey ? ` data-ref-key="${escapeAttr(singleKey)}"` : "";
+  const keyAttr = singleKey ? ` data-ref-key="${escapeHtml(singleKey)}"` : "";
   const html =
-    `<span class="cf-citation cf-citation-unresolved"`
+    `<span class="${CSS.citationUnresolved}"`
     + keyAttr
     + ` data-ref-mode="${mode}">${escapeHtml(display)}</span>`;
   return {

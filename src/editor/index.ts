@@ -39,7 +39,7 @@ export {
 } from "./state/frontmatter-state";
 export {
   frontmatterDecoration,
-} from "./frontmatter-render";
+} from "./render/frontmatter-render";
 export { editorKeybindings } from "./keybindings";
 export {
   documentContextCompartment,
@@ -147,7 +147,7 @@ export {
 } from "./image-save";
 export {
   programmaticDocumentChangeAnnotation,
-} from "./programmatic-document-change";
+} from "./state/programmatic-document-change";
 export { type EditorPlugin, EditorPluginManager } from "./editor-plugin";
 export { defaultEditorPlugins } from "./editor-plugins-registry";
 export { createInlineEditor, type InlineEditorOptions } from "./inline-editor";

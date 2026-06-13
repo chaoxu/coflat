@@ -37,7 +37,7 @@ import {
 } from "../state/document-analysis";
 import { mathMacrosField } from "../state/math-macros";
 import { HOVER_DELAY_MS } from "../../core/constants";
-import { createPreviewSurfaceBody } from "../preview-surface";
+import { createPreviewSurfaceBody } from "../../core/preview-surface";
 import { renderPreviewBlockContentToDom } from "./preview-block-renderer";
 import { buildPreviewBlockOptions } from "./hover-preview-block-options";
 import {

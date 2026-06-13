@@ -1,4 +1,5 @@
 import { StateField, type EditorState, type Transaction } from "@codemirror/state";
+import { escapeHtml } from "../../core/lib/html-escape";
 import type { CslJsonItem } from "../../core/citations/csl-json";
 import { formatCitationPreview } from "../citations/citation-preview";
 import {
@@ -237,21 +238,6 @@ function citeSingle(
   return context.cite([id], locator === undefined ? [] : [locator]);
 }
 
-function escapeAttr(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
-}
-
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
-}
 
 function renderResolvedHostReference(
   resolved: HostReferenceResolution,
@@ -260,7 +246,7 @@ function renderResolvedHostReference(
   if (!resolved.href || !isSafeUrl(resolved.href)) {
     return content;
   }
-  return `<a href="${escapeAttr(resolved.href)}">${content}</a>`;
+  return `<a href="${escapeHtml(resolved.href)}">${content}</a>`;
 }
 
 function buildRefResolverEnv(

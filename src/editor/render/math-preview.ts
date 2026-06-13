@@ -21,7 +21,7 @@ import { renderKatex } from "./math-widget";
 import {
   createPreviewSurfaceContent,
   createPreviewSurfaceShell,
-} from "../preview-surface";
+} from "../../core/preview-surface";
 import { documentAnalysisField } from "../state/document-analysis";
 
 interface MathRegionSnapshot {

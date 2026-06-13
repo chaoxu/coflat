@@ -1,7 +1,7 @@
 import type { EditorView } from "@codemirror/view";
 import { buildCitationPreviewContent } from "../citations/citation-preview";
 import { CSS } from "../../core/constants";
-import { createPreviewSurfaceBody } from "../preview-surface";
+import { createPreviewSurfaceBody } from "../../core/preview-surface";
 import { getReferencePresentationModel } from "../references/presentation";
 import type { BibStore } from "../state/bib-data";
 import { mathMacrosField } from "../state/math-macros";
