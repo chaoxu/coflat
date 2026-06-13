@@ -10,6 +10,7 @@ import {
   type TableRange,
 } from "../state/table-discovery";
 import { SyntaxParseScheduler } from "./syntax-parse-scheduler";
+import { CSS } from "../../core/constants/css-classes";
 
 export { findTablesInState, type TableRange } from "../state/table-discovery";
 
@@ -144,7 +145,7 @@ export function findClosestWidgetContainer(
   view: EditorView,
   trackedFrom: number,
 ): HTMLElement | null {
-  const containers = view.dom.querySelectorAll(".cf-table-widget");
+  const containers = view.dom.querySelectorAll(`.${CSS.tableWidget}`);
   let closest: HTMLElement | null = null;
   let closestDist = Infinity;
   for (const container of containers) {

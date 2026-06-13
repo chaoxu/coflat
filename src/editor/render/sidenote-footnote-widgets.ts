@@ -168,7 +168,7 @@ export class FootnoteInlineWidget extends WidgetType {
         : target instanceof Node
           ? target.parentElement
           : null;
-      const editBtn = origin?.closest<HTMLButtonElement>(".cf-footnote-inline-edit");
+      const editBtn = origin?.closest<HTMLButtonElement>(`.${CSS.footnoteInlineEdit}`);
       if (!editBtn || !wrapper.contains(editBtn)) return;
 
       e.preventDefault();

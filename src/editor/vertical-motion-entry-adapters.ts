@@ -12,6 +12,7 @@ import { getClosingFenceRanges } from "./plugins/fence-protection";
 import { dispatchWidgetKeyboardEntry } from "./state/widget-keyboard-entry";
 import { type HiddenWidgetStop } from "./widget-stop-index";
 import { requestSelectionVisibility } from "./vertical-motion-scroll";
+import { CSS } from "../core/constants/css-classes";
 
 function readDatasetNumber(value: string | undefined): number | null {
   if (value === undefined) return null;
@@ -36,7 +37,7 @@ function findTableWidgetContainer(
   view: EditorView,
   table: TableRange,
 ): HTMLElement | null {
-  const containers = view.dom.querySelectorAll<HTMLElement>(".cf-table-widget");
+  const containers = view.dom.querySelectorAll<HTMLElement>(`.${CSS.tableWidget}`);
   for (const container of containers) {
     if (tableWidgetContainerMatchesRange(container, table)) return container;
   }
