@@ -1,6 +1,21 @@
-import type { DocumentLabelReference } from "./label-parser";
 import { REFERENCE_ID_SOURCE } from "../../../core/lib/reference-grammar";
-export type { DocumentLabelReference } from "./label-parser";
+
+export interface DocumentLabelReference {
+  readonly id: string;
+  readonly from: number;
+  readonly to: number;
+  readonly labelFrom: number;
+  readonly labelTo: number;
+  readonly clusterFrom: number;
+  readonly clusterTo: number;
+  readonly clusterIndex: number;
+  readonly bracketed: boolean;
+  readonly locator?: string;
+}
+
+export function isLikelyLocalReferenceId(id: string): boolean {
+  return id.includes(":");
+}
 
 const EMPTY_DEFINITIONS: readonly DocumentLabelDefinition[] = [];
 const EMPTY_REFERENCES: readonly DocumentLabelReference[] = [];

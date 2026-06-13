@@ -1,14 +1,7 @@
-import { EditorSelection, EditorState } from "@codemirror/state";
+import { EditorState } from "@codemirror/state";
 import { markdown } from "@codemirror/lang-markdown";
 import { describe, expect, it } from "vitest";
 import { frontmatterField } from "../state/frontmatter-state";
-import {
-  buildDocumentLabelGraph as buildPlainDocumentLabelGraph,
-} from "../lib/markdown/label-graph";
-import {
-  prepareDocumentLabelRename as preparePlainDocumentLabelRename,
-  resolveDocumentLabelBacklinks as resolvePlainDocumentLabelBacklinks,
-} from "../lib/markdown/label-actions";
 import { markdownExtensions } from "../../core/parser";
 import {
   defaultPlugins,
@@ -30,8 +23,6 @@ import {
   validateDocumentLabelRename,
 } from "./document-label-graph";
 import { documentAnalysisField } from "../state/document-analysis";
-import { resolveDocumentLabelBacklinks as resolveCmDocumentLabelBacklinks } from "./document-label-backlinks";
-import { prepareDocumentLabelRename as prepareCmDocumentLabelRename } from "./document-label-rename";
 
 function graphExtensions() {
   return [
@@ -49,14 +40,6 @@ function graphExtensions() {
 function createGraphState(doc: string): EditorState {
   return EditorState.create({
     doc,
-    extensions: graphExtensions(),
-  });
-}
-
-function createGraphSelectionState(doc: string, anchor: number, head = anchor): EditorState {
-  return EditorState.create({
-    doc,
-    selection: EditorSelection.single(anchor, head),
     extensions: graphExtensions(),
   });
 }
@@ -81,56 +64,6 @@ function summarizeGraph(graph: DocumentLabelGraph) {
       locator: reference.locator,
     })),
   };
-}
-
-function summarizeBacklinks(lookup: ReturnType<typeof resolveCmDocumentLabelBacklinks>) {
-  if (lookup.kind !== "ready") {
-    return lookup;
-  }
-  return {
-    kind: "ready",
-    source: lookup.result.source,
-    definition: {
-      id: lookup.result.definition.id,
-      kind: lookup.result.definition.kind,
-      from: lookup.result.definition.from,
-      to: lookup.result.definition.to,
-    },
-    backlinks: lookup.result.backlinks.map((backlink) => ({
-      from: backlink.from,
-      to: backlink.to,
-      lineNumber: backlink.lineNumber,
-      referenceText: backlink.referenceText,
-      locator: backlink.locator,
-    })),
-  };
-}
-
-function normalizeChanges(changes: readonly unknown[]) {
-  return changes.map((change) => {
-    if (typeof change !== "object" || change === null) {
-      throw new Error(`Expected object change, got ${String(change)}`);
-    }
-    const spec = change as { from?: unknown; to?: unknown; insert?: unknown };
-    if (typeof spec.from !== "number" || spec.to !== undefined && typeof spec.to !== "number") {
-      throw new Error(`Expected positional change, got ${JSON.stringify(change)}`);
-    }
-    return {
-      from: spec.from,
-      to: spec.to ?? spec.from,
-      insert: String(spec.insert ?? ""),
-    };
-  });
-}
-
-function applyTextChanges(doc: string, changes: readonly unknown[]): string {
-  return [...normalizeChanges(changes)]
-    .sort((left, right) => right.from - left.from || right.to - left.to)
-    .reduce(
-      (current, change) =>
-        `${current.slice(0, change.from)}${change.insert}${current.slice(change.to)}`,
-      doc,
-    );
 }
 
 describe("buildDocumentLabelGraph", () => {
@@ -219,6 +152,26 @@ describe("buildDocumentLabelGraph", () => {
     });
   });
 
+  it("ignores reference-like tokens inside links and display math bodies", () => {
+    const doc = [
+      "# Intro {#sec:intro}",
+      "",
+      "$$",
+      "@hidden",
+      "$$ {#eq:visible}",
+      "",
+      "See [@linked](https://example.com/@fake) and @sec:intro.",
+    ].join("\n");
+
+    const graph = buildDocumentLabelGraph(createGraphState(doc));
+
+    expect(graph.definitions.map((definition) => definition.id)).toEqual([
+      "sec:intro",
+      "eq:visible",
+    ]);
+    expect(graph.references.map((reference) => reference.id)).toEqual(["sec:intro"]);
+  });
+
   it("tracks duplicates and rename validation without treating unresolved refs as local", () => {
     const doc = [
       "# Intro {#dup}",
@@ -269,8 +222,8 @@ describe("buildDocumentLabelGraph", () => {
   });
 });
 
-describe("document label adapter parity", () => {
-  it("keeps duplicate and backlink graph behavior identical across CM6 and plain text", () => {
+describe("document label graph summary", () => {
+  it("orders mixed definitions and references in document order with duplicate tracking", () => {
     const doc = [
       "# Intro {#sec:intro}",
       "",
@@ -289,68 +242,41 @@ describe("document label adapter parity", () => {
       "See [@dup] and @sec:intro and [@eq:main, p. 2] and [@missing] and [@karger2000].",
     ].join("\n");
 
-    const cmGraph = buildDocumentLabelGraph(createGraphState(doc));
-    const plainGraph = buildPlainDocumentLabelGraph(doc);
+    const summary = summarizeGraph(buildDocumentLabelGraph(createGraphState(doc)));
 
-    expect(summarizeGraph(cmGraph)).toEqual(summarizeGraph(plainGraph));
-    expect(summarizeGraph(cmGraph).references.map((reference) => reference.id)).toEqual([
-      "dup",
-      "sec:intro",
-      "eq:main",
+    expect(summary.definitions.map(({ id, kind }) => ({ id, kind }))).toEqual([
+      { id: "sec:intro", kind: "heading" },
+      { id: "dup", kind: "block" },
+      { id: "dup", kind: "block" },
+      { id: "eq:main", kind: "equation" },
     ]);
-
-    const referencePosition = doc.indexOf("@sec:intro") + 2;
-    expect(summarizeBacklinks(
-      resolveCmDocumentLabelBacklinks(createGraphSelectionState(doc, referencePosition)),
-    )).toEqual(summarizeBacklinks(
-      resolvePlainDocumentLabelBacklinks(doc, referencePosition),
-    ));
-  });
-
-  it("keeps rename planning and validation identical across CM6 and plain text", () => {
-    const doc = [
-      "# Intro {#sec:intro}",
-      "",
-      "See @sec:intro and [@sec:intro, p. 2] and [@karger2000].",
-    ].join("\n");
-    const selection = doc.indexOf("@sec:intro") + 2;
-    const cmState = createGraphSelectionState(doc, selection);
-    const cmRename = prepareCmDocumentLabelRename(cmState, "sec:overview");
-    const plainRename = preparePlainDocumentLabelRename(doc, selection, "sec:overview");
-
-    expect(cmRename.kind).toBe("ready");
-    expect(plainRename.kind).toBe("ready");
-    if (cmRename.kind !== "ready" || plainRename.kind !== "ready") return;
-
-    expect({
-      currentId: cmRename.currentId,
-      nextId: cmRename.nextId,
-      referenceCount: cmRename.referenceCount,
-      changes: normalizeChanges(cmRename.changes),
-    }).toEqual({
-      currentId: plainRename.currentId,
-      nextId: plainRename.nextId,
-      referenceCount: plainRename.referenceCount,
-      changes: normalizeChanges(plainRename.changes),
-    });
-    expect(applyTextChanges(doc, cmRename.changes)).toBe(applyTextChanges(
-      doc,
-      plainRename.changes,
-    ));
-
-    const cmInvalid = prepareCmDocumentLabelRename(cmState, " sec:invalid");
-    const plainInvalid = preparePlainDocumentLabelRename(doc, selection, " sec:invalid");
-    expect(cmInvalid.kind).toBe("invalid");
-    expect(plainInvalid.kind).toBe("invalid");
-    if (cmInvalid.kind !== "invalid" || plainInvalid.kind !== "invalid") return;
-
-    expect({
-      id: cmInvalid.validation.id,
-      reason: cmInvalid.validation.reason,
-    }).toEqual({
-      id: plainInvalid.validation.id,
-      reason: plainInvalid.validation.reason,
-    });
+    expect(summary.duplicateIds).toEqual(["dup"]);
+    expect(summary.references).toEqual([
+      {
+        id: "dup",
+        from: doc.indexOf("@dup"),
+        to: doc.indexOf("@dup") + "@dup".length,
+        labelFrom: doc.indexOf("@dup") + 1,
+        labelTo: doc.indexOf("@dup") + "@dup".length,
+        locator: undefined,
+      },
+      {
+        id: "sec:intro",
+        from: doc.indexOf("@sec:intro"),
+        to: doc.indexOf("@sec:intro") + "@sec:intro".length,
+        labelFrom: doc.indexOf("@sec:intro") + 1,
+        labelTo: doc.indexOf("@sec:intro") + "@sec:intro".length,
+        locator: undefined,
+      },
+      {
+        id: "eq:main",
+        from: doc.indexOf("@eq:main"),
+        to: doc.indexOf("@eq:main") + "@eq:main".length,
+        labelFrom: doc.indexOf("@eq:main") + 1,
+        labelTo: doc.indexOf("@eq:main") + "@eq:main".length,
+        locator: "p. 2",
+      },
+    ]);
   });
 });
 
