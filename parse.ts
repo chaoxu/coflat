@@ -28,6 +28,7 @@ import {
   NARRATIVE_REFERENCE_GLOBAL_RE,
   parseReferenceClusterBody,
 } from "./src/core/lib/reference-grammar";
+import { buildLineOffsets, lineAt } from "./src/core/lib/line-offsets";
 import {
   analyzeDocumentSemantics,
   stringTextSource,
@@ -248,6 +249,12 @@ export interface ReferenceCatalogTarget {
   readonly kind: ReferenceCatalogTargetKind;
   readonly from: number;
   readonly to: number;
+  /**
+   * 1-based line number of `from`, counted over the full source (frontmatter
+   * included). Convenience for line-based hosts (indexers, link tables) that
+   * would otherwise recompute it from the offsets.
+   */
+  readonly line: number;
   readonly displayLabel: string;
   readonly number?: string;
   readonly ordinal?: number;
@@ -259,6 +266,8 @@ export interface ReferenceCatalogTarget {
 export interface ReferenceCatalogReference {
   readonly from: number;
   readonly to: number;
+  /** 1-based line number of `from`, counted over the full source. */
+  readonly line: number;
   readonly raw: string;
   readonly bracketed: boolean;
   readonly ids: readonly string[];
@@ -324,6 +333,7 @@ export function buildReferenceCatalog(
 ): ReferenceCatalog {
   const tree = markdownParser.parse(source);
   const analysis = analyzeDocumentSemantics(stringTextSource(source), tree);
+  const lineOffsets = buildLineOffsets(source);
   const blockCounters = new Map<string, number>();
   const targets: ReferenceCatalogTarget[] = [];
 
@@ -339,6 +349,7 @@ export function buildReferenceCatalog(
       kind: "block",
       from: block.from,
       to: block.to,
+      line: lineAt(lineOffsets, block.from),
       displayLabel: formatBlockReferenceLabel(title, ordinal),
       number: ordinal === undefined ? undefined : String(ordinal),
       ordinal,
@@ -353,6 +364,7 @@ export function buildReferenceCatalog(
       kind: "equation",
       from: equation.from,
       to: equation.to,
+      line: lineAt(lineOffsets, equation.from),
       displayLabel: formatEquationReferenceLabel(equation.number),
       number: String(equation.number),
       ordinal: equation.number,
@@ -366,6 +378,7 @@ export function buildReferenceCatalog(
       kind: "heading",
       from: heading.from,
       to: heading.to,
+      line: lineAt(lineOffsets, heading.from),
       displayLabel: formatHeadingReferenceLabel(heading),
       number: heading.number || undefined,
       title: heading.text,
@@ -382,6 +395,7 @@ export function buildReferenceCatalog(
     references: analysis.references.map((reference) => ({
       from: reference.from,
       to: reference.to,
+      line: lineAt(lineOffsets, reference.from),
       raw: source.slice(reference.from, reference.to),
       bracketed: reference.bracketed,
       ids: reference.ids,

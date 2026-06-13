@@ -15,6 +15,7 @@ import { htmlRenderExtensions, parseFrontmatter } from "../core/parser";
 import { NODE } from "../core/constants/node-types";
 import { isSafeUrl } from "../core/lib/url-utils";
 import { escapeHtml } from "../core/lib/html-escape";
+import { buildLineOffsets, lineAt } from "../core/lib/line-offsets";
 import {
   BRACKETED_REFERENCE_EXACT_RE,
   parseReferenceClusterBody,
@@ -465,33 +466,6 @@ function fastRenderInline(source: string): FastInlineResult {
     text: textOut.join(""),
     sourceToText: s2t,
   };
-}
-
-// ---------------------------------------------------------------------------
-// Line-number pre-pass for `data-source-line` attribution.
-//
-// Returns 1-based line number for any source offset via binary search.
-// ---------------------------------------------------------------------------
-
-function buildLineOffsets(source: string): Uint32Array {
-  // Offsets of the start of each line. Line 1 starts at offset 0.
-  const offsets: number[] = [0];
-  for (let i = 0; i < source.length; i++) {
-    if (source.charCodeAt(i) === 10) offsets.push(i + 1);
-  }
-  return Uint32Array.from(offsets);
-}
-
-function lineAt(offsets: Uint32Array, pos: number): number {
-  // Binary search for the largest i s.t. offsets[i] <= pos.
-  let lo = 0;
-  let hi = offsets.length - 1;
-  while (lo < hi) {
-    const mid = (lo + hi + 1) >>> 1;
-    if (offsets[mid] <= pos) lo = mid;
-    else hi = mid - 1;
-  }
-  return lo + 1;
 }
 
 // ---------------------------------------------------------------------------
