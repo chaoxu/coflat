@@ -39,6 +39,7 @@ import {
   editorFocusField,
   focusTracker,
 } from "./focus-state";
+import { CSS } from "../../core/constants/css-classes";
 
 const MARKDOWN_LAYOUT_PARSE_TIMEOUT_MS = 1000;
 const MARKDOWN_REVEAL_FREEZE_TAIL_MS = 100;
@@ -71,7 +72,7 @@ function shouldFreezeMarkdownRevealForPointerTarget(
   const targetElement = target instanceof Element ? target : target.parentElement;
   if (
     targetElement &&
-    targetElement.closest(".cf-table-widget")
+    targetElement.closest(`.${CSS.tableWidget}`)
   ) {
     return false;
   }

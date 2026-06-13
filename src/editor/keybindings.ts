@@ -21,6 +21,7 @@ import {
   getActiveStructureEditTarget,
 } from "./state/cm-structure-edit";
 import { moveVerticallyInRichView } from "./vertical-motion";
+import { CSS } from "../core/constants/css-classes";
 
 /** Cycle to the next editor mode. */
 function cycleEditorMode(view: EditorView): boolean {
@@ -398,7 +399,7 @@ const richVerticalMotionDomHandlers: Extension = EditorView.domEventHandlers({
     if (!isRichMode(view)) return false;
     if (
       event.target instanceof HTMLElement &&
-      event.target.closest(".cf-table-widget")
+      event.target.closest(`.${CSS.tableWidget}`)
     ) {
       event.preventDefault();
       event.stopPropagation();

@@ -526,7 +526,7 @@ class FoldRailOverlayView {
     if (!active?.section) return { visible: false };
 
     const heading = this.view.dom.querySelector<HTMLElement>(".cf-fold-rail-heading-active");
-    const toggle = heading?.querySelector<HTMLElement>(".cf-fold-toggle");
+    const toggle = heading?.querySelector<HTMLElement>(`.${CSS.foldToggle}`);
     const bodyLines = [...this.view.dom.querySelectorAll<HTMLElement>(".cf-fold-rail-line")];
     if (!heading || !toggle || bodyLines.length === 0) return { visible: false };
 

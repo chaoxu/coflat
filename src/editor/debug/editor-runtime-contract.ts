@@ -1,10 +1,12 @@
 import type { EditorMode } from "../editor-display-mode";
 import { isTauri } from "../lib/tauri";
+import { CSS } from "../../core/constants/css-classes";
+import { DOCUMENT_SURFACE_CLASS } from "../../core/document-surface-classes";
 
 export const TAURI_RENDER_DIAGNOSTICS_KEY = "cf-tauri-render-diagnostics";
-const ROOT_CM_EDITOR_SELECTOR = ".cm-editor.cf-doc-surface";
+const ROOT_CM_EDITOR_SELECTOR = `.cm-editor.${DOCUMENT_SURFACE_CLASS.surface}`;
 const ROOT_CM_SCROLLER_SELECTOR = `${ROOT_CM_EDITOR_SELECTOR} > .cm-scroller`;
-const ROOT_CM_CONTENT_SELECTOR = ".cm-content.cf-doc-flow";
+const ROOT_CM_CONTENT_SELECTOR = `.cm-content.${DOCUMENT_SURFACE_CLASS.flow}`;
 
 export interface RuntimeContractElementSnapshot {
   readonly selector: string;
@@ -147,8 +149,8 @@ function countRootCmBlockWidgets(): number {
   const content = rootCmContent();
   if (!content) return 0;
   return Array.from(content.querySelectorAll(
-    ".cf-table-widget, .cf-math-display, .cf-image-wrapper",
-  )).filter((element) => !element.closest(".cf-table-cell-editing")).length;
+    `.${CSS.tableWidget}, .${CSS.mathDisplay}, .${CSS.imageWrapper}`,
+  )).filter((element) => !element.closest(`.${CSS.tableCellEditing}`)).length;
 }
 
 function findKatexMainFontUrl(): string | null {

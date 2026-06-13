@@ -1,5 +1,7 @@
 import { syntaxTree } from "@codemirror/language";
 import type { EditorView } from "@codemirror/view";
+import { CSS } from "../core/constants/css-classes";
+import { DOCUMENT_SURFACE_CLASS } from "../core/document-surface-classes";
 import { getClosingFenceRanges } from "./plugins/fence-protection";
 import {
   documentAnalysisField,
@@ -214,17 +216,17 @@ export function measureDebugRenderState(view: EditorView): DebugRenderState {
   const inView = (el: Element) => isElementVisibleInViewport(el);
   return {
     renderedBlockHeaders: Array.from(
-      view.dom.querySelectorAll(".cf-block-header-rendered"),
+      view.dom.querySelectorAll(`.${CSS.blockHeaderRendered}`),
     ).filter(inView).length,
-    inlineMath: Array.from(view.dom.querySelectorAll(".cf-math-inline")).filter(inView).length,
-    displayMath: Array.from(view.dom.querySelectorAll(".cf-math-display")).filter(inView).length,
-    citations: Array.from(view.dom.querySelectorAll(".cf-citation")).filter(inView).length,
+    inlineMath: Array.from(view.dom.querySelectorAll(`.${CSS.mathInline}`)).filter(inView).length,
+    displayMath: Array.from(view.dom.querySelectorAll(`.${CSS.mathDisplay}`)).filter(inView).length,
+    citations: Array.from(view.dom.querySelectorAll(`.${CSS.citation}`)).filter(inView).length,
     crossrefs: Array.from(
-      view.dom.querySelectorAll(".cf-crossref, .cross-ref"),
+      view.dom.querySelectorAll(`.${CSS.crossref}, .cross-ref`),
     ).filter(inView).length,
-    tables: Array.from(view.dom.querySelectorAll(".cf-table-widget")).filter(inView).length,
+    tables: Array.from(view.dom.querySelectorAll(`.${CSS.tableWidget}`)).filter(inView).length,
     figures: Array.from(
-      view.dom.querySelectorAll(".cf-doc-block--figure, .cf-image-wrapper"),
+      view.dom.querySelectorAll(`.${DOCUMENT_SURFACE_CLASS.blockType("figure")}, .${CSS.imageWrapper}`),
     ).filter(inView).length,
     visibleRawFencedOpeners: collectVisibleRawFencedOpeners(view),
   };

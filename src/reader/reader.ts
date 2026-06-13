@@ -2310,7 +2310,7 @@ interface DisclosureParts {
 }
 
 function blockDisclosureParts(block: HTMLElement): DisclosureParts | null {
-  const heading = block.querySelector<HTMLElement>(":scope > .cf-doc-block-heading");
+  const heading = block.querySelector<HTMLElement>(`:scope > .${DOCUMENT_SURFACE_CLASS.blockHeading}`);
   const body = block.querySelector<HTMLElement>(`:scope > .${CSS.blockDisclosureBody}`);
   const toggle = heading?.querySelector<HTMLElement>(`:scope > .${CSS.blockDisclosureToggle}`);
   if (!(body instanceof HTMLElement) || !(toggle instanceof HTMLButtonElement)) return null;
