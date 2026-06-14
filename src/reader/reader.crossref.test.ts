@@ -83,3 +83,32 @@ describe("reader in-document crossref resolution", () => {
     expect(html).toContain("Other page");
   });
 });
+
+describe("reader sectionNumbering option (coflat#47)", () => {
+  it("default: headings carry data-section-number", () => {
+    const { html } = renderToHtml("# Intro\n\n## Background");
+    expect(html).toContain('data-section-number="1"');
+    expect(html).toContain('data-section-number="1.1"');
+    expect(html).not.toContain('data-heading-numbering="none"');
+  });
+
+  it("sectionNumbering:false renders headings unnumbered (no number shown)", () => {
+    const { html } = renderToHtml("# Intro\n\n## Background", undefined, { sectionNumbering: false });
+    expect(html).not.toContain("data-section-number");
+    expect(html).toContain('data-heading-numbering="none"');
+    expect(html).toContain("cf-doc-heading--unnumbered");
+  });
+
+  it("sectionNumbering:false still resolves [@sec:…] crossrefs to their numbers", () => {
+    const src = "# Intro {#sec:intro}\n\n## Background {#sec:bg}\n\nSee [@sec:bg].";
+    const { html } = renderToHtml(src, undefined, { resolveReferences: true, sectionNumbering: false });
+    expect(html).toContain("Section 1.1"); // crossref keeps the number
+    expect(html).not.toContain("data-section-number"); // but the headings show none
+  });
+
+  it("sectionNumbering:false omits the number from outline entries", () => {
+    const { outline } = renderToHtml("# Intro\n\n## Background", undefined, { outline: true, sectionNumbering: false });
+    expect(outline?.length).toBe(2);
+    expect(outline?.every((entry) => entry.number === undefined)).toBe(true);
+  });
+});

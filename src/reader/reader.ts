@@ -555,6 +555,10 @@ interface WalkContext {
   /** When true, record into {@link catalog} during numbering (first walk of a
    *  `resolveReferences` render). */
   buildCatalog: boolean;
+  /** When false (RenderOptions.sectionNumbering === false), headings display
+   *  as unnumbered even though the numbering walk still advances (for crossref
+   *  resolution). Defaults to true. */
+  numberHeadings: boolean;
 }
 
 function sourcePosAttrs(ctx: WalkContext, from: number, to: number): string {
@@ -1141,6 +1145,16 @@ interface RenderOptions {
    * Set false for inert preview surfaces such as hover cards.
    */
   interactiveBlockDisclosures?: boolean;
+  /**
+   * Display section numbers on headings. Defaults to true. When false, every
+   * heading renders as if unnumbered (no `data-section-number`, the
+   * `cf-doc-heading--unnumbered` class, and no `number` on outline entries), so
+   * neither the explicit nor the CSS-counter numbering shows — a host-level
+   * toggle that avoids restyling `.cf-*` internals. The internal numbering walk
+   * still runs, so in-document `[@sec:…]` crossrefs keep resolving to their
+   * numbers (coflat#47).
+   */
+  sectionNumbering?: boolean;
 }
 
 interface TruncatedInfo {
@@ -1346,6 +1360,9 @@ function renderHeading(ctx: WalkContext, node: SyntaxNode, level: number): Block
   if (attrs) contentTo = attrs.contentTo;
 
   const inner = renderInline(ctx, node, contentFrom, contentTo);
+  // The numbering walk always advances (and records the catalog), so crossrefs
+  // resolve even when numbers aren't shown; `displayUnnumbered` only hides the
+  // number — when sectionNumbering is off, every heading renders unnumbered.
   const headingNumber = nextHeadingNumber(ctx, level, !!attrs?.unnumbered);
   if (ctx.buildCatalog && attrs?.id) {
     ctx.catalog.set(attrs.id, {
@@ -1353,7 +1370,8 @@ function renderHeading(ctx: WalkContext, node: SyntaxNode, level: number): Block
       label: formatHeadingReferenceLabel({ number: headingNumber, text: inner.text.trim() }),
     });
   }
-  const numberingAttr = attrs?.unnumbered
+  const displayUnnumbered = !!attrs?.unnumbered || !ctx.numberHeadings;
+  const numberingAttr = displayUnnumbered
     ? ' data-heading-numbering="none"'
     : ` data-section-number="${headingNumber}"`;
 
@@ -1365,14 +1383,14 @@ function renderHeading(ctx: WalkContext, node: SyntaxNode, level: number): Block
     if (headingId) ctx.usedHeadingIds.add(headingId);
     else headingId = uniqueHeadingId(slugifyHeading(inner.text), ctx.usedHeadingIds);
     ctx.outline.push(
-      attrs?.unnumbered
+      displayUnnumbered
         ? { id: headingId, text: inner.text, level }
         : { id: headingId, text: inner.text, level, number: headingNumber },
     );
   }
   const idAttr = headingId ? ` id="${escapeHtml(headingId)}"` : "";
   return {
-    html: `<h${level} class="${headingClasses(level, attrs?.unnumbered)}"${idAttr}${numberingAttr}${blockSourceAttrs(ctx, node.from, node.to)}>${inner.html}</h${level}>`,
+    html: `<h${level} class="${headingClasses(level, displayUnnumbered)}"${idAttr}${numberingAttr}${blockSourceAttrs(ctx, node.from, node.to)}>${inner.html}</h${level}>`,
     text: inner.text,
     hasMath: inner.hasMath,
   };
@@ -2016,6 +2034,7 @@ function walkDocument(
     citedKeys: [],
     catalog: new Map(),
     buildCatalog: !!opts.resolveReferences,
+    numberHeadings: opts.sectionNumbering !== false,
   };
 
   if (ctx.collectOutline) reserveExplicitHeadingIds(ctx, tree);
