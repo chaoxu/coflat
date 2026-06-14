@@ -32,6 +32,17 @@ import {
 import { LINK_LAYOUT_ATTRIBUTE, linkLayoutForHref } from "../core/link-layout";
 import { readBracedLabelId } from "../core/parser/label-utils";
 import {
+  bibliographyEntries as coreBibliographyEntries,
+  bibliographyEntryFor as coreBibliographyEntryFor,
+  citeInline as coreCiteInline,
+  isCitationKey as coreIsCitationKey,
+} from "../core/references/citation-rendering";
+import {
+  formatBlockReferenceLabel,
+  formatEquationReferenceLabel,
+  formatHeadingReferenceLabel,
+} from "../core/references/format";
+import {
   DOCUMENT_SURFACE_CLASS,
   documentSurfaceClassNames,
 } from "../core/document-surface-classes";
@@ -201,6 +212,13 @@ function renderInlineSnippet(ctx: WalkContext, source: string): BlockResult {
     blockCounters: new Map(ctx.blockCounters),
     footnotesById: new Map(),
     footnotesInOrder: [],
+    // Snippet renders (e.g. a fenced-div title) use a throwaway citedKeys, so a
+    // citation appearing only inside a block title is shown inline but not added
+    // to the document's References list — consistent with extractReferences,
+    // which excludes fenced-div attributes from the citation grammar.
+    citedKeys: [],
+    catalog: ctx.catalog,
+    buildCatalog: ctx.buildCatalog,
   };
   const root = tree.topNode;
   const first = root.firstChild;
@@ -471,10 +489,22 @@ function fastRenderInline(source: string): FastInlineResult {
 // Walker types.
 // ---------------------------------------------------------------------------
 
+// One in-document reference target (heading/equation/block with an explicit
+// id), with its rendered crossref label, built by the reader's own numbering.
+interface ReaderReferenceTarget {
+  readonly kind: "heading" | "equation" | "block";
+  readonly label: string;
+}
+type ReaderReferenceCatalog = ReadonlyMap<string, ReaderReferenceTarget>;
+
 interface Resolvers {
   linkResolver?: LinkResolver;
   refResolver?: RefResolver;
   citationFormatter?: CitationFormatter;
+  citationKeys?: ReadonlySet<string>;
+  /** In-document crossref catalog for self-resolution (opt-in via
+   *  RenderOptions.resolveReferences); built by a first walk. */
+  referenceCatalog?: ReaderReferenceCatalog;
   resolveAssetUrl?: (path: string) => string;
   documentPath?: string;
 }
@@ -514,6 +544,17 @@ interface WalkContext {
   // Footnote tracking
   footnotesById: Map<string, FootnoteEntry>;
   footnotesInOrder: FootnoteEntry[];
+  /** Bibliography keys cited (bracketed `[@key]` resolved as a citation), in
+   *  first-appearance order; drives IEEE numbering + the References list. Only
+   *  populated when the host supplies `citationKeys` + `citationFormatter`. */
+  citedKeys: string[];
+  /** In-document crossref targets (id → label) recorded as the walk numbers
+   *  each heading/equation/block, so a second walk can resolve `[@id]` to the
+   *  same number the target carries. Built only when `buildCatalog`. */
+  catalog: Map<string, ReaderReferenceTarget>;
+  /** When true, record into {@link catalog} during numbering (first walk of a
+   *  `resolveReferences` render). */
+  buildCatalog: boolean;
 }
 
 function sourcePosAttrs(ctx: WalkContext, from: number, to: number): string {
@@ -927,8 +968,36 @@ function emitReferenceCluster(
   const parts: string[] = [];
   const textParts: string[] = [];
 
+  const citationFormatter = ctx.resolvers.citationFormatter;
+  const citationKeys = ctx.resolvers.citationKeys;
   for (let index = 0; index < ids.length; index += 1) {
     const id = ids[index];
+    // Paper citation: resolve via the host-supplied formatter (the single source
+    // of truth lives in core/references/citation-rendering), so the reader needs
+    // no host refResolver for citations and can emit the bibliography itself.
+    if (citationFormatter && coreIsCitationKey(citationKeys, id)) {
+      const label = coreCiteInline(citationFormatter, [id], [locators[index]]);
+      if (label !== null) {
+        if (!ctx.citedKeys.includes(id)) ctx.citedKeys.push(id);
+        parts.push(
+          `<span class="${CSS.citation}" data-ref-key="${escapeHtml(id)}" data-ref-mode="bracketed">${escapeHtml(label)}</span>`,
+        );
+        textParts.push(label);
+        continue;
+      }
+    }
+    // In-document crossref resolved from the reader's own numbering catalog
+    // (first walk). The host refResolver stays the fallback for ids the
+    // document doesn't define — e.g. cross-file or workspace references.
+    const catalogTarget = ctx.resolvers.referenceCatalog?.get(id);
+    if (catalogTarget) {
+      const fragment = escapeHtml(encodeURIComponent(id));
+      parts.push(
+        `<span class="${CSS.crossref}" data-ref-key="${escapeHtml(id)}" data-ref-mode="bracketed"><a href="#${fragment}">${escapeHtml(catalogTarget.label)}</a></span>`,
+      );
+      textParts.push(catalogTarget.label);
+      continue;
+    }
     if (refResolver) {
       const resolved = refResolver.resolve(
         id,
@@ -1046,6 +1115,14 @@ interface RenderOptions {
    * carry ids).
    */
   outline?: boolean;
+  /**
+   * If true, the reader resolves in-document crossrefs (`[@eq:…]`, `[@thm:…]`,
+   * `[@sec:…]`) itself — numbering them from the document and falling back to
+   * the host `refResolver` only for ids it doesn't own (e.g. cross-file or
+   * workspace refs). Implemented as a first numbering walk that builds the
+   * catalog, then a resolving walk. Off by default (host resolves everything).
+   */
+  resolveReferences?: boolean;
   /** If true, emit `data-source-from`/`data-source-to` byte offsets on
    *  every block element, every inline mark (`<strong>`, `<em>`, `<del>`,
    *  `<code>`, `<a>`, `<sup class="cf-footnote-ref">`, `<span data-math>`,
@@ -1148,6 +1225,12 @@ function renderBlock(ctx: WalkContext, node: SyntaxNode): BlockResult {
       const inner = displayMathLatex(ctx, node);
       const equationId = equationLabelId(ctx, node);
       const equationNumber = equationId ? ++ctx.equationCounter : undefined;
+      if (ctx.buildCatalog && equationId && equationNumber !== undefined) {
+        ctx.catalog.set(equationId, {
+          kind: "equation",
+          label: formatEquationReferenceLabel(equationNumber),
+        });
+      }
       const classes = mathSurfaceClassNames(
         true,
         equationNumber !== undefined && CSS.mathDisplayNumbered,
@@ -1264,6 +1347,12 @@ function renderHeading(ctx: WalkContext, node: SyntaxNode, level: number): Block
 
   const inner = renderInline(ctx, node, contentFrom, contentTo);
   const headingNumber = nextHeadingNumber(ctx, level, !!attrs?.unnumbered);
+  if (ctx.buildCatalog && attrs?.id) {
+    ctx.catalog.set(attrs.id, {
+      kind: "heading",
+      label: formatHeadingReferenceLabel({ number: headingNumber, text: inner.text.trim() }),
+    });
+  }
   const numberingAttr = attrs?.unnumbered
     ? ' data-heading-numbering="none"'
     : ` data-section-number="${headingNumber}"`;
@@ -1695,6 +1784,12 @@ function renderFencedDiv(ctx: WalkContext, node: SyntaxNode): BlockResult {
   const sourceAttrs = blockSourceAttrs(ctx, node.from, node.to);
   const title = kvs.title;
   const number = normalizedClassName ? nextBlockNumber(ctx, normalizedClassName) : undefined;
+  if (ctx.buildCatalog && id && normalizedClassName) {
+    ctx.catalog.set(id, {
+      kind: "block",
+      label: formatBlockReferenceLabel(blockTitle(normalizedClassName), number),
+    });
+  }
   const summary = normalizedClassName
     ? renderBlockSummary(ctx, normalizedClassName, title, number)
     : emptyBlock();
@@ -1789,6 +1884,30 @@ function renderFootnotesList(ctx: WalkContext): string {
   return `<ol class="${CSS.footnotes}">${items.join("")}</ol>`;
 }
 
+// The References list, emitted from the same citeproc formatter that produced
+// the inline labels — so the reader renders citations end to end instead of the
+// host bolting a bibliography on. Mirrors the editor's bibliography DOM so the
+// shared stylesheet lays out the [N] columns. Only present when citations were
+// actually resolved (host supplied citationKeys + citationFormatter).
+function renderReferencesList(ctx: WalkContext): string {
+  const formatter = ctx.resolvers.citationFormatter;
+  if (!formatter || ctx.citedKeys.length === 0) return "";
+  const entries = coreBibliographyEntries(formatter, ctx.citedKeys);
+  if (entries.length === 0) return "";
+  const items = entries.map(
+    (entry) =>
+      `<div class="${CSS.bibliographyEntry}" id="bib-${escapeHtml(encodeURIComponent(entry.id))}">${entry.html}</div>`,
+  );
+  // A <div> (not <section>) to match the editor's bibliography DOM and the
+  // reader's sanitize allowlist.
+  return (
+    `<div class="${CSS.bibliography}" aria-label="References">` +
+    `<h2 class="${CSS.bibliographyHeading}">References</h2>` +
+    `<div class="${CSS.bibliographyList}">${items.join("")}</div>` +
+    `</div>`
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Top-level walk.
 // ---------------------------------------------------------------------------
@@ -1876,7 +1995,7 @@ function walkDocument(
   tree: Tree,
   resolvers: Resolvers,
   opts: RenderOptions,
-): BlockResult & { truncated?: TruncatedInfo; outline: ReaderOutlineEntry[] } {
+): BlockResult & { truncated?: TruncatedInfo; outline: ReaderOutlineEntry[]; catalog: Map<string, ReaderReferenceTarget> } {
   const frontmatter = parseFrontmatter(source);
   const frontmatterEnd = frontmatter.end;
   const ctx: WalkContext = {
@@ -1894,6 +2013,9 @@ function walkDocument(
     equationCounter: 0,
     footnotesById: new Map(),
     footnotesInOrder: [],
+    citedKeys: [],
+    catalog: new Map(),
+    buildCatalog: !!opts.resolveReferences,
   };
 
   if (ctx.collectOutline) reserveExplicitHeadingIds(ctx, tree);
@@ -1936,6 +2058,11 @@ function walkDocument(
       const blockCounterSnapshot = new Map(ctx.blockCounters);
       const outlineLen = ctx.outline.length;
       const usedHeadingIdsSnapshot = new Set(ctx.usedHeadingIds);
+      const citedKeysLen = ctx.citedKeys.length;
+      // A fenced div records nested + its own catalog entries (post-order), so a
+      // full snapshot is needed — a dropped block must not leave a catalog entry
+      // that a later [@id] resolves to a number whose target was truncated away.
+      const catalogSnapshot = ctx.buildCatalog ? new Map(ctx.catalog) : null;
       const rendered = renderBlock(ctx, child);
       const cost = budgetKind === "lines"
         ? blockLineCost(source, child)
@@ -1948,6 +2075,8 @@ function walkDocument(
         ctx.blockCounters = blockCounterSnapshot;
         ctx.outline.length = outlineLen;
         ctx.usedHeadingIds = usedHeadingIdsSnapshot;
+        ctx.citedKeys.length = citedKeysLen;
+        if (catalogSnapshot) ctx.catalog = catalogSnapshot;
         truncated = { sourceFrom: child.from, sourceTo: source.length };
         break;
       }
@@ -2024,6 +2153,14 @@ function walkDocument(
     };
   }
 
+  const references = renderReferencesList(ctx);
+  if (references) {
+    combined = {
+      html: combined.html + references,
+      text: combined.text,
+      hasMath: combined.hasMath,
+    };
+  }
   const footnotes = renderFootnotesList(ctx);
   if (footnotes) {
     combined = {
@@ -2032,7 +2169,7 @@ function walkDocument(
       hasMath: combined.hasMath,
     };
   }
-  return { ...combined, truncated, outline: ctx.outline };
+  return { ...combined, truncated, outline: ctx.outline, catalog: ctx.catalog };
 }
 
 // ---------------------------------------------------------------------------
@@ -2045,7 +2182,7 @@ const ALLOWED_TAGS = [
   "ul", "ol", "li",
   "blockquote",
   "pre", "code",
-  "em", "strong", "del", "mark",
+  "em", "strong", "del", "mark", "i", "b",
   "a", "img", "button",
   "hr",
   "table", "thead", "tbody", "tr", "th", "td",
@@ -2159,14 +2296,23 @@ export function renderToHtml(
     !opts.sourceLineAttribution &&
     !opts.sourcePositions &&
     !opts.truncate &&
-    !opts.outline
+    !opts.outline &&
+    !opts.resolveReferences
   ) {
     const fast = fastRenderInline(source);
     return { html: sanitize(fast.html), hasMath: false };
   }
 
   const tree = parseSource(source);
-  const result = walkDocument(source, tree, resolvers, opts);
+  let result = walkDocument(source, tree, resolvers, opts);
+  if (opts.resolveReferences && result.catalog.size > 0) {
+    // The first walk numbered every heading/equation/block into result.catalog;
+    // resolve in-document `[@id]` crossrefs against it in a second walk so
+    // forward references (a ref before its target) resolve to the same number.
+    // Skipped when the document defines no targets — the first walk's output
+    // already has nothing to re-resolve (citations + host fallback ran there).
+    result = walkDocument(source, tree, { ...resolvers, referenceCatalog: result.catalog }, opts);
+  }
   const out: { html: string; hasMath: boolean; truncated?: TruncatedInfo; outline?: ReaderOutlineEntry[] } = {
     html: sanitize(result.html),
     hasMath: result.hasMath,
@@ -2226,6 +2372,7 @@ function buildResolvers(
     linkResolver: ctx.linkResolver,
     refResolver: ctx.refResolver,
     citationFormatter: ctx.citationFormatter,
+    citationKeys: ctx.citationKeys,
     resolveAssetUrl,
     documentPath,
   };
@@ -2757,6 +2904,24 @@ function createReaderElementPreview(preview: HTMLElement): HTMLElement {
   return container;
 }
 
+// Native hover preview for a paper citation: the formatted bibliography entry,
+// from the same formatter that produced the inline label. Returns null for
+// non-citation keys so crossref/equation/block hovers fall through. The entry
+// HTML is host-influenced (a .bib file) so it is sanitized before insertion.
+function buildReaderCitationPreview(
+  key: string,
+  context: DocumentContext | undefined,
+): HTMLElement | null {
+  if (!context?.citationFormatter || !coreIsCitationKey(context.citationKeys, key)) return null;
+  const entry = coreBibliographyEntryFor(context.citationFormatter, key);
+  if (!entry) return null;
+  const container = createReaderHoverContainer();
+  const body = createPreviewSurfaceBody(CSS.hoverPreviewCitation);
+  body.innerHTML = sanitize(entry.html);
+  container.appendChild(body);
+  return container;
+}
+
 function renderReaderPreviewSource(
   source: string,
   context: DocumentContext | undefined,
@@ -2866,6 +3031,9 @@ function buildReaderHoverPlan(
   const label = anchor.textContent?.trim() ?? key;
   return {
     buildContent: () => {
+      const citationPreview = buildReaderCitationPreview(key, options.context);
+      if (citationPreview) return citationPreview;
+
       const customPreview = options.previewForReference?.(key, {
         anchor,
         context: options.context,

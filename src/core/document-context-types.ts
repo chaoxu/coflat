@@ -111,6 +111,14 @@ export interface DocumentContext {
   linkResolver?: LinkResolver;
   refResolver?: RefResolver;
   citationFormatter?: CitationFormatter;
+  /**
+   * The set of bibliography entry keys the `citationFormatter` knows. Lets a
+   * surface tell a paper citation `[@cormen2009]` from an in-document crossref
+   * `[@eq:gaussian]` or a host workspace ref, without a `has()` on the
+   * formatter. Supplied alongside `citationFormatter`; the editor derives the
+   * equivalent from its `BibStore`.
+   */
+  citationKeys?: ReadonlySet<string>;
   /** Math macros for KaTeX. Usually populated from frontmatter; this is an override. */
   mathMacros?: Record<string, string>;
 }
