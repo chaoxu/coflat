@@ -240,17 +240,13 @@ function renderBlockSummary(ctx: WalkContext, type: string, title: string | unde
   );
 }
 
-function renderBlockDisclosure(summaryHtml: string, bodyHtml: string): string {
-  return (
-    `<div class="${DOCUMENT_SURFACE_CLASS.blockHeading}">` +
-    `<button class="${CSS.blockDisclosureToggle}" type="button" aria-expanded="true" aria-label="${BLOCK_DISCLOSURE_COLLAPSE_LABEL}">${BLOCK_DISCLOSURE_OPEN_ICON}</button>` +
-    `<span class="${CSS.blockHeadingContent}">${summaryHtml}</span>` +
-    `</div>` +
-    `<div class="${CSS.blockDisclosureBody}">${bodyHtml}</div>`
-  );
-}
-
-function renderStaticBlockHeader(summaryHtml: string, bodyHtml: string): string {
+/**
+ * A semantic-block header + body. The disclosure toggle is NOT emitted here:
+ * the static render stays clean (no inert control, no glyph in the heading's
+ * textContent), and `hydrateReaderDisclosures` creates+inserts the toggle on
+ * collapsible blocks at hydration time — mirroring section disclosures (#43).
+ */
+function renderBlockHeader(summaryHtml: string, bodyHtml: string): string {
   return (
     `<div class="${DOCUMENT_SURFACE_CLASS.blockHeading}">` +
     `<span class="${CSS.blockHeadingContent}">${summaryHtml}</span>` +
@@ -1705,10 +1701,8 @@ function renderFencedDiv(ctx: WalkContext, node: SyntaxNode): BlockResult {
   const summaryHtml = summary.html;
   const html = manifestEntry?.headerPosition === "inline"
     ? renderProofBlockHtml(attrs, sourceAttrs, summaryHtml, bodyHtml)
-    : interactiveBlock
-    ? `<div${attrs}${sourceAttrs} data-cf-block-open="true">${renderBlockDisclosure(summaryHtml, bodyHtml)}</div>`
     : collapsibleBlock
-    ? `<div${attrs}${sourceAttrs}>${renderStaticBlockHeader(summaryHtml, bodyHtml)}</div>`
+    ? `<div${attrs}${sourceAttrs}${interactiveBlock ? ' data-cf-block-open="true"' : ""}>${renderBlockHeader(summaryHtml, bodyHtml)}</div>`
     : `<div${attrs}${sourceAttrs}>${bodyHtml}</div>`;
 
   return {
@@ -2447,12 +2441,21 @@ function setBlockDisclosureState(block: HTMLElement, expanded: boolean): void {
   applyBlockDisclosureState(block, parts, expanded);
 }
 
+function createBlockDisclosureToggle(): HTMLButtonElement {
+  const toggle = document.createElement("button");
+  toggle.className = CSS.blockDisclosureToggle;
+  toggle.type = "button";
+  return toggle;
+}
+
 /**
- * Attach disclosure behavior to static reader block headers.
+ * Attach disclosure behavior to reader semantic blocks.
  *
- * `renderToHtml` emits normal header text plus a triangle button. This
- * hydration pass is intentionally narrow: only the triangle toggles the block,
- * so selecting or clicking the header label itself never collapses content.
+ * `renderToHtml` emits a clean header — no toggle — so un-hydrated hosts get
+ * no inert control and the heading's textContent stays free of the ▼ glyph
+ * (#43). This pass creates and inserts the toggle on first hydration. It is
+ * intentionally narrow: only the triangle toggles the block, so selecting or
+ * clicking the header label itself never collapses content.
  */
 function hydrateSemanticBlockDisclosures(root: HTMLElement): void {
   const blocks = [
@@ -2461,16 +2464,22 @@ function hydrateSemanticBlockDisclosures(root: HTMLElement): void {
   ];
 
   for (const block of blocks) {
-    const parts = blockDisclosureParts(block);
-    if (!parts) continue;
+    let parts = blockDisclosureParts(block);
+    if (!parts) {
+      // First hydration: create + insert the toggle (mirrors section disclosures).
+      const heading = block.querySelector<HTMLElement>(`:scope > .${DOCUMENT_SURFACE_CLASS.blockHeading}`);
+      const body = block.querySelector<HTMLElement>(`:scope > .${CSS.blockDisclosureBody}`);
+      if (!heading || !body) continue;
+      const toggle = createBlockDisclosureToggle();
+      heading.insertBefore(toggle, heading.firstChild);
+      parts = { body, toggle };
+      toggle.addEventListener("click", () => {
+        setBlockDisclosureState(block, block.getAttribute(BLOCK_OPEN_ATTR) === "false");
+      });
+      block.setAttribute(BLOCK_DISCLOSURE_HYDRATED_ATTR, "true");
+    }
     const expanded = block.getAttribute(BLOCK_OPEN_ATTR) !== "false";
     applyBlockDisclosureState(block, parts, expanded);
-
-    if (block.getAttribute(BLOCK_DISCLOSURE_HYDRATED_ATTR) === "true") continue;
-    parts.toggle.addEventListener("click", () => {
-      setBlockDisclosureState(block, block.getAttribute(BLOCK_OPEN_ATTR) === "false");
-    });
-    block.setAttribute(BLOCK_DISCLOSURE_HYDRATED_ATTR, "true");
   }
 }
 

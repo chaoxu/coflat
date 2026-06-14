@@ -211,16 +211,18 @@ describe("hydrateReaderDisclosures", () => {
     const { html } = renderToHtml("::: {.theorem title=\"Readable column\"}\nbody\n:::");
     const root = makeRoot(html);
     const block = root.querySelector<HTMLElement>(".cf-doc-block-collapsible");
-    const button = root.querySelector<HTMLButtonElement>(".cf-block-disclosure-toggle");
     const headingText = root.querySelector<HTMLElement>(".cf-block-heading-content");
     const body = root.querySelector<HTMLElement>(".cf-block-disclosure-body");
     expect(block).not.toBeNull();
-    expect(button).not.toBeNull();
     expect(headingText).not.toBeNull();
     expect(body).not.toBeNull();
+    // #43: no toggle in the static render — it is created during hydration.
+    expect(root.querySelector(".cf-block-disclosure-toggle")).toBeNull();
 
     hydrateReaderDisclosures(root);
 
+    const button = root.querySelector<HTMLButtonElement>(".cf-block-disclosure-toggle");
+    expect(button).not.toBeNull();
     expect(block?.getAttribute("data-cf-block-open")).toBe("true");
     expect(button?.textContent).toBe("▼");
     expect(button?.getAttribute("aria-expanded")).toBe("true");
@@ -246,16 +248,29 @@ describe("hydrateReaderDisclosures", () => {
   it("is idempotent across repeated hydration calls", () => {
     const { html } = renderToHtml("::: {.definition}\nbody\n:::");
     const root = makeRoot(html);
-    const button = root.querySelector<HTMLButtonElement>(".cf-block-disclosure-toggle");
     const block = root.querySelector<HTMLElement>(".cf-doc-block-collapsible");
-    expect(button).not.toBeNull();
     expect(block).not.toBeNull();
 
     hydrateReaderDisclosures(root);
     hydrateReaderDisclosures(root);
 
+    // Idempotent: exactly one toggle even after repeated hydration.
+    expect(root.querySelectorAll(".cf-block-disclosure-toggle")).toHaveLength(1);
+    const button = root.querySelector<HTMLButtonElement>(".cf-block-disclosure-toggle");
     button?.click();
     expect(block?.getAttribute("data-cf-block-open")).toBe("false");
+  });
+
+  it("keeps the static block header clean — no inert toggle, no glyph in text (#43)", () => {
+    const { html } = renderToHtml("::: {.theorem title=\"Pythagoras\"}\nbody\n:::");
+    // No baked control or triangle glyph anywhere in the static render.
+    expect(html).not.toContain("<button");
+    expect(html).not.toMatch(/[▼▶]/);
+    // Heading textContent is just the title — clean for TOC scraping / a11y.
+    const heading = makeRoot(html).querySelector<HTMLElement>(".cf-doc-block-heading");
+    expect(heading?.textContent).not.toMatch(/[▼▶]/);
+    expect(heading?.textContent).toContain("Theorem 1");
+    expect(heading?.textContent).toContain("Pythagoras");
   });
 });
 

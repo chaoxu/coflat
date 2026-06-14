@@ -357,7 +357,10 @@ describe("renderToHtml — block-level rendering ()", () => {
     const r = renderToHtml("::: {.theorem #thm-1 title=\"Pythagoras\"}\nbody\n:::");
     expect(r.html).toContain('cf-doc-block-collapsible');
     expect(r.html).toContain('data-cf-block-open="true"');
-    expect(r.html).toContain('<button class="cf-block-disclosure-toggle" type="button" aria-expanded="true" aria-label="Collapse block">▼</button>');
+    // #43: the disclosure toggle is created at hydration, not baked into the
+    // static HTML — no inert control and no ▼ glyph in the heading textContent.
+    expect(r.html).not.toContain('<button');
+    expect(r.html).not.toContain('▼');
     expect(r.html).toContain('<span class="cf-block-heading-content">');
     expect(r.html).toContain('<div class="cf-block-disclosure-body">');
     expect(r.html).toContain('<span class="cf-block-header-rendered">Theorem 1</span>');
