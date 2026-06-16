@@ -88,6 +88,12 @@ export interface WorkerReaderHtmlResult {
   html: string;
   hasMath: boolean;
   truncated?: { sourceFrom: number; sourceTo: number };
+  /**
+   * Resolved KaTeX macros for this document (frontmatter `math:` merged with
+   * any `mathMacros` supplied on the request). Forward this to the main-thread
+   * `hydrateMath` call.
+   */
+  mathMacros?: Record<string, string>;
 }
 
 export interface WorkerReaderTextResult {
@@ -120,10 +126,14 @@ function handleRequest(req: WorkerRequest): WorkerResponse {
   try {
     const { method, input, id } = req;
     if (method === "renderToHtml") {
-      const r = renderToHtml(input.source, undefined, {
-        sourceLineAttribution: input.sourceLineAttribution,
-        truncate: input.truncate,
-      });
+      const r = renderToHtml(
+        input.source,
+        input.mathMacros ? { mathMacros: input.mathMacros } : undefined,
+        {
+          sourceLineAttribution: input.sourceLineAttribution,
+          truncate: input.truncate,
+        },
+      );
       return { id, ok: true, result: r };
     }
     if (method === "renderToText") {

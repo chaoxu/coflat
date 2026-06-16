@@ -132,14 +132,25 @@ export function EditableReader(props: EditableReaderProps): ReactElement {
         })
       : null;
 
+  // The document's own frontmatter `math:` macros, resolved by renderToHtml.
+  // Kept in a ref so the hydrate effect can read the latest value without
+  // adding the (newly-allocated each render) result object to its deps.
+  const docMathMacrosRef = useRef<Record<string, string> | undefined>(undefined);
+  docMathMacrosRef.current = rendered?.mathMacros;
+
   // Hydrate math after the reader DOM is committed.
   useLayoutEffect(() => {
     if (mode !== "reading") return;
     const root = readerRef.current;
     if (!root) return;
+    // Frontmatter macros are the base; the explicit `mathMacros` prop overrides
+    // per key, so document math renders without the host re-parsing frontmatter.
+    const docMacros = docMathMacrosRef.current;
+    const macros =
+      docMacros || mathMacros ? { ...docMacros, ...mathMacros } : undefined;
     // hydrateMath is best-effort; per-equation failures are already
     // surfaced on the placeholder via `cf-math-error`. No abort handle.
-    void hydrateMath(root, mathMacros ? { mathMacros } : undefined).catch(() => {});
+    void hydrateMath(root, macros ? { mathMacros: macros } : undefined).catch(() => {});
   }, [mode, committedSource, mathMacros]);
 
   // -------------------------------------------------------------------------

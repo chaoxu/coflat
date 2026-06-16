@@ -199,11 +199,19 @@ function renderReaderDoc(): void {
   mountedReaderRoot.innerHTML = result.html;
   hydrateReaderDisclosures(mountedReaderRoot);
   hydrateReferences(mountedReaderRoot, documentContext, { source: doc.source });
-  void hydrateMath(mountedReaderRoot);
+  // Forward the document's frontmatter `math:` macros so custom definitions
+  // render in the title and body, matching the editor surface.
+  void hydrateMath(
+    mountedReaderRoot,
+    result.mathMacros ? { mathMacros: result.mathMacros } : undefined,
+  );
   cleanupReaderHover = hydrateReaderHoverPreviews(mountedReaderRoot, {
     context: documentContext,
     previewForReference: formatBibliographyPreview,
     source: doc.source,
+    // Forward frontmatter macros so custom definitions also render inside
+    // equation/heading hover previews, matching the main reader surface.
+    mathMacros: result.mathMacros,
   });
 }
 

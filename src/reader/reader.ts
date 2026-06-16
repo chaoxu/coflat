@@ -2013,7 +2013,7 @@ function walkDocument(
   tree: Tree,
   resolvers: Resolvers,
   opts: RenderOptions,
-): BlockResult & { truncated?: TruncatedInfo; outline: ReaderOutlineEntry[]; catalog: Map<string, ReaderReferenceTarget> } {
+): BlockResult & { truncated?: TruncatedInfo; outline: ReaderOutlineEntry[]; catalog: Map<string, ReaderReferenceTarget>; mathMacros?: Record<string, string> } {
   const frontmatter = parseFrontmatter(source);
   const frontmatterEnd = frontmatter.end;
   const ctx: WalkContext = {
@@ -2051,7 +2051,10 @@ function walkDocument(
   const blocks: BlockResult[] = [];
   if (frontmatter.config.title) {
     const title = frontmatter.config.title;
-    const renderedTitle = renderToHtml(title);
+    // A document title is a single line of inline markdown — render it inline
+    // (like fenced-div block titles and the editor's title widget), not as a
+    // full block document, so it never sprouts headings/lists/paragraphs.
+    const renderedTitle = renderInlineSnippet(ctx, title);
     blocks.push({
       html: `<div class="${CSS.docTitle}"${blockSourceAttrs(ctx, 0, frontmatterEnd)}>${renderedTitle.html}</div>`,
       text: title,
@@ -2188,7 +2191,16 @@ function walkDocument(
       hasMath: combined.hasMath,
     };
   }
-  return { ...combined, truncated, outline: ctx.outline, catalog: ctx.catalog };
+  return {
+    ...combined,
+    truncated,
+    outline: ctx.outline,
+    catalog: ctx.catalog,
+    // Surface the document's frontmatter `math:` macros so the host can forward
+    // them to `hydrateMath` without re-parsing. Mirrors the editor, where the
+    // same `config.math` feeds `mathMacrosField` and every math render path.
+    mathMacros: frontmatter.config.math,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -2307,7 +2319,7 @@ export function renderToHtml(
   source: string,
   ctx?: DocumentContext,
   opts: RenderOptions = {},
-): { html: string; hasMath: boolean; truncated?: TruncatedInfo; outline?: ReaderOutlineEntry[] } {
+): { html: string; hasMath: boolean; truncated?: TruncatedInfo; outline?: ReaderOutlineEntry[]; mathMacros?: Record<string, string> } {
   const resolvers = buildResolvers(ctx, opts.documentPath);
 
   if (
@@ -2332,12 +2344,19 @@ export function renderToHtml(
     // already has nothing to re-resolve (citations + host fallback ran there).
     result = walkDocument(source, tree, { ...resolvers, referenceCatalog: result.catalog }, opts);
   }
-  const out: { html: string; hasMath: boolean; truncated?: TruncatedInfo; outline?: ReaderOutlineEntry[] } = {
+  const out: { html: string; hasMath: boolean; truncated?: TruncatedInfo; outline?: ReaderOutlineEntry[]; mathMacros?: Record<string, string> } = {
     html: sanitize(result.html),
     hasMath: result.hasMath,
   };
   if (result.truncated) out.truncated = result.truncated;
   if (opts.outline) out.outline = result.outline;
+  // Resolved KaTeX macros for this document: frontmatter `math:` as the base,
+  // with `ctx.mathMacros` taking precedence as a per-key override. Hosts forward
+  // this to `hydrateMath` so reader math (title + body) matches the editor.
+  if (result.mathMacros || ctx?.mathMacros) {
+    const mathMacros = { ...result.mathMacros, ...ctx?.mathMacros };
+    if (Object.keys(mathMacros).length > 0) out.mathMacros = mathMacros;
+  }
   return out;
 }
 
@@ -3172,9 +3191,11 @@ export interface HydrateMathOptions {
   /**
    * KaTeX macro definitions, e.g. `{ "\\R": "\\mathbb{R}" }`.
    *
-   * NOTE: v1 does NOT auto-extract macros from the document's frontmatter.
-   * Hosts that want frontmatter-driven macros must parse the frontmatter
-   * themselves and pass the macros explicitly here.
+   * `hydrateMath` does not read the document; pass macros explicitly. The
+   * document's own frontmatter `math:` preamble is already resolved by
+   * {@link renderToHtml} and returned as `result.mathMacros` — forward that
+   * value here so reader math (title + body) matches the editor. Supply
+   * additional/override macros by merging them in before the call.
    */
   mathMacros?: Record<string, string>;
 }

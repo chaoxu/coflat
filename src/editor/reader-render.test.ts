@@ -113,6 +113,70 @@ describe("renderToHtml — slow path (Lezer)", () => {
     expect(r.html).toContain(`data-source-from="${source.indexOf("# Visible")}"`);
   });
 
+  it("surfaces frontmatter `math:` macros as result.mathMacros", () => {
+    const source = [
+      "---",
+      'title: "T $\\\\foo$"',
+      "math:",
+      '  \\foo: "\\\\mathbb{R}"',
+      '  \\bar: "\\\\mathcal{B}"',
+      "---",
+      "",
+      "Body $\\bar$.",
+    ].join("\n");
+    const r = renderToHtml(source);
+    expect(r.mathMacros).toEqual({ "\\foo": "\\mathbb{R}", "\\bar": "\\mathcal{B}" });
+  });
+
+  it("omits result.mathMacros when the document defines no macros", () => {
+    expect(renderToHtml("# Heading\n\nbody").mathMacros).toBeUndefined();
+    // Plain math with no preamble still needs no macros.
+    expect(renderToHtml("inline $x^2$").mathMacros).toBeUndefined();
+  });
+
+  it("lets context.mathMacros override frontmatter macros per key", () => {
+    const source = [
+      "---",
+      "math:",
+      '  \\foo: "\\\\mathbb{R}"',
+      '  \\bar: "\\\\mathcal{B}"',
+      "---",
+      "",
+      "body",
+    ].join("\n");
+    const r = renderToHtml(source, { mathMacros: { "\\foo": "\\mathbb{Q}", "\\baz": "\\mathbb{Z}" } });
+    // \foo overridden, \bar inherited from frontmatter, \baz added by context.
+    expect(r.mathMacros).toEqual({
+      "\\foo": "\\mathbb{Q}",
+      "\\bar": "\\mathcal{B}",
+      "\\baz": "\\mathbb{Z}",
+    });
+  });
+
+  it("renders the document title as inline markdown, never block-level", () => {
+    const titleHtml = (source: string): string =>
+      /<div class="cf-doc-title"[^>]*>([\s\S]*?)<\/div>/.exec(renderToHtml(source).html)?.[1] ?? "";
+
+    // Inline markup + math render; no paragraph wrapper.
+    const rich = renderToHtml('---\ntitle: "**Bold** $x^2$"\n---\n\nbody');
+    const richTitle = /<div class="cf-doc-title"[^>]*>([\s\S]*?)<\/div>/.exec(rich.html)?.[1] ?? "";
+    expect(richTitle).toContain("<strong>Bold</strong>");
+    expect(richTitle).toContain('data-math="x^2"');
+    expect(richTitle).not.toContain("<p>");
+    expect(richTitle).not.toContain("<p ");
+    expect(rich.hasMath).toBe(true);
+
+    // Leading list/quote markers stay literal text — never an <ol>/<ul>/<blockquote>.
+    const listy = titleHtml('---\ntitle: "1. Introduction"\n---\n\nbody');
+    expect(listy).not.toContain("<ol");
+    expect(listy).not.toContain("<li");
+    expect(listy).toContain("1. Introduction");
+
+    const quoted = titleHtml('---\ntitle: "> not a quote"\n---\n\nbody');
+    expect(quoted).not.toContain("<blockquote");
+    expect(quoted).toContain("not a quote");
+  });
+
   it("strips Pandoc heading attributes and marks unnumbered headings", () => {
     const dash = renderToHtml("# Unnumbered Heading {-}");
     expect(dash.html).toContain('class="cf-doc-heading cf-doc-heading--h1 cf-doc-heading--unnumbered"');

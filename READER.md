@@ -126,6 +126,18 @@ The reader has a plain-inline fast path for common short fragments. More
 structural input uses the Lezer parser. Math emits placeholders and reports
 `hasMath`; UI wrappers can hydrate KaTeX only when needed.
 
+`renderToHtml` also resolves the document's KaTeX macros and returns them as
+`result.mathMacros` — the frontmatter `math:` preamble merged with any
+`context.mathMacros` override. Forward that value to `hydrateMath` so custom
+macros render in both the document title and the body, matching the editor
+surface (which feeds the same `config.math` into every math render path):
+
+```ts
+const result = renderToHtml(source, context);
+root.innerHTML = result.html;
+await hydrateMath(root, result.mathMacros ? { mathMacros: result.mathMacros } : undefined);
+```
+
 Pandoc-style heading attributes at the end of ATX or Setext headings are
 metadata, not visible heading text. The reader strips suffixes such as
 `{#sec:intro}`, `{-}`, and `{.unnumbered}` from output. A `{#id}` token

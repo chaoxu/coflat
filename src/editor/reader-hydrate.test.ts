@@ -129,6 +129,47 @@ describe("hydrateMath", () => {
     // `\mathbb{R}` renders with a double-struck mathvariant in the MathML.
     expect(placeholder2.innerHTML).toContain("double-struck");
   });
+  // `\myfoo` is a custom macro defined only in the frontmatter preamble and
+  // used in both the title and the body — the case the macro fix exists for.
+  const MACRO_DOC = [
+    "---",
+    'title: "Title $\\\\myfoo$"',
+    "math:",
+    '  \\myfoo: "\\\\mathbb{R}"',
+    "---",
+    "",
+    "Body $\\myfoo$.",
+  ].join("\n");
+
+  it("renders title + body macro math end-to-end via result.mathMacros", async () => {
+    // Forwarding result.mathMacros is what makes both the title and the body
+    // render (regression: reader previously dropped frontmatter macros).
+    const result = renderToHtml(MACRO_DOC);
+    expect(result.mathMacros).toEqual({ "\\myfoo": "\\mathbb{R}" });
+
+    const root = makeRoot(result.html);
+    const titleDiv = root.querySelector(".cf-doc-title");
+    const placeholders = Array.from(root.querySelectorAll<HTMLElement>("[data-math]"));
+    expect(placeholders).toHaveLength(2);
+    // One placeholder is inside the title, one in the body.
+    expect(placeholders.some((p) => titleDiv?.contains(p))).toBe(true);
+
+    await hydrateMath(root, result.mathMacros ? { mathMacros: result.mathMacros } : undefined);
+
+    for (const p of placeholders) {
+      expect(p.classList.contains("cf-math-error")).toBe(false);
+      expect(p.getAttribute("data-math-hydrated")).toBe("true");
+    }
+  });
+
+  it("without forwarding macros, frontmatter-defined title/body math errors", async () => {
+    // Documents the failure the fix prevents: hydrateMath(root) with no macros
+    // leaves custom-macro math unrendered (cf-math-error).
+    const root = makeRoot(renderToHtml(MACRO_DOC).html);
+    await hydrateMath(root); // forgot to forward result.mathMacros
+    const errored = root.querySelectorAll(".cf-math-error");
+    expect(errored.length).toBe(2);
+  });
 });
 
 describe("hydrateMath — KaTeX import laziness", () => {
