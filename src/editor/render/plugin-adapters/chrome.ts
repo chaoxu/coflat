@@ -11,6 +11,10 @@ import {
   blockCaptionClassName,
   createBlockCaptionElement,
 } from "../../../core/block-caption-surface";
+import {
+  createBlockLabelElement,
+  populateBlockAttributeTitleElement,
+} from "../../../core/block-heading-surface";
 import { renderDocumentFragmentToDom } from "../../document-surfaces";
 import type { FencedDivInfo } from "../../fenced-block/model";
 import {
@@ -129,8 +133,7 @@ export class BlockHeaderWidget extends MacroRenderingWidget {
 
   createDOM(): HTMLElement {
     return this.createRenderedDOM(() => {
-      const el = document.createElement("span");
-      el.className = CSS.blockHeaderRendered;
+      const el = createBlockLabelElement(document);
       this.renderBlockTitle(el, this.header);
       return el;
     });
@@ -227,22 +230,9 @@ class AttributeTitleWidget extends MacroRenderingWidget {
   }
 
   private renderAttributeTitle(el: HTMLElement): void {
-    el.className = CSS.blockAttrTitle;
-    el.textContent = "";
-
-    const openParen = document.createElement("span");
-    openParen.className = CSS.blockTitleParen;
-    openParen.textContent = "(";
-    el.appendChild(openParen);
-
-    const titleContent = document.createElement("span");
-    this.renderBlockTitle(titleContent, this.title);
-    el.appendChild(titleContent);
-
-    const closeParen = document.createElement("span");
-    closeParen.className = CSS.blockTitleParen;
-    closeParen.textContent = ")";
-    el.appendChild(closeParen);
+    populateBlockAttributeTitleElement(el as HTMLSpanElement, (titleContent) => {
+      this.renderBlockTitle(titleContent, this.title);
+    });
   }
 
   createDOM(): HTMLElement {

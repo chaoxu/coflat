@@ -9,6 +9,12 @@ import {
   createBlockCaptionElement,
 } from "../../core/block-caption-surface";
 import {
+  appendBlockDisclosure,
+  createBlockLabelElement,
+  createBlockSummaryFragment as createBlockSummarySurfaceFragment,
+  createInlineBlockHeadingElement,
+} from "../../core/block-heading-surface";
+import {
   BLOCK_MANIFEST_ENTRIES,
   EXCLUDED_FROM_FALLBACK,
   isCollapsibleBlockType,
@@ -556,8 +562,7 @@ function renderFencedDiv(
       appendBlockHeader(block, summary, body);
     } else {
       if (title && !plan?.hasCaptionBelow && !plan?.hasInlineHeader) {
-        const strong = document.createElement("strong");
-        strong.className = CSS.blockHeaderRendered;
+        const strong = createBlockLabelElement(document);
         appendInlineText(strong, title, context, "document-body");
         block.appendChild(strong);
       }
@@ -584,35 +589,15 @@ function createBlockSummaryFragment(
   context: PreviewRenderContext,
   plan: BlockPresentationPlan,
 ): DocumentFragment {
-  const summary = document.createDocumentFragment();
-
-  const header = document.createElement("span");
-  header.className = CSS.blockHeaderRendered;
-  header.textContent = plan.label;
-  summary.appendChild(header);
-
-  if (plan.showTitleInHeader) {
-    const attrTitle = document.createElement("span");
-    attrTitle.className = CSS.blockAttrTitle;
-
-    const openParen = document.createElement("span");
-    openParen.className = CSS.blockTitleParen;
-    openParen.textContent = "(";
-    attrTitle.appendChild(openParen);
-
-    const renderedTitle = document.createElement("span");
-    appendInlineText(renderedTitle, plan.title ?? "", context, "document-body");
-    attrTitle.appendChild(renderedTitle);
-
-    const closeParen = document.createElement("span");
-    closeParen.className = CSS.blockTitleParen;
-    closeParen.textContent = ")";
-    attrTitle.appendChild(closeParen);
-
-    summary.appendChild(attrTitle);
-  }
-
-  return summary;
+  return createBlockSummarySurfaceFragment(
+    document,
+    plan.label,
+    plan.showTitleInHeader
+      ? (renderedTitle) => {
+        appendInlineText(renderedTitle, plan.title ?? "", context, "document-body");
+      }
+      : undefined,
+  );
 }
 
 function appendBlockHeader(
@@ -620,25 +605,11 @@ function appendBlockHeader(
   summary: DocumentFragment,
   body: DocumentFragment,
 ): void {
-  const heading = document.createElement("div");
-  heading.className = DOCUMENT_SURFACE_CLASS.blockHeading;
-
-  const headingContent = document.createElement("span");
-  headingContent.className = CSS.blockHeadingContent;
-  headingContent.appendChild(summary);
-  heading.appendChild(headingContent);
-  block.appendChild(heading);
-
-  const bodyWrapper = document.createElement("div");
-  bodyWrapper.className = CSS.blockDisclosureBody;
-  bodyWrapper.appendChild(body);
-  block.appendChild(bodyWrapper);
+  appendBlockDisclosure(block, summary, body);
 }
 
 function prependInlineHeader(body: DocumentFragment, summary: DocumentFragment): void {
-  const header = document.createElement("span");
-  header.className = DOCUMENT_SURFACE_CLASS.blockHeading;
-  header.appendChild(summary);
+  const header = createInlineBlockHeadingElement(document, summary);
 
   const first = body.firstElementChild;
   if (first instanceof HTMLParagraphElement) {

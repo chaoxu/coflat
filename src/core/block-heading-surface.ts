@@ -1,0 +1,137 @@
+import { CSS } from "./constants/css-classes";
+import { DOCUMENT_SURFACE_CLASS } from "./document-surface-classes";
+import { escapeHtml } from "./lib/html-escape";
+
+export function renderBlockLabelHtml(label: string): string {
+  return `<span class="${CSS.blockHeaderRendered}">${escapeHtml(label)}</span>`;
+}
+
+export function renderBlockAttributeTitleHtml(titleHtml: string): string {
+  return (
+    `<span class="${CSS.blockAttrTitle}">` +
+    `<span class="${CSS.blockTitleParen}">(</span>` +
+    `<span>${titleHtml}</span>` +
+    `<span class="${CSS.blockTitleParen}">)</span>` +
+    `</span>`
+  );
+}
+
+export function renderBlockSummaryHtml(label: string, titleHtml?: string): string {
+  return renderBlockLabelHtml(label) + (titleHtml === undefined ? "" : renderBlockAttributeTitleHtml(titleHtml));
+}
+
+export function renderBlockDisclosureHtml(summaryHtml: string, bodyHtml: string): string {
+  return (
+    `<div class="${DOCUMENT_SURFACE_CLASS.blockHeading}">` +
+    `<span class="${CSS.blockHeadingContent}">${summaryHtml}</span>` +
+    `</div>` +
+    `<div class="${CSS.blockDisclosureBody}">${bodyHtml}</div>`
+  );
+}
+
+export function renderInlineBlockHeadingHtml(summaryHtml: string): string {
+  return `<span class="${DOCUMENT_SURFACE_CLASS.blockHeading}">${summaryHtml}</span>`;
+}
+
+export function createBlockLabelElement(
+  ownerDocument: Document,
+  label = "",
+): HTMLSpanElement {
+  const labelEl = ownerDocument.createElement("span");
+  labelEl.className = CSS.blockHeaderRendered;
+  labelEl.textContent = label;
+  return labelEl;
+}
+
+export function appendBlockLabel(
+  parent: HTMLElement | DocumentFragment,
+  label = "",
+): HTMLSpanElement {
+  const labelEl = createBlockLabelElement(parent.ownerDocument, label);
+  parent.appendChild(labelEl);
+  return labelEl;
+}
+
+export function createBlockAttributeTitleElement(
+  ownerDocument: Document,
+  appendTitleContent: (titleContent: HTMLSpanElement) => void,
+): HTMLSpanElement {
+  const attrTitle = ownerDocument.createElement("span");
+  populateBlockAttributeTitleElement(attrTitle, appendTitleContent);
+  return attrTitle;
+}
+
+export function populateBlockAttributeTitleElement(
+  attrTitle: HTMLSpanElement,
+  appendTitleContent: (titleContent: HTMLSpanElement) => void,
+): void {
+  const ownerDocument = attrTitle.ownerDocument;
+  attrTitle.className = CSS.blockAttrTitle;
+  attrTitle.textContent = "";
+
+  const openParen = ownerDocument.createElement("span");
+  openParen.className = CSS.blockTitleParen;
+  openParen.textContent = "(";
+  attrTitle.appendChild(openParen);
+
+  const titleContent = ownerDocument.createElement("span");
+  appendTitleContent(titleContent);
+  attrTitle.appendChild(titleContent);
+
+  const closeParen = ownerDocument.createElement("span");
+  closeParen.className = CSS.blockTitleParen;
+  closeParen.textContent = ")";
+  attrTitle.appendChild(closeParen);
+}
+
+export function appendBlockAttributeTitle(
+  parent: HTMLElement | DocumentFragment,
+  appendTitleContent: (titleContent: HTMLSpanElement) => void,
+): HTMLSpanElement {
+  const attrTitle = createBlockAttributeTitleElement(parent.ownerDocument, appendTitleContent);
+  parent.appendChild(attrTitle);
+  return attrTitle;
+}
+
+export function createBlockSummaryFragment(
+  ownerDocument: Document,
+  label: string,
+  appendTitleContent?: (titleContent: HTMLSpanElement) => void,
+): DocumentFragment {
+  const summary = ownerDocument.createDocumentFragment();
+  appendBlockLabel(summary, label);
+  if (appendTitleContent) {
+    appendBlockAttributeTitle(summary, appendTitleContent);
+  }
+  return summary;
+}
+
+export function appendBlockDisclosure(
+  block: HTMLElement,
+  summary: DocumentFragment,
+  body: DocumentFragment,
+): void {
+  const heading = block.ownerDocument.createElement("div");
+  heading.className = DOCUMENT_SURFACE_CLASS.blockHeading;
+
+  const headingContent = block.ownerDocument.createElement("span");
+  headingContent.className = CSS.blockHeadingContent;
+  headingContent.appendChild(summary);
+  heading.appendChild(headingContent);
+  block.appendChild(heading);
+
+  const bodyWrapper = block.ownerDocument.createElement("div");
+  bodyWrapper.className = CSS.blockDisclosureBody;
+  bodyWrapper.appendChild(body);
+  block.appendChild(bodyWrapper);
+}
+
+export function createInlineBlockHeadingElement(
+  ownerDocument: Document,
+  summary: DocumentFragment,
+): HTMLSpanElement {
+  const header = ownerDocument.createElement("span");
+  header.className = DOCUMENT_SURFACE_CLASS.blockHeading;
+  header.appendChild(summary);
+  return header;
+}

@@ -11,7 +11,15 @@ import type { SyntaxNode, Tree } from "@lezer/common";
 import createDOMPurify from "dompurify";
 
 import { parseFrontmatter, parseMarkdownSource } from "../core/parser";
-import { renderBlockCaptionHtml } from "../core/block-caption-surface";
+import {
+  renderBlockCaptionHtml,
+} from "../core/block-caption-surface";
+import {
+  renderBlockDisclosureHtml,
+  renderBlockLabelHtml,
+  renderBlockSummaryHtml as renderBlockSummarySurfaceHtml,
+  renderInlineBlockHeadingHtml,
+} from "../core/block-heading-surface";
 import {
   blankLineRangesBetweenBlocks,
   trailingBlankLineRangesAfterLastBlock,
@@ -243,10 +251,9 @@ function renderBlockSummary(ctx: WalkContext, type: string, title: string | unde
     number,
     title,
   });
-  const escapedHeader = escapeHtml(plan.label);
   if (!plan.showTitleInHeader) {
     return {
-      html: `<span class="${CSS.blockHeaderRendered}">${escapedHeader}</span>`,
+      html: renderBlockLabelHtml(plan.label),
       text: plan.label,
       hasMath: false,
     };
@@ -254,13 +261,7 @@ function renderBlockSummary(ctx: WalkContext, type: string, title: string | unde
   const renderedTitle = renderInlineSnippet(ctx, plan.title ?? "");
   return (
     {
-      html:
-        `<span class="${CSS.blockHeaderRendered}">${escapedHeader}</span>` +
-        `<span class="${CSS.blockAttrTitle}">` +
-        `<span class="${CSS.blockTitleParen}">(</span>` +
-        `<span>${renderedTitle.html}</span>` +
-        `<span class="${CSS.blockTitleParen}">)</span>` +
-        `</span>`,
+      html: renderBlockSummarySurfaceHtml(plan.label, renderedTitle.html),
       text: `${plan.label} (${renderedTitle.text})`,
       hasMath: renderedTitle.hasMath,
     }
@@ -274,12 +275,7 @@ function renderBlockSummary(ctx: WalkContext, type: string, title: string | unde
  * collapsible blocks at hydration time — mirroring section disclosures (#43).
  */
 function renderBlockHeader(summaryHtml: string, bodyHtml: string): string {
-  return (
-    `<div class="${DOCUMENT_SURFACE_CLASS.blockHeading}">` +
-    `<span class="${CSS.blockHeadingContent}">${summaryHtml}</span>` +
-    `</div>` +
-    `<div class="${CSS.blockDisclosureBody}">${bodyHtml}</div>`
-  );
+  return renderBlockDisclosureHtml(summaryHtml, bodyHtml);
 }
 
 function renderBlockCaption(
@@ -327,7 +323,7 @@ function renderProofBlockHtml(attrs: string, sourceAttrs: string, summaryHtml: s
   if (!firstParagraph?.[1] || !/\bclass="[^"]*\bcf-doc-paragraph\b[^"]*"/.test(firstParagraph[1])) {
     return (
       `<div${attrs}${sourceAttrs}>` +
-      renderParagraphHtml(`<span class="${DOCUMENT_SURFACE_CLASS.blockHeading}">${summaryHtml}</span>`) +
+      renderParagraphHtml(renderInlineBlockHeadingHtml(summaryHtml)) +
       bodyHtml +
       `</div>`
     );
@@ -337,7 +333,7 @@ function renderProofBlockHtml(attrs: string, sourceAttrs: string, summaryHtml: s
   if (closeStart < 0) {
     return (
       `<div${attrs}${sourceAttrs}>` +
-      renderParagraphHtml(`<span class="${DOCUMENT_SURFACE_CLASS.blockHeading}">${summaryHtml}</span>`) +
+      renderParagraphHtml(renderInlineBlockHeadingHtml(summaryHtml)) +
       bodyHtml +
       `</div>`
     );
@@ -348,7 +344,7 @@ function renderProofBlockHtml(attrs: string, sourceAttrs: string, summaryHtml: s
   return (
     `<div${attrs}${sourceAttrs}>` +
     `<p${paragraphAttrs}>` +
-    `<span class="${DOCUMENT_SURFACE_CLASS.blockHeading}">${summaryHtml}</span>` +
+    renderInlineBlockHeadingHtml(summaryHtml) +
     firstInner +
     `</p>` +
     rest +

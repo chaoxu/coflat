@@ -1,5 +1,8 @@
+import {
+  appendBlockLabel,
+  renderBlockLabelHtml,
+} from "./block-heading-surface";
 import { CSS } from "./constants/css-classes";
-import { escapeHtml } from "./lib/html-escape";
 
 export function blockCaptionClassName(active = false): string {
   return active
@@ -14,7 +17,7 @@ export function renderBlockCaptionHtml(
 ): string {
   return (
     `<div class="${blockCaptionClassName()}"${attrs}>` +
-    `<span class="${CSS.blockHeaderRendered}">${escapeHtml(label)}</span>` +
+    renderBlockLabelHtml(label) +
     `<span class="cf-block-caption-text">${titleHtml}</span>` +
     `</div>`
   );
@@ -33,11 +36,7 @@ export function appendBlockCaptionLabel(
   caption: HTMLElement,
   label: string,
 ): HTMLSpanElement {
-  const labelEl = caption.ownerDocument.createElement("span");
-  labelEl.className = CSS.blockHeaderRendered;
-  labelEl.textContent = label;
-  caption.appendChild(labelEl);
-  return labelEl;
+  return appendBlockLabel(caption, label);
 }
 
 export function appendBlockCaptionText(
