@@ -594,6 +594,10 @@ function collectCorpusSegments(source: string): CorpusSegment[] {
 
   let child = tree.topNode.firstChild;
   while (child) {
+    if (child.name === "FootnoteDef") {
+      child = child.nextSibling;
+      continue;
+    }
     if (child.to > frontmatterEnd) {
       addSegment(Math.max(child.from, frontmatterEnd), child.to);
     }

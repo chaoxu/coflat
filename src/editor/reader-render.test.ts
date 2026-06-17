@@ -404,12 +404,14 @@ describe("renderToHtml — block-level rendering ()", () => {
     expect(r.html).toMatch(/text-align:right|data-align="right"/);
   });
 
-  it("renders footnote refs + numbered list at end", () => {
+  it("renders footnote refs + shared numbered section at end", () => {
     const r = renderToHtml("Here[^a] and there[^b].\n\n[^a]: first\n[^b]: second");
     expect(r.html).toContain('class="cf-footnote-ref"');
     expect(r.html).toContain('href="#fn-a"');
     expect(r.html).toContain('id="fnref-a"');
-    expect(r.html).toContain('<ol class="cf-footnotes">');
+    expect(r.html).toContain('<div class="cf-footnote-section" aria-label="Footnotes">');
+    expect(r.html).toContain('<h2 class="cf-bibliography-heading">Footnotes</h2>');
+    expect(r.html).toContain('<div class="cf-bibliography-list">');
     expect(r.html).toContain('id="fn-a"');
     expect(r.html).toContain('class="cf-footnote-backref"');
   });

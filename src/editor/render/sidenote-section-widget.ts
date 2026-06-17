@@ -1,5 +1,6 @@
 import { type EditorView } from "@codemirror/view";
 import { CSS } from "../../core/constants/css-classes";
+import { renderFootnoteSectionHtml } from "../../core/footnote-section-surface";
 import { renderDocumentFragmentToDom } from "../document-surfaces";
 import { sidenotesCollapsedEffect } from "./sidenote-state";
 import { RenderWidget, serializeMacros } from "./source-widget";
@@ -25,39 +26,19 @@ export class FootnoteSectionWidget extends RenderWidget {
 
   createDOM(): HTMLElement {
     return this.createCachedDOM(() => {
-      const section = document.createElement("div");
-      section.className = CSS.footnoteSection;
-
-      const heading = document.createElement("h2");
-      heading.className = CSS.bibliographyHeading;
-      heading.textContent = "Footnotes";
-      section.appendChild(heading);
-
-      const list = document.createElement("div");
-      list.className = CSS.bibliographyList;
-
-      for (const entry of this.entries) {
-        const div = document.createElement("div");
-        div.className = CSS.bibliographyEntry;
-        div.dataset.defFrom = String(entry.defFrom);
-
-        const num = document.createElement("sup");
-        num.className = CSS.bibliographyEntryNumber;
-        num.textContent = String(entry.num);
-        div.appendChild(num);
-
-        const content = document.createElement("span");
-        renderDocumentFragmentToDom(content, {
-          kind: "footnote",
-          text: entry.content,
-          macros: this.macros,
-        });
-        div.appendChild(content);
-
-        list.appendChild(div);
+      const template = document.createElement("template");
+      template.innerHTML = renderFootnoteSectionHtml(
+        this.entries.map((entry) => ({
+          num: entry.num,
+          id: entry.id,
+          html: renderFootnoteEntryContentHtml(entry.content, this.macros),
+          defFrom: entry.defFrom,
+        })),
+      );
+      const section = template.content.firstElementChild;
+      if (!(section instanceof HTMLElement)) {
+        throw new Error("footnote section helper did not render an element");
       }
-
-      section.appendChild(list);
       return section;
     });
   }
@@ -89,4 +70,17 @@ export class FootnoteSectionWidget extends RenderWidget {
         e.defFrom === other.entries[i].defFrom,
     ) && this.macrosKey === other.macrosKey;
   }
+}
+
+function renderFootnoteEntryContentHtml(
+  content: string,
+  macros: Record<string, string>,
+): string {
+  const span = document.createElement("span");
+  renderDocumentFragmentToDom(span, {
+    kind: "footnote",
+    text: content,
+    macros,
+  });
+  return span.innerHTML;
 }

@@ -61,6 +61,7 @@ import {
   documentSurfaceClassNames,
 } from "../core/document-surface-classes";
 import { renderCodeBlockHtml } from "../core/code-block-surface";
+import { renderFootnoteSectionHtml } from "../core/footnote-section-surface";
 import {
   createPreviewSurfaceBody,
   createPreviewSurfaceContent,
@@ -2045,17 +2046,16 @@ function renderFootnoteDef(ctx: WalkContext, node: SyntaxNode): BlockResult {
 
 function renderFootnotesList(ctx: WalkContext): string {
   if (ctx.footnotesInOrder.length === 0) return "";
-  const items: string[] = [];
-  for (const fn of ctx.footnotesInOrder) {
-    if (!fn.hasRef && !fn.bodyHtml) continue;
-    const safeId = encodeURIComponent(fn.id);
-    const back = ` <a href="#fnref-${escapeHtml(safeId)}" class="${CSS.footnoteBackref}">↩</a>`;
-    items.push(
-      `<li id="fn-${escapeHtml(safeId)}" class="${CSS.footnoteItem}">${fn.bodyHtml}${back}</li>`,
-    );
-  }
-  if (items.length === 0) return "";
-  return `<ol class="${CSS.footnotes}">${items.join("")}</ol>`;
+  return renderFootnoteSectionHtml(
+    ctx.footnotesInOrder
+      .filter((fn) => fn.hasRef || fn.bodyHtml)
+      .map((fn) => ({
+        num: fn.number,
+        id: fn.id,
+        html: fn.bodyHtml,
+        backrefHref: `#fnref-${encodeURIComponent(fn.id)}`,
+      })),
+  );
 }
 
 // The References list, emitted from the same citeproc formatter that produced
