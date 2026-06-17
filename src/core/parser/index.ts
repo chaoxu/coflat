@@ -31,12 +31,14 @@ import { strikethroughExtension } from "./strikethrough";
 import { tableExtension } from "./table";
 
 /**
- * Semantic parser extensions used by the editor state and Node parse helpers.
- * This is the default Coflat syntax model.
+ * Coflat syntax extensions shared by every parser profile.
+ *
+ * Keep new FORMAT.md syntax here unless a surface has a documented reason to
+ * parse it differently. Reader/editor parity depends on this being the common
+ * source of truth instead of parallel hand-maintained extension arrays.
  */
-export const markdownExtensions = [
+export const coflatSharedMarkdownExtensions = [
   removeIndentedCode,
-  removeBlockquote,
   mathExtension,
   fencedDiv,
   equationLabelExtension,
@@ -49,6 +51,27 @@ export const markdownExtensions = [
 ];
 
 /**
+ * Semantic-only parser extensions.
+ *
+ * Editor/source semantics strip ordinary `>` blockquotes because Coflat
+ * blockquotes are modeled as fenced divs. HTML render surfaces intentionally
+ * omit this extension so authored Markdown blockquotes can still be displayed.
+ */
+export const semanticOnlyMarkdownExtensions = [
+  removeBlockquote,
+];
+
+/**
+ * Semantic parser extensions used by the editor state and Node parse helpers.
+ * This is the default Coflat syntax model.
+ */
+export const markdownExtensions = [
+  removeIndentedCode,
+  ...semanticOnlyMarkdownExtensions,
+  ...coflatSharedMarkdownExtensions.slice(1),
+];
+
+/**
  * Parser extensions for in-app HTML renderers.
  *
  * This is the semantic parser plus one intentional surface distinction:
@@ -56,18 +79,7 @@ export const markdownExtensions = [
  * can render authored Markdown as HTML. All parser construction goes through
  * getMarkdownParser/parseMarkdownSource so this distinction stays explicit.
  */
-export const htmlRenderExtensions = [
-  removeIndentedCode,
-  mathExtension,
-  fencedDiv,
-  equationLabelExtension,
-  strikethroughExtension,
-  highlightExtension,
-  footnoteExtension,
-  tableExtension,
-  Autolink,
-  TaskList,
-];
+export const htmlRenderExtensions = coflatSharedMarkdownExtensions;
 
 export type MarkdownParserMode = "semantic" | "html-render";
 
