@@ -373,7 +373,7 @@ describe("renderInlineMarkdown — surface policies", () => {
   it("renders body images through the shared media surface in document-body", () => {
     const html = render("![alt text](image.png)");
     expect(html).toBe(
-      '<span class="cf-image-wrapper"><img class="cf-image" src="image.png" alt="alt text"></span>',
+      '<span class="cf-image-wrapper cf-image-loading">[Loading image: alt text]</span>',
     );
   });
 

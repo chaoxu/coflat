@@ -5,6 +5,7 @@ import {
   createImageSurfaceElement,
   createMediaWrapperElement,
   imageUnavailableLabel,
+  isUnresolvedLocalMediaUrl,
   mediaKindForSrc,
   mediaLoadingLabel,
   renderImagePlaceholderInto,
@@ -51,5 +52,14 @@ describe("media surface", () => {
     renderImagePlaceholderInto(loading, "Broken", { block: true });
     expect(loading.className).toBe(`${CSS.imageWrapper} ${CSS.imagePlaceholder}`);
     expect(loading.textContent).toBe("[Image: Broken]");
+  });
+
+  it("identifies local media that needs host resolution", () => {
+    expect(isUnresolvedLocalMediaUrl("images/plot.png")).toBe(true);
+    expect(isUnresolvedLocalMediaUrl("./plot.png")).toBe(true);
+    expect(isUnresolvedLocalMediaUrl("../plot.pdf")).toBe(true);
+    expect(isUnresolvedLocalMediaUrl("/assets/plot.png")).toBe(false);
+    expect(isUnresolvedLocalMediaUrl("https://example.com/plot.png")).toBe(false);
+    expect(isUnresolvedLocalMediaUrl("data:image/png;base64,abc")).toBe(false);
   });
 });

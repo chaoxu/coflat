@@ -53,9 +53,10 @@ export function buildBlockPreviewMediaState(
     }
 
     if (preview.kind === "pdf-canvas") {
+      imageUrlOverrides.set(preview.resolvedPath, preview.resolvedPath);
       readyPdfPreviews.push({
         resolvedPath: preview.resolvedPath,
-        src,
+        src: preview.resolvedPath,
       });
       continue;
     }

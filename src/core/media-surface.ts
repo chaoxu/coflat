@@ -19,6 +19,10 @@ export function mediaKindForSrc(src: string): MediaKind {
   return /\.pdf(?:[?#].*)?$/i.test(src) ? "pdf" : "image";
 }
 
+export function isUnresolvedLocalMediaUrl(src: string): boolean {
+  return !/^(?:[a-z][a-z0-9+.-]*:|\/)/i.test(src);
+}
+
 export function createMediaWrapperElement(
   ownerDocument: Document,
   tagName: MediaWrapperTag,

@@ -291,7 +291,10 @@ function renderHeading(
         heading?.text ?? context.doc.slice(node.from, node.to).replace(/^#{1,6}\s*/, "").trim(),
         context.macros,
         "document-body",
-        context.referenceContext,
+        {
+          ...context.referenceContext,
+          imageUrlOverrides: context.imageUrlOverrides,
+        },
       );
     },
   );
@@ -456,7 +459,10 @@ function renderTaskListItem(
         content,
         context.macros,
         "document-body",
-        context.referenceContext,
+        {
+          ...context.referenceContext,
+          imageUrlOverrides: context.imageUrlOverrides,
+        },
       );
     }
   } else {
@@ -660,7 +666,10 @@ function appendInlineNode(
     context.doc,
     context.macros,
     "document-body",
-    context.referenceContext,
+    {
+      ...context.referenceContext,
+      imageUrlOverrides: context.imageUrlOverrides,
+    },
   );
 }
 
@@ -670,5 +679,8 @@ function appendInlineText(
   context: PreviewRenderContext,
   surface: "document-body" | "document-inline",
 ): void {
-  renderInlineMarkdown(parent, text, context.macros, surface, context.referenceContext);
+  renderInlineMarkdown(parent, text, context.macros, surface, {
+    ...context.referenceContext,
+    imageUrlOverrides: context.imageUrlOverrides,
+  });
 }

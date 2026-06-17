@@ -14,7 +14,12 @@ import {
   createInlineMathSurfaceElement,
   renderInlineMathErrorFallback,
 } from "../../core/math-inline-surface";
-import { createImageSurfaceElement } from "../../core/media-surface";
+import {
+  createImageSurfaceElement,
+  isUnresolvedLocalMediaUrl,
+  mediaKindForSrc,
+  renderMediaLoadingInto,
+} from "../../core/media-surface";
 import {
   ClusteredCrossrefWidget,
   CrossrefWidget,
@@ -31,6 +36,7 @@ import {
 import { isSafeUrl } from "../../core/lib/url-utils";
 import { applyLinkSurface } from "../../core/link-surface";
 import type { LinkResolver } from "../../core/document-context-types";
+import { resolveMarkdownReferencePathFromDocument } from "../lib/markdown-reference-paths";
 import {
   planReferencePresentation,
   type ReferencePresentationContext,
@@ -49,6 +55,7 @@ type DomInlineSurface = InlineRenderSurface | "document-body";
 export interface InlineReferenceRenderContext extends ReferencePresentationContext {
   readonly linkResolver?: LinkResolver;
   readonly documentPath?: string;
+  readonly imageUrlOverrides?: ReadonlyMap<string, string>;
   readonly surface?: string;
 }
 
@@ -294,7 +301,21 @@ function renderFragment(
     case "image": {
       const src = fragment.src?.trim();
       if (surface === "document-body" && src && isSafeUrl(src)) {
-        container.appendChild(createImageSurfaceElement(document, "span", src, fragment.rawAlt));
+        let renderedSrc = src;
+        if (isUnresolvedLocalMediaUrl(src)) {
+          const resolvedPath = resolveMarkdownReferencePathFromDocument(
+            referenceContext?.documentPath ?? "",
+            src,
+          );
+          renderedSrc = referenceContext?.imageUrlOverrides?.get(resolvedPath) ?? "";
+        }
+        if (renderedSrc) {
+          container.appendChild(createImageSurfaceElement(document, "span", renderedSrc, fragment.rawAlt));
+          return;
+        }
+        const loading = document.createElement("span");
+        renderMediaLoadingInto(loading, mediaKindForSrc(src), fragment.rawAlt);
+        container.appendChild(loading);
         return;
       }
       renderFragments(container, fragment.alt, macros, surface, referenceContext);

@@ -9,6 +9,7 @@
  *  - reader-only disclosure <button>s.
  */
 import { describe, expect, it } from "vitest";
+import type { FileSystem } from "../../core/lib/file-system-types";
 import { renderToHtml } from "../../reader/reader";
 import { renderPreviewBlockContentToDom } from "./preview-block-renderer";
 
@@ -90,6 +91,19 @@ function previewSummary(source: string): string[] {
   const host = document.createElement("div");
   renderPreviewBlockContentToDom(host, source);
   return summarize(host);
+}
+
+function mediaSummary(root: Element): string[] {
+  return [...root.querySelectorAll(".cf-image-wrapper")].map((wrapper) => {
+    const img = wrapper.querySelector("img");
+    return [
+      wrapper.tagName.toLowerCase(),
+      wrapper.className,
+      wrapper.textContent,
+      img?.getAttribute("src") ?? "",
+      img?.getAttribute("alt") ?? "",
+    ].join("|");
+  });
 }
 
 describe("reader / editor-preview emission parity", () => {
@@ -260,6 +274,45 @@ describe("reader / editor-preview emission parity", () => {
       .toEqual(["Closed", "Two"]);
     expect([...previewHost.querySelectorAll("h1, h2")].map((el) => el.textContent))
       .toEqual(["Closed", "Two"]);
+  });
+
+  it("unresolved local images use the same loading surface in both pipelines", () => {
+    const source = [
+      "![Preview image](preview.png)",
+      "",
+      "![Remote image](https://example.com/remote.png)",
+    ].join("\n");
+    const readerHost = document.createElement("div");
+    readerHost.innerHTML = renderToHtml(source).html;
+    const previewHost = document.createElement("div");
+    renderPreviewBlockContentToDom(previewHost, source);
+
+    expect(mediaSummary(previewHost)).toEqual(mediaSummary(readerHost));
+    expect(mediaSummary(previewHost)).toEqual([
+      "span|cf-image-wrapper cf-image-loading|[Loading image: Preview image]||",
+      "span|cf-image-wrapper||https://example.com/remote.png|Remote image",
+    ]);
+  });
+
+  it("resolved local images use the same image surface in both pipelines", () => {
+    const source = "![Preview image](assets/preview.png)";
+    const readerHost = document.createElement("div");
+    readerHost.innerHTML = renderToHtml(source, {
+      fileSystem: {
+        resolveAssetUrl: (path: string) => `https://cdn.example/${path}`,
+      } as unknown as FileSystem,
+    }).html;
+    const previewHost = document.createElement("div");
+    renderPreviewBlockContentToDom(previewHost, source, {
+      imageUrlOverrides: new Map([
+        ["assets/preview.png", "https://cdn.example/assets/preview.png"],
+      ]),
+    });
+
+    expect(mediaSummary(previewHost)).toEqual(mediaSummary(readerHost));
+    expect(mediaSummary(previewHost)).toEqual([
+      "span|cf-image-wrapper||https://cdn.example/assets/preview.png|Preview image",
+    ]);
   });
 
   it("preview footnote definitions use the shared footnote entry chrome", () => {

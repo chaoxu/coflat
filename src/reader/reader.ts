@@ -105,6 +105,7 @@ import {
   trimSourceRange,
 } from "../core/math-source";
 import {
+  isUnresolvedLocalMediaUrl,
   renderImageSurfaceHtml,
   renderMediaLoadingHtml,
 } from "../core/media-surface";
@@ -1086,10 +1087,6 @@ function emitReferenceCluster(
 
 function stripTags(html: string): string {
   return html.replace(/<[^>]*>/g, "");
-}
-
-function isUnresolvedLocalMediaUrl(src: string): boolean {
-  return !/^(?:[a-z][a-z0-9+.-]*:|\/)/i.test(src);
 }
 
 function emitImage(
