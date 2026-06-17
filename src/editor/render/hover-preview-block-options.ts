@@ -15,7 +15,9 @@ export function buildPreviewBlockOptions(
   macros: Record<string, string>,
   imageUrlOverrides?: ReadonlyMap<string, string>,
 ): PreviewBlockRenderOptions {
-  const { store, formatter } = view.state.field(bibDataField);
+  const bibData = view.state.field(bibDataField, false);
+  const store = bibData?.store ?? new Map();
+  const formatter = bibData?.formatter ?? null;
   const frontmatter = view.state.field(frontmatterField, false);
   const analysis = view.state.field(documentAnalysisField, false);
   const counterState = view.state.field(blockCounterField, false);

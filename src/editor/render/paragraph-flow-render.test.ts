@@ -2,6 +2,16 @@ import { markdown } from "@codemirror/lang-markdown";
 import { EditorView } from "@codemirror/view";
 import { afterEach, describe, expect, it } from "vitest";
 import { markdownExtensions } from "../../core/parser";
+import { makeBlockPlugin } from "../test-utils";
+import {
+  activeStructureEditField,
+} from "../state/cm-structure-edit";
+import { bibDataField } from "../state/bib-data";
+import { blockCounterField } from "../state/block-counter";
+import { documentAnalysisField } from "../state/document-analysis";
+import { frontmatterField } from "../state/frontmatter-state";
+import { mathMacrosField } from "../state/math-macros";
+import { createPluginRegistryField } from "../state/plugin-registry";
 import {
   createTestView,
   getDecorationSpecs,
@@ -24,6 +34,27 @@ function createParagraphFlowView(doc: string, cursorPos = doc.length): EditorVie
     cursorPos,
     extensions: [
       markdown({ extensions: markdownExtensions }),
+      paragraphFlowRenderPlugin,
+    ],
+  });
+  view.dispatch({ effects: focusEffect.of(true) });
+  return view;
+}
+
+function createReferenceAwareParagraphFlowView(doc: string, cursorPos = doc.length): EditorView {
+  view = createTestView(doc, {
+    cursorPos,
+    extensions: [
+      markdown({ extensions: markdownExtensions }),
+      frontmatterField,
+      activeStructureEditField,
+      documentAnalysisField,
+      mathMacrosField,
+      bibDataField,
+      createPluginRegistryField([
+        makeBlockPlugin({ name: "theorem", counter: "theorem", title: "Theorem" }),
+      ]),
+      blockCounterField,
       paragraphFlowRenderPlugin,
     ],
   });
@@ -61,11 +92,30 @@ describe("paragraph flow render", () => {
     expect(paragraphFlowSpecs(target)).toEqual([]);
   });
 
-  it("skips reference-bearing paragraphs until full-document reference rendering is wired", () => {
-    const doc = "See [@thm:main]\nfor the main result.\n\nnext";
-    const target = createParagraphFlowView(doc, doc.length);
+  it("renders reference-bearing paragraphs with full-document reference labels", () => {
+    const doc = [
+      "::: {.theorem #thm:main}",
+      "Statement.",
+      ":::",
+      "",
+      "See [@thm:main]",
+      "for the main result.",
+      "",
+      "next",
+    ].join("\n");
+    const paragraphStart = doc.indexOf("See [@thm:main]");
+    const target = createReferenceAwareParagraphFlowView(doc, doc.length);
 
-    expect(paragraphFlowSpecs(target)).toEqual([]);
+    expect(paragraphFlowSpecs(target)).toEqual([
+      expect.objectContaining({
+        from: paragraphStart,
+        to: paragraphStart + "See [@thm:main]\nfor the main result.".length,
+        block: true,
+      }),
+    ]);
+    const paragraph = target.dom.querySelector<HTMLElement>(".cf-paragraph-flow-widget .cf-doc-paragraph");
+    expect(paragraph?.textContent?.replace(/\s+/g, " ")).toContain("See Theorem 1 for the main result.");
+    expect(paragraph?.textContent).not.toContain("[@thm:main]");
   });
 
   it("does not replace list item paragraphs", () => {

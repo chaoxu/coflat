@@ -6,7 +6,8 @@ This paragraph includes **bold text**, *italic text*, ~~struck text~~,
 ==highlighted text==, \`inline code\`, $x + y$, and a
 [reference link](https://example.com).
 
-References should align too: [@karger2000] and [@external-page].
+References should align too: [@karger2000]
+and [@external-page].
 
 ## Main Result
 

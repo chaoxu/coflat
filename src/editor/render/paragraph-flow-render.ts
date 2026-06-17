@@ -19,13 +19,16 @@ import {
 import {
   parseFrontmatter,
 } from "../../core/parser";
+import { mathMacrosField } from "../state/math-macros";
 import { buildDecorations } from "./decoration-core";
 import { cursorSensitiveShouldRebuild } from "./decoration-field";
 import {
   editorFocusField,
   focusTracker,
 } from "./focus-state";
+import { buildPreviewBlockOptions } from "./hover-preview-block-options";
 import { renderPreviewBlockContentToDom } from "./preview-block-renderer";
+import { getReferenceRenderDependencySignature } from "./reference-render";
 import { RenderWidget } from "./source-widget";
 
 const PARAGRAPH_FLOW_WIDGET_CLASS = "cf-paragraph-flow-widget";
@@ -44,10 +47,6 @@ function selectionIntersects(
   ));
 }
 
-function hasReferenceSyntax(text: string): boolean {
-  return text.includes("[@") || /(^|[\s([{"'])@[A-Za-z0-9_:-]/.test(text);
-}
-
 function isTopLevelParagraph(node: SyntaxNode): boolean {
   return node.name === "Paragraph" && node.parent?.name === "Document";
 }
@@ -64,9 +63,6 @@ function isEligibleParagraph(
   if (!isTopLevelParagraph(node)) return false;
   if (!isMultiLineRange(state, node.from, node.to)) return false;
   if (selectionIntersects(state, node.from, node.to, focused)) return false;
-
-  const source = state.sliceDoc(node.from, node.to);
-  if (hasReferenceSyntax(source)) return false;
   return true;
 }
 
@@ -87,7 +83,13 @@ class ParagraphFlowWidget extends RenderWidget {
       PARAGRAPH_FLOW_WIDGET_CLASS,
     );
     const config = parseFrontmatter(this.fullDocumentSource).config;
-    renderPreviewBlockContentToDom(wrapper, this.source, { config });
+    const options = view
+      ? buildPreviewBlockOptions(
+        view,
+        view.state.field(mathMacrosField, false) ?? config.math ?? {},
+      )
+      : { config };
+    renderPreviewBlockContentToDom(wrapper, this.source, options);
     this.syncWidgetAttrs(wrapper, view);
     const paragraph = wrapper.querySelector<HTMLElement>(".cf-doc-paragraph");
     if (paragraph) {
@@ -135,6 +137,8 @@ function collectParagraphFlowDecorations(state: EditorState): DecorationSet {
 function shouldRebuildParagraphFlow(tr: Transaction): boolean {
   return (
     cursorSensitiveShouldRebuild(tr) ||
+    getReferenceRenderDependencySignature(tr.startState) !== getReferenceRenderDependencySignature(tr.state) ||
+    tr.startState.field(mathMacrosField, false) !== tr.state.field(mathMacrosField, false) ||
     (
       syntaxTree(tr.state) !== syntaxTree(tr.startState) &&
       syntaxTreeAvailable(tr.state, tr.state.doc.length)

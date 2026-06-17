@@ -1240,6 +1240,12 @@ test("theme presets keep reader and CM6 rich editor surfaces visually aligned", 
     for (const [readerSelector, editorSelector, properties] of stylePairs) {
       await expectStylesMatch(readerSelector, editorSelector, properties);
     }
+    const referenceParagraph = page.locator(".parity-editor .cf-paragraph-flow-widget .cf-doc-paragraph", {
+      hasText: "References should align too",
+    });
+    await expect(referenceParagraph).toContainText("[1]");
+    await expect(referenceParagraph).toContainText("External Page");
+    await expect(referenceParagraph).not.toContainText("[@karger2000]");
   }
 });
 
