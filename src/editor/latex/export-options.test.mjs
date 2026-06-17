@@ -160,14 +160,15 @@ describe("buildLatexPandocArgs", () => {
   });
 
   it("adds the PDF engine only for PDF export", () => {
-    expect(
-      buildLatexPandocArgs({
-        filterPath: "/filter.lua",
-        format: "pdf",
-        output: "/project/out.pdf",
-        template: "/template.tex",
-      }),
-    ).toContain("--pdf-engine=xelatex");
+    const args = buildLatexPandocArgs({
+      filterPath: "/filter.lua",
+      format: "pdf",
+      output: "/project/out.pdf",
+      template: "/template.tex",
+    });
+    expect(args).toContain("--pdf-engine=xelatex");
+    expect(args).toContain("--pdf-engine-opt=-no-shell-escape");
+    expect(args).toContain("--pdf-engine-opt=-halt-on-error");
 
     expect(
       buildLatexPandocArgs({
@@ -177,6 +178,15 @@ describe("buildLatexPandocArgs", () => {
         template: "/template.tex",
       }),
     ).not.toContain("--pdf-engine=xelatex");
+
+    expect(
+      buildLatexPandocArgs({
+        filterPath: "/filter.lua",
+        format: "latex",
+        output: "/project/out.tex",
+        template: "/template.tex",
+      }),
+    ).not.toContain("--pdf-engine-opt=-no-shell-escape");
   });
 });
 
@@ -193,7 +203,11 @@ describe("shared export contract", () => {
       "--resource-path={resource_path}",
       "--output={output_path}",
     ]);
-    expect(EXPORT_CONTRACT.latex.pdf_args).toEqual(["--pdf-engine=xelatex"]);
+    expect(EXPORT_CONTRACT.latex.pdf_args).toEqual([
+      "--pdf-engine=xelatex",
+      "--pdf-engine-opt=-no-shell-escape",
+      "--pdf-engine-opt=-halt-on-error",
+    ]);
     expect(EXPORT_CONTRACT.html.args).toContain("--filter=pandoc-crossref");
     expect(EXPORT_CONTRACT.html.args).toContain("--citeproc");
   });

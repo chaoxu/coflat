@@ -64,6 +64,30 @@ describe("hoistMathMacros", () => {
     expect(out.split("---")[2]).toContain("Body.");
   });
 
+  it("drops user-provided header-includes", () => {
+    const src = [
+      "---",
+      "title: Paper",
+      "header-includes: \"\\\\input{/etc/passwd}\"",
+      "math:",
+      "  R: \"\\\\mathbb{R}\"",
+      "---",
+      "",
+      "Body.",
+    ].join("\n");
+    const out = hoistMathMacros(src);
+    expect(out).not.toContain("\\input{/etc/passwd}");
+    expect(out).toContain("\\newcommand{\\R}{\\mathbb{R}}");
+  });
+
+  it("removes header-includes even when there are no math macros", () => {
+    const src = "---\ntitle: X\nheader-includes: \"\\\\input{/etc/passwd}\"\n---\nBody\n";
+    const out = hoistMathMacros(src);
+    expect(out).toContain("title: X");
+    expect(out).not.toContain("header-includes");
+    expect(out).not.toContain("\\input{/etc/passwd}");
+  });
+
   it("no-ops when no math frontmatter", () => {
     const src = "---\ntitle: X\n---\nBody\n";
     expect(hoistMathMacros(src)).toBe(src);

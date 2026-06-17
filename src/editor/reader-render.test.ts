@@ -561,7 +561,7 @@ describe("renderToHtml — block-level rendering ()", () => {
       referencePreviews: true,
       resolveReferences: true,
     });
-    expect(Object.prototype.hasOwnProperty.call(r.referencePreviewIndex, "__proto__"))
+    expect(Object.hasOwn(r.referencePreviewIndex ?? {}, "__proto__"))
       .toBe(true);
     expect(r.referencePreviewIndex?.["__proto__"]).toMatchObject({
       kind: "heading",

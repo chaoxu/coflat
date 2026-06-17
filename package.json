@@ -45,6 +45,14 @@
       "types": "./dist/numeric.d.ts",
       "import": "./dist/numeric.mjs"
     },
+    "./latex": {
+      "types": "./dist/latex.d.ts",
+      "import": "./dist/latex.mjs"
+    },
+    "./latex/filter.lua": "./dist/latex/filter.lua",
+    "./latex/syntax-manifest.lua": "./dist/latex/syntax-manifest.lua",
+    "./latex/template/article.tex": "./dist/latex/template/article.tex",
+    "./latex/template/lipics.tex": "./dist/latex/template/lipics.tex",
     "./themes/blueprint-book.css": "./dist/themes/blueprint-book.css",
     "./test-utils": {
       "types": "./dist/test-utils.d.ts",

@@ -23,7 +23,7 @@
       "--output={output_path}"
     ],
     "bibliography_metadata_arg": "--metadata=bibliography={bibliography_metadata}",
-    "pdf_args": ["--pdf-engine=xelatex"]
+    "pdf_args": ["--pdf-engine=xelatex", "--pdf-engine-opt=-no-shell-escape", "--pdf-engine-opt=-halt-on-error"]
   },
   "html": {
     "args": [

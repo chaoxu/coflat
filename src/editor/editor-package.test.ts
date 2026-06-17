@@ -29,6 +29,11 @@ describe("package editor export", () => {
     expect(Object.keys(packageJson.exports ?? {}).sort()).toEqual([
       ".",
       "./citeproc",
+      "./latex",
+      "./latex/filter.lua",
+      "./latex/syntax-manifest.lua",
+      "./latex/template/article.tex",
+      "./latex/template/lipics.tex",
       "./numeric",
       "./parse",
       "./reader",
@@ -98,6 +103,20 @@ describe("package editor export", () => {
       types: "./dist/numeric.d.ts",
       import: "./dist/numeric.mjs",
     });
+  });
+
+  it("publishes the latex export contract and bundled assets", () => {
+    const packageJson = readPackageJson();
+    const latexExport = packageJson.exports?.["./latex"];
+
+    expect(latexExport).toEqual({
+      types: "./dist/latex.d.ts",
+      import: "./dist/latex.mjs",
+    });
+    expect(packageJson.exports?.["./latex/filter.lua"]).toBe("./dist/latex/filter.lua");
+    expect(packageJson.exports?.["./latex/syntax-manifest.lua"]).toBe("./dist/latex/syntax-manifest.lua");
+    expect(packageJson.exports?.["./latex/template/article.tex"]).toBe("./dist/latex/template/article.tex");
+    expect(packageJson.exports?.["./latex/template/lipics.tex"]).toBe("./dist/latex/template/lipics.tex");
   });
 
   it("publishes test helpers from a top-level generated test-utils entry", () => {

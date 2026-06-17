@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -18,6 +19,8 @@ function assertIncludes(value, needle, label) {
 
 const source = read("tests/fixtures/coflat-showcase.md");
 const css = read("dist/editor.css");
+const latexFilter = read("dist/latex/filter.lua");
+const latexSyntaxManifest = read("dist/latex/syntax-manifest.lua");
 const { renderToHtml } = await import("../dist/reader.mjs");
 const rendered = renderToHtml(source, undefined, { sourceLineAttribution: true });
 
@@ -39,5 +42,33 @@ assertIncludes(css, ".cf-reader .cf-doc-heading--h1", "dist/editor.css");
 assertIncludes(css, "counter-reset: cf-reader-h1 cf-reader-h2", "dist/editor.css");
 assertIncludes(css, ".cf-reader .cf-doc-list--unordered", "dist/editor.css");
 assertIncludes(css, ".cf-reader .cf-doc-display-math", "dist/editor.css");
+
+assertIncludes(latexFilter, "syntax-manifest.lua", "dist/latex/filter.lua");
+assertIncludes(latexSyntaxManifest, "latex_kind_by_block", "dist/latex/syntax-manifest.lua");
+
+const latexSmoke = spawnSync(
+  "pandoc",
+  [
+    "--from=markdown+fenced_divs",
+    "--to=latex",
+    "--lua-filter=dist/latex/filter.lua",
+  ],
+  {
+    cwd: root,
+    input: "::: {.theorem}\nA packaged filter smoke.\n:::\n",
+    encoding: "utf8",
+  },
+);
+if (latexSmoke.error && latexSmoke.error.code !== "ENOENT") {
+  throw latexSmoke.error;
+}
+if (!latexSmoke.error) {
+  if (latexSmoke.status !== 0) {
+    throw new Error(`dist latex filter smoke failed:\n${latexSmoke.stderr}`);
+  }
+  assertIncludes(latexSmoke.stdout, "\\begin{theorem}", "dist latex filter smoke");
+} else {
+  console.log("skipped dist latex filter smoke: pandoc not found");
+}
 
 console.log("coflat package smoke passed");

@@ -108,10 +108,10 @@ export function renderMathMacros(math) {
 }
 
 /**
- * Hoist `math:` frontmatter into a `header-includes` raw-LaTeX block,
+ * Hoist trusted `math:` frontmatter into a `header-includes` raw-LaTeX block,
  * bypassing pandoc's inline YAML parser (which re-parses the macro body
- * and mangles commands like `\rho` or `\operatorname`). The YAML we write
- * back out preserves everything else verbatim.
+ * and mangles commands like `\rho` or `\operatorname`). User-supplied
+ * `header-includes` are intentionally dropped for the web export profile.
  */
 export function hoistMathMacros(markdown) {
   const lines = markdown.split("\n");
@@ -131,18 +131,22 @@ export function hoistMathMacros(markdown) {
   } catch (_error) {
     return markdown;
   }
-  if (!doc || typeof doc !== "object" || !doc.math || typeof doc.math !== "object") {
+  if (!doc || typeof doc !== "object") {
     return markdown;
   }
-  const preamble = renderMathMacros(doc.math);
+  const math = doc.math && typeof doc.math === "object" ? doc.math : null;
+  if (!math && doc["header-includes"] === undefined) {
+    return markdown;
+  }
   delete doc.math;
+  delete doc["header-includes"];
 
-  const existing = doc["header-includes"];
-  const chunks = [];
-  if (typeof existing === "string") chunks.push(existing);
-  else if (Array.isArray(existing)) chunks.push(...existing.filter((x) => typeof x === "string"));
-  chunks.push(preamble);
-  doc["header-includes"] = chunks.join("\n");
+  if (math) {
+    const preamble = renderMathMacros(math);
+    if (preamble) {
+      doc["header-includes"] = preamble;
+    }
+  }
 
   const newYaml = yamlStringify(doc).trimEnd();
   const rest = lines.slice(closeIdx + 1).join("\n");
