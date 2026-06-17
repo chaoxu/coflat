@@ -108,6 +108,7 @@ const ACTIVE_LINE_DELIMITER_EXCLUSION_NODES = new Set([
   "CommentBlock",
   "DisplayMath",
   "Entity",
+  "EmphasisMark",
   "EquationLabel",
   "Escape",
   "FencedCode",
@@ -122,6 +123,7 @@ const ACTIVE_LINE_DELIMITER_EXCLUSION_NODES = new Set([
   "LinkTitle",
   "ProcessingInstruction",
   "ProcessingInstructionBlock",
+  "StrikethroughMark",
   "URL",
 ]);
 
@@ -202,6 +204,26 @@ function delimiterTouchesExcludedRange(
   const from = lineFrom + delimiterFrom;
   const to = from + delimiterLength;
   return exclusions.some((range) => from < range.to && range.from < to);
+}
+
+function isWordLike(char: string): boolean {
+  return /^[\p{L}\p{N}]$/u.test(char);
+}
+
+function isIntrawordMarker(state: EditorState, from: number, to: number): boolean {
+  if (to - from !== 1) return false;
+  const before = from > 0 ? state.sliceDoc(from - 1, from) : "";
+  const after = to < state.doc.length ? state.sliceDoc(to, to + 1) : "";
+  return isWordLike(before) && isWordLike(after);
+}
+
+function isCursorActiveIntrawordEmphasis(node: SyntaxNodeRef, ctx: MarkdownHandlerContext): boolean {
+  if (node.name !== "Emphasis") return false;
+  if (!cursorInMarkdownRange(ctx.state, ctx.focused, node.from, node.to)) return false;
+
+  const marks = node.node.getChildren("EmphasisMark");
+  if (marks.length !== 2) return false;
+  return marks.some((mark) => isIntrawordMarker(ctx.state, mark.from, mark.to));
 }
 
 /** Entry in the markdown node handler registry. */
@@ -347,7 +369,7 @@ function handleUrl(node: SyntaxNodeRef, ctx: MarkdownHandlerContext) {
 function handleElement(node: SyntaxNodeRef, ctx: MarkdownHandlerContext) {
   const { state, focused, items } = ctx;
   const styleDeco = styleMap[node.name];
-  if (styleDeco) {
+  if (styleDeco && !isCursorActiveIntrawordEmphasis(node, ctx)) {
     items.push(styleDeco.range(node.from, node.to));
   }
 

@@ -391,6 +391,20 @@ describe("markdownRenderPlugin (Decoration.mark approach)", () => {
       expect(delims.length).toBeGreaterThan(0);
     });
 
+    it("keeps canonical italic styling while cursor is inside", () => {
+      view = createView("a *real italic* phrase", 5);
+
+      expect(hasDecorationClass(view, CSS.italic)).toBe(true);
+    });
+
+    it("does not style intraword asterisk pairs as italic while cursor is inside", () => {
+      const doc = "Use a*b c*d as literal math-like text.";
+      view = createView(doc, doc.indexOf("b c") + 1);
+
+      expect(hasDecorationClass(view, CSS.italic)).toBe(false);
+      expect(getSourceDelimiters(view).length).toBeGreaterThanOrEqual(2);
+    });
+
     it("decorates marks at ALL nesting levels in ***x*** (#789 regression)", () => {
       // ***x*** parses as Emphasis > StrongEmphasis (or vice versa).
       // The outer handler must not short-circuit inner marks.
