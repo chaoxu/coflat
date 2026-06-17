@@ -388,9 +388,7 @@
 .cf-reader .cf-doc-link {
   display: inline;
   color: var(--cf-color-link, var(--cf-accent));
-  text-decoration: underline;
-  text-decoration-thickness: 1px;
-  text-underline-offset: 2px;
+  text-decoration: none;
 }
 
 .cf-reader a[data-cf-link-layout="flow"],
@@ -1732,13 +1730,10 @@
  *   Editor: cf-inline-code        <-> Read: code.cf-inline-code
  * ──────────────────────────────────────────────────────────────────────────── */
 
-/* Resolved cross-reference — subtle underline to indicate it's a link */
+/* Resolved cross-reference */
 .cf-crossref {
   font-kerning: none;
-  text-decoration: underline;
-  text-decoration-style: dotted;
-  text-decoration-color: var(--cf-muted);
-  text-underline-offset: 2px;
+  text-decoration: none;
   cursor: pointer;
 }
 

@@ -2964,10 +2964,12 @@ function renderReaderPreviewSource(
   source: string,
   context: DocumentContext | undefined,
   mathMacros: Record<string, string> | undefined,
+  options: RenderOptions = {},
 ): HTMLElement {
   const body = createReaderHoverBody();
   body.innerHTML = renderToHtml(source, context, {
     interactiveBlockDisclosures: false,
+    ...options,
   }).html;
   void hydrateMath(body, { mathMacros: mathMacros ?? context?.mathMacros });
   return body;
@@ -3032,6 +3034,28 @@ function findReaderFencedDivPreviewSource(source: string, key: string): string |
   return null;
 }
 
+function stripBracedLabelId(source: string, key: string): string {
+  const escapedKey = escapeRegExpLiteral(key);
+  return source.replace(new RegExp(String.raw`\s*\{[^}\n]*#${escapedKey}[^}\n]*\}\s*$`), "");
+}
+
+function fencedDivBodySource(source: string): string {
+  const lines = source.split(/\r?\n/);
+  if (lines.length < 2) return source;
+  const openingFence = /^(:{3,})\s+/.exec(lines[0] ?? "");
+  if (!openingFence) return source;
+  let closingIndex = -1;
+  for (let index = lines.length - 1; index > 0; index -= 1) {
+    if ((lines[index] ?? "").trim() === openingFence[1]) {
+      closingIndex = index;
+      break;
+    }
+  }
+  const bodyLines = lines.slice(1, closingIndex > 0 ? closingIndex : undefined);
+  const body = bodyLines.join("\n").trim();
+  return body || source;
+}
+
 function buildReaderSourcePreview(
   key: string,
   source: string | undefined,
@@ -3045,15 +3069,25 @@ function buildReaderSourcePreview(
   if (equationSource) {
     const container = createReaderHoverContainer();
     container.appendChild(createReaderHoverHeader(label || key));
-    container.appendChild(renderReaderPreviewSource(equationSource, context, mathMacros));
+    container.appendChild(renderReaderPreviewSource(stripBracedLabelId(equationSource, key), context, mathMacros));
     return container;
   }
 
-  const blockSource = findReaderFencedDivPreviewSource(source, key)
-    ?? findReaderHeadingPreviewSource(source, key);
-  if (blockSource) {
+  const fencedDivSource = findReaderFencedDivPreviewSource(source, key);
+  if (fencedDivSource) {
     const container = createReaderHoverContainer();
-    container.appendChild(renderReaderPreviewSource(blockSource, context, mathMacros));
+    container.appendChild(createReaderHoverHeader(label || key));
+    container.appendChild(renderReaderPreviewSource(fencedDivBodySource(fencedDivSource), context, mathMacros));
+    return container;
+  }
+
+  const headingSource = findReaderHeadingPreviewSource(source, key);
+  if (headingSource) {
+    const container = createReaderHoverContainer();
+    container.appendChild(createReaderHoverHeader(label || key));
+    container.appendChild(renderReaderPreviewSource(stripBracedLabelId(headingSource, key), context, mathMacros, {
+      sectionNumbering: false,
+    }));
     return container;
   }
 

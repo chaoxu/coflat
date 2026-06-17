@@ -1,10 +1,15 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   hydrateBlockDisclosures,
   hydrateMath,
+  hydrateReaderHoverPreviews,
   hydrateReaderDisclosures,
   renderToHtml,
 } from "../../reader";
+import {
+  destroyHoverPreviewTooltipForTest,
+  ensureHoverPreviewTooltipForTest,
+} from "../core/hover-tooltip";
 
 function makeRoot(html: string): HTMLElement {
   const root = document.createElement("div");
@@ -16,6 +21,19 @@ function requireMathPlaceholder(root: HTMLElement): HTMLElement {
   const placeholder = root.querySelector<HTMLElement>("[data-math]");
   if (!placeholder) throw new Error("expected math placeholder");
   return placeholder;
+}
+
+async function hoverReference(root: HTMLElement, key: string): Promise<HTMLElement> {
+  document.body.appendChild(root);
+  hydrateReaderHoverPreviews(root, {
+    source: root.dataset.source ?? "",
+    hoverDelayMs: 0,
+  });
+  const target = root.querySelector<HTMLElement>(`[data-ref-key="${CSS.escape(key)}"]`);
+  if (!target) throw new Error(`expected reference ${key}`);
+  target.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  return ensureHoverPreviewTooltipForTest();
 }
 
 describe("hydrateMath", () => {
@@ -184,6 +202,57 @@ describe("hydrateMath — KaTeX import laziness", () => {
     const elapsed = performance.now() - start;
     // Generous bound — synchronous resolve should complete instantly.
     expect(elapsed).toBeLessThan(50);
+  });
+});
+
+describe("hydrateReaderHoverPreviews", () => {
+  afterEach(() => {
+    destroyHoverPreviewTooltipForTest();
+    document.body.replaceChildren();
+  });
+
+  it("previews heading references without restarting section numbering", async () => {
+    const source = [
+      "# First {#sec:first}",
+      "",
+      "first body",
+      "",
+      "# Second {#sec:second}",
+      "",
+      "second body",
+      "",
+      "See [@sec:second].",
+    ].join("\n");
+    const root = makeRoot(renderToHtml(source, undefined, { resolveReferences: true }).html);
+    root.dataset.source = source;
+
+    const tooltip = await hoverReference(root, "sec:second");
+
+    expect(tooltip.textContent).toContain("Section 2");
+    expect(tooltip.textContent).toContain("Second");
+    expect(tooltip.textContent).not.toContain("Section 1Second");
+  });
+
+  it("previews block references without restarting theorem numbering", async () => {
+    const source = [
+      "::: {.theorem #thm:first}",
+      "first body",
+      ":::",
+      "",
+      "::: {.theorem #thm:second}",
+      "second body",
+      ":::",
+      "",
+      "See [@thm:second].",
+    ].join("\n");
+    const root = makeRoot(renderToHtml(source, undefined, { resolveReferences: true }).html);
+    root.dataset.source = source;
+
+    const tooltip = await hoverReference(root, "thm:second");
+
+    expect(tooltip.textContent).toContain("Theorem 2");
+    expect(tooltip.textContent).toContain("second body");
+    expect(tooltip.textContent).not.toContain("Theorem 1");
   });
 });
 
