@@ -4,6 +4,11 @@ import type {
   DocumentContext,
 } from "../../core/document-context-types";
 import {
+  appendBlockCaptionLabel,
+  appendBlockCaptionText,
+  createBlockCaptionElement,
+} from "../../core/block-caption-surface";
+import {
   BLOCK_MANIFEST_ENTRIES,
   EXCLUDED_FROM_FALLBACK,
   isCollapsibleBlockType,
@@ -561,18 +566,10 @@ function renderFencedDiv(
   }
 
   if (!isSelfClosing && plan?.hasCaptionBelow && title) {
-    const caption = document.createElement("div");
-    caption.className = "cf-block-caption";
-
-    const label = document.createElement("span");
-    label.className = CSS.blockHeaderRendered;
-    label.textContent = plan.label;
-    caption.appendChild(label);
-
-    const text = document.createElement("span");
-    text.className = "cf-block-caption-text";
+    const caption = createBlockCaptionElement(document);
+    appendBlockCaptionLabel(caption, plan.label);
+    const text = appendBlockCaptionText(caption);
     appendInlineText(text, title, context, "document-body");
-    caption.appendChild(text);
     block.appendChild(caption);
   }
 
