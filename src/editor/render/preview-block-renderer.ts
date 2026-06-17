@@ -52,6 +52,7 @@ import {
   createConfiguredBlockNumberingSpecLookup,
   displayTitleForBlockType,
 } from "../../core/semantics/block-numbering";
+import { blockPresentationPlan, type BlockPresentationPlan } from "../../core/block-presentation";
 import type { BibStore } from "../state/bib-data";
 import {
   renderInlineMarkdown,
@@ -497,12 +498,17 @@ function renderFencedDiv(
   const blockNumber = primaryClassName
     ? context.documentBlockNumbers.get(node.from)?.number
     : undefined;
-  const captionBelow = primaryClass?.captionPosition === "below";
-  const inlineHeader = primaryClass?.headerPosition === "inline";
-  const summary = primaryClassName
-    ? createBlockSummaryFragment(context, primaryClassName, title, blockNumber)
+  const plan = primaryClassName
+    ? blockPresentationPlan({
+      blockType: primaryClassName,
+      displayTitle: displayTitleForBlockType(primaryClassName, context.blockTitleOverrides),
+      number: blockNumber,
+      title,
+    })
     : undefined;
-  const headerLabel = getBlockHeaderLabel(context, primaryClass, blockNumber);
+  const summary = plan
+    ? createBlockSummaryFragment(context, plan)
+    : undefined;
 
   if (title && isSelfClosing) {
     const paragraph = document.createElement("p");
@@ -529,7 +535,7 @@ function renderFencedDiv(
       child = child.nextSibling;
     }
 
-    if (inlineHeader && summary) {
+    if (plan?.hasInlineHeader && summary) {
       if (primaryClass?.specialBehavior === "qed") {
         addClassToLastChildElement(body, CSS.blockQed);
       }
@@ -539,7 +545,7 @@ function renderFencedDiv(
     if (summary && isCollapsibleBlockType(primaryClassName)) {
       appendBlockHeader(block, summary, body);
     } else {
-      if (title && !captionBelow && !inlineHeader) {
+      if (title && !plan?.hasCaptionBelow && !plan?.hasInlineHeader) {
         const strong = document.createElement("strong");
         strong.className = CSS.blockHeaderRendered;
         appendInlineText(strong, title, context, "document-body");
@@ -549,13 +555,13 @@ function renderFencedDiv(
     }
   }
 
-  if (!isSelfClosing && captionBelow && title) {
+  if (!isSelfClosing && plan?.hasCaptionBelow && title) {
     const caption = document.createElement("div");
     caption.className = "cf-block-caption";
 
     const label = document.createElement("span");
     label.className = CSS.blockHeaderRendered;
-    label.textContent = headerLabel;
+    label.textContent = plan.label;
     caption.appendChild(label);
 
     const text = document.createElement("span");
@@ -572,36 +578,18 @@ function getPrimaryBlockClass(classes: readonly string[]): BlockManifestEntry | 
   return BLOCK_MANIFEST_ENTRIES.find((entry) => classes.includes(entry.name));
 }
 
-function getBlockHeaderLabel(
-  context: PreviewRenderContext,
-  entry: BlockManifestEntry | undefined,
-  number: number | undefined,
-): string {
-  if (!entry) return "";
-  const title = displayTitleForBlockType(entry.name, context.blockTitleOverrides);
-  return number === undefined ? title : `${title} ${number}`;
-}
-
 function createBlockSummaryFragment(
   context: PreviewRenderContext,
-  blockType: string,
-  title: string,
-  number: number | undefined,
+  plan: BlockPresentationPlan,
 ): DocumentFragment {
   const summary = document.createDocumentFragment();
-  const displayTitle = displayTitleForBlockType(blockType, context.blockTitleOverrides);
-  const headerText = blockType === "proof"
-    ? "Proof"
-    : number === undefined
-      ? displayTitle
-      : `${displayTitle} ${number}`;
 
   const header = document.createElement("span");
   header.className = CSS.blockHeaderRendered;
-  header.textContent = headerText;
+  header.textContent = plan.label;
   summary.appendChild(header);
 
-  if (title && blockType !== "proof") {
+  if (plan.showTitleInHeader) {
     const attrTitle = document.createElement("span");
     attrTitle.className = CSS.blockAttrTitle;
 
@@ -611,7 +599,7 @@ function createBlockSummaryFragment(
     attrTitle.appendChild(openParen);
 
     const renderedTitle = document.createElement("span");
-    appendInlineText(renderedTitle, title, context, "document-body");
+    appendInlineText(renderedTitle, plan.title ?? "", context, "document-body");
     attrTitle.appendChild(renderedTitle);
 
     const closeParen = document.createElement("span");

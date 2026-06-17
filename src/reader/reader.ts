@@ -45,6 +45,7 @@ import {
   displayTitleForBlockType,
   type BlockNumberingSpecLookup,
 } from "../core/semantics/block-numbering";
+import { blockPresentationPlan } from "../core/block-presentation";
 import {
   bibliographyEntries as coreBibliographyEntries,
   bibliographyEntryFor as coreBibliographyEntryFor,
@@ -229,17 +230,21 @@ function renderInlineSnippet(ctx: WalkContext, source: string): BlockResult {
 }
 
 function renderBlockSummary(ctx: WalkContext, type: string, title: string | undefined, number: number | undefined): BlockResult {
-  const displayTitle = blockDisplayTitle(ctx, type);
-  const header = number === undefined ? displayTitle : `${displayTitle} ${number}`;
-  const escapedHeader = escapeHtml(type === "proof" ? "Proof" : header);
-  if (!title || type === "proof") {
+  const plan = blockPresentationPlan({
+    blockType: type,
+    displayTitle: blockDisplayTitle(ctx, type),
+    number,
+    title,
+  });
+  const escapedHeader = escapeHtml(plan.label);
+  if (!plan.showTitleInHeader) {
     return {
       html: `<span class="${CSS.blockHeaderRendered}">${escapedHeader}</span>`,
-      text: header,
+      text: plan.label,
       hasMath: false,
     };
   }
-  const renderedTitle = renderInlineSnippet(ctx, title);
+  const renderedTitle = renderInlineSnippet(ctx, plan.title ?? "");
   return (
     {
       html:
@@ -249,7 +254,7 @@ function renderBlockSummary(ctx: WalkContext, type: string, title: string | unde
         `<span>${renderedTitle.html}</span>` +
         `<span class="${CSS.blockTitleParen}">)</span>` +
         `</span>`,
-      text: `${header} (${renderedTitle.text})`,
+      text: `${plan.label} (${renderedTitle.text})`,
       hasMath: renderedTitle.hasMath,
     }
   );
@@ -1930,7 +1935,15 @@ function renderFencedDiv(ctx: WalkContext, node: SyntaxNode): BlockResult {
   const sourceAttrs = blockSourceAttrs(ctx, node.from, node.to);
   const title = kvs.title ?? inlineTitle;
   const number = normalizedClassName ? nextBlockNumber(ctx, normalizedClassName) : undefined;
-  const caption = manifestEntry?.captionPosition === "below" && title
+  const plan = normalizedClassName
+    ? blockPresentationPlan({
+      blockType: normalizedClassName,
+      displayTitle: blockDisplayTitle(ctx, normalizedClassName),
+      number,
+      title,
+    })
+    : undefined;
+  const caption = plan?.hasCaptionBelow && title
     ? renderBlockCaption(ctx, normalizedClassName, title, number, node.from, node.to)
     : emptyBlock();
   const bodyHtml = body.html + caption.html;
@@ -1960,7 +1973,7 @@ function renderFencedDiv(ctx: WalkContext, node: SyntaxNode): BlockResult {
     ? renderBlockSummary(ctx, normalizedClassName, title, number)
     : emptyBlock();
   const summaryHtml = summary.html;
-  const html = manifestEntry?.headerPosition === "inline"
+  const html = plan?.hasInlineHeader
     ? renderProofBlockHtml(attrs, sourceAttrs, summaryHtml, bodyHtml)
     : collapsibleBlock
     ? `<div${attrs}${sourceAttrs}${interactiveBlock ? ' data-cf-block-open="true"' : ""}>${renderBlockHeader(summaryHtml, bodyHtml)}</div>`

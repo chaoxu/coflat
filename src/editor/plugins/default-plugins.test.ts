@@ -537,12 +537,11 @@ describe("rendering", () => {
       expect(spec.header).toBe("Theorem");
     });
 
-    it("unnumbered plugin still renders if number is explicitly passed", () => {
-      // proofPlugin.numbered === false, but the render function does not filter
-      // number from attrs — that's the caller's responsibility. The header
-      // just shows whatever number is passed.
+    it("proof plugin suppresses explicit numbers like the reader", () => {
+      // Proof headers are a special display rule shared with the reader:
+      // even a defensive explicit number does not render as "Proof 99".
       const spec = pluginByName("proof").render({ type: "proof", number: 99 });
-      expect(spec.header).toBe("Proof 99");
+      expect(spec.header).toBe("Proof");
     });
 
     it("algorithm render with number 0 does not crash", () => {

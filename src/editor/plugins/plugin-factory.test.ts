@@ -105,12 +105,11 @@ describe("createStandardPlugin", () => {
       expect(spec.header).toBe("Theorem");
     });
 
-    it("render for unnumbered plugin still shows number if passed in attrs", () => {
-      // The render function uses formatBlockHeader which shows number when present.
-      // Callers (block-counter) only pass number for numbered plugins.
+    it("render for proof suppresses defensive numbers", () => {
+      // Proof headers follow the shared reader/editor presentation rule.
       const plugin = createStandardPlugin({ name: "proof", numbered: false });
       const spec = plugin.render({ type: "proof", number: 42 });
-      expect(spec.header).toBe("Proof 42");
+      expect(spec.header).toBe("Proof");
     });
 
     it("CSS class uses the plugin name, not the title", () => {

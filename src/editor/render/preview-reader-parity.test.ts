@@ -177,6 +177,14 @@ describe("reader / editor-preview emission parity", () => {
         "After.",
       ].join("\n"),
     },
+    {
+      name: "proof block suppresses user title in header",
+      source: [
+        '::: {.proof #proof:title title="Main theorem"}',
+        "Proof body.",
+        ":::",
+      ].join("\n"),
+    },
   ])("$name", ({ source }) => {
     expect(previewSummary(source)).toEqual(readerSummary(source));
   });

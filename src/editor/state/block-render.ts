@@ -8,6 +8,7 @@
 
 import type { BlockAttrs, BlockDecorationSpec } from "./block-plugin";
 import { CSS } from "../../core/constants/css-classes";
+import { blockPresentationPlan } from "../../core/block-presentation";
 
 /**
  * Build a standard block header label string (widget text only).
@@ -24,10 +25,12 @@ export function formatBlockHeader(
   displayTitle: string,
   attrs: BlockAttrs,
 ): string {
-  if (attrs.number !== undefined) {
-    return `${displayTitle} ${attrs.number}`;
-  }
-  return displayTitle;
+  return blockPresentationPlan({
+    blockType: attrs.type,
+    displayTitle,
+    number: attrs.number,
+    title: attrs.title,
+  }).label;
 }
 
 /**
