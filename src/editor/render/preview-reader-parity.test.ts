@@ -164,6 +164,10 @@ describe("reader / editor-preview emission parity", () => {
       source: "| a | b | c |\n| :--- | :---: | ---: |\n| 1 | 2 | 3 |",
     },
     {
+      name: "header-only table",
+      source: "| a | b |\n| --- | --- |",
+    },
+    {
       name: "ragged table with extra body cell",
       source: "| a | b |\n| --- | --- |\n| 1 | 2 | 3 |",
     },

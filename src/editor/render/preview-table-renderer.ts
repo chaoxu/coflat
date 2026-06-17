@@ -36,7 +36,9 @@ export function renderPreviewTable(
   }
 
   table.appendChild(thead);
-  table.appendChild(tbody);
+  if (tbody.children.length > 0) {
+    table.appendChild(tbody);
+  }
   parent.appendChild(table);
 }
 
