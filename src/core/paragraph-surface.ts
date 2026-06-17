@@ -16,10 +16,10 @@ export function appendParagraphDom(
 
 export function createParagraphDom(
   ownerDocument: Document,
-  appendContent: (paragraph: HTMLParagraphElement) => void,
+  appendContent?: (paragraph: HTMLParagraphElement) => void,
 ): HTMLParagraphElement {
   const paragraph = ownerDocument.createElement("p");
   paragraph.className = DOCUMENT_SURFACE_CLASS.paragraph;
-  appendContent(paragraph);
+  appendContent?.(paragraph);
   return paragraph;
 }

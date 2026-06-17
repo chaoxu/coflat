@@ -27,9 +27,6 @@ import {
   type BlockManifestEntry,
 } from "../../core/constants/block-manifest";
 import { CSS } from "../../core/constants/css-classes";
-import {
-  DOCUMENT_SURFACE_CLASS,
-} from "../../core/document-surface-classes";
 import { appendCodeBlockDom } from "../../core/code-block-surface";
 import {
   createDisplayMathContentElement,
@@ -46,7 +43,7 @@ import {
   createListSurfaceElement,
   taskMarkerChecked,
 } from "../../core/list-surface";
-import { appendParagraphDom } from "../../core/paragraph-surface";
+import { appendParagraphDom, createParagraphDom } from "../../core/paragraph-surface";
 import type { BlockCounterEntry } from "../../core/lib/file-system-types";
 import {
   extractRawFrontmatter,
@@ -440,10 +437,7 @@ function renderTaskListItem(
   context: PreviewRenderContext,
   wrap: boolean,
 ): void {
-  const target = wrap ? document.createElement("p") : parent;
-  if (wrap) {
-    target.className = DOCUMENT_SURFACE_CLASS.paragraph;
-  }
+  const target = wrap ? createParagraphDom(document) : parent;
   const taskMarker = node.getChild("TaskMarker");
   if (taskMarker) {
     const markerText = context.doc.slice(taskMarker.from, taskMarker.to);
@@ -510,7 +504,7 @@ function renderFencedDiv(
     : undefined;
 
   if (title && isSelfClosing) {
-    const paragraph = document.createElement("p");
+    const paragraph = createParagraphDom(document);
     appendInlineText(paragraph, title, context, "document-body");
     block.appendChild(paragraph);
   }
@@ -650,7 +644,7 @@ function renderFootnoteDef(
   block.appendChild(document.createTextNode(" "));
 
   if (footnote.content) {
-    const paragraph = document.createElement("p");
+    const paragraph = createParagraphDom(document);
     appendInlineText(paragraph, footnote.content, context, "document-body");
     block.appendChild(paragraph);
   }

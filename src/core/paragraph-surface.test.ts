@@ -28,4 +28,10 @@ describe("paragraph surface", () => {
 
     expect(paragraph.outerHTML).toBe(`<p class="${DOCUMENT_SURFACE_CLASS.paragraph}">Body</p>`);
   });
+
+  it("can create an empty paragraph for callers that fill it later", () => {
+    const paragraph = createParagraphDom(document);
+
+    expect(paragraph.outerHTML).toBe(`<p class="${DOCUMENT_SURFACE_CLASS.paragraph}"></p>`);
+  });
 });
