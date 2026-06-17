@@ -1,12 +1,24 @@
 \documentclass[11pt,a4paper]{article}
 
-\usepackage[utf8]{inputenc}
-\usepackage[T1]{fontenc}
-\usepackage{lmodern}
+\usepackage[margin=1in]{geometry}
+\usepackage[dvipsnames,usenames]{xcolor}
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[utf8]{inputenc}
+  \usepackage[T1]{fontenc}
+  \usepackage{textcomp}
+  \usepackage{lmodern}
+\else
+  \usepackage{fontspec}
+  \defaultfontfeatures{Ligatures=TeX,Scale=MatchLowercase}
+  \setmainfont{Latin Modern Roman}
+  \setsansfont{Latin Modern Sans}
+  \setmonofont{Latin Modern Mono}
+\fi
 \usepackage{microtype}
 \usepackage{amsmath,amssymb,amsthm}
 \usepackage{mathtools}
-\usepackage[colorlinks=true,linkcolor=blue,citecolor=blue,urlcolor=blue]{hyperref}
+\usepackage[colorlinks=true,linkcolor=BrickRed,citecolor=Green,urlcolor=Blue]{hyperref}
 \usepackage[capitalise,noabbrev]{cleveref}
 \usepackage{soul}
 \usepackage{graphicx}
@@ -14,10 +26,15 @@
 \usepackage{tabularx}
 \usepackage{booktabs}
 \usepackage{array}
+\usepackage{calc}
 \usepackage{algorithm}
 \usepackage{algpseudocode}
 \usepackage{listings}
 \lstset{basicstyle=\ttfamily\small,breaklines=true}
+\urlstyle{same}
+
+\widowpenalty 5000
+\clubpenalty 5000
 
 \newtheorem{theorem}{Theorem}
 \newtheorem{lemma}[theorem]{Lemma}
@@ -32,6 +49,28 @@
 \newtheorem{remark}[theorem]{Remark}
 
 \providecommand{\tightlist}{\setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\NewDocumentCommand\citeproctext{}{}
+\NewDocumentCommand\citeproc{mm}{#2}
+\NewDocumentCommand\CSLBibitem{o m}{}
+\newlength{\cslhangindent}
+\setlength{\cslhangindent}{1.5em}
+\newlength{\csllabelwidth}
+\setlength{\csllabelwidth}{3em}
+\newlength{\cslentryspacingunit}
+\setlength{\cslentryspacingunit}{\parskip}
+\newenvironment{CSLReferences}[2]
+ {\setlength{\parindent}{0pt}
+  \let\bibitem\CSLBibitem
+  \ifodd #1
+   \let\oldpar\par
+   \def\par{\hangindent=\cslhangindent\oldpar}
+  \fi
+  \setlength{\parskip}{#2\cslentryspacingunit}}
+ {}
+\newcommand{\CSLBlock}[1]{#1\hfill\break}
+\newcommand{\CSLLeftMargin}[1]{\parbox[t]{\csllabelwidth}{#1}}
+\newcommand{\CSLRightInline}[1]{\parbox[t]{\linewidth - \csllabelwidth}{#1}\break}
+\newcommand{\CSLIndent}[1]{\hspace{\cslhangindent}#1}
 
 $if(title)$\title{$title$}$endif$
 $if(author)$\author{$for(author)$$author$$sep$ \and $endfor$}$endif$
@@ -53,9 +92,11 @@ $endif$
 
 $body$
 
+$if(natbib)$
 $if(bibliography)$
 \bibliographystyle{plainurl}
-\bibliography{$bibliography$}
+\bibliography{$for(bibliography)$$bibliography$$sep$,$endfor$}
+$endif$
 $endif$
 
 \end{document}

@@ -49,6 +49,7 @@
       "types": "./dist/latex.d.ts",
       "import": "./dist/latex.mjs"
     },
+    "./latex/csl/ieee.csl": "./dist/latex/csl/ieee.csl",
     "./latex/filter.lua": "./dist/latex/filter.lua",
     "./latex/syntax-manifest.lua": "./dist/latex/syntax-manifest.lua",
     "./latex/template/article.tex": "./dist/latex/template/article.tex",

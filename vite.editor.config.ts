@@ -21,7 +21,9 @@ function copyEditorCss(): Plugin {
       mkdirSync("dist/themes", { recursive: true });
       cpSync("src/themes/blueprint-book.css", "dist/themes/blueprint-book.css");
       cpSync("node_modules/katex/dist/fonts", "dist/fonts", { recursive: true });
+      mkdirSync("dist/latex/csl", { recursive: true });
       mkdirSync("dist/latex/template", { recursive: true });
+      cpSync("src/editor/citations/ieee.csl", "dist/latex/csl/ieee.csl");
       cpSync("src/editor/latex/filter.lua", "dist/latex/filter.lua");
       cpSync("src/editor/latex/syntax-manifest.lua", "dist/latex/syntax-manifest.lua");
       cpSync("src/editor/latex/template/article.tex", "dist/latex/template/article.tex");

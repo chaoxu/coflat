@@ -51,6 +51,18 @@ describe("LaTeX filter custom blocks", () => {
 
     expect(latex).toContain("\\caption{A \\& B\\_\\#\\%\\$}\\label{fig:main}");
   });
+
+  it.skipIf(!hasPandoc)("parses inline math in table caption attributes", () => {
+    const latex = runPandoc([
+      '::: {.table #tbl:main title="rank-$j$ reduction"}',
+      "| A |",
+      "|---|",
+      "| b |",
+      ":::",
+    ].join("\n"));
+
+    expect(latex).toContain("\\caption{rank-\\(j\\) reduction}\\label{tbl:main}");
+  });
 });
 
 describe("LaTeX filter inline mappings", () => {
@@ -60,27 +72,30 @@ describe("LaTeX filter inline mappings", () => {
     expect(latex).toContain("==highlighted \\textbf{term}==");
   });
 
-  it.skipIf(!hasPandoc)("renders all citation syntax as cross-reference clusters", () => {
+  it.skipIf(!hasPandoc)("renders document citations as cross-reference clusters", () => {
     const latex = runPandoc([
       "::: {.theorem #thm:main}",
       "Body",
       ":::",
       "",
-      "See [@thm:main; @karger2000].",
+      "## Later {#sec:later}",
+      "",
+      "See [@thm:main; @sec:later].",
     ].join("\n"));
 
-    expect(latex).toContain("\\cref{thm:main,karger2000}");
+    expect(latex).toContain("\\cref{thm:main,sec:later}");
   });
 
-  it.skipIf(!hasPandoc)("does not use locators to classify references as citations", () => {
+  it.skipIf(!hasPandoc)("leaves bibliography citations for citeproc", () => {
     const latex = runPandoc([
       "::: {.theorem #thm:main}",
       "Body",
       ":::",
       "",
-      "See [@thm:main; @karger2000, p. 42].",
+      "See [@thm:main] and [@karger2000, p. 42].",
     ].join("\n"));
 
-    expect(latex).toContain("\\cref{thm:main,karger2000}");
+    expect(latex).toContain("\\cref{thm:main}");
+    expect(latex).not.toContain("\\cref{karger2000}");
   });
 });

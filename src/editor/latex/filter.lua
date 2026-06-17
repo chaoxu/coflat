@@ -2,7 +2,8 @@
 --
 -- Responsibilities:
 --   * YAML "math:" frontmatter -> \newcommand in header-includes.
---   * Pandoc citations are Coflat references and export as \cref.
+--   * Pandoc citations that target document labels export as \cref.
+--     Bibliography citations are left for citeproc.
 --   * Manifest-backed fenced-div blocks
 --     divs -> matching LaTeX environments.
 --   * Multi-image figure divs -> subfigure wrappers.
@@ -31,6 +32,33 @@ end
 
 local function label_for(id)
   if id and id ~= "" then return "\\label{" .. id .. "}" else return "" end
+end
+
+local function add_label(labels, id)
+  if id and id ~= "" then labels[id] = true end
+end
+
+local function add_latex_labels(labels, text)
+  if not text then return end
+  for id in text:gmatch("\\label%s*{%s*([^}%s]+)%s*}") do labels[id] = true end
+end
+
+local function collect_document_labels(doc)
+  local labels = {}
+  doc:walk({
+    Header = function(el) add_label(labels, el.identifier) end,
+    Div = function(el) add_label(labels, el.identifier) end,
+    Span = function(el) add_label(labels, el.identifier) end,
+    Figure = function(el) add_label(labels, el.identifier) end,
+    Table = function(el) add_label(labels, el.identifier) end,
+    RawBlock = function(el)
+      if el.format == "latex" or el.format == "tex" then add_latex_labels(labels, el.text) end
+    end,
+    RawInline = function(el)
+      if el.format == "latex" or el.format == "tex" then add_latex_labels(labels, el.text) end
+    end,
+  })
+  return labels
 end
 
 local function raw(s) return pandoc.RawBlock("latex", s) end
@@ -70,8 +98,23 @@ local function inlines_to_latex(inlines)
   return pandoc.write(pandoc.Pandoc({ pandoc.Plain(inlines) }), "latex")
 end
 
+local function markdown_title_to_latex(title)
+  if not title or title == "" then return "" end
+  local ok, doc = pcall(
+    pandoc.read,
+    title,
+    "markdown+tex_math_dollars+tex_math_single_backslash"
+  )
+  if not ok then return escape_latex_text(title) end
+  local block = doc.blocks and doc.blocks[1] or nil
+  if block and (block.t == "Plain" or block.t == "Para") then
+    return inlines_to_latex(block.content):gsub("%s+$", "")
+  end
+  return escape_latex_text(title)
+end
+
 local function handle_figure(el)
-  local title = escape_latex_text(pop_title(el) or "")
+  local title = markdown_title_to_latex(pop_title(el) or "")
   local id = el.identifier
   local images = {}
 
@@ -175,7 +218,7 @@ local function colspec_of(colspecs)
 end
 
 local function handle_table_div(el)
-  local title = escape_latex_text(pop_title(el) or "")
+  local title = markdown_title_to_latex(pop_title(el) or "")
   local id = el.identifier
   for _, b in ipairs(el.content) do
     if b.t == "Table" then
@@ -207,7 +250,7 @@ local function handle_table_div(el)
 end
 
 local function handle_algorithm(el)
-  local title = escape_latex_text(pop_title(el) or "")
+  local title = markdown_title_to_latex(pop_title(el) or "")
   local id = el.identifier
   local out = { raw("\\begin{algorithm}[ht]\\caption{" .. title .. "}" .. label_for(id)) }
   for _, b in ipairs(el.content) do table.insert(out, b) end
@@ -234,9 +277,12 @@ local function transform_div(el)
   return nil
 end
 
-local function transform_cite(el)
+local function transform_cite(el, document_labels)
   local ids = {}
-  for _, citation in ipairs(el.citations) do table.insert(ids, citation.id) end
+  for _, citation in ipairs(el.citations) do
+    if not document_labels[citation.id] then return nil end
+    table.insert(ids, citation.id)
+  end
   return pandoc.RawInline("latex", "\\cref{" .. table.concat(ids, ",") .. "}")
 end
 
@@ -245,5 +291,9 @@ end
 -- be required by this filter.
 
 function Pandoc(doc)
-  return doc:walk({ Cite = transform_cite, Div = transform_div })
+  local document_labels = collect_document_labels(doc)
+  return doc:walk({
+    Cite = function(el) return transform_cite(el, document_labels) end,
+    Div = transform_div,
+  })
 end

@@ -2,6 +2,7 @@ import type { FrontmatterConfig } from "../../core/parser/frontmatter";
 
 export const LATEX_PANDOC_FROM: string;
 export const LATEX_TEMPLATE_NAMES: ReadonlySet<string>;
+export const LATEX_CSL_NAMES: ReadonlySet<string>;
 export const EXPORT_CONTRACT: ExportContract;
 
 export interface ExportDependencyTool {
@@ -21,6 +22,10 @@ export interface ExportContract {
       readonly default: string;
       readonly builtins: Readonly<Record<string, string>>;
     };
+    readonly csl: {
+      readonly default: string;
+      readonly builtins: Readonly<Record<string, string>>;
+    };
     readonly args: readonly string[];
     readonly bibliography_metadata_arg: string;
     readonly pdf_args: readonly string[];
@@ -33,16 +38,19 @@ export interface ExportContract {
 
 export interface LatexExportFlags {
   readonly bibliography?: unknown;
+  readonly csl?: unknown;
   readonly template?: unknown;
 }
 
 export interface ResolvedLatexExportOptions {
   readonly bibliography?: string;
+  readonly csl: string;
   readonly template: string;
 }
 
 export interface BuildLatexPandocArgsOptions {
   readonly bibliography?: string;
+  readonly cslPath?: string;
   readonly filterPath: string;
   readonly format?: "latex" | "pdf";
   readonly output: string;
@@ -57,6 +65,14 @@ export function resolveLatexExportOptions(options?: {
 }): ResolvedLatexExportOptions;
 export function resolveLatexTemplatePath(
   template: string | undefined,
+  options: {
+    readonly cwd?: string;
+    readonly latexDir: string;
+    readonly pathResolve?: (base: string, path: string) => string;
+  },
+): string;
+export function resolveLatexCslPath(
+  csl: string | undefined,
   options: {
     readonly cwd?: string;
     readonly latexDir: string;

@@ -30,6 +30,7 @@ describe("package editor export", () => {
       ".",
       "./citeproc",
       "./latex",
+      "./latex/csl/ieee.csl",
       "./latex/filter.lua",
       "./latex/syntax-manifest.lua",
       "./latex/template/article.tex",
@@ -113,6 +114,7 @@ describe("package editor export", () => {
       types: "./dist/latex.d.ts",
       import: "./dist/latex.mjs",
     });
+    expect(packageJson.exports?.["./latex/csl/ieee.csl"]).toBe("./dist/latex/csl/ieee.csl");
     expect(packageJson.exports?.["./latex/filter.lua"]).toBe("./dist/latex/filter.lua");
     expect(packageJson.exports?.["./latex/syntax-manifest.lua"]).toBe("./dist/latex/syntax-manifest.lua");
     expect(packageJson.exports?.["./latex/template/article.tex"]).toBe("./dist/latex/template/article.tex");

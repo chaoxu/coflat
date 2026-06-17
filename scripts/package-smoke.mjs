@@ -19,6 +19,7 @@ function assertIncludes(value, needle, label) {
 
 const source = read("tests/fixtures/coflat-showcase.md");
 const css = read("dist/editor.css");
+const latexCsl = read("dist/latex/csl/ieee.csl");
 const latexFilter = read("dist/latex/filter.lua");
 const latexSyntaxManifest = read("dist/latex/syntax-manifest.lua");
 const { renderToHtml } = await import("../dist/reader.mjs");
@@ -43,6 +44,7 @@ assertIncludes(css, "counter-reset: cf-reader-h1 cf-reader-h2", "dist/editor.css
 assertIncludes(css, ".cf-reader .cf-doc-list--unordered", "dist/editor.css");
 assertIncludes(css, ".cf-reader .cf-doc-display-math", "dist/editor.css");
 
+assertIncludes(latexCsl, 'citation-format="numeric"', "dist/latex/csl/ieee.csl");
 assertIncludes(latexFilter, "syntax-manifest.lua", "dist/latex/filter.lua");
 assertIncludes(latexSyntaxManifest, "latex_kind_by_block", "dist/latex/syntax-manifest.lua");
 

@@ -8,11 +8,13 @@ export type {
 } from "./export-options.mjs";
 
 export {
+  LATEX_CSL_NAMES,
   LATEX_PANDOC_FROM,
   LATEX_TEMPLATE_NAMES,
   EXPORT_CONTRACT,
   parseLatexFrontmatterConfig,
   resolveLatexExportOptions,
+  resolveLatexCslPath,
   resolveLatexTemplatePath,
   latexBibliographyMetadataValue,
   buildLatexPandocArgs,

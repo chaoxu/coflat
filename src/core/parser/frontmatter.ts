@@ -28,6 +28,7 @@ export interface FrontmatterConfig {
   csl?: string;
   latex?: {
     bibliography?: string;
+    csl?: string;
     template?: string;
   };
   /**

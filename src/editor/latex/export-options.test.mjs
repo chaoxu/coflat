@@ -7,8 +7,10 @@ import {
   exportDependencyTools,
   EXPORT_CONTRACT,
   LATEX_PANDOC_FROM,
+  LATEX_CSL_NAMES,
   latexBibliographyMetadataValue,
   parseLatexFrontmatterConfig,
+  resolveLatexCslPath,
   resolveLatexExportOptions,
   resolveLatexTemplatePath,
 } from "./export-options.mjs";
@@ -18,9 +20,11 @@ describe("parseLatexFrontmatterConfig", () => {
     const config = parseLatexFrontmatterConfig([
       "---",
       "bibliography: refs/project.bib",
+      "csl: styles/project.csl",
       "latex:",
       "  template: lipics",
       "  bibliography: refs/paper.bib",
+      "  csl: styles/paper.csl",
       "---",
       "",
       "# Paper",
@@ -28,8 +32,10 @@ describe("parseLatexFrontmatterConfig", () => {
 
     expect(config).toEqual({
       bibliography: "refs/project.bib",
+      csl: "styles/project.csl",
       latex: {
         bibliography: "refs/paper.bib",
+        csl: "styles/paper.csl",
         template: "lipics",
       },
     });
@@ -45,23 +51,27 @@ describe("resolveLatexExportOptions", () => {
   it("defaults to the article template", () => {
     expect(resolveLatexExportOptions()).toEqual({
       bibliography: undefined,
+      csl: "ieee",
       template: "article",
     });
   });
 
-  it("prefers latex-specific bibliography over top-level bibliography", () => {
+  it("prefers latex-specific export options over top-level options", () => {
     expect(
       resolveLatexExportOptions({
         config: {
           bibliography: "refs/project.bib",
+          csl: "styles/project.csl",
           latex: {
             bibliography: "refs/paper.bib",
+            csl: "styles/paper.csl",
             template: "lipics",
           },
         },
       }),
     ).toEqual({
       bibliography: "refs/paper.bib",
+      csl: "styles/paper.csl",
       template: "lipics",
     });
   });
@@ -75,11 +85,13 @@ describe("resolveLatexExportOptions", () => {
         },
         flags: {
           bibliography: "refs/cli.bib",
+          csl: "styles/cli.csl",
           template: "custom.tex",
         },
       }),
     ).toEqual({
       bibliography: "refs/cli.bib",
+      csl: "styles/cli.csl",
       template: "custom.tex",
     });
   });
@@ -89,15 +101,18 @@ describe("resolveLatexExportOptions", () => {
       resolveLatexExportOptions({
         config: {
           bibliography: "refs/project.bib",
+          csl: "styles/project.csl",
           latex: { template: "lipics" },
         },
         flags: {
           bibliography: true,
+          csl: true,
           template: true,
         },
       }),
     ).toEqual({
       bibliography: "refs/project.bib",
+      csl: "styles/project.csl",
       template: "lipics",
     });
   });
@@ -136,11 +151,45 @@ describe("resolveLatexTemplatePath", () => {
   });
 });
 
+describe("resolveLatexCslPath", () => {
+  it("resolves built-in CSL names through the repo LaTeX directory", () => {
+    const paths = [];
+    const pathResolve = (base, path) => {
+      paths.push([base, path]);
+      return `${base}/${path}`;
+    };
+
+    expect(resolveLatexCslPath("ieee", { latexDir: "/repo/src/latex", pathResolve })).toBe(
+      "/repo/src/latex/csl/ieee.csl",
+    );
+    expect(resolveLatexCslPath(undefined, { latexDir: "/repo/src/latex", pathResolve })).toBe(
+      "/repo/src/latex/csl/ieee.csl",
+    );
+    expect(paths).toEqual([
+      ["/repo/src/latex", "csl/ieee.csl"],
+      ["/repo/src/latex", "csl/ieee.csl"],
+    ]);
+  });
+
+  it("resolves custom CSL paths relative to the caller cwd", () => {
+    const pathResolve = (base, path) => `${base}/${path}`;
+
+    expect(
+      resolveLatexCslPath("styles/custom.csl", {
+        cwd: "/project",
+        latexDir: "/repo/src/latex",
+        pathResolve,
+      }),
+    ).toBe("/project/styles/custom.csl");
+  });
+});
+
 describe("buildLatexPandocArgs", () => {
   it("builds the canonical LaTeX pandoc invocation", () => {
     expect(
       buildLatexPandocArgs({
         bibliography: "refs/project.bib",
+        cslPath: "/repo/src/latex/csl/ieee.csl",
         filterPath: "/repo/src/latex/filter.lua",
         output: "/project/out.tex",
         resourcePath: "/project/notes:/project",
@@ -152,10 +201,12 @@ describe("buildLatexPandocArgs", () => {
       "--wrap=preserve",
       "--no-highlight",
       "--lua-filter=/repo/src/latex/filter.lua",
+      "--citeproc",
+      "--csl=/repo/src/latex/csl/ieee.csl",
       "--template=/repo/src/latex/template/article.tex",
       "--resource-path=/project/notes:/project",
       "--output=/project/out.tex",
-      "--metadata=bibliography=project",
+      "--metadata=bibliography=refs/project.bib",
     ]);
   });
 
@@ -193,12 +244,15 @@ describe("buildLatexPandocArgs", () => {
 describe("shared export contract", () => {
   it("owns LaTeX, PDF, and HTML Pandoc profiles", () => {
     expect(LATEX_PANDOC_FROM).toBe(EXPORT_CONTRACT.pandoc_from);
+    expect(LATEX_CSL_NAMES).toContain("ieee");
     expect(EXPORT_CONTRACT.latex.args).toEqual([
       "--from={pandoc_from}",
       "--to=latex",
       "--wrap=preserve",
       "--no-highlight",
       "--lua-filter={latex_filter_path}",
+      "--citeproc",
+      "--csl={latex_csl_path}",
       "--template={latex_template_path}",
       "--resource-path={resource_path}",
       "--output={output_path}",
@@ -250,8 +304,8 @@ describe("shared export contract", () => {
 });
 
 describe("latexBibliographyMetadataValue", () => {
-  it("uses the bibliography basename without the .bib suffix", () => {
-    expect(latexBibliographyMetadataValue("refs/project.bib")).toBe("project");
-    expect(latexBibliographyMetadataValue("refs/project")).toBe("project");
+  it("preserves bibliography paths for Pandoc citeproc", () => {
+    expect(latexBibliographyMetadataValue("refs/project.bib")).toBe("refs/project.bib");
+    expect(latexBibliographyMetadataValue("refs/project")).toBe("refs/project");
   });
 });

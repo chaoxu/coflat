@@ -9,6 +9,9 @@ export const LATEX_PANDOC_FROM = exportContract.pandoc_from;
 export const LATEX_TEMPLATE_NAMES = new Set(
   Object.keys(exportContract.latex.templates.builtins),
 );
+export const LATEX_CSL_NAMES = new Set(
+  Object.keys(exportContract.latex.csl.builtins),
+);
 
 export function parseLatexFrontmatterConfig(markdown) {
   const lines = markdown.split("\n");
@@ -32,6 +35,9 @@ export function parseLatexFrontmatterConfig(markdown) {
   if (typeof parsed.bibliography === "string") {
     config.bibliography = parsed.bibliography;
   }
+  if (typeof parsed.csl === "string") {
+    config.csl = parsed.csl;
+  }
   if (parsed.latex && typeof parsed.latex === "object" && !Array.isArray(parsed.latex)) {
     const latex = {};
     if (typeof parsed.latex.template === "string") {
@@ -39,6 +45,9 @@ export function parseLatexFrontmatterConfig(markdown) {
     }
     if (typeof parsed.latex.bibliography === "string") {
       latex.bibliography = parsed.latex.bibliography;
+    }
+    if (typeof parsed.latex.csl === "string") {
+      latex.csl = parsed.latex.csl;
     }
     if (Object.keys(latex).length > 0) {
       config.latex = latex;
@@ -54,6 +63,11 @@ export function resolveLatexExportOptions({ config = {}, flags = {} } = {}) {
       stringOption(flags.bibliography) ??
       stringOption(latex.bibliography) ??
       stringOption(config.bibliography),
+    csl:
+      stringOption(flags.csl) ??
+      stringOption(latex.csl) ??
+      stringOption(config.csl) ??
+      exportContract.latex.csl.default,
     template:
       stringOption(flags.template) ??
       stringOption(latex.template) ??
@@ -85,16 +99,25 @@ export function resolveLatexTemplatePath(template, { cwd = "", latexDir, pathRes
   return pathResolve(cwd, name);
 }
 
+export function resolveLatexCslPath(csl, { cwd = "", latexDir, pathResolve = defaultResolvePath } = {}) {
+  const name = csl || exportContract.latex.csl.default;
+  const builtinCsl = exportContract.latex.csl.builtins[name];
+  if (builtinCsl) {
+    return pathResolve(latexDir, builtinCsl);
+  }
+  return pathResolve(cwd, name);
+}
+
 export function latexBibliographyMetadataValue(bibliography) {
   if (!bibliography) {
     return null;
   }
-  const fileName = bibliography.split(/[\\/]/).pop() ?? bibliography;
-  return fileName.endsWith(".bib") ? fileName.slice(0, -4) : fileName;
+  return bibliography;
 }
 
 export function buildLatexPandocArgs({
   bibliography,
+  cslPath,
   filterPath,
   format = "latex",
   output,
@@ -102,6 +125,7 @@ export function buildLatexPandocArgs({
   template,
 }) {
   const values = {
+    latex_csl_path: cslPath ?? resolveLatexCslPath(undefined, { latexDir: dirname(filterPath) }),
     latex_filter_path: filterPath,
     latex_template_path: template,
     output_path: output,
@@ -160,4 +184,9 @@ function renderArgs(args, values) {
 
 function renderArg(arg, values) {
   return arg.replaceAll(/\{([a-z_]+)\}/g, (_match, key) => values[key] ?? "");
+}
+
+function dirname(path) {
+  const slashIndex = Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\"));
+  return slashIndex >= 0 ? path.slice(0, slashIndex) : ".";
 }

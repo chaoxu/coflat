@@ -12,12 +12,20 @@
         "lipics": "template/lipics.tex"
       }
     },
+    "csl": {
+      "default": "ieee",
+      "builtins": {
+        "ieee": "csl/ieee.csl"
+      }
+    },
     "args": [
       "--from={pandoc_from}",
       "--to=latex",
       "--wrap=preserve",
       "--no-highlight",
       "--lua-filter={latex_filter_path}",
+      "--citeproc",
+      "--csl={latex_csl_path}",
       "--template={latex_template_path}",
       "--resource-path={resource_path}",
       "--output={output_path}"
