@@ -40,7 +40,7 @@
  * inserting the worker's HTML.
  */
 
-import { renderToHtml, renderToText } from "./reader";
+import { renderToHtml, renderToText, type ReaderReferencePreviewIndex } from "./reader";
 
 // ---------------------------------------------------------------------------
 // Wire protocol.
@@ -82,6 +82,7 @@ export interface WorkerReaderRenderInput {
   mathMacros?: Record<string, string>;
   truncate?: { lines: number } | { chars: number };
   sourceLineAttribution?: boolean;
+  referencePreviews?: boolean;
 }
 
 export interface WorkerReaderHtmlResult {
@@ -94,6 +95,7 @@ export interface WorkerReaderHtmlResult {
    * `hydrateMath` call.
    */
   mathMacros?: Record<string, string>;
+  referencePreviewIndex?: ReaderReferencePreviewIndex;
 }
 
 export interface WorkerReaderTextResult {
@@ -132,6 +134,7 @@ function handleRequest(req: WorkerRequest): WorkerResponse {
         {
           sourceLineAttribution: input.sourceLineAttribution,
           truncate: input.truncate,
+          referencePreviews: input.referencePreviews,
         },
       );
       return { id, ok: true, result: r };

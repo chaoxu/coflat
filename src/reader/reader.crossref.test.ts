@@ -50,6 +50,16 @@ describe("reader in-document crossref resolution", () => {
     expect(html).not.toContain("Theorem 1");
   });
 
+  it("does not expose preview-index entries for targets truncated away", () => {
+    const src = "See [@thm:later].\n\n::: {.theorem #thm:later}\nBody.\n:::";
+    const { referencePreviewIndex } = renderToHtml(src, undefined, {
+      referencePreviews: true,
+      resolveReferences: true,
+      truncate: { lines: 1 },
+    });
+    expect(referencePreviewIndex?.["thm:later"]).toBeUndefined();
+  });
+
   it("without resolveReferences, defers to the host refResolver (backward compatible)", () => {
     let asked = false;
     const ctx: DocumentContext = {

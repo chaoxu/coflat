@@ -5,6 +5,7 @@ import {
   hydrateReaderHoverPreviews,
   hydrateReaderDisclosures,
   renderToHtml,
+  type ReaderReferencePreviewIndex,
 } from "../../reader";
 import {
   destroyHoverPreviewTooltipForTest,
@@ -23,11 +24,16 @@ function requireMathPlaceholder(root: HTMLElement): HTMLElement {
   return placeholder;
 }
 
-async function hoverReference(root: HTMLElement, key: string): Promise<HTMLElement> {
+async function hoverReference(
+  root: HTMLElement,
+  key: string,
+  options: { referencePreviewIndex?: ReaderReferencePreviewIndex } = {},
+): Promise<HTMLElement> {
   document.body.appendChild(root);
   hydrateReaderHoverPreviews(root, {
     source: root.dataset.source ?? "",
     hoverDelayMs: 0,
+    referencePreviewIndex: options.referencePreviewIndex,
   });
   const target = root.querySelector<HTMLElement>(`[data-ref-key="${CSS.escape(key)}"]`);
   if (!target) throw new Error(`expected reference ${key}`);
@@ -233,6 +239,35 @@ describe("hydrateReaderHoverPreviews", () => {
     expect(tooltip.textContent).not.toContain("Section 1Second");
   });
 
+  it("uses editor-style heading preview headers from the render-time index", async () => {
+    const source = [
+      "# First {#sec:first}",
+      "",
+      "first body",
+      "",
+      "# Second {#sec:second}",
+      "",
+      "second body",
+      "",
+      "See [@sec:second].",
+    ].join("\n");
+    const result = renderToHtml(source, undefined, {
+      referencePreviews: true,
+      resolveReferences: true,
+    });
+    const root = makeRoot(result.html);
+    root.dataset.source = source;
+
+    const tooltip = await hoverReference(root, "sec:second", {
+      referencePreviewIndex: result.referencePreviewIndex,
+    });
+
+    expect(tooltip.querySelector(".cf-hover-preview-header")?.textContent)
+      .toBe("Section 2 Second");
+    expect(tooltip.querySelector(".cf-doc-heading")).toBeNull();
+    expect(tooltip.textContent).not.toContain("second body");
+  });
+
   it("does not use preceding display math as a heading reference preview", async () => {
     const source = [
       "# First",
@@ -254,6 +289,57 @@ describe("hydrateReaderHoverPreviews", () => {
     expect(tooltip.textContent).toContain("Second");
     expect(tooltip.textContent).not.toContain("lambda");
     expect(tooltip.querySelector(".cf-doc-display-math")).toBeNull();
+  });
+
+  it("uses render-time preview index entries before raw source scans", async () => {
+    const source = [
+      "$$",
+      "x+1",
+      "$$ {#eq:actual}",
+      "",
+      "See [@eq:actual].",
+    ].join("\n");
+    const result = renderToHtml(source, undefined, {
+      referencePreviews: true,
+      resolveReferences: true,
+    });
+    const root = makeRoot(result.html);
+    // If hydration ignored the index and scanned this source, the tooltip would
+    // render y+1 instead. The index entry carries the Lezer-owned equation body.
+    root.dataset.source = "$$\ny+1\n$$ {#eq:actual}";
+
+    const tooltip = await hoverReference(root, "eq:actual", {
+      referencePreviewIndex: result.referencePreviewIndex,
+    });
+
+    expect(tooltip.textContent).toContain("Eq. (1)");
+    expect(tooltip.textContent).toContain("x+1");
+    expect(tooltip.textContent).not.toContain("y+1");
+  });
+
+  it("lets host previews override render-time preview index entries", async () => {
+    const source = "# Indexed {#sec:indexed}\n\nSee [@sec:indexed].";
+    const result = renderToHtml(source, undefined, {
+      referencePreviews: true,
+      resolveReferences: true,
+    });
+    const root = makeRoot(result.html);
+    document.body.appendChild(root);
+    hydrateReaderHoverPreviews(root, {
+      hoverDelayMs: 0,
+      referencePreviewIndex: result.referencePreviewIndex,
+      source,
+      previewForReference: () => "host override",
+    });
+
+    const target = root.querySelector<HTMLElement>('[data-ref-key="sec:indexed"]');
+    if (!target) throw new Error("expected reference sec:indexed");
+    target.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    const tooltip = ensureHoverPreviewTooltipForTest();
+
+    expect(tooltip.textContent).toContain("host override");
+    expect(tooltip.textContent).not.toContain("Section 1");
   });
 
   it("previews block references without restarting theorem numbering", async () => {

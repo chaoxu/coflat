@@ -498,6 +498,49 @@ interface ReaderReferenceTarget {
 }
 type ReaderReferenceCatalog = ReadonlyMap<string, ReaderReferenceTarget>;
 
+export type ReaderReferencePreviewEntry =
+  | {
+      readonly kind: "heading";
+      readonly id: string;
+      readonly label: string;
+      readonly title: string;
+      readonly text: string;
+      readonly level: number;
+      readonly from: number;
+      readonly to: number;
+      readonly number?: string;
+    }
+  | {
+      readonly kind: "equation";
+      readonly id: string;
+      readonly label: string;
+      readonly latex: string;
+      readonly text: string;
+      readonly from: number;
+      readonly to: number;
+      readonly bodyFrom: number;
+      readonly bodyTo: number;
+      readonly number: string;
+      readonly ordinal: number;
+    }
+  | {
+      readonly kind: "block";
+      readonly id: string;
+      readonly label: string;
+      readonly blockType: string;
+      readonly title?: string;
+      readonly from: number;
+      readonly to: number;
+      readonly bodyFrom: number;
+      readonly bodyTo: number;
+      readonly number?: string;
+      readonly ordinal?: number;
+    };
+
+export type ReaderReferencePreviewIndex = Readonly<Record<string, ReaderReferencePreviewEntry>>;
+
+type ReaderReferencePreviewCatalog = Map<string, ReaderReferencePreviewEntry>;
+
 interface Resolvers {
   linkResolver?: LinkResolver;
   refResolver?: RefResolver;
@@ -553,9 +596,13 @@ interface WalkContext {
    *  each heading/equation/block, so a second walk can resolve `[@id]` to the
    *  same number the target carries. Built only when `buildCatalog`. */
   catalog: Map<string, ReaderReferenceTarget>;
+  /** In-document targets with source ranges for reader hover previews. */
+  referencePreviewIndex: ReaderReferencePreviewCatalog;
   /** When true, record into {@link catalog} during numbering (first walk of a
    *  `resolveReferences` render). */
   buildCatalog: boolean;
+  /** When true, record into {@link referencePreviewIndex}. */
+  buildReferencePreviews: boolean;
   /** When false (RenderOptions.sectionNumbering === false), headings display
    *  as unnumbered even though the numbering walk still advances (for crossref
    *  resolution). Defaults to true. */
@@ -835,6 +882,22 @@ function displayMathLatex(ctx: WalkContext, node: SyntaxNode): string {
   const label = node.getChild(NODE.EquationLabel);
   const sourceEnd = label ? label.from : node.to;
   return stripMathDelims(ctx.source.slice(node.from, sourceEnd).trim(), true).trim();
+}
+
+function trimSourceRange(source: string, from: number, to: number): { from: number; to: number } {
+  while (from < to && /\s/.test(source[from] ?? "")) from++;
+  while (to > from && /\s/.test(source[to - 1] ?? "")) to--;
+  return { from, to };
+}
+
+function displayMathLatexRange(ctx: WalkContext, node: SyntaxNode): { from: number; to: number } {
+  const marks = node.getChildren("DisplayMathMark");
+  if (marks.length >= 2) {
+    return trimSourceRange(ctx.source, marks[0].to, marks[marks.length - 1].from);
+  }
+  const label = node.getChild(NODE.EquationLabel);
+  const sourceEnd = label ? label.from : node.to;
+  return trimSourceRange(ctx.source, node.from, sourceEnd);
 }
 
 function equationLabelId(ctx: WalkContext, node: SyntaxNode): string | null {
@@ -1129,6 +1192,12 @@ interface RenderOptions {
    * catalog, then a resolving walk. Off by default (host resolves everything).
    */
   resolveReferences?: boolean;
+  /**
+   * If true, return a Lezer-backed in-document preview index keyed by explicit
+   * heading/equation/block ids. Hosts can pass it to hydrateReaderHoverPreviews
+   * so hover cards use the same target ownership the reader used while numbering.
+   */
+  referencePreviews?: boolean;
   /** If true, emit `data-source-from`/`data-source-to` byte offsets on
    *  every block element, every inline mark (`<strong>`, `<em>`, `<del>`,
    *  `<code>`, `<a>`, `<sup class="cf-footnote-ref">`, `<span data-math>`,
@@ -1159,7 +1228,7 @@ interface RenderOptions {
   sectionNumbering?: boolean;
 }
 
-interface TruncatedInfo {
+export interface TruncatedInfo {
   sourceFrom: number;
   sourceTo: number;
 }
@@ -1245,6 +1314,23 @@ function renderBlock(ctx: WalkContext, node: SyntaxNode): BlockResult {
         ctx.catalog.set(equationId, {
           kind: "equation",
           label: formatEquationReferenceLabel(equationNumber),
+        });
+      }
+      if (ctx.buildReferencePreviews && equationId && equationNumber !== undefined) {
+        const range = displayMathLatexRange(ctx, node);
+        const label = formatEquationReferenceLabel(equationNumber);
+        ctx.referencePreviewIndex.set(equationId, {
+          kind: "equation",
+          id: equationId,
+          label,
+          latex: inner,
+          text: inner,
+          from: node.from,
+          to: node.to,
+          bodyFrom: range.from,
+          bodyTo: range.to,
+          number: String(equationNumber),
+          ordinal: equationNumber,
         });
       }
       const classes = mathSurfaceClassNames(
@@ -1366,10 +1452,25 @@ function renderHeading(ctx: WalkContext, node: SyntaxNode, level: number): Block
   // resolve even when numbers aren't shown; `displayUnnumbered` only hides the
   // number — when sectionNumbering is off, every heading renders unnumbered.
   const headingNumber = nextHeadingNumber(ctx, level, !!attrs?.unnumbered);
+  const headingTitle = inner.text.trim();
+  const headingLabel = formatHeadingReferenceLabel({ number: headingNumber, text: headingTitle });
   if (ctx.buildCatalog && attrs?.id) {
     ctx.catalog.set(attrs.id, {
       kind: "heading",
-      label: formatHeadingReferenceLabel({ number: headingNumber, text: inner.text.trim() }),
+      label: headingLabel,
+    });
+  }
+  if (ctx.buildReferencePreviews && attrs?.id) {
+    ctx.referencePreviewIndex.set(attrs.id, {
+      kind: "heading",
+      id: attrs.id,
+      label: headingLabel,
+      title: headingTitle,
+      text: headingTitle,
+      level,
+      from: node.from,
+      to: node.to,
+      ...(headingNumber ? { number: headingNumber } : {}),
     });
   }
   const displayUnnumbered = !!attrs?.unnumbered || !ctx.numberHeadings;
@@ -1761,6 +1862,8 @@ function renderFencedDiv(ctx: WalkContext, node: SyntaxNode): BlockResult {
   // Render children (skipping the fence + attrs nodes).
   const blocks: BlockResult[] = [];
   let previousRenderable: SyntaxNode | null = null;
+  let bodyFrom: number | null = null;
+  let bodyTo: number | null = null;
   let child = node.firstChild;
   while (child) {
     if (
@@ -1776,6 +1879,8 @@ function renderFencedDiv(ctx: WalkContext, node: SyntaxNode): BlockResult {
         blocks.push(renderBlankLine(ctx, from, to));
       }
     }
+    bodyFrom ??= child.from;
+    bodyTo = child.to;
     blocks.push(renderBlock(ctx, child));
     previousRenderable = child;
     child = child.nextSibling;
@@ -1808,6 +1913,22 @@ function renderFencedDiv(ctx: WalkContext, node: SyntaxNode): BlockResult {
     ctx.catalog.set(id, {
       kind: "block",
       label: formatBlockReferenceLabel(blockTitle(normalizedClassName), number),
+    });
+  }
+  if (ctx.buildReferencePreviews && id && normalizedClassName) {
+    const label = formatBlockReferenceLabel(blockTitle(normalizedClassName), number);
+    const bodyRange = trimSourceRange(ctx.source, bodyFrom ?? node.from, bodyTo ?? node.from);
+    ctx.referencePreviewIndex.set(id, {
+      kind: "block",
+      id,
+      label,
+      blockType: normalizedClassName,
+      ...(title ? { title } : {}),
+      from: node.from,
+      to: node.to,
+      bodyFrom: bodyRange.from,
+      bodyTo: bodyRange.to,
+      ...(number === undefined ? {} : { number: String(number), ordinal: number }),
     });
   }
   const summary = normalizedClassName
@@ -2015,9 +2136,16 @@ function walkDocument(
   tree: Tree,
   resolvers: Resolvers,
   opts: RenderOptions,
-): BlockResult & { truncated?: TruncatedInfo; outline: ReaderOutlineEntry[]; catalog: Map<string, ReaderReferenceTarget>; mathMacros?: Record<string, string> } {
+): BlockResult & {
+  truncated?: TruncatedInfo;
+  outline: ReaderOutlineEntry[];
+  catalog: Map<string, ReaderReferenceTarget>;
+  referencePreviewIndex: ReaderReferencePreviewCatalog;
+  mathMacros?: Record<string, string>;
+} {
   const frontmatter = parseFrontmatter(source);
   const frontmatterEnd = frontmatter.end;
+  const buildCatalog = !!(opts.resolveReferences || opts.referencePreviews);
   const ctx: WalkContext = {
     source,
     resolvers,
@@ -2035,7 +2163,9 @@ function walkDocument(
     footnotesInOrder: [],
     citedKeys: [],
     catalog: new Map(),
-    buildCatalog: !!opts.resolveReferences,
+    referencePreviewIndex: new Map(),
+    buildCatalog,
+    buildReferencePreviews: !!opts.referencePreviews,
     numberHeadings: opts.sectionNumbering !== false,
   };
 
@@ -2087,6 +2217,9 @@ function walkDocument(
       // full snapshot is needed — a dropped block must not leave a catalog entry
       // that a later [@id] resolves to a number whose target was truncated away.
       const catalogSnapshot = ctx.buildCatalog ? new Map(ctx.catalog) : null;
+      const referencePreviewIndexSnapshot = ctx.buildReferencePreviews
+        ? new Map(ctx.referencePreviewIndex)
+        : null;
       const rendered = renderBlock(ctx, child);
       const cost = budgetKind === "lines"
         ? blockLineCost(source, child)
@@ -2101,6 +2234,9 @@ function walkDocument(
         ctx.usedHeadingIds = usedHeadingIdsSnapshot;
         ctx.citedKeys.length = citedKeysLen;
         if (catalogSnapshot) ctx.catalog = catalogSnapshot;
+        if (referencePreviewIndexSnapshot) {
+          ctx.referencePreviewIndex = referencePreviewIndexSnapshot;
+        }
         truncated = { sourceFrom: child.from, sourceTo: source.length };
         break;
       }
@@ -2198,6 +2334,7 @@ function walkDocument(
     truncated,
     outline: ctx.outline,
     catalog: ctx.catalog,
+    referencePreviewIndex: ctx.referencePreviewIndex,
     // Surface the document's frontmatter `math:` macros so the host can forward
     // them to `hydrateMath` without re-parsing. Mirrors the editor, where the
     // same `config.math` feeds `mathMacrosField` and every math render path.
@@ -2317,11 +2454,30 @@ void ALLOWED_ATTR_RE;
  * semantic block headers emit disclosure buttons. Inert preview surfaces
  * set it to `false` while retaining the same header/body markup.
  */
+export interface ReaderHtmlResult {
+  html: string;
+  hasMath: boolean;
+  truncated?: TruncatedInfo;
+  outline?: ReaderOutlineEntry[];
+  mathMacros?: Record<string, string>;
+  referencePreviewIndex?: ReaderReferencePreviewIndex;
+}
+
+function serializeReferencePreviewIndex(
+  index: ReaderReferencePreviewCatalog,
+): ReaderReferencePreviewIndex {
+  const out = Object.create(null) as Record<string, ReaderReferencePreviewEntry>;
+  for (const [id, entry] of index) {
+    out[id] = entry;
+  }
+  return out;
+}
+
 export function renderToHtml(
   source: string,
   ctx?: DocumentContext,
   opts: RenderOptions = {},
-): { html: string; hasMath: boolean; truncated?: TruncatedInfo; outline?: ReaderOutlineEntry[]; mathMacros?: Record<string, string> } {
+): ReaderHtmlResult {
   const resolvers = buildResolvers(ctx, opts.documentPath);
 
   if (
@@ -2330,7 +2486,8 @@ export function renderToHtml(
     !opts.sourcePositions &&
     !opts.truncate &&
     !opts.outline &&
-    !opts.resolveReferences
+    !opts.resolveReferences &&
+    !opts.referencePreviews
   ) {
     const fast = fastRenderInline(source);
     return { html: sanitize(fast.html), hasMath: false };
@@ -2346,12 +2503,15 @@ export function renderToHtml(
     // already has nothing to re-resolve (citations + host fallback ran there).
     result = walkDocument(source, tree, { ...resolvers, referenceCatalog: result.catalog }, opts);
   }
-  const out: { html: string; hasMath: boolean; truncated?: TruncatedInfo; outline?: ReaderOutlineEntry[]; mathMacros?: Record<string, string> } = {
+  const out: ReaderHtmlResult = {
     html: sanitize(result.html),
     hasMath: result.hasMath,
   };
   if (result.truncated) out.truncated = result.truncated;
   if (opts.outline) out.outline = result.outline;
+  if (opts.referencePreviews) {
+    out.referencePreviewIndex = serializeReferencePreviewIndex(result.referencePreviewIndex);
+  }
   // Resolved KaTeX macros for this document: frontmatter `math:` as the base,
   // with `ctx.mathMacros` taking precedence as a per-key override. Hosts forward
   // this to `hydrateMath` so reader math (title + body) matches the editor.
@@ -2907,6 +3067,7 @@ export interface ReaderHoverPreviewOptions {
     key: string,
     env: ReaderHoverPreviewEnv,
   ) => HTMLElement | string | null | undefined;
+  readonly referencePreviewIndex?: ReaderReferencePreviewIndex;
   readonly source?: string;
 }
 
@@ -2979,6 +3140,44 @@ function renderReaderPreviewSource(
   }).html;
   void hydrateMath(body, { mathMacros: mathMacros ?? context?.mathMacros });
   return body;
+}
+
+function readerPreviewHeaderText(entry: ReaderReferencePreviewEntry, fallback: string): string {
+  if (entry.kind === "heading" && entry.title && entry.title !== entry.label) {
+    return `${entry.label} ${entry.title}`;
+  }
+  return entry.label || fallback;
+}
+
+function buildReaderIndexedPreview(
+  entry: ReaderReferencePreviewEntry | undefined,
+  source: string | undefined,
+  context: DocumentContext | undefined,
+  mathMacros: Record<string, string> | undefined,
+  fallbackLabel: string,
+): HTMLElement | null {
+  if (!entry) return null;
+  const container = createReaderHoverContainer();
+  container.appendChild(createReaderHoverHeader(readerPreviewHeaderText(entry, fallbackLabel)));
+
+  if (entry.kind === "heading") {
+    return container;
+  }
+
+  if (entry.kind === "equation") {
+    container.appendChild(
+      renderReaderPreviewSource(`$$\n${entry.latex}\n$$`, context, mathMacros),
+    );
+    return container;
+  }
+
+  if (entry.kind === "block" && source) {
+    const bodySource = source.slice(entry.bodyFrom, entry.bodyTo).trim();
+    if (bodySource) {
+      container.appendChild(renderReaderPreviewSource(bodySource, context, mathMacros));
+    }
+  }
+  return container;
 }
 
 function escapeRegExpLiteral(value: string): string {
@@ -3109,6 +3308,8 @@ function buildReaderHoverPlan(
 ): TooltipPlan {
   const key = anchor.dataset.refKey ?? "";
   const label = anchor.textContent?.trim() ?? key;
+  const indexedEntry = options.referencePreviewIndex?.[key];
+  const indexedKey = indexedEntry ? JSON.stringify(indexedEntry) : "";
   return {
     buildContent: () => {
       const citationPreview = buildReaderCitationPreview(key, options.context);
@@ -3128,6 +3329,15 @@ function buildReaderHoverPlan(
         return createReaderTextPreview(customPreview);
       }
 
+      const indexedPreview = buildReaderIndexedPreview(
+        indexedEntry,
+        options.source,
+        options.context,
+        options.mathMacros,
+        label || key,
+      );
+      if (indexedPreview) return indexedPreview;
+
       return buildReaderSourcePreview(
         key,
         options.source,
@@ -3139,7 +3349,7 @@ function buildReaderHoverPlan(
     cacheScope: readerHoverCacheScope,
     dependsOnBibliography: false,
     dependsOnMacros: true,
-    key: `reader:hover\0${key}\0${label}\0${options.source ?? ""}`,
+    key: `reader:hover\0${key}\0${label}\0${indexedKey}\0${options.source ?? ""}`,
     mediaDependencies: undefined,
   };
 }

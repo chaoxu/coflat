@@ -505,6 +505,71 @@ describe("renderToHtml — block-level rendering ()", () => {
     expect(r.html).toContain('data-math="x^2"');
   });
 
+  it("returns a Lezer-backed reference preview index when requested", () => {
+    const source = [
+      "# Intro {#sec:intro}",
+      "",
+      "$$",
+      "x^2",
+      "$$ {#eq:square}",
+      "",
+      "::: {.theorem #thm:main title=\"Main\"}",
+      "body",
+      ":::",
+      "",
+      "See [@sec:intro], [@eq:square], and [@thm:main].",
+    ].join("\n");
+
+    expect(renderToHtml(source, undefined, { resolveReferences: true }).referencePreviewIndex)
+      .toBeUndefined();
+
+    const r = renderToHtml(source, undefined, {
+      referencePreviews: true,
+      resolveReferences: true,
+    });
+    expect(r.referencePreviewIndex?.["sec:intro"]).toMatchObject({
+      kind: "heading",
+      label: "Section 1",
+      title: "Intro",
+      level: 1,
+      number: "1",
+    });
+    expect(r.referencePreviewIndex?.["eq:square"]).toMatchObject({
+      kind: "equation",
+      label: "Eq. (1)",
+      latex: "x^2",
+      number: "1",
+      ordinal: 1,
+    });
+    expect(r.referencePreviewIndex?.["thm:main"]).toMatchObject({
+      kind: "block",
+      label: "Theorem 1",
+      blockType: "theorem",
+      title: "Main",
+      number: "1",
+      ordinal: 1,
+    });
+    const theorem = r.referencePreviewIndex?.["thm:main"];
+    expect(theorem?.kind).toBe("block");
+    if (theorem?.kind === "block") {
+      expect(source.slice(theorem.bodyFrom, theorem.bodyTo)).toBe("body");
+    }
+  });
+
+  it("serializes reference preview index ids as own properties", () => {
+    const r = renderToHtml("# Prototype {#__proto__}\n\nSee [@__proto__].", undefined, {
+      referencePreviews: true,
+      resolveReferences: true,
+    });
+    expect(Object.prototype.hasOwnProperty.call(r.referencePreviewIndex, "__proto__"))
+      .toBe(true);
+    expect(r.referencePreviewIndex?.["__proto__"]).toMatchObject({
+      kind: "heading",
+      label: "Section 1",
+      title: "Prototype",
+    });
+  });
+
   it("defaults [@key] to an unresolved crossref with no RefResolver", () => {
     const r = renderToHtml("As shown in [@knuth1984], …");
     expect(r.html).toContain('cf-crossref-unresolved');

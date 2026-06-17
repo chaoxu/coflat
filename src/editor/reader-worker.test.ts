@@ -64,6 +64,7 @@ function makeFakeWorker(opts?: { delayMs?: number }): FakeWorkerHandle {
               source: string;
               truncate?: { lines: number } | { chars: number };
               sourceLineAttribution?: boolean;
+              referencePreviews?: boolean;
             };
           };
           try {
@@ -71,6 +72,7 @@ function makeFakeWorker(opts?: { delayMs?: number }): FakeWorkerHandle {
               const r = renderToHtml(req.input.source, undefined, {
                 sourceLineAttribution: req.input.sourceLineAttribution,
                 truncate: req.input.truncate,
+                referencePreviews: req.input.referencePreviews,
               });
               deliver({ id: req.id, ok: true, result: r });
             } else {
@@ -139,6 +141,20 @@ describe("createWorkerReader — renderToHtml round-trip", () => {
       sourceLineAttribution: true,
     });
     expect(res.html).toContain('data-source-line="1"');
+    reader.terminate();
+  });
+
+  it("forwards requested reference preview indexes", async () => {
+    const { reader } = makeReader();
+    const res = await reader.renderToHtml({
+      source: "# Heading {#sec:heading}\n\nSee [@sec:heading].",
+      referencePreviews: true,
+    });
+    expect(res.referencePreviewIndex?.["sec:heading"]).toMatchObject({
+      kind: "heading",
+      label: "Section 1",
+      title: "Heading",
+    });
     reader.terminate();
   });
 });
