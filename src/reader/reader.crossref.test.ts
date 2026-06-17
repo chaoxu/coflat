@@ -65,6 +65,43 @@ describe("reader in-document crossref resolution", () => {
     expect(referencePreviewIndex?.["thm:target"]?.label).toBe("Theorem 4");
   });
 
+  it("counts captioned table opening lines in global block numbering", () => {
+    const src = [
+      "---",
+      "numbering: global",
+      "---",
+      "",
+      "::: {.theorem #thm:first}",
+      "First.",
+      ":::",
+      "",
+      "::: {.table #tbl:apps} Application table.",
+      "",
+      "| Class | Runtime |",
+      "| --- | --- |",
+      "| A | n |",
+      "",
+      ":::",
+      "",
+      "::: {.proposition #prop:middle}",
+      "Middle.",
+      ":::",
+      "",
+      "::: {.theorem #thm:target}",
+      "Target.",
+      ":::",
+      "",
+      "# Proof of [@thm:target] {#app:proof}",
+    ].join("\n");
+    const { html, referencePreviewIndex } = renderToHtml(src, undefined, {
+      referencePreviews: true,
+      resolveReferences: true,
+    });
+
+    expect(html).toMatch(/data-ref-key="thm:target"[\s\S]*?>Theorem 4</);
+    expect(referencePreviewIndex?.["thm:target"]?.label).toBe("Theorem 4");
+  });
+
   it("carries titled block metadata into the reader hover preview index", () => {
     const src = [
       ':::: {#thm:hover-preview .theorem title="Hover Preview Stress Test"}',

@@ -211,6 +211,39 @@ describe("collectReferenceRanges", () => {
     expect(view.dom.querySelector(`.${CSS.crossref}`)?.textContent).toBe("Theorem 4");
   });
 
+  it("counts captioned table opening lines in global proof-heading references", () => {
+    const doc = [
+      "---",
+      "numbering: global",
+      "---",
+      "",
+      "::: {.theorem #thm:first}",
+      "First.",
+      ":::",
+      "",
+      "::: {.table #tbl:apps} Application table.",
+      "",
+      "| Class | Runtime |",
+      "| --- | --- |",
+      "| A | n |",
+      "",
+      ":::",
+      "",
+      "::: {.proposition #prop:middle}",
+      "Middle.",
+      ":::",
+      "",
+      "::: {.theorem #thm:target}",
+      "Target.",
+      ":::",
+      "",
+      "# Proof of [@thm:target] {#app:proof}",
+    ].join("\n");
+    view = createPluginView(doc, 0);
+
+    expect(view.dom.querySelector(`.${CSS.crossref}`)?.textContent).toBe("Theorem 4");
+  });
+
   it("defaults narrative bibliography ids to UnresolvedRefWidget", () => {
     const doc = "As @karger2000 showed.";
     view = createView(doc, doc.length);
