@@ -26,7 +26,7 @@ function visibleElement(
       fontSize: "16px",
       lineHeight: "24px",
       marginLeft: "auto",
-      marginRight: "224px",
+      marginRight: "0px",
       maxWidth: "800px",
       opacity: "1",
       overflow: "auto",

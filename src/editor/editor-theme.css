@@ -160,6 +160,7 @@
   /* Layout */
   --cf-content-max-width: 800px;
   --cf-sidenote-width: 224px;
+  --cf-sidenote-margin-width: 0px;
   --cf-fence-guide-width: 3px;
   --cf-doc-content-padding-block-start: 24px;
   --cf-doc-content-padding-block-end: 64px;
@@ -296,6 +297,7 @@
   --cf-transition: 0.15s ease;
   --cf-content-max-width: 800px;
   --cf-sidenote-width: 224px;
+  --cf-sidenote-margin-width: 0px;
   --cf-fence-guide-width: 3px;
   --cf-doc-content-padding-block-start: 24px;
   --cf-doc-content-padding-block-end: 64px;
@@ -691,7 +693,7 @@
   flex-shrink: 0;
   max-width: var(--cf-content-max-width, 800px);
   margin-left: auto;
-  margin-right: max(var(--cf-sidenote-width, 224px), calc((100% - var(--cf-content-max-width, 800px)) / 2));
+  margin-right: max(var(--cf-sidenote-margin-width, 0px), calc((100% - var(--cf-content-max-width, 800px)) / 2));
   min-height: 100%;
   outline: none;
   overflow: visible;

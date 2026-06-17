@@ -70,7 +70,7 @@ describe("theme CSS contract", () => {
     );
     expect(cssRuleBody(css, ".cm-content")).toContain("margin-left: auto;");
     expect(cssRuleBody(css, ".cm-content")).toContain(
-      "margin-right: max(var(--cf-sidenote-width, 224px), calc((100% - var(--cf-content-max-width, 800px)) / 2));",
+      "margin-right: max(var(--cf-sidenote-margin-width, 0px), calc((100% - var(--cf-content-max-width, 800px)) / 2));",
     );
     expect(cssRuleBody(css, ".cm-content")).toContain("min-height: 100%;");
     expect(cssRuleBody(css, ".cm-content")).toContain(

@@ -14,13 +14,12 @@
 export const CONTENT_MAX_WIDTH = "800px";
 
 /**
- * Minimum right margin reserved for sidenotes and margin annotations.
- * Applied as: `max(224px, calc((100% - 800px) / 2))`.
- * 224 px is the minimum that fits a 240 px sidenote widget (SIDENOTE_WIDTH)
- * with a small gap. On wide viewports the natural centering formula takes over
- * and the margin expands proportionally.
+ * Default right margin reserved for sidenotes and margin annotations.
+ * Hosts can opt into a persistent sidenote gutter by setting
+ * `--cf-sidenote-margin-width`; the default keeps normal editor documents from
+ * reserving an empty column.
  */
-export const MARGIN_RIGHT_CALC = "224px";
+export const SIDENOTE_MARGIN_WIDTH = "0px";
 
 /**
  * Horizontal offset of sidenote widgets from the right edge of the viewport.

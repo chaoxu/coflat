@@ -3,7 +3,7 @@ import {
   CONTENT_MAX_WIDTH,
   CONTENT_PADDING_X,
   CONTENT_PADDING_Y,
-  MARGIN_RIGHT_CALC,
+  SIDENOTE_MARGIN_WIDTH,
 } from "../core/constants/layout";
 
 /**
@@ -23,7 +23,7 @@ export const baseThemeStyles = {
     width: "100%",
     maxWidth: `min(var(--cf-content-max-width, ${CONTENT_MAX_WIDTH}), 100%)`,
     marginLeft: "auto",
-    marginRight: `max(var(--cf-sidenote-width, ${MARGIN_RIGHT_CALC}), calc((100% - var(--cf-content-max-width, ${CONTENT_MAX_WIDTH})) / 2))`,
+    marginRight: `max(var(--cf-sidenote-margin-width, ${SIDENOTE_MARGIN_WIDTH}), calc((100% - var(--cf-content-max-width, ${CONTENT_MAX_WIDTH})) / 2))`,
     overflow: "visible",
     lineHeight: "var(--cf-line-height, 1.5)",
   },
