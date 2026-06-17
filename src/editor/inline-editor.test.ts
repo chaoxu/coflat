@@ -24,6 +24,7 @@ import { bibDataField } from "./state/bib-data";
 import { documentAnalysisField } from "./state/document-analysis";
 import { referenceRenderPlugin } from "./render/reference-render";
 import { CSS } from "../core/constants/css-classes";
+import { markdownExtensions } from "../core/parser";
 import { CSL_FIXTURES, makeBibStore } from "./test-utils";
 import { CslProcessor } from "./citations/csl-processor";
 import { frontmatterField } from "./state/frontmatter-state";
@@ -115,6 +116,10 @@ function getDecorationClasses(view: EditorView): string[] {
 }
 
 describe("inline editor parser coverage (#406)", () => {
+  it("uses the shared semantic parser profile", () => {
+    expect(inlineMarkdownExtensions).toBe(markdownExtensions);
+  });
+
   it("parses inline math ($...$)", () => {
     const state = createInlineEditorState("$x^2$");
     const names = getNodeNames(state);

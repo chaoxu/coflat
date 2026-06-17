@@ -11,9 +11,11 @@ import {
 } from "@codemirror/view";
 import { __iconNode as checkIconNode } from "lucide-react/dist/esm/icons/check.js";
 import { __iconNode as copyIconNode } from "lucide-react/dist/esm/icons/copy.js";
-import { createLucideIcon } from "../../core/lib/lucide-icon";
-import { createCodeBlockLanguageElement } from "../../core/code-block-surface";
-import { COPY_RESET_MS } from "../../core/constants";
+import {
+  createCodeBlockCopyButtonController,
+  type CodeBlockCopyButtonController,
+  createCodeBlockLanguageElement,
+} from "../../core/code-block-surface";
 import { CSS } from "../../core/constants/css-classes";
 import {
   activeCodeBlock,
@@ -47,58 +49,23 @@ import { createChangeChecker } from "../state/change-detection";
 
 /** Widget that renders a copy-to-clipboard button in the code block header. */
 class CopyButtonWidget extends ShellWidget {
-  private resetTimer: ReturnType<typeof setTimeout> | null = null;
-  private buttonEl: HTMLButtonElement | null = null;
+  private controller: CodeBlockCopyButtonController | null = null;
 
   constructor(private readonly code: string) {
     super();
   }
 
-  private clearResetTimer(): void {
-    const timer = this.resetTimer;
-    this.resetTimer = null;
-    if (timer !== null) clearTimeout(timer);
-  }
-
-  private getLiveButton(expected: HTMLButtonElement): HTMLButtonElement | null {
-    const button = this.buttonEl;
-    if (!button || button !== expected || !button.isConnected) return null;
-    return button;
-  }
-
   toDOM(): HTMLElement {
-    const btn = document.createElement("button");
-    btn.className = CSS.codeblockCopy;
-    btn.type = "button";
-    btn.setAttribute("aria-label", "Copy code to clipboard");
-    btn.appendChild(createLucideIcon(copyIconNode, "copy"));
-    this.buttonEl = btn;
-    btn.addEventListener("mousedown", (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      void navigator.clipboard.writeText(this.code).then(() => {
-        const button = this.getLiveButton(btn);
-        if (!button) return;
-        button.replaceChildren(createLucideIcon(checkIconNode, "check"));
-        button.setAttribute("aria-label", "Copied");
-        this.clearResetTimer();
-        this.resetTimer = setTimeout(() => {
-          this.resetTimer = null;
-          const liveButton = this.getLiveButton(btn);
-          if (!liveButton) return;
-          liveButton.replaceChildren(createLucideIcon(copyIconNode, "copy"));
-          liveButton.setAttribute("aria-label", "Copy code to clipboard");
-        }, COPY_RESET_MS);
-      }).catch((e: unknown) => {
-        console.error("[code-block] clipboard write failed", e);
-      });
+    this.controller = createCodeBlockCopyButtonController(document, this.code, {
+      copy: copyIconNode,
+      check: checkIconNode,
     });
-    return btn;
+    return this.controller.element;
   }
 
   destroy(): void {
-    this.clearResetTimer();
-    this.buttonEl = null;
+    this.controller?.destroy();
+    this.controller = null;
   }
 
   eq(other: CopyButtonWidget): boolean {
