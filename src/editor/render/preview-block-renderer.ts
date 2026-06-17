@@ -40,7 +40,7 @@ import {
   computeBlockNumbers,
   createConfiguredBlockNumberingSpecLookup,
   displayTitleForBlockType,
-} from "../semantics/block-numbering";
+} from "../../core/semantics/block-numbering";
 import type { BibStore } from "../state/bib-data";
 import {
   renderInlineMarkdown,

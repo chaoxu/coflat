@@ -44,7 +44,7 @@ import {
   createConfiguredBlockNumberingSpecLookup,
   displayTitleForBlockType,
   type BlockNumberingSpecLookup,
-} from "../editor/semantics/block-numbering";
+} from "../core/semantics/block-numbering";
 import {
   bibliographyEntries as coreBibliographyEntries,
   bibliographyEntryFor as coreBibliographyEntryFor,

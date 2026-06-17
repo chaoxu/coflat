@@ -9,6 +9,27 @@
  */
 import { monoFont } from "../core/constants/editor-constants";
 
+const codeBlockChrome = {
+  topShadow: "var(--cf-code-block-top-shadow)",
+  sideShadow: "var(--cf-code-block-side-shadow)",
+  bottomShadow: "var(--cf-code-block-bottom-shadow)",
+} as const;
+
+const codeBlockPreWrapStyle = {
+  whiteSpace: "pre",
+  wordBreak: "normal",
+  overflowWrap: "normal",
+} as const;
+
+const codeBlockPreWrapSelector = [
+  ".cm-lineWrapping .cf-codeblock-header",
+  ".cm-lineWrapping .cf-codeblock-body",
+  ".cm-lineWrapping .cf-codeblock-last",
+  ".cm-lineWrapping.cm-line.cf-codeblock-header",
+  ".cm-lineWrapping.cm-line.cf-codeblock-body",
+  ".cm-lineWrapping.cm-line.cf-codeblock-last",
+].join(", ");
+
 export const codeThemeStyles = {
   /* Code block: unified container via per-line classes.
      Header = top border + radius, body = side borders, last = bottom border + radius. */
@@ -16,10 +37,10 @@ export const codeThemeStyles = {
     position: "relative",
     fontFamily: monoFont,
     backgroundColor: "var(--cf-subtle)",
-    boxShadow:
-      "inset 0 var(--cf-border-width) 0 var(--cf-border), inset var(--cf-border-width) 0 0 var(--cf-border), inset calc(-1 * var(--cf-border-width)) 0 0 var(--cf-border)",
+    boxShadow: codeBlockChrome.topShadow,
     borderTopLeftRadius: "var(--cf-border-radius-lg)",
     borderTopRightRadius: "var(--cf-border-radius-lg)",
+    ...codeBlockPreWrapStyle,
   },
   ".cf-codeblock-header-widget": {
     display: "inline",
@@ -32,18 +53,18 @@ export const codeThemeStyles = {
   ".cf-codeblock-body": {
     fontFamily: monoFont,
     backgroundColor: "var(--cf-subtle)",
-    boxShadow:
-      "inset var(--cf-border-width) 0 0 var(--cf-border), inset calc(-1 * var(--cf-border-width)) 0 0 var(--cf-border)",
+    boxShadow: codeBlockChrome.sideShadow,
+    ...codeBlockPreWrapStyle,
   },
   ".cf-codeblock-last": {
     fontFamily: monoFont,
     backgroundColor: "var(--cf-subtle)",
-    boxShadow:
-      "inset var(--cf-border-width) 0 0 var(--cf-border), inset calc(-1 * var(--cf-border-width)) 0 0 var(--cf-border), inset 0 calc(-1 * var(--cf-border-width)) 0 var(--cf-border)",
+    boxShadow: codeBlockChrome.bottomShadow,
     borderBottomLeftRadius: "var(--cf-border-radius-lg)",
     borderBottomRightRadius: "var(--cf-border-radius-lg)",
+    ...codeBlockPreWrapStyle,
   },
-
+  [codeBlockPreWrapSelector]: codeBlockPreWrapStyle,
   /* Copy button in code block header */
   ".cf-codeblock-copy": {
     position: "absolute",
@@ -82,14 +103,12 @@ export const codeThemeStyles = {
     backgroundColor: "var(--cf-subtle)",
   },
   ".cf-codeblock-source-open": {
-    boxShadow:
-      "inset 0 var(--cf-border-width) 0 var(--cf-border), inset var(--cf-border-width) 0 0 var(--cf-border), inset calc(-1 * var(--cf-border-width)) 0 0 var(--cf-border)",
+    boxShadow: codeBlockChrome.topShadow,
     borderTopLeftRadius: "var(--cf-border-radius-lg)",
     borderTopRightRadius: "var(--cf-border-radius-lg)",
   },
   ".cf-codeblock-source-close": {
-    boxShadow:
-      "inset var(--cf-border-width) 0 0 var(--cf-border), inset calc(-1 * var(--cf-border-width)) 0 0 var(--cf-border), inset 0 calc(-1 * var(--cf-border-width)) 0 var(--cf-border)",
+    boxShadow: codeBlockChrome.bottomShadow,
     borderBottomLeftRadius: "var(--cf-border-radius-lg)",
     borderBottomRightRadius: "var(--cf-border-radius-lg)",
   },

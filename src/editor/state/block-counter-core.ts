@@ -8,7 +8,7 @@ import {
   mapBlockCounterState,
   type BlockCounterState,
   type NumberedBlock,
-} from "../semantics/block-numbering";
+} from "../../core/semantics/block-numbering";
 import type { PluginRegistryState } from "./plugin-registry-core";
 import { getPluginOrFallback } from "./plugin-registry-core";
 import { documentAnalysisField } from "./document-analysis";

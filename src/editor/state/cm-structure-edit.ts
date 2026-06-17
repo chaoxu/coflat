@@ -298,6 +298,29 @@ export function getActiveStructureEditTarget(
   return state.field(activeStructureEditField, false) ?? null;
 }
 
+export function structureEditTargetSignature(target: StructureEditTarget): string {
+  if (target.kind === "frontmatter") return `frontmatter:${target.from}:${target.to}`;
+  if (target.kind === "code-fence") {
+    return `code-fence:${target.openFenceFrom}:${target.openFenceTo}`;
+  }
+  if (target.kind === "footnote-label") {
+    return `footnote-label:${target.labelFrom}:${target.labelTo}`;
+  }
+  if (target.kind === "display-math") {
+    return `display-math:${target.from}:${target.to}:${target.contentFrom}:${target.contentTo}`;
+  }
+  return `fenced-opener:${target.openFenceFrom}:${target.editFrom}:${target.editTo}:${target.revealFrom}:${target.revealTo}`;
+}
+
+export function getActiveStructureEditSignature(
+  state: EditorState,
+  kind?: StructureEditTarget["kind"],
+): string {
+  const active = getActiveStructureEditTarget(state);
+  if (!active || (kind && active.kind !== kind)) return "";
+  return structureEditTargetSignature(active);
+}
+
 export function createFencedStructureEditTarget(
   state: EditorState,
   pos: number,

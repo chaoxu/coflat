@@ -6,9 +6,8 @@ import {
   type Transaction,
 } from "@codemirror/state";
 import {
-  Decoration,
   type DecorationSet,
-  EditorView,
+  Decoration,
 } from "@codemirror/view";
 import { __iconNode as checkIconNode } from "lucide-react/dist/esm/icons/check.js";
 import { __iconNode as copyIconNode } from "lucide-react/dist/esm/icons/copy.js";
@@ -21,8 +20,7 @@ import {
 } from "../state/shell-ownership";
 import { isFencedCode } from "../lib/syntax-tree-helpers";
 import {
-  activateStructureEditAt,
-  getActiveStructureEditTarget,
+  getActiveStructureEditSignature,
   hasStructureEditEffect,
   isCodeFenceStructureEditActive,
 } from "../state/cm-structure-edit";
@@ -115,10 +113,7 @@ function joinClasses(...classes: Array<string | false | null | undefined>): stri
 const codeBlockStructureRevisionChanged = createChangeChecker(getCodeBlockStructureRevision);
 
 const activeCodeFenceSourceChanged = createChangeChecker((state) => {
-  const active = getActiveStructureEditTarget(state);
-  return active?.kind === "code-fence"
-    ? `${active.openFenceFrom}:${active.openFenceTo}`
-    : "";
+  return getActiveStructureEditSignature(state, "code-fence");
 });
 
 interface DecorationRebuildRange {
@@ -133,18 +128,6 @@ class CodeBlockLanguageWidget extends ShellWidget {
 
   createDOM(): HTMLElement {
     return makeTextElement("span", CSS.codeblockLanguage, this.language);
-  }
-
-  protected override bindSourceReveal(
-    el: HTMLElement,
-    view: EditorView,
-  ): void {
-    el.style.cursor = "pointer";
-    el.addEventListener("mousedown", (event) => {
-      event.preventDefault();
-      view.focus();
-      activateStructureEditAt(view, this.sourceFrom);
-    });
   }
 
   eq(other: CodeBlockLanguageWidget): boolean {

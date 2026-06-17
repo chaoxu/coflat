@@ -1,14 +1,23 @@
-import type { ChangeDesc } from "@codemirror/state";
 import {
   BLOCK_MANIFEST_BY_NAME,
   EXCLUDED_FROM_FALLBACK,
   getManifestBlockTitle,
-} from "../../core/constants/block-manifest";
+} from "../constants/block-manifest";
 import type {
   BlockConfig,
   NumberingScheme,
-} from "../../core/parser/frontmatter";
-import type { FencedDivSemantics } from "./document-model";
+} from "../parser/frontmatter";
+
+export interface FencedDivNumberingInfo {
+  readonly from: number;
+  readonly to: number;
+  readonly primaryClass?: string;
+  readonly id?: string;
+}
+
+export interface PositionMapper {
+  mapPos(pos: number, assoc?: number): number;
+}
 
 /** Minimal block metadata needed for semantic numbering. */
 export interface BlockNumberingSpec {
@@ -98,7 +107,7 @@ export function counterGroupForBlockNumberingSpec(
 }
 
 function buildNumberedBlocks(
-  fencedDivs: readonly FencedDivSemantics[],
+  fencedDivs: readonly FencedDivNumberingInfo[],
   getSpec: BlockNumberingSpecLookup,
   numbering: NumberingScheme = "grouped",
 ): { readonly blocks: readonly NumberedBlock[]; readonly numberingKey: string } {
@@ -135,7 +144,7 @@ function buildNumberedBlocks(
 }
 
 function buildBlockNumberingKey(
-  fencedDivs: readonly FencedDivSemantics[],
+  fencedDivs: readonly FencedDivNumberingInfo[],
   getSpec: BlockNumberingSpecLookup,
   numbering: NumberingScheme = "grouped",
 ): string {
@@ -158,7 +167,7 @@ function buildBlockNumberingKey(
 }
 
 export function computeBlockNumberingKey(
-  fencedDivs: readonly FencedDivSemantics[],
+  fencedDivs: readonly FencedDivNumberingInfo[],
   getSpec: BlockNumberingSpecLookup,
   numbering: NumberingScheme = "grouped",
 ): string {
@@ -166,7 +175,7 @@ export function computeBlockNumberingKey(
 }
 
 export function computeBlockNumbers(
-  fencedDivs: readonly FencedDivSemantics[],
+  fencedDivs: readonly FencedDivNumberingInfo[],
   getSpec: BlockNumberingSpecLookup,
   numbering: NumberingScheme = "grouped",
 ): BlockCounterState {
@@ -234,7 +243,7 @@ export function createConfiguredBlockNumberingSpecLookup(
 
 export function mapBlockCounterState(
   value: BlockCounterState,
-  changes: ChangeDesc,
+  changes: PositionMapper,
 ): BlockCounterState {
   let changed = false;
   const blocks = value.blocks.map((block) => {

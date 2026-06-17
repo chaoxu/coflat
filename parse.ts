@@ -34,7 +34,7 @@ import {
   computeBlockNumbers,
   createConfiguredBlockNumberingSpecLookup,
   displayTitleForBlockType,
-} from "./src/editor/semantics/block-numbering";
+} from "./src/core/semantics/block-numbering";
 export {
   createNumericCitationFormatter,
   parseBibliographyKeys,

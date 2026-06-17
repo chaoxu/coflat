@@ -8,7 +8,7 @@ import type { DocumentAnalysis, TextSource } from "../semantics/document-model";
 import {
   computeBlockNumbers,
   createConfiguredBlockNumberingSpecLookup,
-} from "../semantics/block-numbering";
+} from "../../core/semantics/block-numbering";
 import type {
   BlockNode,
   DocumentIR,

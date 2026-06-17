@@ -153,6 +153,10 @@
   /* Border widths */
   --cf-border-width: 1px;
   --cf-border-width-accent: 2px;
+  --cf-code-block-top-shadow: inset 0 var(--cf-border-width) 0 var(--cf-border), inset var(--cf-border-width) 0 0 var(--cf-border), inset calc(-1 * var(--cf-border-width)) 0 0 var(--cf-border);
+  --cf-code-block-side-shadow: inset var(--cf-border-width) 0 0 var(--cf-border), inset calc(-1 * var(--cf-border-width)) 0 0 var(--cf-border);
+  --cf-code-block-bottom-shadow: inset var(--cf-border-width) 0 0 var(--cf-border), inset calc(-1 * var(--cf-border-width)) 0 0 var(--cf-border), inset 0 calc(-1 * var(--cf-border-width)) 0 var(--cf-border);
+  --cf-code-block-full-shadow: inset 0 var(--cf-border-width) 0 var(--cf-border), inset var(--cf-border-width) 0 0 var(--cf-border), inset calc(-1 * var(--cf-border-width)) 0 0 var(--cf-border), inset 0 calc(-1 * var(--cf-border-width)) 0 var(--cf-border);
 
   /* Transitions */
   --cf-transition: 0.15s ease;
@@ -588,10 +592,7 @@
   content: attr(data-lang);
   display: block;
   background: var(--cf-subtle);
-  box-shadow:
-    inset 0 var(--cf-border-width) 0 var(--cf-border),
-    inset var(--cf-border-width) 0 0 var(--cf-border),
-    inset calc(-1 * var(--cf-border-width)) 0 0 var(--cf-border);
+  box-shadow: var(--cf-code-block-top-shadow);
   border-top-left-radius: var(--cf-border-radius-lg);
   border-top-right-radius: var(--cf-border-radius-lg);
   color: var(--cf-muted);
@@ -603,10 +604,7 @@
 .cf-reader .cf-doc-code-block code {
   display: block;
   background: var(--cf-subtle);
-  box-shadow:
-    inset var(--cf-border-width) 0 0 var(--cf-border),
-    inset calc(-1 * var(--cf-border-width)) 0 0 var(--cf-border),
-    inset 0 calc(-1 * var(--cf-border-width)) 0 var(--cf-border);
+  box-shadow: var(--cf-code-block-bottom-shadow);
   border-bottom-left-radius: var(--cf-border-radius-lg);
   border-bottom-right-radius: var(--cf-border-radius-lg);
   font-family: var(--cf-code-font, Monaco, "DejaVu Sans Mono", Consolas, monospace);
@@ -614,11 +612,7 @@
 }
 
 .cf-reader .cf-doc-code-block:not([data-lang]) code {
-  box-shadow:
-    inset 0 var(--cf-border-width) 0 var(--cf-border),
-    inset var(--cf-border-width) 0 0 var(--cf-border),
-    inset calc(-1 * var(--cf-border-width)) 0 0 var(--cf-border),
-    inset 0 calc(-1 * var(--cf-border-width)) 0 var(--cf-border);
+  box-shadow: var(--cf-code-block-full-shadow);
   border-radius: var(--cf-border-radius-lg);
 }
 
@@ -734,9 +728,9 @@
   padding: 0;
 }
 
-.cm-lineWrapping .cm-line.cf-codeblock-header,
-.cm-lineWrapping .cm-line.cf-codeblock-body,
-.cm-lineWrapping .cm-line.cf-codeblock-last {
+.cm-line.cf-codeblock-header,
+.cm-line.cf-codeblock-body,
+.cm-line.cf-codeblock-last {
   white-space: pre;
   word-break: normal;
   overflow-wrap: normal;

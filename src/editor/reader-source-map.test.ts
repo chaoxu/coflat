@@ -21,16 +21,16 @@ describe("renderToHtml — sourcePositions emission", () => {
   it("emits source positions on <strong>", () => {
     const src = "say **bold** here";
     const r = renderToHtml(src, undefined, { sourcePositions: true });
-    expect(r.html).toContain(
-      '<strong data-source-from="4" data-source-to="12">',
+    expect(r.html).toMatch(
+      /<strong[^>]*data-source-from="4"[^>]*data-source-to="12"/,
     );
   });
 
   it("emits source positions on <code>", () => {
     const src = "use `xs` now";
     const r = renderToHtml(src, undefined, { sourcePositions: true });
-    expect(r.html).toContain(
-      '<code class="cf-doc-code-token" data-source-from="4" data-source-to="8">',
+    expect(r.html).toMatch(
+      /<code[^>]*class="[^"]*\bcf-doc-code-token\b[^"]*"[^>]*data-source-from="4"[^>]*data-source-to="8"/,
     );
   });
 

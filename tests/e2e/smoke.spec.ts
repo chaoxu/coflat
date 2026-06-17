@@ -150,6 +150,62 @@ async function textRect(locator: Locator, text: string) {
   }, text);
 }
 
+async function clickLocatorCenter(page: Page, locator: Locator): Promise<void> {
+  const coordinates = await locator.evaluate((el) => {
+    const rect = el.getBoundingClientRect();
+    return {
+      x: rect.left + rect.width / 2,
+      y: rect.top + rect.height / 2,
+    };
+  });
+  await page.mouse.click(coordinates.x, coordinates.y);
+}
+
+async function clickLineOffset(page: Page, locator: Locator, offsetX: number): Promise<void> {
+  const coordinates = await locator.evaluate((el, offsetX) => {
+    const rect = el.getBoundingClientRect();
+    return {
+      x: Math.min(rect.right - 1, Math.max(rect.left + 1, rect.left + offsetX)),
+      y: rect.top + rect.height / 2,
+    };
+  }, offsetX);
+  await page.mouse.click(coordinates.x, coordinates.y);
+}
+
+interface WrapMetrics {
+  readonly height: number;
+  readonly lineHeight: number;
+  readonly overflowWrap: string;
+  readonly scrollWidth: number;
+  readonly clientWidth: number;
+  readonly whiteSpace: string;
+  readonly wordBreak: string;
+}
+
+async function readWrapMetrics(locator: Locator): Promise<WrapMetrics> {
+  return locator.evaluate((el) => {
+    const rect = el.getBoundingClientRect();
+    const style = getComputedStyle(el);
+    return {
+      height: rect.height,
+      lineHeight: Number.parseFloat(style.lineHeight),
+      overflowWrap: style.overflowWrap,
+      scrollWidth: el.scrollWidth,
+      clientWidth: el.clientWidth,
+      whiteSpace: style.whiteSpace,
+      wordBreak: style.wordBreak,
+    };
+  });
+}
+
+function expectPreWrapMetrics(metrics: WrapMetrics, label: string): void {
+  expect(metrics.whiteSpace, label).toBe("pre");
+  expect(metrics.overflowWrap, label).toBe("normal");
+  expect(metrics.wordBreak, label).toBe("normal");
+  expect(metrics.scrollWidth, label).toBeGreaterThan(metrics.clientWidth);
+  expect(metrics.height, label).toBeLessThanOrEqual(metrics.lineHeight + 1);
+}
+
 test("editor mounts and accepts input", async ({ page }) => {
   await page.goto("/tests/e2e/fixtures/index.html");
 
@@ -211,14 +267,7 @@ test("rich editor rerenders a block header after clicking body text", async ({ p
   }).first();
   await expect(header).toContainText("Theorem 1");
 
-  const headerPoint = await header.evaluate((el) => {
-    const rect = el.getBoundingClientRect();
-    return {
-      x: rect.left + 140,
-      y: rect.top + rect.height / 2,
-    };
-  });
-  await page.mouse.click(headerPoint.x, headerPoint.y);
+  await clickLineOffset(page, header, 140);
   await expect(page.locator("#editor .cm-line.cf-block-source", {
     hasText: "thm:hover-preview",
   })).toBeVisible();
@@ -226,14 +275,7 @@ test("rich editor rerenders a block header after clicking body text", async ({ p
   const body = page.locator("#editor .cm-line", {
     hasText: "This referenced block exists",
   }).first();
-  const bodyPoint = await body.evaluate((el) => {
-    const rect = el.getBoundingClientRect();
-    return {
-      x: rect.left + 200,
-      y: rect.top + rect.height / 2,
-    };
-  });
-  await page.mouse.click(bodyPoint.x, bodyPoint.y);
+  await clickLineOffset(page, body, 200);
 
   await expect(page.locator("#editor .cm-line.cf-block-source", {
     hasText: "thm:hover-preview",
@@ -249,14 +291,7 @@ test("rich editor rerenders a code header after clicking code body text", async 
 
   const language = page.locator("#editor .cf-codeblock-language", { hasText: "haskell" }).first();
   await expect(language).toBeVisible();
-  const languagePoint = await language.evaluate((el) => {
-    const rect = el.getBoundingClientRect();
-    return {
-      x: rect.left + rect.width / 2,
-      y: rect.top + rect.height / 2,
-    };
-  });
-  await page.mouse.click(languagePoint.x, languagePoint.y);
+  await clickLocatorCenter(page, language);
   await expect(page.locator("#editor .cm-line.cf-codeblock-source-open", {
     hasText: "```haskell",
   })).toBeVisible();
@@ -264,14 +299,7 @@ test("rich editor rerenders a code header after clicking code body text", async 
   const body = page.locator("#editor .cm-line", {
     hasText: "fibonacci :: Int -> Int",
   }).first();
-  const bodyPoint = await body.evaluate((el) => {
-    const rect = el.getBoundingClientRect();
-    return {
-      x: rect.left + 160,
-      y: rect.top + rect.height / 2,
-    };
-  });
-  await page.mouse.click(bodyPoint.x, bodyPoint.y);
+  await clickLineOffset(page, body, 160);
 
   await expect(page.locator("#editor .cm-line.cf-codeblock-source-open", {
     hasText: "```haskell",
@@ -548,57 +576,52 @@ test("public demo reader surface shows shared hover previews", async ({ page }) 
 });
 
 test("public format guide keeps reader and editor code block wrapping aligned", async ({ page }) => {
-  await page.setViewportSize({ width: 1280, height: 900 });
+  for (const viewportWidth of [1280, 390]) {
+    await page.setViewportSize({ width: viewportWidth, height: 900 });
 
-  await page.goto("/examples/simple/index.html?doc=format&surface=reader");
-  const readerCode = page.locator("#reader .cf-doc-code-block code", {
-    hasText: "markdown+fenced_divs",
-  }).first();
-  await expect(readerCode).toBeVisible();
-  const readerMetrics = await readerCode.evaluate((el) => {
-    const rect = el.getBoundingClientRect();
-    const style = getComputedStyle(el);
-    return {
-      height: rect.height,
-      lineHeight: Number.parseFloat(style.lineHeight),
-      overflowWrap: style.overflowWrap,
-      scrollWidth: el.scrollWidth,
-      clientWidth: el.clientWidth,
-      whiteSpace: style.whiteSpace,
-      wordBreak: style.wordBreak,
-    };
-  });
+    await page.goto("/examples/simple/index.html?doc=format&surface=reader");
+    const readerCode = page.locator("#reader .cf-doc-code-block code", {
+      hasText: "markdown+fenced_divs",
+    }).first();
+    await expect(readerCode).toBeVisible();
+    expectPreWrapMetrics(
+      await readWrapMetrics(readerCode),
+      `reader code block at ${viewportWidth}px`,
+    );
 
-  await page.goto("/examples/simple/index.html?doc=format&surface=editor");
-  await expect(page.locator("#editor .cm-editor")).toBeVisible();
-  const editorCode = page.locator("#editor .cm-line.cf-codeblock-last", {
-    hasText: "markdown+fenced_divs",
-  }).first();
-  await expect(editorCode).toBeVisible();
-  const editorMetrics = await editorCode.evaluate((el) => {
-    const rect = el.getBoundingClientRect();
-    const style = getComputedStyle(el);
-    return {
-      height: rect.height,
-      lineHeight: Number.parseFloat(style.lineHeight),
-      overflowWrap: style.overflowWrap,
-      scrollWidth: el.scrollWidth,
-      clientWidth: el.clientWidth,
-      whiteSpace: style.whiteSpace,
-      wordBreak: style.wordBreak,
-    };
-  });
+    await page.goto("/examples/simple/index.html?doc=format&surface=editor");
+    await expect(page.locator("#editor .cm-editor")).toBeVisible();
+    const editorCode = page.locator("#editor .cm-line.cf-codeblock-last", {
+      hasText: "markdown+fenced_divs",
+    }).first();
+    await expect(editorCode).toBeVisible();
+    expectPreWrapMetrics(
+      await readWrapMetrics(editorCode),
+      `editor code block last row at ${viewportWidth}px`,
+    );
+  }
+});
 
-  expect(readerMetrics.whiteSpace).toBe("pre");
-  expect(editorMetrics.whiteSpace).toBe("pre");
-  expect(readerMetrics.overflowWrap).toBe("normal");
-  expect(editorMetrics.overflowWrap).toBe("normal");
-  expect(readerMetrics.wordBreak).toBe("normal");
-  expect(editorMetrics.wordBreak).toBe("normal");
-  expect(readerMetrics.scrollWidth).toBeGreaterThan(readerMetrics.clientWidth);
-  expect(editorMetrics.scrollWidth).toBeGreaterThan(editorMetrics.clientWidth);
-  expect(editorMetrics.height).toBeLessThanOrEqual(editorMetrics.lineHeight + 1);
-  expect(readerMetrics.height).toBeLessThanOrEqual(readerMetrics.lineHeight + 1);
+test("rich editor keeps all rendered code block row types unwrapped", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 700 });
+  await page.goto("/tests/e2e/fixtures/index.html");
+  await setEditorDoc(page, [
+    "```verylonglanguageidentifierabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz",
+    "const middle = 'abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz';",
+    "const last = 'abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz';",
+    "```",
+  ].join("\n"), "rich");
+  await settleLayout(page);
+
+  for (const [selector, label] of [
+    [".cm-line.cf-codeblock-header", "header row"],
+    [".cm-line.cf-codeblock-body", "middle row"],
+    [".cm-line.cf-codeblock-last", "last row"],
+  ] as const) {
+    const row = page.locator(selector).first();
+    await expect(row, label).toBeVisible();
+    expectPreWrapMetrics(await readWrapMetrics(row), label);
+  }
 });
 
 test("public demo reader resolves showcase local images", async ({ page }) => {
@@ -626,7 +649,8 @@ test("public demo reader block hover previews are inert", async ({ page }) => {
   await blockReference.hover();
 
   const tooltip = page.locator('.cf-hover-preview-tooltip[data-visible="true"]');
-  await expect(tooltip).toContainText("Hover Preview Stress Test");
+  await expect(tooltip).toContainText("Theorem 1");
+  await expect(tooltip).toContainText("This referenced block exists");
   await expect(tooltip.locator(".cf-block-disclosure-toggle")).toHaveCount(0);
   await expect(tooltip.locator(".cf-doc-block-collapsible")).toHaveCount(0);
   const previewList = tooltip.locator(".cf-doc-list--unordered").first();
@@ -890,12 +914,12 @@ test("public demo exposes matching section and block disclosure controls", async
     return {
       expanded: heading.getAttribute("data-cf-section-open"),
       hidden: body instanceof HTMLElement ? body.hidden : null,
-      text: heading.querySelector(".cf-section-disclosure-toggle")?.textContent,
+      ariaExpanded: heading.querySelector(".cf-section-disclosure-toggle")?.getAttribute("aria-expanded"),
     };
   })).toEqual({
     expanded: "false",
     hidden: true,
-    text: "▶",
+    ariaExpanded: "false",
   });
 
   const readerBlockButton = page.locator('#reader [id="thm:hover-preview"] > .cf-doc-block-heading > .cf-block-disclosure-toggle');
@@ -907,12 +931,12 @@ test("public demo exposes matching section and block disclosure controls", async
     return {
       expanded: block.getAttribute("data-cf-block-open"),
       hidden: body instanceof HTMLElement ? body.hidden : null,
-      text: block.querySelector(":scope > .cf-doc-block-heading > .cf-block-disclosure-toggle")?.textContent,
+      ariaExpanded: block.querySelector(":scope > .cf-doc-block-heading > .cf-block-disclosure-toggle")?.getAttribute("aria-expanded"),
     };
   })).toEqual({
     expanded: "false",
     hidden: true,
-    text: "▶",
+    ariaExpanded: "false",
   });
 
   await page.goto("/examples/simple/index.html?doc=showcase&surface=editor");
@@ -926,7 +950,6 @@ test("public demo exposes matching section and block disclosure controls", async
   await expect(editorBlockButton).toHaveAttribute("aria-label", "Fold block");
   await expect(editorBlockButton).toHaveCSS("font-style", "normal");
   await editorBlockButton.click({ force: true });
-  await expect(editorBlockButton).toHaveText("▶");
   await expect(editorBlockButton).toHaveAttribute("aria-label", "Unfold block");
   await expect(editorBlockButton).toHaveCSS("font-style", "normal");
 
@@ -934,7 +957,6 @@ test("public demo exposes matching section and block disclosure controls", async
   await expect(editorSectionButton).toHaveCount(1);
   await expect(editorSectionButton).toHaveAttribute("aria-label", "Fold section");
   await editorSectionButton.click({ force: true });
-  await expect(editorSectionButton).toHaveText("▶");
   await expect(editorSectionButton).toHaveAttribute("aria-label", "Unfold section");
 });
 
@@ -1052,7 +1074,6 @@ test("blueprint book theme applies to a host-rendered reader document", async ({
   const theoremHeaderText = theoremHeader.locator("> .cf-block-heading-content");
   await expect(theoremHeader).toContainText("Theorem 1");
   await expect(theoremHeader).toContainText("Readable column");
-  await expect(theoremToggle).toHaveText("▼");
   await expect(theoremToggle).toHaveAttribute("aria-expanded", "true");
   await expect(theoremToggle).toHaveCSS("font-style", "normal");
   await expect(proof).toContainText("Proof");
@@ -1145,10 +1166,10 @@ test("blueprint book theme applies to a host-rendered reader document", async ({
   expect(Math.abs(afterHover.width - beforeHover.width)).toBeLessThanOrEqual(0.5);
 
   await theoremToggle.click({ force: true });
-  await expect(theoremToggle).toHaveText("▶");
+  await expect(theoremToggle).toHaveAttribute("aria-expanded", "false");
   await expect(theoremToggle).toHaveCSS("font-style", "normal");
   await theoremToggle.click({ force: true });
-  await expect(theoremToggle).toHaveText("▼");
+  await expect(theoremToggle).toHaveAttribute("aria-expanded", "true");
   await expect(theoremToggle).toHaveCSS("font-style", "normal");
 
   await theoremHeaderText.click();
@@ -1156,7 +1177,6 @@ test("blueprint book theme applies to a host-rendered reader document", async ({
 
   await theoremToggle.click();
   await expect(theorem).toHaveAttribute("data-cf-block-open", "false");
-  await expect(theoremToggle).toHaveText("▶");
   await expect(theoremToggle).toHaveAttribute("aria-expanded", "false");
   await expect(theorem.locator(".cf-doc-paragraph")).toBeHidden();
 });
@@ -1200,7 +1220,7 @@ test("theme presets keep reader and CM6 rich editor surfaces visually aligned", 
     [".parity-reader .cf-doc-list--unordered .cf-doc-list-item", ".parity-editor .cf-doc-list--unordered.cf-doc-list-item", ["font-family", "font-size", "line-height"]],
     [".parity-reader .cf-doc-list--ordered .cf-doc-list-item", ".parity-editor .cf-doc-list--ordered.cf-doc-list-item", ["font-family", "font-size", "line-height"]],
     [".parity-reader input[type='checkbox']", ".parity-editor input[type='checkbox']", ["vertical-align", "margin-right"]],
-    [".parity-reader .cf-doc-code-block code", ".parity-editor .cf-codeblock-last", ["background-color", "font-family", "font-size", "line-height"]],
+    [".parity-reader .cf-doc-code-block code", ".parity-editor .cf-codeblock-last", ["background-color", "font-family", "font-size", "line-height", "white-space", "word-break", "overflow-wrap"]],
     [".parity-reader .cf-doc-table-block", ".parity-editor .cf-table-widget table", ["border-collapse", "font-size"]],
     [".parity-reader .cf-doc-table-header", ".parity-editor .cf-doc-table-header", ["border-bottom-color", "border-bottom-style", "border-bottom-width", "font-weight", "line-height", "padding-left", "padding-right"]],
     [".parity-reader .cf-doc-table-cell:not(.cf-doc-table-header)", ".parity-editor .cf-doc-table-cell:not(.cf-doc-table-header)", ["border-left-color", "border-left-style", "border-left-width", "line-height", "padding-left", "padding-right", "text-align", "vertical-align", "white-space", "word-break", "overflow-wrap"]],

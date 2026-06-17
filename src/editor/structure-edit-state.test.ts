@@ -11,6 +11,7 @@ import {
   activeStructureEditField,
   createFencedStructureEditTarget,
   createStructureEditTargetAt,
+  getActiveStructureEditSignature,
   getActiveStructureEditTarget,
   setStructureEditTargetEffect,
 } from "./state/cm-structure-edit";
@@ -74,6 +75,20 @@ describe("structure-edit-state", () => {
     }).state;
 
     expect(getActiveStructureEditTarget(cleared)).toBeNull();
+  });
+
+  it("exposes a kind-scoped active target signature for render rebuild checks", () => {
+    const doc = `::: {.proof}\nBody\n:::`;
+    const state = createState(doc);
+    const target = createFencedStructureEditTarget(state, 0);
+    expect(target).not.toBeNull();
+
+    const active = applyStateEffects(state, setStructureEditTargetEffect.of(target));
+
+    expect(getActiveStructureEditSignature(active, "fenced-opener")).toMatch(
+      /^fenced-opener:0:/,
+    );
+    expect(getActiveStructureEditSignature(active, "code-fence")).toBe("");
   });
 
   it("re-resolves the frontmatter target against the current frontmatter extent", () => {

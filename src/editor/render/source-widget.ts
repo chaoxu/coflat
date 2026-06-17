@@ -145,6 +145,30 @@ export function resolveLiveWidgetSourceRange(
   return { from: fallbackFrom, to: fallbackTo };
 }
 
+function sourceRevealTargetFromPointer(
+  sourceRange: WidgetSourceRange,
+  el: HTMLElement,
+  clientX: number,
+): number {
+  if (sourceRange.to <= sourceRange.from + 1) return sourceRange.from;
+  const rect = el.getBoundingClientRect();
+  if (rect.width <= 0) return sourceRange.from;
+  const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+  return Math.round(sourceRange.from + ratio * (sourceRange.to - sourceRange.from));
+}
+
+function resolveSourceRevealTargetFromPointer(
+  view: EditorView,
+  el: HTMLElement,
+  event: Pick<MouseEvent, "clientX">,
+  fallbackPos: number,
+): number {
+  const liveRange = resolveLiveWidgetSourceRange(view, el);
+  return liveRange
+    ? sourceRevealTargetFromPointer(liveRange, el, event.clientX)
+    : fallbackPos;
+}
+
 export function registerWidgetSearchHighlightTarget(
   view: EditorView,
   el: HTMLElement,
@@ -293,15 +317,7 @@ export abstract class RenderWidget extends BaseRenderWidget {
     el.addEventListener("mousedown", (event) => {
       event.preventDefault();
       view.focus();
-      const liveRange = resolveLiveWidgetSourceRange(view, el);
-      let targetPos = liveRange?.from ?? this.sourceFrom;
-      if (liveRange && liveRange.to > liveRange.from + 1) {
-        const rect = el.getBoundingClientRect();
-        if (rect.width > 0) {
-          const ratio = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
-          targetPos = Math.round(liveRange.from + ratio * (liveRange.to - liveRange.from));
-        }
-      }
+      const targetPos = resolveSourceRevealTargetFromPointer(view, el, event, this.sourceFrom);
       if (targetPos >= 0 && activateStructureEditAt(view, targetPos)) {
         return;
       }
