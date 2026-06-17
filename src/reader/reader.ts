@@ -839,6 +839,10 @@ function renderInlineNode(
       }
       return { html: escapeHtml(ch), text: ch, hasMath: false };
     }
+    case NODE.HardBreak: {
+      const sp = sourcePosAttrs(ctx, node.from, node.to);
+      return { html: `<br${sp}>`, text: " ", hasMath: false };
+    }
     case NODE.Text: {
       const raw = source.slice(node.from, node.to);
       if (ctx.sourcePositions) {

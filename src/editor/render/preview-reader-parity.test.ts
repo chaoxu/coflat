@@ -110,6 +110,10 @@ describe("reader / editor-preview emission parity", () => {
       source: "First source line with **bold** text\nsecond source line with `code` and ==mark==.\n\nNext paragraph.",
     },
     {
+      name: "paragraph hard line break",
+      source: "First source line  \nsecond source line.\n\nNext paragraph.",
+    },
+    {
       name: "tight unordered list",
       source: "- one\n- two\n- three",
     },

@@ -55,6 +55,7 @@ export const NODE = {
   StrongEmphasis: "StrongEmphasis",
   Strikethrough: "Strikethrough",
   Highlight: "Highlight",
+  HardBreak: "HardBreak",
   Text: "Text",
 
   // Footnotes (custom extension)

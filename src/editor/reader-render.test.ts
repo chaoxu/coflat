@@ -559,6 +559,13 @@ describe("renderToHtml — block-level rendering ()", () => {
     expect(r.html).toContain('data-math="y^2"');
   });
 
+  it("renders hard line breaks as br elements", () => {
+    const r = renderToHtml("first line  \nsecond line");
+    expect(r.html).toContain("first line");
+    expect(r.html).toContain("<br>");
+    expect(r.html).toContain("second line");
+  });
+
   it("emits display math placeholder with canonical class", () => {
     const r = renderToHtml("eq:\n\n$$x^2$$\n\nend");
     expect(r.hasMath).toBe(true);
