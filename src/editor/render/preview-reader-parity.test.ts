@@ -106,6 +106,10 @@ describe("reader / editor-preview emission parity", () => {
       source: "Hello *world* and **bold** and `code` and ~~gone~~ and ==marked==.\n\nSecond paragraph.",
     },
     {
+      name: "paragraph soft line breaks",
+      source: "First source line with **bold** text\nsecond source line with `code` and ==mark==.\n\nNext paragraph.",
+    },
+    {
       name: "tight unordered list",
       source: "- one\n- two\n- three",
     },

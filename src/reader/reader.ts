@@ -62,6 +62,7 @@ import {
 } from "../core/document-surface-classes";
 import { renderCodeBlockHtml } from "../core/code-block-surface";
 import { renderFootnoteSectionHtml } from "../core/footnote-section-surface";
+import { renderParagraphHtml } from "../core/paragraph-surface";
 import {
   createPreviewSurfaceBody,
   createPreviewSurfaceContent,
@@ -325,7 +326,7 @@ function renderProofBlockHtml(attrs: string, sourceAttrs: string, summaryHtml: s
   if (!firstParagraph?.[1] || !/\bclass="[^"]*\bcf-doc-paragraph\b[^"]*"/.test(firstParagraph[1])) {
     return (
       `<div${attrs}${sourceAttrs}>` +
-      `<p class="${paragraphClasses}"><span class="${DOCUMENT_SURFACE_CLASS.blockHeading}">${summaryHtml}</span></p>` +
+      renderParagraphHtml(`<span class="${DOCUMENT_SURFACE_CLASS.blockHeading}">${summaryHtml}</span>`) +
       bodyHtml +
       `</div>`
     );
@@ -335,7 +336,7 @@ function renderProofBlockHtml(attrs: string, sourceAttrs: string, summaryHtml: s
   if (closeStart < 0) {
     return (
       `<div${attrs}${sourceAttrs}>` +
-      `<p class="${paragraphClasses}"><span class="${DOCUMENT_SURFACE_CLASS.blockHeading}">${summaryHtml}</span></p>` +
+      renderParagraphHtml(`<span class="${DOCUMENT_SURFACE_CLASS.blockHeading}">${summaryHtml}</span>`) +
       bodyHtml +
       `</div>`
     );
@@ -1598,7 +1599,7 @@ function renderParagraph(ctx: WalkContext, node: SyntaxNode): BlockResult {
   // stay available for CSS to preserve rich-editor visual parity.
   const html = inner.html.replace(/^\s+/, "").replace(/\s+$/, "");
   return {
-    html: `<p class="${paragraphClasses}"${blockSourceAttrs(ctx, node.from, node.to)}>${html}</p>`,
+    html: renderParagraphHtml(html, blockSourceAttrs(ctx, node.from, node.to)),
     text: inner.text.replace(/^\s+/, "").replace(/\s+$/, ""),
     hasMath: inner.hasMath,
   };
@@ -1677,7 +1678,10 @@ function renderListItem(
         // Task is an inline-content wrapper; treat its content as paragraph text.
         const inner = renderInline(ctx, child, child.from, child.to);
         blocks.push({
-          html: `<p class="${paragraphClasses}"${blockSourceAttrs(ctx, child.from, child.to)}>${inner.html.replace(/^\s+/, "").replace(/\s+$/, "")}</p>`,
+          html: renderParagraphHtml(
+            inner.html.replace(/^\s+/, "").replace(/\s+$/, ""),
+            blockSourceAttrs(ctx, child.from, child.to),
+          ),
           text: inner.text.replace(/^\s+/, "").replace(/\s+$/, ""),
           hasMath: inner.hasMath,
         });

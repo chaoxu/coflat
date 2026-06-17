@@ -15,6 +15,7 @@ import {
   documentSurfaceClassNames,
 } from "../../core/document-surface-classes";
 import { appendCodeBlockDom } from "../../core/code-block-surface";
+import { appendParagraphDom, createParagraphDom } from "../../core/paragraph-surface";
 import type { BlockCounterEntry } from "../../core/lib/file-system-types";
 import {
   extractRawFrontmatter,
@@ -231,10 +232,9 @@ function renderParagraph(
   node: SyntaxNode,
   context: PreviewRenderContext,
 ): void {
-  const paragraph = document.createElement("p");
-  paragraph.className = DOCUMENT_SURFACE_CLASS.paragraph;
-  appendInlineNode(paragraph, node, context);
-  parent.appendChild(paragraph);
+  appendParagraphDom(parent, document, (paragraph) => {
+    appendInlineNode(paragraph, node, context);
+  });
 }
 
 function renderHeading(
@@ -658,9 +658,9 @@ function prependInlineHeader(body: DocumentFragment, summary: DocumentFragment):
     return;
   }
 
-  const paragraph = document.createElement("p");
-  paragraph.className = DOCUMENT_SURFACE_CLASS.paragraph;
-  paragraph.appendChild(header);
+  const paragraph = createParagraphDom(document, (paragraph) => {
+    paragraph.appendChild(header);
+  });
   body.prepend(paragraph);
 }
 
