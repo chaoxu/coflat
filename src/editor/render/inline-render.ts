@@ -11,6 +11,7 @@ import {
   CSS,
   mathSurfaceClassNames,
 } from "../../core/constants/css-classes";
+import { createReaderFootnoteReferenceElement } from "../../core/footnote-reference-surface";
 import { createInlineMarkElement } from "../../core/inline-mark-surface";
 import {
   ClusteredCrossrefWidget,
@@ -343,17 +344,13 @@ function renderFragment(
     }
 
     case "footnote-ref": {
-      const sup = document.createElement("sup");
       if (surface === "ui-chrome-inline") {
+        const sup = document.createElement("sup");
         sup.textContent = fragment.id;
+        container.appendChild(sup);
       } else {
-        const anchor = document.createElement("a");
-        anchor.className = "footnote-ref";
-        anchor.href = `#fn-${fragment.id}`;
-        anchor.textContent = fragment.id;
-        sup.appendChild(anchor);
+        container.appendChild(createReaderFootnoteReferenceElement(document, fragment.id, fragment.id));
       }
-      container.appendChild(sup);
       return;
     }
 

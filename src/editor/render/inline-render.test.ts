@@ -385,6 +385,13 @@ describe("renderInlineMarkdown — surface policies", () => {
     expect(html).toBe("Title<sup>1</sup>");
   });
 
+  it("renders document-body footnote refs through the shared reader surface", () => {
+    const html = render("Title[^note:1]");
+    expect(html).toBe(
+      'Title<sup class="cf-footnote-ref"><a href="#fn-note%3A1" id="fnref-note%3A1">note:1</a></sup>',
+    );
+  });
+
   it("renders cross references as inert text in ui-chrome-inline", () => {
     const html = render("See [@thm-evt]", {}, "ui-chrome-inline");
     expect(html).toBe("See @thm-evt");

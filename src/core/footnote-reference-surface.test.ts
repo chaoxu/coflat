@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   createEditorFootnoteReferenceElement,
+  createReaderFootnoteReferenceElement,
   footnoteAnchorId,
   footnoteReferenceAnchorId,
   renderReaderFootnoteReferenceHtml,
@@ -17,6 +18,13 @@ describe("footnote reference surface", () => {
       '<sup class="cf-footnote-ref" data-source-from="2">' +
         '<a href="#fn-note%3A1" id="fnref-note%3A1">3</a>' +
         "</sup>",
+    );
+  });
+
+  it("creates reader footnote reference DOM", () => {
+    const el = createReaderFootnoteReferenceElement(document, "3", "note:1");
+    expect(el.outerHTML).toBe(
+      '<sup class="cf-footnote-ref"><a href="#fn-note%3A1" id="fnref-note%3A1">3</a></sup>',
     );
   });
 

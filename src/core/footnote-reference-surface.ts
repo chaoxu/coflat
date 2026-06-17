@@ -23,6 +23,23 @@ export function renderReaderFootnoteReferenceHtml(
   );
 }
 
+export function createReaderFootnoteReferenceElement(
+  ownerDocument: Document,
+  label: string,
+  id: string,
+): HTMLElement {
+  const sup = ownerDocument.createElement("sup");
+  sup.className = CSS.footnoteRef;
+
+  const anchor = ownerDocument.createElement("a");
+  anchor.href = `#${footnoteAnchorId(id)}`;
+  anchor.id = footnoteReferenceAnchorId(id);
+  anchor.textContent = label;
+  sup.appendChild(anchor);
+
+  return sup;
+}
+
 export function createEditorFootnoteReferenceElement(
   ownerDocument: Document,
   number: number,
