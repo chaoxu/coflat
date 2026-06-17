@@ -60,6 +60,10 @@ import {
   DOCUMENT_SURFACE_CLASS,
   documentSurfaceClassNames,
 } from "../core/document-surface-classes";
+import {
+  headingNumberingHtmlAttrs,
+  headingSurfaceClassNames,
+} from "../core/heading-surface";
 import { renderCodeBlockHtml } from "../core/code-block-surface";
 import { renderFootnoteSectionHtml } from "../core/footnote-section-surface";
 import { renderParagraphHtml } from "../core/paragraph-surface";
@@ -147,14 +151,6 @@ const FAST_PATH_RE = /[$[:`#^<>\n|-]|^---\n/m;
 // ---------------------------------------------------------------------------
 // HTML / text escaping.
 // ---------------------------------------------------------------------------
-
-function headingClasses(level: number, unnumbered = false): string {
-  return documentSurfaceClassNames(
-    DOCUMENT_SURFACE_CLASS.heading,
-    DOCUMENT_SURFACE_CLASS.headingLevel(level),
-    unnumbered && DOCUMENT_SURFACE_CLASS.headingUnnumbered,
-  );
-}
 
 const paragraphClasses = DOCUMENT_SURFACE_CLASS.paragraph;
 
@@ -1522,9 +1518,7 @@ function renderHeading(ctx: WalkContext, node: SyntaxNode, level: number): Block
     });
   }
   const displayUnnumbered = !!attrs?.unnumbered || !ctx.numberHeadings;
-  const numberingAttr = displayUnnumbered
-    ? ' data-heading-numbering="none"'
-    : ` data-section-number="${headingNumber}"`;
+  const numberingAttr = headingNumberingHtmlAttrs(headingNumber, displayUnnumbered);
 
   // Default: an id only for explicitly-labeled headings (byte-identical to the
   // pre-outline output). With `opts.outline`, every heading gets a stable id
@@ -1541,7 +1535,7 @@ function renderHeading(ctx: WalkContext, node: SyntaxNode, level: number): Block
   }
   const idAttr = headingId ? ` id="${escapeHtml(headingId)}"` : "";
   return {
-    html: `<h${level} class="${headingClasses(level, displayUnnumbered)}"${idAttr}${numberingAttr}${blockSourceAttrs(ctx, node.from, node.to)}>${inner.html}</h${level}>`,
+    html: `<h${level} class="${headingSurfaceClassNames(level, displayUnnumbered)}"${idAttr}${numberingAttr}${blockSourceAttrs(ctx, node.from, node.to)}>${inner.html}</h${level}>`,
     text: inner.text,
     hasMath: inner.hasMath,
   };

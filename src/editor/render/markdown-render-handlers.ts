@@ -4,9 +4,9 @@ import { Decoration, WidgetType } from "@codemirror/view";
 import type { SyntaxNodeRef } from "@lezer/common";
 import { CSS } from "../../core/constants/css-classes";
 import {
-  DOCUMENT_SURFACE_CLASS,
   documentSurfaceClassNames,
 } from "../../core/document-surface-classes";
+import { headingSurfaceClassNames } from "../../core/heading-surface";
 import { findTrailingHeadingAttributes } from "../semantics/heading-ancestry";
 import {
   addMarkerReplacement,
@@ -40,43 +40,37 @@ const headingMarkByLevel: Record<string, Decoration> = {
 const headingLineByLevel: Record<string, Decoration> = {
   ATXHeading1: Decoration.line({
     class: documentSurfaceClassNames(
-      DOCUMENT_SURFACE_CLASS.heading,
-      DOCUMENT_SURFACE_CLASS.headingLevel(1),
+      headingSurfaceClassNames(1),
       "cf-heading-line-1",
     ),
   }),
   ATXHeading2: Decoration.line({
     class: documentSurfaceClassNames(
-      DOCUMENT_SURFACE_CLASS.heading,
-      DOCUMENT_SURFACE_CLASS.headingLevel(2),
+      headingSurfaceClassNames(2),
       "cf-heading-line-2",
     ),
   }),
   ATXHeading3: Decoration.line({
     class: documentSurfaceClassNames(
-      DOCUMENT_SURFACE_CLASS.heading,
-      DOCUMENT_SURFACE_CLASS.headingLevel(3),
+      headingSurfaceClassNames(3),
       "cf-heading-line-3",
     ),
   }),
   ATXHeading4: Decoration.line({
     class: documentSurfaceClassNames(
-      DOCUMENT_SURFACE_CLASS.heading,
-      DOCUMENT_SURFACE_CLASS.headingLevel(4),
+      headingSurfaceClassNames(4),
       "cf-heading-line-4",
     ),
   }),
   ATXHeading5: Decoration.line({
     class: documentSurfaceClassNames(
-      DOCUMENT_SURFACE_CLASS.heading,
-      DOCUMENT_SURFACE_CLASS.headingLevel(5),
+      headingSurfaceClassNames(5),
       "cf-heading-line-5",
     ),
   }),
   ATXHeading6: Decoration.line({
     class: documentSurfaceClassNames(
-      DOCUMENT_SURFACE_CLASS.heading,
-      DOCUMENT_SURFACE_CLASS.headingLevel(6),
+      headingSurfaceClassNames(6),
       "cf-heading-line-6",
     ),
   }),

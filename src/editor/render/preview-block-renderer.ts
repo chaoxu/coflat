@@ -15,6 +15,10 @@ import {
   documentSurfaceClassNames,
 } from "../../core/document-surface-classes";
 import { appendCodeBlockDom } from "../../core/code-block-surface";
+import {
+  headingSurfaceClassNames,
+  setHeadingNumberingAttrs,
+} from "../../core/heading-surface";
 import { appendParagraphDom, createParagraphDom } from "../../core/paragraph-surface";
 import type { BlockCounterEntry } from "../../core/lib/file-system-types";
 import {
@@ -246,17 +250,9 @@ function renderHeading(
   const fallbackLevel = Number(node.name[node.name.length - 1]);
   const level = heading?.level ?? fallbackLevel;
   const element = document.createElement(`h${level}`) as HTMLHeadingElement;
-  element.className = documentSurfaceClassNames(
-    DOCUMENT_SURFACE_CLASS.heading,
-    DOCUMENT_SURFACE_CLASS.headingLevel(level),
-    heading?.unnumbered && DOCUMENT_SURFACE_CLASS.headingUnnumbered,
-  );
+  element.className = headingSurfaceClassNames(level, heading?.unnumbered ?? false);
   if (heading) {
-    if (heading.unnumbered) {
-      element.dataset.headingNumbering = "none";
-    } else {
-      element.dataset.sectionNumber = heading.number;
-    }
+    setHeadingNumberingAttrs(element, heading.number, heading.unnumbered);
   }
 
   if (heading?.id) {
