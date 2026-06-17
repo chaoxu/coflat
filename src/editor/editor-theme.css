@@ -1678,7 +1678,7 @@
 
 .cf-block-caption {
   display: block;
-  margin-top: var(--cf-spacing-xs);
+  padding-top: var(--cf-spacing-xs);
   text-align: center;
 }
 
@@ -1693,6 +1693,55 @@
 
 .cf-doc-block--proof .cf-block-header-rendered::after {
   content: ". ";
+}
+
+.cf-image-wrapper {
+  display: inline-block;
+  vertical-align: middle;
+  max-width: 100%;
+}
+
+div.cf-image-wrapper {
+  display: block;
+}
+
+.cf-image-loading,
+.cf-image-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100px;
+  color: var(--cf-muted);
+  font-size: 0.85em;
+  text-align: center;
+}
+
+.cf-image {
+  display: block;
+  max-width: 100%;
+  max-height: 360px;
+}
+
+.cf-doc-block--figure .cf-image-wrapper {
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  margin: 0 auto;
+}
+
+.cf-doc-block--figure .cf-image-loading,
+.cf-doc-block--figure .cf-image-placeholder {
+  width: auto;
+  margin: 0;
+}
+
+.cf-image-error {
+  display: inline-block;
+  color: var(--cf-fg);
+  font-style: italic;
+  font-size: 0.85em;
+  padding: 2px 6px;
+  border: var(--cf-border-width) solid var(--cf-fg);
 }
 
 .cf-doc-block--figure img {

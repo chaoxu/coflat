@@ -274,6 +274,27 @@ function renderBlockHeader(summaryHtml: string, bodyHtml: string): string {
   );
 }
 
+function renderBlockCaption(
+  ctx: WalkContext,
+  type: string,
+  title: string,
+  number: number | undefined,
+  sourceFrom: number,
+  sourceTo: number,
+): BlockResult {
+  const renderedTitle = renderInlineSnippet(ctx, title);
+  const label = formatBlockReferenceLabel(blockDisplayTitle(ctx, type), number);
+  return {
+    html:
+      `<div class="cf-block-caption"${sourcePosAttrs(ctx, sourceFrom, sourceTo)}>` +
+      `<span class="${CSS.blockHeaderRendered}">${escapeHtml(label)}</span>` +
+      `<span class="cf-block-caption-text">${renderedTitle.html}</span>` +
+      `</div>`,
+    text: `${label} ${renderedTitle.text}`,
+    hasMath: renderedTitle.hasMath,
+  };
+}
+
 function addRootClass(html: string, className: string): string {
   return html.replace(/^<([a-z][\w:-]*)([^>]*)>/i, (match, tag: string, attrs: string) => {
     const classAttr = attrs.match(/\sclass="([^"]*)"/);
@@ -1107,6 +1128,17 @@ function stripTags(html: string): string {
   return html.replace(/<[^>]*>/g, "");
 }
 
+function isUnresolvedLocalMediaUrl(src: string): boolean {
+  return !/^(?:[a-z][a-z0-9+.-]*:|\/)/i.test(src);
+}
+
+function mediaLoadingLabel(src: string, alt: string): string {
+  const fallback = alt || "preview";
+  return /\.pdf(?:[?#].*)?$/i.test(src)
+    ? `[Loading PDF: ${fallback}]`
+    : `[Loading image: ${fallback}]`;
+}
+
 function emitImage(
   ctx: WalkContext,
   node: SyntaxNode,
@@ -1146,6 +1178,16 @@ function emitImage(
       };
     }
     return { html: escapeHtml(alt), text: alt, hasMath: false };
+  }
+  if (isUnresolvedLocalMediaUrl(src)) {
+    return {
+      html:
+        `<span class="${CSS.imageWrapper} ${CSS.imageLoading}"${sp}>` +
+        escapeHtml(mediaLoadingLabel(src, alt)) +
+        `</span>`,
+      text: alt,
+      hasMath: false,
+    };
   }
   return {
     html: `<img class="${CSS.image}" src="${escapeHtml(src)}" alt="${escapeHtml(alt)}"${sp}>`,
@@ -1849,8 +1891,16 @@ function renderFencedDiv(ctx: WalkContext, node: SyntaxNode): BlockResult {
   let bodyTo: number | null = null;
   let child = node.firstChild;
   while (child) {
+    if (child.name === NODE.FencedDivFence) {
+      if (previousRenderable && child.from > previousRenderable.to) {
+        for (const [from, to] of blankLineRangesBetweenBlocks(ctx.source, previousRenderable.to, child.from)) {
+          blocks.push(renderBlankLine(ctx, from, to));
+        }
+      }
+      child = child.nextSibling;
+      continue;
+    }
     if (
-      child.name === NODE.FencedDivFence ||
       child.name === NODE.FencedDivAttributes ||
       child.name === "FencedDivTitle"
     ) {
@@ -1888,10 +1938,13 @@ function renderFencedDiv(ctx: WalkContext, node: SyntaxNode): BlockResult {
     attrs += ` data-${escapeHtml(k)}="${escapeHtml(v)}"`;
   }
   const body = combineBlocks(blocks);
-  const bodyHtml = body.html;
   const sourceAttrs = blockSourceAttrs(ctx, node.from, node.to);
   const title = kvs.title;
   const number = normalizedClassName ? nextBlockNumber(ctx, normalizedClassName) : undefined;
+  const caption = manifestEntry?.captionPosition === "below" && title
+    ? renderBlockCaption(ctx, normalizedClassName, title, number, node.from, node.to)
+    : emptyBlock();
+  const bodyHtml = body.html + caption.html;
   if (ctx.buildCatalog && id && normalizedClassName) {
     ctx.catalog.set(id, {
       kind: "block",
@@ -1926,8 +1979,8 @@ function renderFencedDiv(ctx: WalkContext, node: SyntaxNode): BlockResult {
 
   return {
     html,
-    text: body.text,
-    hasMath: summary.hasMath || body.hasMath,
+    text: [body.text, caption.text].filter(Boolean).join("\n\n"),
+    hasMath: summary.hasMath || body.hasMath || caption.hasMath,
   };
 }
 

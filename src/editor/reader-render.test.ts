@@ -458,6 +458,39 @@ describe("renderToHtml — block-level rendering ()", () => {
     expect(r.hasMath).toBe(true);
   });
 
+  it("renders below-content captions for figure and table blocks", () => {
+    const r = renderToHtml(
+      [
+        '::: {.table #tbl:main title="Results table"}',
+        "| A | B |",
+        "| --- | --- |",
+        "| 1 | 2 |",
+        ":::",
+        "",
+        '::: {.figure #fig:main title="Preview figure"}',
+        "![Preview image](preview.png)",
+        ":::",
+      ].join("\n"),
+      undefined,
+      { sourcePositions: true },
+    );
+
+    expect(r.html).toContain('class="cf-block-caption"');
+    expect(r.html).toContain('<span class="cf-block-header-rendered">Table 1</span>');
+    expect(r.html).toContain('<span class="cf-block-caption-text">Results table</span>');
+    expect(r.html).toContain('<span class="cf-block-header-rendered">Figure 1</span>');
+    expect(r.html).toContain('<span class="cf-block-caption-text">Preview figure</span>');
+    expect(r.html).toMatch(/<div class="cf-block-caption" data-source-from="\d+" data-source-to="\d+">/);
+  });
+
+  it("uses editor-compatible loading placeholders for unresolved relative media", () => {
+    const r = renderToHtml("![Preview image](preview.png)\n\n![Paper](paper.pdf)");
+    expect(r.html).toContain('class="cf-image-wrapper cf-image-loading"');
+    expect(r.html).toContain("[Loading image: Preview image]");
+    expect(r.html).toContain("[Loading PDF: Paper]");
+    expect(r.html).not.toContain("<img");
+  });
+
   it("renders proof headers inline with the first paragraph", () => {
     const r = renderToHtml("::: {.proof title=\"main theorem\"}\nbody\n:::");
     expect(r.html).toContain('<div class="cf-doc-block cf-doc-block--proof"');
