@@ -14,6 +14,7 @@ import {
   createInlineMathSurfaceElement,
   renderInlineMathErrorFallback,
 } from "../../core/math-inline-surface";
+import { createImageSurfaceElement } from "../../core/media-surface";
 import {
   ClusteredCrossrefWidget,
   CrossrefWidget,
@@ -293,10 +294,7 @@ function renderFragment(
     case "image": {
       const src = fragment.src?.trim();
       if (surface === "document-body" && src && isSafeUrl(src)) {
-        const img = document.createElement("img");
-        img.src = src;
-        img.alt = fragment.rawAlt;
-        container.appendChild(img);
+        container.appendChild(createImageSurfaceElement(document, "span", src, fragment.rawAlt));
         return;
       }
       renderFragments(container, fragment.alt, macros, surface, referenceContext);

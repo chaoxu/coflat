@@ -34,6 +34,7 @@ import {
   createDisplayMathSurfaceElement,
   replaceDisplayMathContent,
 } from "../../core/math-display-surface";
+import { displayMathLatex } from "../../core/math-source";
 import {
   createHeadingSurfaceElement,
 } from "../../core/heading-surface";
@@ -596,18 +597,7 @@ function renderDisplayMath(
   node: SyntaxNode,
   context: PreviewRenderContext,
 ): void {
-  const marks = node.getChildren("DisplayMathMark");
-  let latex = "";
-
-  if (marks.length >= 2) {
-    const afterOpen = marks[0].to;
-    const beforeClose = marks[marks.length - 1].from;
-    if (beforeClose > afterOpen) {
-      latex = context.doc.slice(afterOpen, beforeClose).trim();
-    }
-  } else if (marks.length === 1) {
-    latex = context.doc.slice(marks[0].to, node.to).trim();
-  }
+  const latex = displayMathLatex(context.doc, node);
 
   const equationLabel = node.getChild("EquationLabel");
   const equationId = equationLabel

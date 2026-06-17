@@ -40,6 +40,17 @@ export function createImageElement(
   return img;
 }
 
+export function createImageSurfaceElement(
+  ownerDocument: Document,
+  tagName: MediaWrapperTag,
+  src: string,
+  alt: string,
+): HTMLElement {
+  const wrapper = createMediaWrapperElement(ownerDocument, tagName);
+  wrapper.appendChild(createImageElement(ownerDocument, src, alt));
+  return wrapper;
+}
+
 export function renderImageSurfaceHtml(
   src: string,
   alt: string,

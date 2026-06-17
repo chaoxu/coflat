@@ -99,6 +99,12 @@ import {
 } from "../core/math-display-surface";
 import { renderInlineMathPlaceholderHtml } from "../core/math-inline-surface";
 import {
+  displayMathLatex,
+  displayMathLatexRange,
+  stripMathDelimiters,
+  trimSourceRange,
+} from "../core/math-source";
+import {
   renderImageSurfaceHtml,
   renderMediaLoadingHtml,
 } from "../core/media-surface";
@@ -780,7 +786,7 @@ function renderInlineNode(
     }
     case NODE.InlineMath: {
       const raw = source.slice(node.from, node.to);
-      const inner = stripMathDelims(raw, false);
+      const inner = stripMathDelimiters(raw, false);
       const sp = mathSourcePosAttrs(ctx, node.from, node.to);
       return {
         html: renderInlineMathPlaceholderHtml(inner, raw, { sourceAttrs: sp }),
@@ -790,7 +796,7 @@ function renderInlineNode(
     }
     case NODE.DisplayMath: {
       const raw = source.slice(node.from, node.to);
-      const inner = stripMathDelims(raw, true);
+      const inner = stripMathDelimiters(raw, true);
       const sp = mathSourcePosAttrs(ctx, node.from, node.to);
       return {
         html: `<span class="${mathSurfaceClassNames(true)}" data-math="${escapeHtml(inner)}"${sp}>${escapeHtml(raw)}</span>`,
@@ -854,52 +860,6 @@ function renderInlineNode(
     return { html: `<span class="${CSS.text}"${sp}>${escapeHtml(raw)}</span>`, text: raw, hasMath: false };
   }
   return { html: escapeHtml(raw), text: raw, hasMath: false };
-}
-
-function stripMathDelims(raw: string, display: boolean): string {
-  if (display) {
-    // $$..$$ or \[..\]
-    if (raw.startsWith("$$") && raw.endsWith("$$") && raw.length >= 4) {
-      return raw.slice(2, -2);
-    }
-    if (raw.startsWith("\\[") && raw.endsWith("\\]") && raw.length >= 4) {
-      return raw.slice(2, -2);
-    }
-    return raw;
-  }
-  if (raw.startsWith("$") && raw.endsWith("$") && raw.length >= 2) {
-    return raw.slice(1, -1);
-  }
-  if (raw.startsWith("\\(") && raw.endsWith("\\)") && raw.length >= 4) {
-    return raw.slice(2, -2);
-  }
-  return raw;
-}
-
-function displayMathLatex(ctx: WalkContext, node: SyntaxNode): string {
-  const marks = node.getChildren("DisplayMathMark");
-  if (marks.length >= 2) {
-    return ctx.source.slice(marks[0].to, marks[marks.length - 1].from).trim();
-  }
-  const label = node.getChild(NODE.EquationLabel);
-  const sourceEnd = label ? label.from : node.to;
-  return stripMathDelims(ctx.source.slice(node.from, sourceEnd).trim(), true).trim();
-}
-
-function trimSourceRange(source: string, from: number, to: number): { from: number; to: number } {
-  while (from < to && /\s/.test(source[from] ?? "")) from++;
-  while (to > from && /\s/.test(source[to - 1] ?? "")) to--;
-  return { from, to };
-}
-
-function displayMathLatexRange(ctx: WalkContext, node: SyntaxNode): { from: number; to: number } {
-  const marks = node.getChildren("DisplayMathMark");
-  if (marks.length >= 2) {
-    return trimSourceRange(ctx.source, marks[0].to, marks[marks.length - 1].from);
-  }
-  const label = node.getChild(NODE.EquationLabel);
-  const sourceEnd = label ? label.from : node.to;
-  return trimSourceRange(ctx.source, node.from, sourceEnd);
 }
 
 function equationLabelId(ctx: WalkContext, node: SyntaxNode): string | null {
@@ -1342,7 +1302,7 @@ function renderBlock(ctx: WalkContext, node: SyntaxNode): BlockResult {
       return renderFootnoteDef(ctx, node);
     case NODE.DisplayMath: {
       const raw = ctx.source.slice(node.from, node.to);
-      const inner = displayMathLatex(ctx, node);
+      const inner = displayMathLatex(ctx.source, node);
       const equationId = equationLabelId(ctx, node);
       const equationNumber = equationId ? ++ctx.equationCounter : undefined;
       if (ctx.buildCatalog && equationId && equationNumber !== undefined) {
@@ -1352,7 +1312,7 @@ function renderBlock(ctx: WalkContext, node: SyntaxNode): BlockResult {
         });
       }
       if (ctx.buildReferencePreviews && equationId && equationNumber !== undefined) {
-        const range = displayMathLatexRange(ctx, node);
+        const range = displayMathLatexRange(ctx.source, node);
         const label = formatEquationReferenceLabel(equationNumber);
         ctx.referencePreviewIndex.set(equationId, {
           kind: "equation",

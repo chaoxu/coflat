@@ -370,9 +370,11 @@ describe("renderInlineMarkdown — surface policies", () => {
     expect(html).toBe("alt text");
   });
 
-  it("renders body images as img elements in document-body", () => {
+  it("renders body images through the shared media surface in document-body", () => {
     const html = render("![alt text](image.png)");
-    expect(html).toBe('<img src="image.png" alt="alt text">');
+    expect(html).toBe(
+      '<span class="cf-image-wrapper"><img class="cf-image" src="image.png" alt="alt text"></span>',
+    );
   });
 
   it("escapes raw inline HTML because it is not canonical FORMAT.md", () => {

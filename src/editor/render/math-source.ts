@@ -1,53 +1,13 @@
 import type { SelectionRange } from "@codemirror/state";
-import type { SyntaxNode } from "@lezer/common";
 import type { EquationSemantics, MathSemantics } from "../semantics/document";
+export {
+  DISPLAY_DELIMITERS,
+  INLINE_DELIMITERS,
+  getDisplayMathContentEnd,
+  stripMathDelimiters,
+} from "../../core/math-source";
 
 export const MATH_TYPES = new Set(["InlineMath", "DisplayMath"]);
-
-interface MathDelimiterPair {
-  readonly open: string;
-  readonly close: string;
-}
-
-/** Delimiter patterns for extracting LaTeX content from inline math nodes. */
-export const INLINE_DELIMITERS: ReadonlyArray<MathDelimiterPair> = [
-  { open: "\\(", close: "\\)" },
-  { open: "$", close: "$" },
-];
-
-/** Delimiter patterns for extracting LaTeX content from display math nodes. */
-export const DISPLAY_DELIMITERS: ReadonlyArray<MathDelimiterPair> = [
-  { open: "\\[", close: "\\]" },
-  { open: "$$", close: "$$" },
-];
-
-/**
- * Compute the relative content boundary for a display math node that may
- * contain an EquationLabel child. Returns `undefined` when there is no label.
- */
-export function getDisplayMathContentEnd(node: SyntaxNode): number | undefined {
-  if (!node.getChild("EquationLabel")) return undefined;
-  const marks = node.getChildren("DisplayMathMark");
-  if (marks.length >= 2) {
-    return marks[marks.length - 1].to - node.from;
-  }
-  return undefined;
-}
-
-/**
- * Strip math delimiters from raw source.
- * `contentTo` slices raw to the end of the closing delimiter, excluding labels.
- */
-export function stripMathDelimiters(raw: string, isDisplay: boolean, contentTo?: number): string {
-  const trimmed = contentTo !== undefined ? raw.slice(0, contentTo) : raw;
-  const delimiters = isDisplay ? DISPLAY_DELIMITERS : INLINE_DELIMITERS;
-  for (const { open, close } of delimiters) {
-    if (trimmed.startsWith(open) && trimmed.endsWith(close)) {
-      return trimmed.slice(open.length, trimmed.length - close.length);
-    }
-  }
-  return trimmed;
-}
 
 /**
  * Snap an absolute document position to the nearest LaTeX token boundary

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { CSS } from "./constants/css-classes";
 import {
   createImageElement,
+  createImageSurfaceElement,
   createMediaWrapperElement,
   imageUnavailableLabel,
   mediaKindForSrc,
@@ -19,6 +20,10 @@ describe("media surface", () => {
     wrapper.appendChild(img);
 
     expect(wrapper.outerHTML).toBe(
+      '<span class="cf-image-wrapper"><img class="cf-image" src="figure.png" alt="Figure"></span>',
+    );
+
+    expect(createImageSurfaceElement(document, "span", "figure.png", "Figure").outerHTML).toBe(
       '<span class="cf-image-wrapper"><img class="cf-image" src="figure.png" alt="Figure"></span>',
     );
   });
