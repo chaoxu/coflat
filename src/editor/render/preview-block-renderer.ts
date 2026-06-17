@@ -37,8 +37,7 @@ import {
   replaceDisplayMathContent,
 } from "../../core/math-display-surface";
 import {
-  headingSurfaceClassNames,
-  setHeadingNumberingAttrs,
+  createHeadingSurfaceElement,
 } from "../../core/heading-surface";
 import {
   appendListMarker,
@@ -276,21 +275,23 @@ function renderHeading(
   const heading = context.semantics.headingByFrom.get(node.from);
   const fallbackLevel = Number(node.name[node.name.length - 1]);
   const level = heading?.level ?? fallbackLevel;
-  const element = document.createElement(`h${level}`) as HTMLHeadingElement;
-  element.className = headingSurfaceClassNames(level, heading?.unnumbered ?? false);
-  if (heading) {
-    setHeadingNumberingAttrs(element, heading.number, heading.unnumbered);
-  }
-
-  if (heading?.id) {
-    element.id = heading.id;
-  }
-  renderInlineMarkdown(
-    element,
-    heading?.text ?? context.doc.slice(node.from, node.to).replace(/^#{1,6}\s*/, "").trim(),
-    context.macros,
-    "document-body",
-    context.referenceContext,
+  const element = createHeadingSurfaceElement(
+    document,
+    {
+      level,
+      id: heading?.id,
+      sectionNumber: heading?.number,
+      unnumbered: heading?.unnumbered ?? false,
+    },
+    (target) => {
+      renderInlineMarkdown(
+        target,
+        heading?.text ?? context.doc.slice(node.from, node.to).replace(/^#{1,6}\s*/, "").trim(),
+        context.macros,
+        "document-body",
+        context.referenceContext,
+      );
+    },
   );
   parent.appendChild(element);
 }

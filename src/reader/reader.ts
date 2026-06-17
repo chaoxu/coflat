@@ -82,8 +82,7 @@ import {
   renderHorizontalRuleHtml,
 } from "../core/block-surface";
 import {
-  headingNumberingHtmlAttrs,
-  headingSurfaceClassNames,
+  renderHeadingSurfaceHtml,
 } from "../core/heading-surface";
 import {
   renderReadOnlyTaskCheckboxHtml,
@@ -1476,7 +1475,6 @@ function renderHeading(ctx: WalkContext, node: SyntaxNode, level: number): Block
     });
   }
   const displayUnnumbered = !!attrs?.unnumbered || !ctx.numberHeadings;
-  const numberingAttr = headingNumberingHtmlAttrs(headingNumber, displayUnnumbered);
 
   // Default: an id only for explicitly-labeled headings (byte-identical to the
   // pre-outline output). With `opts.outline`, every heading gets a stable id
@@ -1491,9 +1489,17 @@ function renderHeading(ctx: WalkContext, node: SyntaxNode, level: number): Block
         : { id: headingId, text: inner.text, html: inner.html, level, number: headingNumber },
     );
   }
-  const idAttr = headingId ? ` id="${escapeHtml(headingId)}"` : "";
   return {
-    html: `<h${level} class="${headingSurfaceClassNames(level, displayUnnumbered)}"${idAttr}${numberingAttr}${blockSourceAttrs(ctx, node.from, node.to)}>${inner.html}</h${level}>`,
+    html: renderHeadingSurfaceHtml(
+      inner.html,
+      {
+        level,
+        id: headingId,
+        sectionNumber: headingNumber,
+        unnumbered: displayUnnumbered,
+      },
+      blockSourceAttrs(ctx, node.from, node.to),
+    ),
     text: inner.text,
     hasMath: inner.hasMath,
   };
