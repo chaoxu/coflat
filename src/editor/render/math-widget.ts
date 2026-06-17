@@ -10,6 +10,11 @@ import {
   replaceDisplayMathContent,
   syncDisplayMathEquationNumber,
 } from "../../core/math-display-surface";
+import {
+  createInlineMathSurfaceElement,
+  renderInlineMathErrorFallback,
+  syncInlineMathSurfaceElement,
+} from "../../core/math-inline-surface";
 import { isPlainPrimaryMouseEvent } from "../state/mouse-selection";
 import { documentAnalysisField } from "../state/document-analysis";
 import type { MathSemantics } from "../semantics/document";
@@ -62,12 +67,14 @@ export function renderKatex(
   macros: Record<string, string>,
 ): void {
   const renderRawError = (label: string): void => {
-    element.className = isDisplay
-      ? mathSurfaceClassNames(true, CSS.mathError)
-      : mathSurfaceClassNames(false, CSS.mathError);
-    element.setAttribute("role", "alert");
-    element.setAttribute("aria-label", label);
-    element.textContent = isDisplay ? `$$${latex}$$` : `$${latex}$`;
+    if (isDisplay) {
+      element.className = mathSurfaceClassNames(true, CSS.mathError);
+      element.setAttribute("role", "alert");
+      element.setAttribute("aria-label", label);
+      element.textContent = `$$${latex}$$`;
+      return;
+    }
+    renderInlineMathErrorFallback(element, `$${latex}$`, label, { role: "alert" });
   };
 
   try {
@@ -257,10 +264,7 @@ export class MathWidget extends LazyMacroAwareWidget {
       return cloneRenderedHTMLElement(cached);
     }
 
-    const el = document.createElement("span");
-    el.className = mathSurfaceClassNames(false);
-    el.setAttribute("role", "img");
-    el.setAttribute("aria-label", this.latex);
+    const el = createInlineMathSurfaceElement(document, this.latex);
     renderKatex(el, this.latex, this.isDisplay, this.macros);
     inlineMathDomCache.set(this.inlineDomCacheKey, cloneRenderedHTMLElement(el));
     return el;
@@ -331,11 +335,13 @@ export class MathWidget extends LazyMacroAwareWidget {
       from.clearLazyWidgetHeight();
     }
 
-    dom.className = this.isDisplay
-      ? mathSurfaceClassNames(true, this.hasQedMarker && CSS.blockQed)
-      : mathSurfaceClassNames(false);
-    dom.setAttribute("role", "img");
-    dom.setAttribute("aria-label", this.latex);
+    if (this.isDisplay) {
+      dom.className = mathSurfaceClassNames(true, this.hasQedMarker && CSS.blockQed);
+      dom.setAttribute("role", "img");
+      dom.setAttribute("aria-label", this.latex);
+    } else {
+      syncInlineMathSurfaceElement(dom, this.latex);
+    }
 
     if (this.isDisplay) {
       const content = dom.firstElementChild as HTMLElement | null;

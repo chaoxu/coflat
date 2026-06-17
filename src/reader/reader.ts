@@ -97,6 +97,7 @@ import {
   replaceDisplayMathContent,
   renderDisplayMathPlaceholderHtml,
 } from "../core/math-display-surface";
+import { renderInlineMathPlaceholderHtml } from "../core/math-inline-surface";
 import {
   renderImageSurfaceHtml,
   renderMediaLoadingHtml,
@@ -778,7 +779,7 @@ function renderInlineNode(
       const inner = stripMathDelims(raw, false);
       const sp = mathSourcePosAttrs(ctx, node.from, node.to);
       return {
-        html: `<span class="${mathSurfaceClassNames(false)}" data-math="${escapeHtml(inner)}"${sp}>${escapeHtml(raw)}</span>`,
+        html: renderInlineMathPlaceholderHtml(inner, raw, { sourceAttrs: sp }),
         text: raw,
         hasMath: true,
       };

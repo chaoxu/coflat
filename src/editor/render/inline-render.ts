@@ -7,12 +7,13 @@
 
 import type { SyntaxNode } from "@lezer/common";
 import type { InlineRenderSurface } from "../inline-surface";
-import {
-  CSS,
-  mathSurfaceClassNames,
-} from "../../core/constants/css-classes";
+import { CSS } from "../../core/constants/css-classes";
 import { createReaderFootnoteReferenceElement } from "../../core/footnote-reference-surface";
 import { createInlineMarkElement } from "../../core/inline-mark-surface";
+import {
+  createInlineMathSurfaceElement,
+  renderInlineMathErrorFallback,
+} from "../../core/math-inline-surface";
 import {
   ClusteredCrossrefWidget,
   CrossrefWidget,
@@ -250,14 +251,9 @@ function renderFragment(
     }
 
     case "math": {
-      const span = document.createElement("span");
-      span.className = mathSurfaceClassNames(false);
-      span.setAttribute("role", "img");
-      span.setAttribute("aria-label", fragment.latex);
+      const span = createInlineMathSurfaceElement(document, fragment.latex);
       const renderRawError = (label: string): void => {
-        span.className = mathSurfaceClassNames(false, CSS.mathError);
-        span.setAttribute("aria-label", label);
-        span.textContent = fragment.raw;
+        renderInlineMathErrorFallback(span, fragment.raw, label);
       };
       try {
         // "html" output (no .katex-mathml branch) is intentional here:
