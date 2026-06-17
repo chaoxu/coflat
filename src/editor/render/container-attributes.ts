@@ -31,6 +31,7 @@ import {
   DOCUMENT_SURFACE_CLASS,
   documentSurfaceClassNames,
 } from "../../core/document-surface-classes";
+import { editorListItemLineClassNames } from "../../core/list-surface";
 
 /**
  * Maps Lezer syntax node type names to HTML tag names.
@@ -144,15 +145,7 @@ function listItemLineClasses(node: { readonly node: { readonly parent?: { readon
   const ordered = node.node.parent?.name === "OrderedList";
   const taskNode = node.node.getChild("Task") as { getChild(name: string): unknown } | null;
   const task = Boolean(taskNode?.getChild("TaskMarker"));
-  return [
-    DOCUMENT_SURFACE_CLASS.list,
-    ordered
-      ? DOCUMENT_SURFACE_CLASS.listOrdered
-      : DOCUMENT_SURFACE_CLASS.listUnordered,
-    task && DOCUMENT_SURFACE_CLASS.listCheck,
-    DOCUMENT_SURFACE_CLASS.listItem,
-    task && DOCUMENT_SURFACE_CLASS.listItemCheck,
-  ].filter(Boolean) as string[];
+  return editorListItemLineClassNames({ ordered, task }).split(" ");
 }
 
 function collectLineDecorationsInRange(

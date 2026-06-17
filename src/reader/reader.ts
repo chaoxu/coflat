@@ -64,6 +64,12 @@ import {
   headingNumberingHtmlAttrs,
   headingSurfaceClassNames,
 } from "../core/heading-surface";
+import {
+  listItemSurfaceClassNames,
+  listMarkerClassName,
+  listMarkerText,
+  listSurfaceClassNames,
+} from "../core/list-surface";
 import { renderCodeBlockHtml } from "../core/code-block-surface";
 import { renderFootnoteSectionHtml } from "../core/footnote-section-surface";
 import { renderParagraphHtml } from "../core/paragraph-surface";
@@ -153,15 +159,6 @@ const FAST_PATH_RE = /[$[:`#^<>\n|-]|^---\n/m;
 // ---------------------------------------------------------------------------
 
 const paragraphClasses = DOCUMENT_SURFACE_CLASS.paragraph;
-
-function listClasses(ordered: boolean, isTaskList: boolean, isLoose: boolean): string {
-  return documentSurfaceClassNames(
-    DOCUMENT_SURFACE_CLASS.list,
-    ordered ? DOCUMENT_SURFACE_CLASS.listOrdered : DOCUMENT_SURFACE_CLASS.listUnordered,
-    isTaskList && DOCUMENT_SURFACE_CLASS.listCheck,
-    isLoose ? DOCUMENT_SURFACE_CLASS.listLoose : DOCUMENT_SURFACE_CLASS.listTight,
-  );
-}
 
 function blockClasses(type: string | undefined): string {
   return documentSurfaceClassNames(
@@ -1626,7 +1623,7 @@ function renderList(ctx: WalkContext, node: SyntaxNode, ordered: boolean): Block
   const tag = ordered ? "ol" : "ul";
   return {
     html:
-      `<${tag} class="${listClasses(ordered, isTaskList, isLoose)}"${startAttr}${blockSourceAttrs(ctx, node.from, node.to)}>` +
+      `<${tag} class="${listSurfaceClassNames({ ordered, task: isTaskList, loose: isLoose })}"${startAttr}${blockSourceAttrs(ctx, node.from, node.to)}>` +
       items.map((b) => b.html).join("") +
       `</${tag}>`,
     text: items.map((b) => b.text).join("\n"),
@@ -1705,20 +1702,16 @@ function renderListItem(
     text = blocks.map((b) => b.text).join("\n");
   }
 
-  const classes: string[] = [DOCUMENT_SURFACE_CLASS.listItem];
   let dataAttrs = "";
   if (task) {
-    classes.push(DOCUMENT_SURFACE_CLASS.listItemCheck);
     dataAttrs = ` data-checked="${task.checked}"`;
     const cb = `<input type="checkbox" tabindex="-1" aria-disabled="true"${task.checked ? " checked" : ""}> `;
     inner = cb + inner;
     text = (task.checked ? "[x] " : "[ ] ") + text;
   }
-  const marker = ordered
-    ? `<span class="${CSS.listNumber}">${number}.</span> `
-    : `<span class="${CSS.listBullet}">•</span> `;
+  const marker = `<span class="${listMarkerClassName(ordered)}">${listMarkerText(ordered, number)}</span> `;
   return {
-    html: `<li class="${classes.join(" ")}"${dataAttrs}${blockSourceAttrs(ctx, node.from, node.to)}>${marker}${inner}</li>`,
+    html: `<li class="${listItemSurfaceClassNames({ ordered, task: task !== null })}"${dataAttrs}${blockSourceAttrs(ctx, node.from, node.to)}>${marker}${inner}</li>`,
     text,
     hasMath,
   };

@@ -12,13 +12,18 @@ import {
 import { CSS } from "../../core/constants/css-classes";
 import {
   DOCUMENT_SURFACE_CLASS,
-  documentSurfaceClassNames,
 } from "../../core/document-surface-classes";
 import { appendCodeBlockDom } from "../../core/code-block-surface";
 import {
   headingSurfaceClassNames,
   setHeadingNumberingAttrs,
 } from "../../core/heading-surface";
+import {
+  listItemSurfaceClassNames,
+  listMarkerClassName,
+  listMarkerText,
+  listSurfaceClassNames,
+} from "../../core/list-surface";
 import { appendParagraphDom, createParagraphDom } from "../../core/paragraph-surface";
 import type { BlockCounterEntry } from "../../core/lib/file-system-types";
 import {
@@ -310,10 +315,7 @@ function renderList(
       const taskMarker = child.getChild("Task")?.getChild("TaskMarker") ?? null;
       const isTask = taskMarker !== null;
       isTaskList ||= isTask;
-      item.className = documentSurfaceClassNames(
-        DOCUMENT_SURFACE_CLASS.listItem,
-        isTask && DOCUMENT_SURFACE_CLASS.listItemCheck,
-      );
+      item.className = listItemSurfaceClassNames({ ordered: tag === "ol", task: isTask });
       if (taskMarker) {
         const checked = context.doc.slice(taskMarker.from, taskMarker.to) !== "[ ]";
         item.dataset.checked = String(checked);
@@ -325,12 +327,11 @@ function renderList(
     child = child.nextSibling;
   }
 
-  list.className = documentSurfaceClassNames(
-    DOCUMENT_SURFACE_CLASS.list,
-    tag === "ol" ? DOCUMENT_SURFACE_CLASS.listOrdered : DOCUMENT_SURFACE_CLASS.listUnordered,
-    isTaskList && DOCUMENT_SURFACE_CLASS.listCheck,
-    loose ? DOCUMENT_SURFACE_CLASS.listLoose : DOCUMENT_SURFACE_CLASS.listTight,
-  );
+  list.className = listSurfaceClassNames({
+    ordered: tag === "ol",
+    task: isTaskList,
+    loose,
+  });
   parent.appendChild(list);
 }
 
@@ -369,8 +370,9 @@ function appendBlankLine(
 
 function appendListMarker(parent: HTMLElement, tag: "ul" | "ol", number: number): void {
   const marker = document.createElement("span");
-  marker.className = tag === "ol" ? CSS.listNumber : CSS.listBullet;
-  marker.textContent = tag === "ol" ? `${number}.` : "•";
+  const ordered = tag === "ol";
+  marker.className = listMarkerClassName(ordered);
+  marker.textContent = listMarkerText(ordered, number);
   parent.appendChild(marker);
   parent.appendChild(document.createTextNode(" "));
 }
