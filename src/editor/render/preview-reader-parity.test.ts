@@ -59,7 +59,7 @@ function summarize(root: Element, depth = 0): string[] {
     if (BLOCK_TAGS.has(tag)) {
       for (const attr of [
         "data-align", "data-checked", "data-heading-numbering", "data-lang",
-        "data-section-number", "id", "start",
+        "data-section-number", "data-status", "data-title", "id", "start",
       ]) {
         const value = el.getAttribute(attr);
         if (value) parts.push(`${attr}="${value}"`);
@@ -175,6 +175,14 @@ describe("reader / editor-preview emission parity", () => {
         ":::",
         "",
         "See [@thm:a].",
+      ].join("\n"),
+    },
+    {
+      name: "fenced block key-value attributes",
+      source: [
+        '::: {.theorem #thm:attrs title="Main" status="draft"}',
+        "Body text.",
+        ":::",
       ].join("\n"),
     },
     {

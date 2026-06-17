@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { DOCUMENT_SURFACE_CLASS } from "./document-surface-classes";
 import {
+  blockContainerSurfaceAttrs,
+  blockContainerSurfaceClassNames,
   blockSurfaceClassNames,
+  createBlockContainerElement,
   createBlankLineElement,
   createBlockquoteElement,
   createHorizontalRuleElement,
@@ -23,6 +26,29 @@ describe("block surface", () => {
     );
     expect(createHorizontalRuleElement(document).outerHTML).toBe(
       '<hr class="cf-doc-block cf-doc-block--hr">',
+    );
+  });
+
+  it("shares semantic block container attrs across HTML and DOM renderers", () => {
+    expect(blockContainerSurfaceClassNames({
+      types: ["theorem", "important"],
+      extraClassNames: ["cf-doc-block-collapsible"],
+    })).toBe("cf-doc-block cf-doc-block--theorem cf-doc-block--important cf-doc-block-collapsible");
+    expect(blockContainerSurfaceAttrs({
+      types: ["theorem"],
+      id: "thm:main",
+      dataAttributes: { title: "Main", status: "draft" },
+    }, ' data-source-from="1"')).toBe(
+      ' class="cf-doc-block cf-doc-block--theorem" id="thm:main" data-title="Main" data-status="draft" data-source-from="1"',
+    );
+
+    const block = createBlockContainerElement(document, {
+      types: ["theorem"],
+      id: "thm:main",
+      dataAttributes: { title: "Main", status: "draft" },
+    });
+    expect(block.outerHTML).toBe(
+      '<div class="cf-doc-block cf-doc-block--theorem" id="thm:main" data-title="Main" data-status="draft"></div>',
     );
   });
 

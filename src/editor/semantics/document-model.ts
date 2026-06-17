@@ -91,6 +91,7 @@ export interface FencedDivSemantics {
   readonly primaryClass?: string;
   readonly id?: string;
   readonly title?: string;
+  readonly keyValues: Readonly<Record<string, string>>;
 }
 
 export interface EquationSemantics {

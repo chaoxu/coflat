@@ -76,7 +76,7 @@ import {
 } from "../core/document-surface-classes";
 import { renderInlineMarkHtml } from "../core/inline-mark-surface";
 import {
-  blockSurfaceClassNames,
+  blockContainerSurfaceAttrs,
   renderBlankLineHtml,
   renderBlockquoteHtml,
   renderHorizontalRuleHtml,
@@ -192,10 +192,6 @@ const FAST_PATH_RE = /[$[:`#^<>\n|-]|^---\n/m;
 // ---------------------------------------------------------------------------
 
 const paragraphClasses = DOCUMENT_SURFACE_CLASS.paragraph;
-
-function blockClasses(type: string | undefined): string {
-  return blockSurfaceClassNames(type);
-}
 
 function blockDisplayTitle(ctx: WalkContext, type: string): string {
   return displayTitleForBlockType(type, ctx.blockTitles);
@@ -1861,14 +1857,12 @@ function renderFencedDiv(ctx: WalkContext, node: SyntaxNode): BlockResult {
     isCollapsibleBlockType(normalizedClassName),
   );
   const interactiveBlock = collapsibleBlock && ctx.interactiveBlockDisclosures;
-  const classes = [blockClasses(normalizedClassName || undefined)];
-  if (interactiveBlock) classes.push(CSS.blockCollapsible);
-
-  let attrs = ` class="${classes.join(" ")}"`;
-  if (id) attrs += ` id="${escapeHtml(id)}"`;
-  for (const [k, v] of Object.entries(kvs)) {
-    attrs += ` data-${escapeHtml(k)}="${escapeHtml(v)}"`;
-  }
+  const attrs = blockContainerSurfaceAttrs({
+    types: normalizedClassName ? [normalizedClassName] : [],
+    id,
+    dataAttributes: kvs,
+    extraClassNames: interactiveBlock ? [CSS.blockCollapsible] : [],
+  });
   const body = combineBlocks(blocks);
   const sourceAttrs = blockSourceAttrs(ctx, node.from, node.to);
   const title = kvs.title ?? inlineTitle;

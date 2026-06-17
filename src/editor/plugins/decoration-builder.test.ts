@@ -30,6 +30,7 @@ function makeDiv(
     primaryClass: className,
     id: undefined,
     title: undefined,
+    keyValues: {},
     className,
     ...overrides,
   };

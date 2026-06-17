@@ -15,10 +15,10 @@ import {
   prependInlineBlockHeading,
 } from "../../core/block-heading-surface";
 import {
+  createBlockContainerElement,
   createBlankLineElement,
   createBlockquoteElement,
   createHorizontalRuleElement,
-  blockSurfaceClassNames,
 } from "../../core/block-surface";
 import {
   BLOCK_MANIFEST_ENTRIES,
@@ -479,13 +479,11 @@ function renderFencedDiv(
     return;
   }
 
-  const block = document.createElement("div");
-  for (const className of classes) {
-    block.classList.add(...blockSurfaceClassNames(className).split(" "));
-  }
-  if (id) {
-    block.id = id;
-  }
+  const block = createBlockContainerElement(document, {
+    types: classes,
+    id,
+    dataAttributes: fencedDiv?.keyValues,
+  });
 
   const title = fencedDiv?.title ?? "";
   const isSelfClosing = fencedDiv?.isSelfClosing ?? false;

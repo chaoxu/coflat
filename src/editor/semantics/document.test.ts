@@ -83,6 +83,7 @@ describe("document semantics analyzers", () => {
       classes: ["problem"],
       id: "p1",
       title: "**3SUM**",
+      keyValues: { title: "**3SUM**" },
       titleSourceFrom: titleFrom,
       titleSourceTo: titleFrom + "**3SUM**".length,
       isSelfClosing: false,

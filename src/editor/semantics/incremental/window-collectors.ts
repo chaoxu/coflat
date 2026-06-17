@@ -273,12 +273,14 @@ export function collectFencedDiv(
   let keyValueTitle: string | undefined;
   let keyValueTitleFrom: number | undefined;
   let keyValueTitleTo: number | undefined;
+  let keyValues: Readonly<Record<string, string>> = {};
   if (attrNode) {
     const attrs = extractDivClass(doc.slice(attrNode.from, attrNode.to));
     if (attrs) {
       classes = [...attrs.classes];
       primaryClass = attrs.classes[0];
       id = attrs.id;
+      keyValues = { ...attrs.keyValues };
       keyValueTitle = attrs.keyValues.title;
       const titleRange = attrs.keyValueRanges.title;
       if (titleRange) {
@@ -327,6 +329,7 @@ export function collectFencedDiv(
     primaryClass,
     id,
     title,
+    keyValues,
   });
 }
 
