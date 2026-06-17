@@ -2997,6 +2997,7 @@ function findReaderEquationPreviewSource(source: string, key: string): string | 
   const closeDollars = beforeMath.lastIndexOf("$$");
   const closeBracket = beforeMath.lastIndexOf("\\]");
   if (closeDollars > closeBracket) {
+    if (source.slice(closeDollars + 2, labelMatch.index).trim() !== "") return null;
     const openDollars = beforeMath.lastIndexOf("$$", closeDollars - 1);
     if (openDollars >= 0) {
       return beforeMath.slice(openDollars, closeDollars + 2);
@@ -3004,6 +3005,7 @@ function findReaderEquationPreviewSource(source: string, key: string): string | 
   }
 
   if (closeBracket >= 0) {
+    if (source.slice(closeBracket + 2, labelMatch.index).trim() !== "") return null;
     const openBracket = beforeMath.lastIndexOf("\\[", closeBracket - 1);
     if (openBracket >= 0) {
       return beforeMath.slice(openBracket, closeBracket + 2);

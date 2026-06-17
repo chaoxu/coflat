@@ -233,6 +233,29 @@ describe("hydrateReaderHoverPreviews", () => {
     expect(tooltip.textContent).not.toContain("Section 1Second");
   });
 
+  it("does not use preceding display math as a heading reference preview", async () => {
+    const source = [
+      "# First",
+      "",
+      "$$",
+      "\\frac{\\lambda_1(M)}{\\lambda_1^*(M)}=1,\\qquad \\frac{\\lambda_2(M)}{\\lambda_2^*(M)}=\\frac54.",
+      "$$",
+      "",
+      "# Second {#sec:second}",
+      "",
+      "See [@sec:second].",
+    ].join("\n");
+    const root = makeRoot(renderToHtml(source, undefined, { resolveReferences: true }).html);
+    root.dataset.source = source;
+
+    const tooltip = await hoverReference(root, "sec:second");
+
+    expect(tooltip.textContent).toContain("Section 2");
+    expect(tooltip.textContent).toContain("Second");
+    expect(tooltip.textContent).not.toContain("lambda");
+    expect(tooltip.querySelector(".cf-doc-display-math")).toBeNull();
+  });
+
   it("previews block references without restarting theorem numbering", async () => {
     const source = [
       "::: {.theorem #thm:first}",
