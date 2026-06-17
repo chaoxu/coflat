@@ -7,16 +7,12 @@
  * Regex is a sieve." for the policy.
  */
 
-import { parser as baseMarkdownParser } from "@lezer/markdown";
 import type { SyntaxNodeRef } from "@lezer/common";
 
 import { parse as parseYaml, parseDocument as parseYamlDocument, stringify as stringifyYaml, isMap, isScalar } from "yaml";
 
-import { extractRawFrontmatter, markdownExtensions } from "./src/core/parser";
-import {
-  getBlockManifestEntry,
-  getManifestBlockTitle,
-} from "./src/core/constants/block-manifest";
+import { extractRawFrontmatter, parseMarkdownSource } from "./src/core/parser";
+import { parseFrontmatter as parseCoflatFrontmatter } from "./src/core/parser/frontmatter";
 import { NODE } from "./src/core/constants/node-types";
 import {
   formatBlockReferenceLabel,
@@ -33,6 +29,12 @@ import {
   analyzeDocumentSemantics,
   stringTextSource,
 } from "./src/editor/semantics/document";
+import {
+  blockTitleOverridesFromConfig,
+  computeBlockNumbers,
+  createConfiguredBlockNumberingSpecLookup,
+  displayTitleForBlockType,
+} from "./src/editor/semantics/block-numbering";
 export {
   createNumericCitationFormatter,
   parseBibliographyKeys,
@@ -54,8 +56,6 @@ export interface ExtractedReference {
   /** Present on `crossref`: `true` for bracketed `[@key]`, `false` for a bare narrative `@key`. */
   readonly bracketed?: boolean;
 }
-
-const markdownParser = baseMarkdownParser.configure(markdownExtensions);
 
 function getUrlChild(node: SyntaxNodeRef): { from: number; to: number } | null {
   const url = node.node.getChild("URL");
@@ -192,7 +192,7 @@ function collectNarrativeRefs(
  * server indexers.
  */
 export function extractReferences(source: string): ExtractedReference[] {
-  const tree = markdownParser.parse(source);
+  const tree = parseMarkdownSource(source, "semantic");
   const out: ExtractedReference[] = [];
   const excluded: Range[] = [];
 
@@ -286,18 +286,6 @@ export interface ReferenceCatalogOptions {
   readonly includeUnnumberedBlockOrdinals?: boolean;
 }
 
-function nextBlockOrdinal(
-  counters: Map<string, number>,
-  blockType: string,
-): number | undefined {
-  const entry = getBlockManifestEntry(blockType);
-  if (!entry?.numbered) return undefined;
-  const group = entry.counterGroup ?? blockType;
-  const next = (counters.get(group) ?? 0) + 1;
-  counters.set(group, next);
-  return next;
-}
-
 function indexTargets(targets: readonly ReferenceCatalogTarget[]) {
   const targetsById = new Map<string, ReferenceCatalogTarget[]>();
   const uniqueTargetById = new Map<string, ReferenceCatalogTarget>();
@@ -331,19 +319,23 @@ export function buildReferenceCatalog(
   source: string,
   _options: ReferenceCatalogOptions = {},
 ): ReferenceCatalog {
-  const tree = markdownParser.parse(source);
+  const tree = parseMarkdownSource(source, "semantic");
   const analysis = analyzeDocumentSemantics(stringTextSource(source), tree);
   const lineOffsets = buildLineOffsets(source);
-  const blockCounters = new Map<string, number>();
+  const frontmatter = parseCoflatFrontmatter(source);
+  const blockNumbers = computeBlockNumbers(
+    analysis.fencedDivs,
+    createConfiguredBlockNumberingSpecLookup(frontmatter.config.blocks),
+    frontmatter.config.numbering ?? "grouped",
+  );
+  const blockTitles = blockTitleOverridesFromConfig(frontmatter.config.blocks);
   const targets: ReferenceCatalogTarget[] = [];
 
   for (const block of analysis.fencedDivs) {
     if (!block.primaryClass) continue;
-    const manifest = getBlockManifestEntry(block.primaryClass);
-    const ordinal = nextBlockOrdinal(blockCounters, block.primaryClass);
-    const title = manifest
-      ? getManifestBlockTitle(manifest)
-      : `${block.primaryClass.slice(0, 1).toUpperCase()}${block.primaryClass.slice(1)}`;
+    const numbered = blockNumbers.byPosition.get(block.from);
+    const ordinal = numbered?.number;
+    const title = displayTitleForBlockType(block.primaryClass, blockTitles);
     targets.push({
       id: block.id,
       kind: "block",

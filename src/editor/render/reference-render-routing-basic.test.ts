@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { CSS } from "../../core/constants/css-classes";
 import { collectReferenceRanges } from "./reference-render";
 import {
+  createPluginView,
   createView,
   expectPresent,
   revealReferenceAt,
@@ -179,6 +180,35 @@ describe("collectReferenceRanges", () => {
     );
     expectPresent(ref, "reference range");
     expect(widgetClass(ref)).toBe("CrossrefWidget");
+  });
+
+  it("renders proof-heading references with frontmatter global numbering", () => {
+    const doc = [
+      "---",
+      "numbering: global",
+      "---",
+      "",
+      "::: {.theorem #thm:first}",
+      "First.",
+      ":::",
+      "",
+      "::: {.table #tbl:apps}",
+      "table",
+      ":::",
+      "",
+      "::: {.proposition #prop:middle}",
+      "Middle.",
+      ":::",
+      "",
+      "::: {.theorem #thm:target}",
+      "Target.",
+      ":::",
+      "",
+      "# Proof of [@thm:target] {#app:proof}",
+    ].join("\n");
+    view = createPluginView(doc, 0);
+
+    expect(view.dom.querySelector(`.${CSS.crossref}`)?.textContent).toBe("Theorem 4");
   });
 
   it("defaults narrative bibliography ids to UnresolvedRefWidget", () => {

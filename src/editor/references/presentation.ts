@@ -335,6 +335,7 @@ export function resolveCatalogCrossref(
     return {
       kind: "block",
       label: target.displayLabel,
+      title: target.title,
       number: target.ordinal,
     };
   }

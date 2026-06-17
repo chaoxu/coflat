@@ -7,6 +7,7 @@ import { fenceGuidePlugin } from "./fence-guide";
 import { frontmatterDecoration } from "./frontmatter-render";
 import { imageRenderPlugin } from "./image-render";
 import { sharedInlineRenderExtensions } from "./inline-render-extensions";
+import { hoverPreviewExtension } from "./hover-preview";
 import { mathPreviewPlugin } from "./math-preview";
 import { blockRenderPlugin } from "./plugin-render";
 import { referenceRenderPlugin } from "./reference-render";
@@ -29,6 +30,7 @@ export const cm6RichRenderExtensions: Extension[] = [
   codeBlockStructureField,
   blockRenderPlugin,
   referenceRenderPlugin,
+  hoverPreviewExtension,
   codeBlockRenderPlugin,
   bibliographyPlugin,
   containerAttributesPlugin,

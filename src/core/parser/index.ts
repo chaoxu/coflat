@@ -18,7 +18,8 @@ export { removeIndentedCode } from "./remove-indented-code";
 export { strikethroughExtension } from "./strikethrough";
 export { tableExtension } from "./table";
 
-import { Autolink, TaskList } from "@lezer/markdown";
+import { Autolink, parser as baseMarkdownParser, TaskList } from "@lezer/markdown";
+import type { Tree } from "@lezer/common";
 import { equationLabelExtension } from "./equation-label";
 import { fencedDiv } from "./fenced-div";
 import { footnoteExtension } from "./footnote";
@@ -30,9 +31,8 @@ import { strikethroughExtension } from "./strikethrough";
 import { tableExtension } from "./table";
 
 /**
- * Shared Lezer markdown parser extensions used by both the CM6 editor
- * and the preview HTML renderer. Single source of truth — prevents
- * drift between what the editor parses and what Read mode renders.
+ * Semantic parser extensions used by the editor state and Node parse helpers.
+ * This is the default Coflat syntax model.
  */
 export const markdownExtensions = [
   removeIndentedCode,
@@ -49,13 +49,12 @@ export const markdownExtensions = [
 ];
 
 /**
- * Parser extensions for in-app preview renderers.
+ * Parser extensions for in-app HTML renderers.
  *
- * Same as `markdownExtensions` but WITHOUT `removeBlockquote`, so that
- * standard `>` blockquote syntax is parsed into Blockquote nodes and
- * rendered as `<blockquote>` HTML. The editor removes blockquotes because
- * it uses fenced divs (`::: Blockquote`) instead, but hover/preview paths
- * must handle standard blockquote syntax from content.
+ * This is the semantic parser plus one intentional surface distinction:
+ * standard `>` blockquotes stay as Blockquote nodes so read/preview surfaces
+ * can render authored Markdown as HTML. All parser construction goes through
+ * getMarkdownParser/parseMarkdownSource so this distinction stays explicit.
  */
 export const htmlRenderExtensions = [
   removeIndentedCode,
@@ -69,3 +68,21 @@ export const htmlRenderExtensions = [
   Autolink,
   TaskList,
 ];
+
+export type MarkdownParserMode = "semantic" | "html-render";
+
+let markdownSemanticParser: ReturnType<typeof baseMarkdownParser.configure> | null = null;
+let markdownHtmlRenderParser: ReturnType<typeof baseMarkdownParser.configure> | null = null;
+
+export function getMarkdownParser(mode: MarkdownParserMode = "semantic"): ReturnType<typeof baseMarkdownParser.configure> {
+  if (mode === "html-render") {
+    markdownHtmlRenderParser ??= baseMarkdownParser.configure(htmlRenderExtensions);
+    return markdownHtmlRenderParser;
+  }
+  markdownSemanticParser ??= baseMarkdownParser.configure(markdownExtensions);
+  return markdownSemanticParser;
+}
+
+export function parseMarkdownSource(source: string, mode: MarkdownParserMode = "semantic"): Tree {
+  return getMarkdownParser(mode).parse(source);
+}

@@ -7,13 +7,16 @@
  * no citation-js.
  */
 
-import { parser as baseMarkdownParser } from "@lezer/markdown";
 import type { SyntaxNode, Tree } from "@lezer/common";
 import createDOMPurify from "dompurify";
 import { __iconNode as chevronDownIconNode } from "lucide-react/dist/esm/icons/chevron-down.js";
 import { __iconNode as chevronRightIconNode } from "lucide-react/dist/esm/icons/chevron-right.js";
 
-import { htmlRenderExtensions, parseFrontmatter } from "../core/parser";
+import { parseFrontmatter, parseMarkdownSource } from "../core/parser";
+import {
+  blankLineRangesBetweenBlocks,
+  trailingBlankLineRangesAfterLastBlock,
+} from "../core/parser/blank-lines";
 import { NODE } from "../core/constants/node-types";
 import { createLucideIcon } from "../core/lib/lucide-icon";
 import { isSafeUrl } from "../core/lib/url-utils";
@@ -34,6 +37,14 @@ import {
 } from "../core/constants/css-classes";
 import { LINK_LAYOUT_ATTRIBUTE, linkLayoutForHref } from "../core/link-layout";
 import { readBracedLabelId } from "../core/parser/label-utils";
+import type { NumberingScheme } from "../core/parser/frontmatter";
+import {
+  blockTitleOverridesFromConfig,
+  counterGroupForBlockNumberingSpec,
+  createConfiguredBlockNumberingSpecLookup,
+  displayTitleForBlockType,
+  type BlockNumberingSpecLookup,
+} from "../editor/semantics/block-numbering";
 import {
   bibliographyEntries as coreBibliographyEntries,
   bibliographyEntryFor as coreBibliographyEntryFor,
@@ -114,17 +125,9 @@ const SECTION_DISCLOSURE_LABELS = {
 // preview/diff host renders authored content as written.
 // ---------------------------------------------------------------------------
 
-let _markdownParser: ReturnType<typeof baseMarkdownParser.configure> | null = null;
-function getMarkdownParser() {
-  if (!_markdownParser) {
-    _markdownParser = baseMarkdownParser.configure(htmlRenderExtensions);
-  }
-  return _markdownParser;
-}
-
 function parseSource(source: string): Tree {
   noteLezerInvocation();
-  return getMarkdownParser().parse(source);
+  return parseMarkdownSource(source, "html-render");
 }
 
 // ---------------------------------------------------------------------------
@@ -168,21 +171,14 @@ function blockClasses(type: string | undefined): string {
   );
 }
 
-function blockTitle(type: string): string {
-  const entry = getBlockManifestEntry(type);
-  if (entry?.title) return entry.title;
-  return type.charAt(0).toUpperCase() + type.slice(1);
-}
-
-function blockCounterGroup(type: string): string | null {
-  const entry = getBlockManifestEntry(type);
-  if (!entry?.numbered) return null;
-  return entry.counterGroup ?? type;
+function blockDisplayTitle(ctx: WalkContext, type: string): string {
+  return displayTitleForBlockType(type, ctx.blockTitles);
 }
 
 function nextBlockNumber(ctx: WalkContext, type: string): number | undefined {
-  const counterGroup = blockCounterGroup(type);
-  if (!counterGroup) return undefined;
+  const spec = ctx.blockNumberingSpec(type);
+  if (!spec?.numbered) return undefined;
+  const counterGroup = counterGroupForBlockNumberingSpec(spec, ctx.blockNumbering);
   const next = (ctx.blockCounters.get(counterGroup) ?? 0) + 1;
   ctx.blockCounters.set(counterGroup, next);
   return next;
@@ -211,6 +207,9 @@ function renderInlineSnippet(ctx: WalkContext, source: string): BlockResult {
     usedHeadingIds: new Set(),
     headingCounters: [...ctx.headingCounters],
     blockCounters: new Map(ctx.blockCounters),
+    blockNumbering: ctx.blockNumbering,
+    blockNumberingSpec: ctx.blockNumberingSpec,
+    blockTitles: ctx.blockTitles,
     footnotesById: new Map(),
     footnotesInOrder: [],
     // Snippet renders (e.g. a fenced-div title) use a throwaway citedKeys, so a
@@ -234,7 +233,8 @@ function renderInlineSnippet(ctx: WalkContext, source: string): BlockResult {
 }
 
 function renderBlockSummary(ctx: WalkContext, type: string, title: string | undefined, number: number | undefined): BlockResult {
-  const header = number === undefined ? blockTitle(type) : `${blockTitle(type)} ${number}`;
+  const displayTitle = blockDisplayTitle(ctx, type);
+  const header = number === undefined ? displayTitle : `${displayTitle} ${number}`;
   const escapedHeader = escapeHtml(type === "proof" ? "Proof" : header);
   if (!title || type === "proof") {
     return {
@@ -584,6 +584,9 @@ interface WalkContext {
   usedHeadingIds: Set<string>;
   headingCounters: number[];
   blockCounters: Map<string, number>;
+  blockNumbering: NumberingScheme;
+  blockNumberingSpec: BlockNumberingSpecLookup;
+  blockTitles: ReadonlyMap<string, string>;
   equationCounter: number;
   // Footnote tracking
   footnotesById: Map<string, FootnoteEntry>;
@@ -715,17 +718,17 @@ function renderInlineNode(
     case NODE.Emphasis: {
       const inner = renderInline(ctx, node, node.from, node.to);
       const sp = sourcePosAttrs(ctx, node.from, node.to);
-      return { html: `<em${sp}>${inner.html}</em>`, text: inner.text, hasMath: inner.hasMath };
+      return { html: `<em class="${CSS.italic}"${sp}>${inner.html}</em>`, text: inner.text, hasMath: inner.hasMath };
     }
     case NODE.StrongEmphasis: {
       const inner = renderInline(ctx, node, node.from, node.to);
       const sp = sourcePosAttrs(ctx, node.from, node.to);
-      return { html: `<strong${sp}>${inner.html}</strong>`, text: inner.text, hasMath: inner.hasMath };
+      return { html: `<strong class="${CSS.bold}"${sp}>${inner.html}</strong>`, text: inner.text, hasMath: inner.hasMath };
     }
     case NODE.Strikethrough: {
       const inner = renderInline(ctx, node, node.from, node.to);
       const sp = sourcePosAttrs(ctx, node.from, node.to);
-      return { html: `<del${sp}>${inner.html}</del>`, text: inner.text, hasMath: inner.hasMath };
+      return { html: `<del class="${CSS.strikethrough}"${sp}>${inner.html}</del>`, text: inner.text, hasMath: inner.hasMath };
     }
     case NODE.Highlight: {
       const inner = renderInline(ctx, node, node.from, node.to);
@@ -743,7 +746,7 @@ function renderInlineNode(
       const inner = raw.slice(fenceLen, raw.length - fenceLen);
       const sp = sourcePosAttrs(ctx, node.from, node.to);
       return {
-        html: `<code class="${DOCUMENT_SURFACE_CLASS.codeToken}"${sp}>${escapeHtml(inner)}</code>`,
+        html: `<code class="${documentSurfaceClassNames(DOCUMENT_SURFACE_CLASS.codeToken, CSS.inlineCode)}"${sp}>${escapeHtml(inner)}</code>`,
         text: inner,
         hasMath: false,
       };
@@ -1718,10 +1721,14 @@ function renderFencedCode(ctx: WalkContext, node: SyntaxNode): BlockResult {
 
   const code = ctx.source.slice(contentFrom, contentTo);
   const langAttr = lang ? ` data-lang="${escapeHtml(lang)}"` : "";
+  const languageToken = lang.split(/\s+/)[0] ?? "";
+  const codeClass = /^[A-Za-z0-9_-]+$/.test(languageToken)
+    ? ` class="language-${escapeHtml(languageToken)}"`
+    : "";
   return {
     html:
       `<pre class="${DOCUMENT_SURFACE_CLASS.codeBlock}"${langAttr}${blockSourceAttrs(ctx, node.from, node.to)}>` +
-      `<code>${escapeHtml(code)}</code></pre>`,
+      `<code${codeClass}>${escapeHtml(code)}</code></pre>`,
     text: code,
     hasMath: false,
   };
@@ -1811,30 +1818,6 @@ function renderTableRow(
   };
 }
 
-function blankLineRangesBetweenBlocks(source: string, from: number, to: number): Array<[number, number]> {
-  const ranges: Array<[number, number]> = [];
-  let pos = from;
-
-  if (pos > 0 && source[pos - 1] !== "\n") {
-    while (pos < to && source[pos] !== "\n") pos++;
-    if (pos < to) pos++;
-  }
-
-  while (pos < to) {
-    const lineStart = pos;
-    while (pos < to && source[pos] !== "\n") pos++;
-    if (pos >= to) break;
-
-    const lineEnd = source[pos - 1] === "\r" ? pos - 1 : pos;
-    if (/^[ \t]*$/.test(source.slice(lineStart, lineEnd))) {
-      ranges.push([lineStart, pos + 1]);
-    }
-    pos++;
-  }
-
-  return ranges;
-}
-
 function renderBlankLine(ctx: WalkContext, from: number, to: number): BlockResult {
   return {
     html: `<div class="${DOCUMENT_SURFACE_CLASS.blankLine}" aria-hidden="true"${blockSourceAttrs(ctx, from, to)}><br></div>`,
@@ -1912,11 +1895,11 @@ function renderFencedDiv(ctx: WalkContext, node: SyntaxNode): BlockResult {
   if (ctx.buildCatalog && id && normalizedClassName) {
     ctx.catalog.set(id, {
       kind: "block",
-      label: formatBlockReferenceLabel(blockTitle(normalizedClassName), number),
+      label: formatBlockReferenceLabel(blockDisplayTitle(ctx, normalizedClassName), number),
     });
   }
   if (ctx.buildReferencePreviews && id && normalizedClassName) {
-    const label = formatBlockReferenceLabel(blockTitle(normalizedClassName), number);
+    const label = formatBlockReferenceLabel(blockDisplayTitle(ctx, normalizedClassName), number);
     const bodyRange = trimSourceRange(ctx.source, bodyFrom ?? node.from, bodyTo ?? node.from);
     ctx.referencePreviewIndex.set(id, {
       kind: "block",
@@ -2145,6 +2128,7 @@ function walkDocument(
 } {
   const frontmatter = parseFrontmatter(source);
   const frontmatterEnd = frontmatter.end;
+  const blockConfig = frontmatter.config.blocks;
   const buildCatalog = !!(opts.resolveReferences || opts.referencePreviews);
   const ctx: WalkContext = {
     source,
@@ -2158,6 +2142,9 @@ function walkDocument(
     usedHeadingIds: new Set(),
     headingCounters: [0, 0, 0, 0, 0, 0, 0],
     blockCounters: new Map(),
+    blockNumbering: frontmatter.config.numbering ?? "grouped",
+    blockNumberingSpec: createConfiguredBlockNumberingSpecLookup(blockConfig),
+    blockTitles: blockTitleOverridesFromConfig(blockConfig),
     equationCounter: 0,
     footnotesById: new Map(),
     footnotesInOrder: [],
@@ -2272,17 +2259,8 @@ function walkDocument(
   }
 
   if (!truncated && previousRenderable && topCount > 1) {
-    const trailingRanges = previousRenderable.to < source.length
-      ? blankLineRangesBetweenBlocks(ctx.source, previousRenderable.to, source.length)
-      : [];
-    for (const [from, to] of trailingRanges) {
+    for (const [from, to] of trailingBlankLineRangesAfterLastBlock(ctx.source, previousRenderable.to)) {
       blocks.push(renderBlankLine(ctx, from, to));
-    }
-    const trailingNewlines = source.match(/\n+$/)?.[0].length ?? 0;
-    const missingTrailingRanges = Math.max(0, trailingNewlines - trailingRanges.length);
-    for (let index = 0; index < missingTrailingRanges; index++) {
-      const from = source.length - missingTrailingRanges + index;
-      blocks.push(renderBlankLine(ctx, from, from + 1));
     }
   }
 
@@ -3143,7 +3121,11 @@ function renderReaderPreviewSource(
 }
 
 function readerPreviewHeaderText(entry: ReaderReferencePreviewEntry, fallback: string): string {
-  if (entry.kind === "heading" && entry.title && entry.title !== entry.label) {
+  if (
+    (entry.kind === "heading" || entry.kind === "block") &&
+    entry.title &&
+    entry.title !== entry.label
+  ) {
     return `${entry.label} ${entry.title}`;
   }
   return entry.label || fallback;

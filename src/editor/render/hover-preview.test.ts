@@ -19,6 +19,7 @@ import { equationLabelExtension } from "../../core/parser/equation-label";
 import { fencedDiv } from "../../core/parser/fenced-div";
 import { mathExtension } from "../../core/parser/math-backslash";
 import { documentAnalysisField } from "../state/document-analysis";
+import { mountEditor } from "../../../editor";
 import {
   buildCrossrefPreviewContent,
   destroyHoverPreviewTooltipForTest,
@@ -232,6 +233,73 @@ describe("heading crossref previews", () => {
     expect(content.textContent).not.toContain("Block body should not be reused.");
 
     view.destroy();
+  });
+});
+
+describe("mounted editor hover previews", () => {
+  it("shows a tooltip when hovering a single rendered cross-reference", async () => {
+    vi.useFakeTimers();
+    const parent = document.createElement("div");
+    document.body.appendChild(parent);
+    const editor = mountEditor({
+      parent,
+      doc: [
+        "::: {.theorem #thm:main}",
+        "Statement.",
+        ":::",
+        "",
+        "See [@thm:main].",
+      ].join("\n"),
+      mode: "rich",
+    });
+
+    try {
+      const widget = parent.querySelector<HTMLElement>("[data-reference-widget]");
+      expect(widget).not.toBeNull();
+      widget?.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
+      await vi.advanceTimersByTimeAsync(300);
+
+      const tooltip = ensureHoverPreviewTooltipForTest();
+      expect(tooltip.style.display).not.toBe("none");
+      expect(tooltip.textContent).toContain("Theorem 1");
+      expect(tooltip.textContent).toContain("Statement.");
+    } finally {
+      editor.unmount();
+      vi.useRealTimers();
+    }
+  });
+
+  it("shows titled block labels in rendered cross-reference tooltips", async () => {
+    vi.useFakeTimers();
+    const parent = document.createElement("div");
+    document.body.appendChild(parent);
+    const editor = mountEditor({
+      parent,
+      doc: [
+        '::: {.theorem #thm:main title="Main Result"}',
+        "Statement.",
+        ":::",
+        "",
+        "See [@thm:main].",
+      ].join("\n"),
+      mode: "rich",
+    });
+
+    try {
+      const widget = parent.querySelector<HTMLElement>("[data-reference-widget]");
+      expect(widget).not.toBeNull();
+      widget?.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
+      await vi.advanceTimersByTimeAsync(300);
+
+      const tooltip = ensureHoverPreviewTooltipForTest();
+      expect(tooltip.style.display).not.toBe("none");
+      expect(tooltip.querySelector(".cf-hover-preview-header")?.textContent)
+        .toBe("Theorem 1 Main Result");
+      expect(tooltip.textContent).toContain("Statement.");
+    } finally {
+      editor.unmount();
+      vi.useRealTimers();
+    }
   });
 });
 

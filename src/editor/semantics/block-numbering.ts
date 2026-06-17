@@ -2,6 +2,7 @@ import type { ChangeDesc } from "@codemirror/state";
 import {
   BLOCK_MANIFEST_BY_NAME,
   EXCLUDED_FROM_FALLBACK,
+  getManifestBlockTitle,
 } from "../../core/constants/block-manifest";
 import type {
   BlockConfig,
@@ -49,6 +50,29 @@ export interface BlockCounterState {
 /** Sentinel counter group used when numbering is "global". */
 const GLOBAL_COUNTER = "_global";
 
+export function blockTitleOverridesFromConfig(
+  blocksConfig: Readonly<Record<string, boolean | { readonly title?: string }>> | undefined,
+): ReadonlyMap<string, string> {
+  const titles = new Map<string, string>();
+  if (!blocksConfig) return titles;
+  for (const [name, value] of Object.entries(blocksConfig)) {
+    if (typeof value === "object" && value !== null && typeof value.title === "string") {
+      titles.set(name, value.title);
+    }
+  }
+  return titles;
+}
+
+export function displayTitleForBlockType(
+  blockType: string,
+  titleOverrides: ReadonlyMap<string, string> = new Map(),
+): string {
+  const configured = titleOverrides.get(blockType);
+  if (configured) return configured;
+  const manifest = BLOCK_MANIFEST_BY_NAME.get(blockType);
+  return manifest ? getManifestBlockTitle(manifest) : `${blockType.slice(0, 1).toUpperCase()}${blockType.slice(1)}`;
+}
+
 function buildBlockCounterState(
   blocks: readonly NumberedBlock[],
   numberingKey: string,
@@ -64,7 +88,7 @@ function buildBlockCounterState(
   return { blocks, byId, byPosition, numberingKey };
 }
 
-function counterGroupForSpec(
+export function counterGroupForBlockNumberingSpec(
   spec: BlockNumberingSpec,
   numbering: NumberingScheme,
 ): string {
@@ -88,7 +112,7 @@ function buildNumberedBlocks(
     const spec = getSpec(div.primaryClass);
     if (!spec?.numbered) continue;
 
-    const counterGroup = counterGroupForSpec(spec, numbering);
+    const counterGroup = counterGroupForBlockNumberingSpec(spec, numbering);
     const current = (counters.get(counterGroup) ?? 0) + 1;
     counters.set(counterGroup, current);
 
@@ -124,7 +148,7 @@ function buildBlockNumberingKey(
     const spec = getSpec(div.primaryClass);
     if (!spec?.numbered) continue;
 
-    const counterGroup = counterGroupForSpec(spec, numbering);
+    const counterGroup = counterGroupForBlockNumberingSpec(spec, numbering);
     const current = (counters.get(counterGroup) ?? 0) + 1;
     counters.set(counterGroup, current);
     keyParts.push(`${div.primaryClass}\0${div.id ?? ""}\0${current}`);

@@ -318,7 +318,7 @@ describe("renderInlineMarkdown — highlight", () => {
 describe("renderInlineMarkdown — inline code", () => {
   it("renders `code` as <code> with cf-inline-code class", () => {
     const html = render("`code`");
-    expect(html).toContain('<code class="cf-inline-code">');
+    expect(html).toContain('class="cf-doc-code-token cf-inline-code"');
     expect(html).toContain("code");
   });
 });

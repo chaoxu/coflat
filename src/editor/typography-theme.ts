@@ -59,6 +59,15 @@ export const typographyThemeStyles = {
     fontVariantNumeric: "tabular-nums",
     fontFamily: contentFont,
   },
+  ".cm-line.cf-doc-list": {
+    margin: "0",
+    paddingLeft: "0",
+    listStyle: "none",
+  },
+  ".cm-line.cf-doc-list-item": {
+    display: "block",
+    margin: "0",
+  },
 
   /* Highlight styling (==text==) — uses --cf-mark-bg for visual parity
    * with preview-surface <mark> elements (#406). */

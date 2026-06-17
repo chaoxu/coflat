@@ -7,6 +7,7 @@ import { cm6RichRenderExtensions } from "./cm6-rich-render-extensions";
 import { containerAttributesPlugin } from "./container-attributes";
 import { fenceGuidePlugin } from "./fence-guide";
 import { frontmatterDecoration } from "./frontmatter-render";
+import { hoverPreviewExtension } from "./hover-preview";
 import { imageRenderPlugin } from "./image-render";
 import { sharedInlineRenderExtensions } from "./inline-render-extensions";
 import { mathPreviewPlugin } from "./math-preview";
@@ -37,6 +38,7 @@ describe("CM6 rich render extension composition", () => {
     expectOrderedBefore(imageRenderPlugin, blockRenderPlugin);
     expectOrderedBefore(codeBlockStructureField, blockRenderPlugin);
     expectOrderedBefore(blockRenderPlugin, referenceRenderPlugin);
+    expectOrderedBefore(referenceRenderPlugin, hoverPreviewExtension);
     expectOrderedBefore(referenceRenderPlugin, tableRenderPlugin);
     expectOrderedBefore(tableRenderPlugin, searchHighlightPlugin);
     expect(cm6RichRenderExtensions.at(-1)).toBe(searchHighlightPlugin);
@@ -45,6 +47,7 @@ describe("CM6 rich render extension composition", () => {
   it("includes the expected render-owned feature extensions", () => {
     const expectedExtensions: readonly Extension[] = [
       codeBlockRenderPlugin,
+      hoverPreviewExtension,
       bibliographyPlugin,
       containerAttributesPlugin,
       richClipboardOutputFilter,

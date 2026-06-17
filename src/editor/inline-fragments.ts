@@ -1,13 +1,10 @@
-import { parser as baseParser } from "@lezer/markdown";
 import type { SyntaxNode } from "@lezer/common";
-import { markdownExtensions } from "../core/parser";
+import { parseMarkdownSource } from "../core/parser";
 import { MARK_NODES } from "./render/render-core";
 import {
   matchBracketedReference,
   NARRATIVE_REFERENCE_RE,
 } from "./semantics/reference-parts";
-
-const inlineParser = baseParser.configure(markdownExtensions);
 
 export type InlineFragment =
   | { kind: "text"; text: string }
@@ -326,7 +323,7 @@ export function buildInlineFragments(
 export function parseInlineFragments(text: string): InlineFragment[] {
   if (!text) return [];
 
-  const tree = inlineParser.parse(text);
+  const tree = parseMarkdownSource(text, "semantic");
   const doc = tree.topNode;
   const para = doc.firstChild;
   if (!para) {
@@ -363,7 +360,7 @@ function findNeutralGapAnchor(
 export function findInlineNeutralAnchor(text: string): number | null {
   if (!text) return null;
 
-  const tree = inlineParser.parse(text);
+  const tree = parseMarkdownSource(text, "semantic");
   const doc = tree.topNode;
   const para = doc.firstChild;
   if (!para) return null;

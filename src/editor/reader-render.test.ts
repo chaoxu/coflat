@@ -72,7 +72,7 @@ describe("renderToHtml — slow path (Lezer)", () => {
 
   it("renders inline code", () => {
     const r = renderToHtml("see `code` here");
-    expect(r.html).toContain('<code class="cf-doc-code-token">code</code>');
+    expect(r.html).toContain('<code class="cf-doc-code-token cf-inline-code">code</code>');
   });
 
   it("renders a [label](url) link", () => {
@@ -160,7 +160,7 @@ describe("renderToHtml — slow path (Lezer)", () => {
     // Inline markup + math render; no paragraph wrapper.
     const rich = renderToHtml('---\ntitle: "**Bold** $x^2$"\n---\n\nbody');
     const richTitle = /<div class="cf-doc-title"[^>]*>([\s\S]*?)<\/div>/.exec(rich.html)?.[1] ?? "";
-    expect(richTitle).toContain("<strong>Bold</strong>");
+    expect(richTitle).toContain('<strong class="cf-bold">Bold</strong>');
     expect(richTitle).toContain('data-math="x^2"');
     expect(richTitle).not.toContain("<p>");
     expect(richTitle).not.toContain("<p ");
@@ -377,6 +377,7 @@ describe("renderToHtml — block-level rendering ()", () => {
     const r = renderToHtml("```js\nconst x = '<b>';\n```");
     expect(r.html).toContain('class="cf-doc-code-block"');
     expect(r.html).toContain('data-lang="js"');
+    expect(r.html).toContain('<code class="language-js">');
     expect(r.html).toContain('&lt;b&gt;');
     expect(r.html).not.toContain('<b>');
   });
@@ -384,7 +385,7 @@ describe("renderToHtml — block-level rendering ()", () => {
   it("renders inline code inside a heading", () => {
     const r = renderToHtml("# Use `foo` here");
     expect(r.html).toContain('cf-doc-heading--h1');
-    expect(r.html).toContain('<code class="cf-doc-code-token">foo</code>');
+    expect(r.html).toContain('<code class="cf-doc-code-token cf-inline-code">foo</code>');
   });
 
   it("renders horizontal rules", () => {
@@ -451,7 +452,7 @@ describe("renderToHtml — block-level rendering ()", () => {
   it("renders fenced div attribute titles with inline richness", () => {
     const r = renderToHtml("::: {.problem title=\"**3SUM** and $x^2$\"}\nbody\n:::");
     expect(r.html).toContain('<span class="cf-block-attr-title">');
-    expect(r.html).toContain("<strong>3SUM</strong>");
+    expect(r.html).toContain('<strong class="cf-bold">3SUM</strong>');
     expect(r.html).toContain('class="cf-doc-inline-math cf-math-inline"');
     expect(r.html).toContain('data-math="x^2"');
     expect(r.hasMath).toBe(true);

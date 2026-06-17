@@ -268,6 +268,30 @@ describe("hydrateReaderHoverPreviews", () => {
     expect(tooltip.textContent).not.toContain("second body");
   });
 
+  it("uses titled block preview headers from the render-time index", async () => {
+    const source = [
+      ':::: {#thm:hover-preview .theorem title="Hover Preview Stress Test"}',
+      "Body.",
+      "::::",
+      "",
+      "See [@thm:hover-preview].",
+    ].join("\n");
+    const result = renderToHtml(source, undefined, {
+      referencePreviews: true,
+      resolveReferences: true,
+    });
+    const root = makeRoot(result.html);
+    root.dataset.source = source;
+
+    const tooltip = await hoverReference(root, "thm:hover-preview", {
+      referencePreviewIndex: result.referencePreviewIndex,
+    });
+
+    expect(tooltip.querySelector(".cf-hover-preview-header")?.textContent)
+      .toBe("Theorem 1 Hover Preview Stress Test");
+    expect(tooltip.textContent).toContain("Body.");
+  });
+
   it("does not use preceding display math as a heading reference preview", async () => {
     const source = [
       "# First",

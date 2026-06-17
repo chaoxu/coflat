@@ -33,6 +33,57 @@ describe("reader in-document crossref resolution", () => {
     expect(b?.[1]).toBe("2");
   });
 
+  it("uses frontmatter global block numbering for in-document references", () => {
+    const src = [
+      "---",
+      "numbering: global",
+      "---",
+      "",
+      "::: {.theorem #thm:first}",
+      "First.",
+      ":::",
+      "",
+      "::: {.table #tbl:apps}",
+      "table",
+      ":::",
+      "",
+      "::: {.proposition #prop:middle}",
+      "Middle.",
+      ":::",
+      "",
+      "::: {.theorem #thm:target}",
+      "Target.",
+      ":::",
+      "",
+      "# Proof of [@thm:target] {#app:proof}",
+    ].join("\n");
+    const { html, referencePreviewIndex } = renderToHtml(src, undefined, {
+      referencePreviews: true,
+      resolveReferences: true,
+    });
+    expect(html).toMatch(/data-ref-key="thm:target"[\s\S]*?>Theorem 4</);
+    expect(referencePreviewIndex?.["thm:target"]?.label).toBe("Theorem 4");
+  });
+
+  it("carries titled block metadata into the reader hover preview index", () => {
+    const src = [
+      ':::: {#thm:hover-preview .theorem title="Hover Preview Stress Test"}',
+      "Body.",
+      "::::",
+      "",
+      "See [@thm:hover-preview].",
+    ].join("\n");
+    const { referencePreviewIndex } = renderToHtml(src, undefined, {
+      referencePreviews: true,
+      resolveReferences: true,
+    });
+    expect(referencePreviewIndex?.["thm:hover-preview"]).toMatchObject({
+      kind: "block",
+      label: "Theorem 1",
+      title: "Hover Preview Stress Test",
+    });
+  });
+
   it("resolves a FORWARD reference (ref before its target)", () => {
     const src = "See [@thm:later].\n\n::: {.theorem #thm:later}\nBody.\n:::";
     const { html } = renderToHtml(src, undefined, OPTS);

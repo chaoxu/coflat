@@ -127,6 +127,11 @@ describe("theme CSS contract", () => {
     expect(cssRuleBody(css, ".cf-list-bullet")).toContain("font-weight: 700;");
     expect(cssRuleBody(css, ".cf-list-number")).toContain("font-weight: 600;");
     expect(cssRuleBody(css, ".cf-list-number")).toContain("font-variant-numeric: tabular-nums;");
+    expect(cssRuleBody(css, ".cm-line.cf-doc-list")).toContain("margin: 0;");
+    expect(cssRuleBody(css, ".cm-line.cf-doc-list")).toContain("padding-left: 0;");
+    expect(cssRuleBody(css, ".cm-line.cf-doc-list")).toContain("list-style: none;");
+    expect(cssRuleBody(css, ".cm-line.cf-doc-list-item")).toContain("display: block;");
+    expect(cssRuleBody(css, ".cm-line.cf-doc-list-item")).toContain("margin: 0;");
     expect(cssRuleBody(css, ".cf-reader .cf-doc-list-item--check input[type=\"checkbox\"]")).toContain("pointer-events: none;");
     expect(cssRuleBody(css, ".cf-reader .cf-doc-code-block")).toContain("margin: 0;");
     expect(cssRuleBody(css, ".cf-reader .cf-doc-code-block")).toContain("padding: 0;");

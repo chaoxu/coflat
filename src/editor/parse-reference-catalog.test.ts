@@ -77,4 +77,39 @@ describe("buildReferenceCatalog", () => {
     expect(buildReferenceCatalog(withFrontmatter).uniqueTargetById.get("sec:h")?.line)
       .toBe(5);
   });
+
+  it("uses frontmatter global numbering for block target labels", () => {
+    const source = [
+      "---",
+      "numbering: global",
+      "---",
+      "",
+      "::: {.theorem #thm:first}",
+      "First.",
+      ":::",
+      "",
+      "::: {.table #tbl:apps}",
+      "table",
+      ":::",
+      "",
+      "::: {.proposition #prop:middle}",
+      "Middle.",
+      ":::",
+      "",
+      "::: {.theorem #thm:target}",
+      "Target.",
+      ":::",
+    ].join("\n");
+
+    expect(buildReferenceCatalog(source).targets.map((target) => [
+      target.kind,
+      target.id,
+      target.displayLabel,
+    ])).toEqual([
+      ["block", "thm:first", "Theorem 1"],
+      ["block", "tbl:apps", "Table 2"],
+      ["block", "prop:middle", "Proposition 3"],
+      ["block", "thm:target", "Theorem 4"],
+    ]);
+  });
 });

@@ -40,7 +40,6 @@ export const findReplacePlugin: EditorPlugin = {
 export const defaultEditorPlugins: EditorPlugin[] = [
   focusModePlugin,
   debugInspectorEditorPlugin,
-  hoverPreviewPlugin,
   spellcheckPlugin,
   findReplacePlugin,
 ];

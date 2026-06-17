@@ -553,6 +553,17 @@
   font-family: var(--cf-content-font, KaTeX_Main, "Times New Roman", serif);
 }
 
+.cm-line.cf-doc-list {
+  margin: 0;
+  padding-left: 0;
+  list-style: none;
+}
+
+.cm-line.cf-doc-list-item {
+  display: block;
+  margin: 0;
+}
+
 .cf-reader .cf-doc-code-token {
   font-family: var(--cf-code-font, Monaco, "DejaVu Sans Mono", Consolas, monospace);
   font-size: 0.85em;

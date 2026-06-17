@@ -12,6 +12,10 @@ import {
   mathSurfaceClassNames,
 } from "../../core/constants/css-classes";
 import {
+  DOCUMENT_SURFACE_CLASS,
+  documentSurfaceClassNames,
+} from "../../core/document-surface-classes";
+import {
   ClusteredCrossrefWidget,
   CrossrefWidget,
   MixedClusterWidget,
@@ -248,7 +252,7 @@ function renderFragment(
 
     case "code": {
       const code = document.createElement("code");
-      code.className = CSS.inlineCode;
+      code.className = documentSurfaceClassNames(DOCUMENT_SURFACE_CLASS.codeToken, CSS.inlineCode);
       code.textContent = fragment.text;
       container.appendChild(code);
       return;

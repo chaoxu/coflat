@@ -1,12 +1,9 @@
-import { parser as baseParser } from "@lezer/markdown";
-import { htmlRenderExtensions } from "../../../core/parser";
-
-const previewParser = baseParser.configure(htmlRenderExtensions);
+import { parseMarkdownSource } from "../../../core/parser";
 
 export function collectImageTargets(content: string): string[] {
   const targets: string[] = [];
   const seen = new Set<string>();
-  const tree = previewParser.parse(content);
+  const tree = parseMarkdownSource(content, "html-render");
 
   tree.iterate({
     enter(node) {

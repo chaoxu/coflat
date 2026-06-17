@@ -42,7 +42,6 @@ import {
   type AssetUploader,
 } from "./src/editor/asset-uploader";
 import { autocompleteSourceExtension } from "./src/editor/autocomplete-source-controller";
-import { hoverPreviewExtension } from "./src/editor/render/hover-preview";
 
 export type StandaloneEditorMode = "rich" | "source";
 
@@ -185,7 +184,6 @@ export function mountEditor(options: MountEditorOptions): MountedEditor {
           ]
         : []),
       ...(options.from ? [documentPathFacet.of(options.from)] : []),
-      hoverPreviewExtension,
       ...(options.extensions ?? []),
       ...(options.commands ? [commandRegistryExtension(options.commands)] : []),
       documentContextExtension(options.context),

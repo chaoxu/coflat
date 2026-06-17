@@ -6,13 +6,7 @@
  * Both pipelines parse with the same Lezer grammar and must agree on the
  * block-level structure, cf-doc-* classes, and data attributes they emit.
  * Documented divergences are normalized away instead of compared:
- *  - reader-only layout artifacts: cf-doc-blank-line spacers, explicit
- *    cf-list-bullet / cf-list-number marker spans, disclosure <button>s;
- *  - inline mark classes (cf-bold / cf-italic / ... vs bare tags): the
- *    inline renderer is shared with editor widgets and keeps its own
- *    contract, so class comparison is restricted to block-level tags;
- *  - `language-*` on <code> is preview-only (data-lang on <pre> is the
- *    shared contract and IS compared).
+ *  - reader-only disclosure <button>s.
  */
 import { describe, expect, it } from "vitest";
 import { renderToHtml } from "../../reader/reader";
@@ -24,11 +18,11 @@ const BLOCK_TAGS = new Set([
   "table", "thead", "tbody", "tr", "th", "td", "hr",
 ]);
 
-const SKIP_CLASSES = ["cf-doc-blank-line", "cf-list-bullet", "cf-list-number"];
+const INLINE_CLASS_TAGS = new Set(["em", "strong", "del", "mark"]);
+const LIST_MARKER_CLASSES = new Set(["cf-list-bullet", "cf-list-number"]);
 
 function shouldSkip(el: Element): boolean {
-  if (el.tagName === "BUTTON") return true;
-  return SKIP_CLASSES.some((cls) => el.classList.contains(cls));
+  return el.tagName === "BUTTON";
 }
 
 /** Flatten an element tree into comparable structural lines. */
@@ -38,9 +32,20 @@ function summarize(root: Element, depth = 0): string[] {
     if (shouldSkip(el)) continue;
     const tag = el.tagName.toLowerCase();
     const parts = [`${"  ".repeat(depth)}<${tag}`];
-    if (BLOCK_TAGS.has(tag)) {
+    const parentTag = el.parentElement?.tagName.toLowerCase();
+    const compareInlineClasses = INLINE_CLASS_TAGS.has(tag) && parentTag !== "pre";
+    const compareCodeBlockClass = tag === "code" && parentTag === "pre";
+    if (BLOCK_TAGS.has(tag) || compareInlineClasses) {
       const classes = [...el.classList].sort().join(" ");
       if (classes) parts.push(`class="${classes}"`);
+    } else if (compareCodeBlockClass) {
+      const classes = [...el.classList].sort().join(" ");
+      if (classes) parts.push(`class="${classes}"`);
+    } else if (tag === "span" && [...el.classList].some((cls) => LIST_MARKER_CLASSES.has(cls))) {
+      const classes = [...el.classList].sort().join(" ");
+      if (classes) parts.push(`class="${classes}"`);
+    }
+    if (BLOCK_TAGS.has(tag)) {
       for (const attr of [
         "data-align", "data-checked", "data-heading-numbering", "data-lang",
         "data-section-number", "id", "start",

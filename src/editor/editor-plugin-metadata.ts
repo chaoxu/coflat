@@ -43,7 +43,6 @@ export const findReplacePluginMetadata: EditorPluginMetadata = {
 export const defaultEditorPluginMetadata: EditorPluginMetadata[] = [
   focusModePluginMetadata,
   debugInspectorPluginMetadata,
-  hoverPreviewPluginMetadata,
   spellcheckPluginMetadata,
   findReplacePluginMetadata,
 ];

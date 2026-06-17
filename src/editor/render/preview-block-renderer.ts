@@ -1,4 +1,3 @@
-import { parser as baseParser } from "@lezer/markdown";
 import type { SyntaxNode } from "@lezer/common";
 import type {
   CitationFormatter,
@@ -18,9 +17,13 @@ import {
 import type { BlockCounterEntry } from "../../core/lib/file-system-types";
 import {
   extractRawFrontmatter,
-  htmlRenderExtensions,
+  parseMarkdownSource,
   type FrontmatterConfig,
 } from "../../core/parser";
+import {
+  blankLineRangesBetweenBlocks,
+  trailingBlankLineRangesAfterLastBlock,
+} from "../../core/parser/blank-lines";
 import { readBracedLabelId } from "../../core/parser/label-utils";
 import {
   isLooseListNode,
@@ -56,8 +59,6 @@ export interface PreviewBlockRenderOptions {
   readonly referenceSemantics?: DocumentSemantics;
 }
 
-const previewParser = baseParser.configure(htmlRenderExtensions);
-
 /**
  * Render markdown into preview DOM.
  *
@@ -75,7 +76,7 @@ export function renderPreviewBlockContentToDom(
 ): void {
   container.textContent = "";
 
-  const tree = previewParser.parse(text);
+  const tree = parseMarkdownSource(text, "html-render");
   const semantics = analyzeDocumentSemantics(stringTextSource(text), tree);
   const referenceSemantics = options.referenceSemantics ?? semantics;
   const referenceController = createPreviewReferencePresentationController({
@@ -170,6 +171,8 @@ function renderDocument(
 ): void {
   let child = node.firstChild;
   const frontmatterEnd = extractRawFrontmatter(context.doc)?.end ?? -1;
+  let previousRenderable: SyntaxNode | null = null;
+  let topCount = 0;
 
   if (frontmatterEnd >= 0) {
     while (child && child.to <= frontmatterEnd) {
@@ -181,8 +184,17 @@ function renderDocument(
   }
 
   while (child) {
+    if (previousRenderable && child.from > previousRenderable.to) {
+      appendBlankLines(parent, context, previousRenderable.to, child.from);
+    }
     renderNode(parent, child, context);
+    previousRenderable = child;
+    topCount += 1;
     child = child.nextSibling;
+  }
+
+  if (previousRenderable && topCount > 1) {
+    appendTrailingBlankLines(parent, context, previousRenderable.to);
   }
 }
 
@@ -275,8 +287,8 @@ function renderList(
   tag: "ul" | "ol",
 ): void {
   const list = document.createElement(tag);
+  const start = tag === "ol" ? orderedListStartNumber(node, context.doc) : 1;
   if (tag === "ol") {
-    const start = orderedListStartNumber(node, context.doc);
     if (start !== 1) {
       list.setAttribute("start", String(start));
     }
@@ -284,10 +296,13 @@ function renderList(
   const loose = isLooseListNode(node, context.doc);
   let isTaskList = false;
   let child = node.firstChild;
+  let itemIndex = 0;
 
   while (child) {
     if (child.name === "ListItem") {
       const item = document.createElement("li");
+      const markerNumber = start + itemIndex;
+      itemIndex += 1;
       const taskMarker = child.getChild("Task")?.getChild("TaskMarker") ?? null;
       const isTask = taskMarker !== null;
       isTaskList ||= isTask;
@@ -299,6 +314,7 @@ function renderList(
         const checked = context.doc.slice(taskMarker.from, taskMarker.to) !== "[ ]";
         item.dataset.checked = String(checked);
       }
+      appendListMarker(item, tag, markerNumber);
       renderListItem(item, child, context);
       list.appendChild(item);
     }
@@ -312,6 +328,47 @@ function renderList(
     loose ? DOCUMENT_SURFACE_CLASS.listLoose : DOCUMENT_SURFACE_CLASS.listTight,
   );
   parent.appendChild(list);
+}
+
+function appendBlankLines(
+  parent: HTMLElement | DocumentFragment,
+  context: PreviewRenderContext,
+  from: number,
+  to: number,
+): void {
+  for (const [lineFrom, lineTo] of blankLineRangesBetweenBlocks(context.doc, from, to)) {
+    appendBlankLine(parent, lineFrom, lineTo);
+  }
+}
+
+function appendTrailingBlankLines(
+  parent: HTMLElement | DocumentFragment,
+  context: PreviewRenderContext,
+  previousBlockTo: number,
+): void {
+  for (const [from, to] of trailingBlankLineRangesAfterLastBlock(context.doc, previousBlockTo)) {
+    appendBlankLine(parent, from, to);
+  }
+}
+
+function appendBlankLine(
+  parent: HTMLElement | DocumentFragment,
+  _from: number,
+  _to: number,
+): void {
+  const spacer = document.createElement("div");
+  spacer.className = DOCUMENT_SURFACE_CLASS.blankLine;
+  spacer.setAttribute("aria-hidden", "true");
+  spacer.appendChild(document.createElement("br"));
+  parent.appendChild(spacer);
+}
+
+function appendListMarker(parent: HTMLElement, tag: "ul" | "ol", number: number): void {
+  const marker = document.createElement("span");
+  marker.className = tag === "ol" ? CSS.listNumber : CSS.listBullet;
+  marker.textContent = tag === "ol" ? `${number}.` : "•";
+  parent.appendChild(marker);
+  parent.appendChild(document.createTextNode(" "));
 }
 
 // Matches the reader's unwrap rule: an item whose content is exactly one
@@ -450,13 +507,18 @@ function renderFencedDiv(
   if (!isSelfClosing) {
     const body = document.createDocumentFragment();
     let child = node.firstChild;
+    let previousRenderable: SyntaxNode | null = null;
     while (child) {
       if (
         child.name !== "FencedDivFence" &&
         child.name !== "FencedDivAttributes" &&
         child.name !== "FencedDivTitle"
       ) {
+        if (previousRenderable && child.from > previousRenderable.to) {
+          appendBlankLines(body, context, previousRenderable.to, child.from);
+        }
         renderNode(body, child, context);
+        previousRenderable = child;
       }
       child = child.nextSibling;
     }
