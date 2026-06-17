@@ -15,11 +15,18 @@ import { renderPreviewBlockContentToDom } from "./preview-block-renderer";
 const BLOCK_TAGS = new Set([
   "p", "h1", "h2", "h3", "h4", "h5", "h6",
   "ul", "ol", "li", "blockquote", "pre", "input",
-  "table", "thead", "tbody", "tr", "th", "td", "hr",
+  "table", "thead", "tbody", "tr", "th", "td", "hr", "div",
 ]);
 
 const INLINE_CLASS_TAGS = new Set(["em", "strong", "del", "mark"]);
-const LIST_MARKER_CLASSES = new Set(["cf-list-bullet", "cf-list-number"]);
+const COMPARED_SPAN_CLASSES = new Set([
+  "cf-block-attr-title",
+  "cf-block-heading-content",
+  "cf-block-header-rendered",
+  "cf-block-title-paren",
+  "cf-list-bullet",
+  "cf-list-number",
+]);
 
 function shouldSkip(el: Element): boolean {
   return el.tagName === "BUTTON";
@@ -35,13 +42,17 @@ function summarize(root: Element, depth = 0): string[] {
     const parentTag = el.parentElement?.tagName.toLowerCase();
     const compareInlineClasses = INLINE_CLASS_TAGS.has(tag) && parentTag !== "pre";
     const compareCodeBlockClass = tag === "code" && parentTag === "pre";
+    const compareSpanClasses = tag === "span" && [...el.classList].some((cls) => COMPARED_SPAN_CLASSES.has(cls));
     if (BLOCK_TAGS.has(tag) || compareInlineClasses) {
-      const classes = [...el.classList].sort().join(" ");
+      const classes = [...el.classList]
+        .filter((cls) => cls !== "cf-doc-block-collapsible")
+        .sort()
+        .join(" ");
       if (classes) parts.push(`class="${classes}"`);
     } else if (compareCodeBlockClass) {
       const classes = [...el.classList].sort().join(" ");
       if (classes) parts.push(`class="${classes}"`);
-    } else if (tag === "span" && [...el.classList].some((cls) => LIST_MARKER_CLASSES.has(cls))) {
+    } else if (compareSpanClasses) {
       const classes = [...el.classList].sort().join(" ");
       if (classes) parts.push(`class="${classes}"`);
     }
@@ -141,6 +152,26 @@ describe("reader / editor-preview emission parity", () => {
     {
       name: "horizontal rule between paragraphs",
       source: "before\n\n---\n\nafter",
+    },
+    {
+      name: "numbered theorem block with title",
+      source: [
+        '::: {.theorem #thm:a title="Main"}',
+        "Body text.",
+        ":::",
+        "",
+        "See [@thm:a].",
+      ].join("\n"),
+    },
+    {
+      name: "proof block with inline header",
+      source: [
+        "::: {.proof #proof:a}",
+        "Proof body.",
+        ":::",
+        "",
+        "After.",
+      ].join("\n"),
     },
   ])("$name", ({ source }) => {
     expect(previewSummary(source)).toEqual(readerSummary(source));

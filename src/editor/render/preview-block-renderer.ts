@@ -6,7 +6,7 @@ import type {
 import {
   BLOCK_MANIFEST_ENTRIES,
   EXCLUDED_FROM_FALLBACK,
-  getManifestBlockTitle,
+  isCollapsibleBlockType,
   type BlockManifestEntry,
 } from "../../core/constants/block-manifest";
 import { CSS } from "../../core/constants/css-classes";
@@ -17,6 +17,7 @@ import {
 import type { BlockCounterEntry } from "../../core/lib/file-system-types";
 import {
   extractRawFrontmatter,
+  parseFrontmatter,
   parseMarkdownSource,
   type FrontmatterConfig,
 } from "../../core/parser";
@@ -34,6 +35,12 @@ import {
   stringTextSource,
   type DocumentSemantics,
 } from "../semantics/document";
+import {
+  blockTitleOverridesFromConfig,
+  computeBlockNumbers,
+  createConfiguredBlockNumberingSpecLookup,
+  displayTitleForBlockType,
+} from "../semantics/block-numbering";
 import type { BibStore } from "../state/bib-data";
 import {
   renderInlineMarkdown,
@@ -78,6 +85,12 @@ export function renderPreviewBlockContentToDom(
 
   const tree = parseMarkdownSource(text, "html-render");
   const semantics = analyzeDocumentSemantics(stringTextSource(text), tree);
+  const config = options.config ?? parseFrontmatter(text).config;
+  const blockNumbers = computeBlockNumbers(
+    semantics.fencedDivs,
+    createConfiguredBlockNumberingSpecLookup(config.blocks),
+    config.numbering ?? "grouped",
+  );
   const referenceSemantics = options.referenceSemantics ?? semantics;
   const referenceController = createPreviewReferencePresentationController({
     bibliography: options.bibliography,
@@ -99,6 +112,8 @@ export function renderPreviewBlockContentToDom(
     bibliography: options.bibliography,
     formatter: options.formatter,
     blockCounters: options.blockCounters,
+    documentBlockNumbers: blockNumbers.byPosition,
+    blockTitleOverrides: blockTitleOverridesFromConfig(config.blocks),
     documentPath: options.documentPath,
     imageUrlOverrides: options.imageUrlOverrides,
     referenceContext: referenceController,
@@ -487,21 +502,21 @@ function renderFencedDiv(
   const title = fencedDiv?.title ?? "";
   const isSelfClosing = fencedDiv?.isSelfClosing ?? false;
   const primaryClass = getPrimaryBlockClass(classes);
+  const primaryClassName = primaryClass?.name ?? fencedDiv?.primaryClass;
+  const blockNumber = primaryClassName
+    ? context.documentBlockNumbers.get(node.from)?.number
+    : undefined;
   const captionBelow = primaryClass?.captionPosition === "below";
   const inlineHeader = primaryClass?.headerPosition === "inline";
-  const headerLabel = getBlockHeaderLabel(primaryClass);
+  const summary = primaryClassName
+    ? createBlockSummaryFragment(context, primaryClassName, title, blockNumber)
+    : undefined;
+  const headerLabel = getBlockHeaderLabel(context, primaryClass, blockNumber);
 
-  if (title) {
-    if (isSelfClosing) {
-      const paragraph = document.createElement("p");
-      appendInlineText(paragraph, title, context, "document-body");
-      block.appendChild(paragraph);
-    } else if (!captionBelow && !inlineHeader) {
-      const strong = document.createElement("strong");
-      strong.className = CSS.blockHeaderRendered;
-      appendInlineText(strong, title, context, "document-body");
-      block.appendChild(strong);
-    }
+  if (title && isSelfClosing) {
+    const paragraph = document.createElement("p");
+    appendInlineText(paragraph, title, context, "document-body");
+    block.appendChild(paragraph);
   }
 
   if (!isSelfClosing) {
@@ -523,10 +538,24 @@ function renderFencedDiv(
       child = child.nextSibling;
     }
 
-    if (inlineHeader) {
-      prependInlineHeader(body, headerLabel);
+    if (inlineHeader && summary) {
+      if (primaryClass?.specialBehavior === "qed") {
+        addClassToLastChildElement(body, CSS.blockQed);
+      }
+      prependInlineHeader(body, summary);
     }
-    block.appendChild(body);
+
+    if (summary && isCollapsibleBlockType(primaryClassName)) {
+      appendBlockHeader(block, summary, body);
+    } else {
+      if (title && !captionBelow && !inlineHeader) {
+        const strong = document.createElement("strong");
+        strong.className = CSS.blockHeaderRendered;
+        appendInlineText(strong, title, context, "document-body");
+        block.appendChild(strong);
+      }
+      block.appendChild(body);
+    }
   }
 
   if (!isSelfClosing && captionBelow && title) {
@@ -552,16 +581,83 @@ function getPrimaryBlockClass(classes: readonly string[]): BlockManifestEntry | 
   return BLOCK_MANIFEST_ENTRIES.find((entry) => classes.includes(entry.name));
 }
 
-function getBlockHeaderLabel(entry: BlockManifestEntry | undefined): string {
-  return entry ? getManifestBlockTitle(entry) : "";
+function getBlockHeaderLabel(
+  context: PreviewRenderContext,
+  entry: BlockManifestEntry | undefined,
+  number: number | undefined,
+): string {
+  if (!entry) return "";
+  const title = displayTitleForBlockType(entry.name, context.blockTitleOverrides);
+  return number === undefined ? title : `${title} ${number}`;
 }
 
-function prependInlineHeader(body: DocumentFragment, label: string): void {
-  if (!label) return;
+function createBlockSummaryFragment(
+  context: PreviewRenderContext,
+  blockType: string,
+  title: string,
+  number: number | undefined,
+): DocumentFragment {
+  const summary = document.createDocumentFragment();
+  const displayTitle = displayTitleForBlockType(blockType, context.blockTitleOverrides);
+  const headerText = blockType === "proof"
+    ? "Proof"
+    : number === undefined
+      ? displayTitle
+      : `${displayTitle} ${number}`;
 
   const header = document.createElement("span");
   header.className = CSS.blockHeaderRendered;
-  header.textContent = label;
+  header.textContent = headerText;
+  summary.appendChild(header);
+
+  if (title && blockType !== "proof") {
+    const attrTitle = document.createElement("span");
+    attrTitle.className = CSS.blockAttrTitle;
+
+    const openParen = document.createElement("span");
+    openParen.className = CSS.blockTitleParen;
+    openParen.textContent = "(";
+    attrTitle.appendChild(openParen);
+
+    const renderedTitle = document.createElement("span");
+    appendInlineText(renderedTitle, title, context, "document-body");
+    attrTitle.appendChild(renderedTitle);
+
+    const closeParen = document.createElement("span");
+    closeParen.className = CSS.blockTitleParen;
+    closeParen.textContent = ")";
+    attrTitle.appendChild(closeParen);
+
+    summary.appendChild(attrTitle);
+  }
+
+  return summary;
+}
+
+function appendBlockHeader(
+  block: HTMLElement,
+  summary: DocumentFragment,
+  body: DocumentFragment,
+): void {
+  const heading = document.createElement("div");
+  heading.className = DOCUMENT_SURFACE_CLASS.blockHeading;
+
+  const headingContent = document.createElement("span");
+  headingContent.className = CSS.blockHeadingContent;
+  headingContent.appendChild(summary);
+  heading.appendChild(headingContent);
+  block.appendChild(heading);
+
+  const bodyWrapper = document.createElement("div");
+  bodyWrapper.className = CSS.blockDisclosureBody;
+  bodyWrapper.appendChild(body);
+  block.appendChild(bodyWrapper);
+}
+
+function prependInlineHeader(body: DocumentFragment, summary: DocumentFragment): void {
+  const header = document.createElement("span");
+  header.className = DOCUMENT_SURFACE_CLASS.blockHeading;
+  header.appendChild(summary);
 
   const first = body.firstElementChild;
   if (first instanceof HTMLParagraphElement) {
@@ -570,8 +666,13 @@ function prependInlineHeader(body: DocumentFragment, label: string): void {
   }
 
   const paragraph = document.createElement("p");
+  paragraph.className = DOCUMENT_SURFACE_CLASS.paragraph;
   paragraph.appendChild(header);
   body.prepend(paragraph);
+}
+
+function addClassToLastChildElement(parent: DocumentFragment, className: string): void {
+  parent.lastElementChild?.classList.add(className);
 }
 
 function renderDisplayMath(
