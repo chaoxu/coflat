@@ -10,9 +10,12 @@
 import { parser as baseMarkdownParser } from "@lezer/markdown";
 import type { SyntaxNode, Tree } from "@lezer/common";
 import createDOMPurify from "dompurify";
+import { __iconNode as chevronDownIconNode } from "lucide-react/dist/esm/icons/chevron-down.js";
+import { __iconNode as chevronRightIconNode } from "lucide-react/dist/esm/icons/chevron-right.js";
 
 import { htmlRenderExtensions, parseFrontmatter } from "../core/parser";
 import { NODE } from "../core/constants/node-types";
+import { createLucideIcon } from "../core/lib/lucide-icon";
 import { isSafeUrl } from "../core/lib/url-utils";
 import { escapeHtml } from "../core/lib/html-escape";
 import { buildLineOffsets, lineAt } from "../core/lib/line-offsets";
@@ -89,8 +92,6 @@ export type {
   FileSystem,
 } from "../core/lib/file-system-types";
 
-const BLOCK_DISCLOSURE_OPEN_ICON = "▼";
-const BLOCK_DISCLOSURE_CLOSED_ICON = "▶";
 const BLOCK_DISCLOSURE_COLLAPSE_LABEL = "Collapse block";
 const BLOCK_DISCLOSURE_EXPAND_LABEL = "Expand block";
 const SECTION_DISCLOSURE_COLLAPSE_LABEL = "Collapse section";
@@ -1104,6 +1105,7 @@ type TruncateSpec = { lines: number } | { chars: number };
 export interface ReaderOutlineEntry {
   readonly id: string;
   readonly text: string;
+  readonly html: string;
   readonly level: number;
   readonly number?: string;
 }
@@ -1384,8 +1386,8 @@ function renderHeading(ctx: WalkContext, node: SyntaxNode, level: number): Block
     else headingId = uniqueHeadingId(slugifyHeading(inner.text), ctx.usedHeadingIds);
     ctx.outline.push(
       displayUnnumbered
-        ? { id: headingId, text: inner.text, level }
-        : { id: headingId, text: inner.text, level, number: headingNumber },
+        ? { id: headingId, text: inner.text, html: inner.html, level }
+        : { id: headingId, text: inner.text, html: inner.html, level, number: headingNumber },
     );
   }
   const idAttr = headingId ? ` id="${escapeHtml(headingId)}"` : "";
@@ -2606,7 +2608,11 @@ function applyDisclosureState(
 ): void {
   owner.setAttribute(openAttr, expanded ? "true" : "false");
   parts.body.hidden = !expanded;
-  parts.toggle.textContent = expanded ? BLOCK_DISCLOSURE_OPEN_ICON : BLOCK_DISCLOSURE_CLOSED_ICON;
+  parts.toggle.replaceChildren(
+    expanded
+      ? createLucideIcon(chevronDownIconNode, "chevron-down")
+      : createLucideIcon(chevronRightIconNode, "chevron-right"),
+  );
   parts.toggle.classList.toggle(CSS.blockDisclosureToggleCollapsed, !expanded);
   parts.toggle.setAttribute("aria-expanded", expanded ? "true" : "false");
   parts.toggle.setAttribute("aria-label", expanded ? labels.collapse : labels.expand);

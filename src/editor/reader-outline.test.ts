@@ -27,11 +27,19 @@ describe("renderToHtml outline option", () => {
   it("returns a document-order outline with ids, levels, and section numbers", () => {
     const { outline } = renderToHtml(doc, undefined, { outline: true });
     expect(outline).toEqual([
-      { id: "intro", text: "Intro", level: 1, number: "1" },
-      { id: "bg", text: "Background", level: 2, number: "1.1" },
-      { id: "background", text: "Background", level: 2, number: "1.2" },
-      { id: "methodes-results", text: "Méthodes & Results!", level: 1, number: "2" },
+      { id: "intro", text: "Intro", html: "Intro", level: 1, number: "1" },
+      { id: "bg", text: "Background", html: "Background", level: 2, number: "1.1" },
+      { id: "background", text: "Background", html: "Background", level: 2, number: "1.2" },
+      { id: "methodes-results", text: "Méthodes & Results!", html: "Méthodes &amp; Results!", level: 1, number: "2" },
     ]);
+  });
+
+  it("includes rendered inline heading html for outline UI", () => {
+    const { outline } = renderToHtml("# **Alpha** $a^2$ `Head`", undefined, { outline: true });
+    expect(outline?.[0]?.text).toBe("Alpha $a^2$ Head");
+    expect(outline?.[0]?.html).toContain("<strong");
+    expect(outline?.[0]?.html).toContain("cf-doc-inline-math");
+    expect(outline?.[0]?.html).toContain("cf-doc-code-token");
   });
 
   it("emits a matching id on every heading so outline anchors resolve", () => {
@@ -75,7 +83,7 @@ describe("renderToHtml outline option", () => {
 
   it("omits the section number for unnumbered headings", () => {
     const { outline } = renderToHtml("# Title {.unnumbered}", undefined, { outline: true });
-    expect(outline).toEqual([{ id: "title", text: "Title", level: 1 }]);
+    expect(outline).toEqual([{ id: "title", text: "Title", html: "Title", level: 1 }]);
   });
 
   it("does not include headings past a truncation boundary in the outline", () => {
