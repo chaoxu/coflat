@@ -11,6 +11,7 @@ import { hoverPreviewExtension } from "./hover-preview";
 import { imageRenderPlugin } from "./image-render";
 import { sharedInlineRenderExtensions } from "./inline-render-extensions";
 import { mathPreviewPlugin } from "./math-preview";
+import { paragraphFlowRenderPlugin } from "./paragraph-flow-render";
 import { blockRenderPlugin } from "./plugin-render";
 import { referenceRenderPlugin } from "./reference-render";
 import { richClipboardOutputFilter } from "./rich-clipboard";
@@ -39,6 +40,8 @@ describe("CM6 rich render extension composition", () => {
     expectOrderedBefore(codeBlockStructureField, blockRenderPlugin);
     expectOrderedBefore(blockRenderPlugin, referenceRenderPlugin);
     expectOrderedBefore(referenceRenderPlugin, hoverPreviewExtension);
+    expectOrderedBefore(hoverPreviewExtension, paragraphFlowRenderPlugin);
+    expectOrderedBefore(paragraphFlowRenderPlugin, tableRenderPlugin);
     expectOrderedBefore(referenceRenderPlugin, tableRenderPlugin);
     expectOrderedBefore(tableRenderPlugin, searchHighlightPlugin);
     expect(cm6RichRenderExtensions.at(-1)).toBe(searchHighlightPlugin);
@@ -52,6 +55,7 @@ describe("CM6 rich render extension composition", () => {
       containerAttributesPlugin,
       richClipboardOutputFilter,
       checkboxRenderPlugin,
+      paragraphFlowRenderPlugin,
       mathPreviewPlugin,
       sectionNumberPlugin,
       fenceGuidePlugin,

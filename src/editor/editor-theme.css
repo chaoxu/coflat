@@ -523,6 +523,28 @@
   overflow-wrap: anywhere;
 }
 
+.cm-content .cf-paragraph-flow-widget {
+  display: block;
+  cursor: text;
+}
+
+.cm-content .cf-paragraph-flow-widget .cf-doc-paragraph {
+  margin: var(--cf-doc-paragraph-margin, 0.5em 0);
+  white-space: break-spaces;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.cm-content .cf-paragraph-flow-widget a,
+.cm-content .cf-paragraph-flow-widget .cf-doc-link {
+  display: inline;
+  color: var(--cf-color-link, var(--cf-accent));
+  text-decoration-line: underline;
+  text-decoration-style: dotted;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
 .cf-reader .cf-doc-list {
   margin: 0;
   padding-left: 0;

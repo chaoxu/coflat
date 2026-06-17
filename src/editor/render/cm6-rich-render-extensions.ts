@@ -9,6 +9,7 @@ import { imageRenderPlugin } from "./image-render";
 import { sharedInlineRenderExtensions } from "./inline-render-extensions";
 import { hoverPreviewExtension } from "./hover-preview";
 import { mathPreviewPlugin } from "./math-preview";
+import { paragraphFlowRenderPlugin } from "./paragraph-flow-render";
 import { blockRenderPlugin } from "./plugin-render";
 import { referenceRenderPlugin } from "./reference-render";
 import { richClipboardOutputFilter } from "./rich-clipboard";
@@ -31,6 +32,7 @@ export const cm6RichRenderExtensions: Extension[] = [
   blockRenderPlugin,
   referenceRenderPlugin,
   hoverPreviewExtension,
+  paragraphFlowRenderPlugin,
   codeBlockRenderPlugin,
   bibliographyPlugin,
   containerAttributesPlugin,
