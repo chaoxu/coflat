@@ -11,10 +11,7 @@ import {
   CSS,
   mathSurfaceClassNames,
 } from "../../core/constants/css-classes";
-import {
-  DOCUMENT_SURFACE_CLASS,
-  documentSurfaceClassNames,
-} from "../../core/document-surface-classes";
+import { createInlineMarkElement } from "../../core/inline-mark-surface";
 import {
   ClusteredCrossrefWidget,
   CrossrefWidget,
@@ -217,42 +214,35 @@ function renderFragment(
       return;
 
     case "emphasis": {
-      const em = document.createElement("em");
-      em.className = CSS.italic;
+      const em = createInlineMarkElement(document, "emphasis", { surface });
       renderFragments(em, fragment.children, macros, surface, referenceContext);
       container.appendChild(em);
       return;
     }
 
     case "strong": {
-      const strong = document.createElement("strong");
-      strong.className = CSS.bold;
+      const strong = createInlineMarkElement(document, "strong", { surface });
       renderFragments(strong, fragment.children, macros, surface, referenceContext);
       container.appendChild(strong);
       return;
     }
 
     case "strikethrough": {
-      const del = document.createElement("del");
-      del.className = CSS.strikethrough;
+      const del = createInlineMarkElement(document, "strikethrough", { surface });
       renderFragments(del, fragment.children, macros, surface, referenceContext);
       container.appendChild(del);
       return;
     }
 
     case "highlight": {
-      const highlight = document.createElement(
-        surface === "document-body" ? "mark" : "span",
-      );
-      highlight.className = CSS.highlight;
+      const highlight = createInlineMarkElement(document, "highlight", { surface });
       renderFragments(highlight, fragment.children, macros, surface, referenceContext);
       container.appendChild(highlight);
       return;
     }
 
     case "code": {
-      const code = document.createElement("code");
-      code.className = documentSurfaceClassNames(DOCUMENT_SURFACE_CLASS.codeToken, CSS.inlineCode);
+      const code = createInlineMarkElement(document, "code", { surface });
       code.textContent = fragment.text;
       container.appendChild(code);
       return;

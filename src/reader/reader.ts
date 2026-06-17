@@ -73,8 +73,8 @@ import {
 } from "../core/references/format";
 import {
   DOCUMENT_SURFACE_CLASS,
-  documentSurfaceClassNames,
 } from "../core/document-surface-classes";
+import { renderInlineMarkHtml } from "../core/inline-mark-surface";
 import {
   blockSurfaceClassNames,
   renderBlankLineHtml,
@@ -741,23 +741,35 @@ function renderInlineNode(
     case NODE.Emphasis: {
       const inner = renderInline(ctx, node, node.from, node.to);
       const sp = sourcePosAttrs(ctx, node.from, node.to);
-      return { html: `<em class="${CSS.italic}"${sp}>${inner.html}</em>`, text: inner.text, hasMath: inner.hasMath };
+      return {
+        html: renderInlineMarkHtml("emphasis", inner.html, { sourceAttrs: sp }),
+        text: inner.text,
+        hasMath: inner.hasMath,
+      };
     }
     case NODE.StrongEmphasis: {
       const inner = renderInline(ctx, node, node.from, node.to);
       const sp = sourcePosAttrs(ctx, node.from, node.to);
-      return { html: `<strong class="${CSS.bold}"${sp}>${inner.html}</strong>`, text: inner.text, hasMath: inner.hasMath };
+      return {
+        html: renderInlineMarkHtml("strong", inner.html, { sourceAttrs: sp }),
+        text: inner.text,
+        hasMath: inner.hasMath,
+      };
     }
     case NODE.Strikethrough: {
       const inner = renderInline(ctx, node, node.from, node.to);
       const sp = sourcePosAttrs(ctx, node.from, node.to);
-      return { html: `<del class="${CSS.strikethrough}"${sp}>${inner.html}</del>`, text: inner.text, hasMath: inner.hasMath };
+      return {
+        html: renderInlineMarkHtml("strikethrough", inner.html, { sourceAttrs: sp }),
+        text: inner.text,
+        hasMath: inner.hasMath,
+      };
     }
     case NODE.Highlight: {
       const inner = renderInline(ctx, node, node.from, node.to);
       const sp = sourcePosAttrs(ctx, node.from, node.to);
       return {
-        html: `<mark class="${CSS.highlight}"${sp}>${inner.html}</mark>`,
+        html: renderInlineMarkHtml("highlight", inner.html, { sourceAttrs: sp }),
         text: inner.text,
         hasMath: inner.hasMath,
       };
@@ -769,7 +781,7 @@ function renderInlineNode(
       const inner = raw.slice(fenceLen, raw.length - fenceLen);
       const sp = sourcePosAttrs(ctx, node.from, node.to);
       return {
-        html: `<code class="${documentSurfaceClassNames(DOCUMENT_SURFACE_CLASS.codeToken, CSS.inlineCode)}"${sp}>${escapeHtml(inner)}</code>`,
+        html: renderInlineMarkHtml("code", escapeHtml(inner), { sourceAttrs: sp }),
         text: inner,
         hasMath: false,
       };
