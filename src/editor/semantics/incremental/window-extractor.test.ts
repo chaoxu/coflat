@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parser as baseParser } from "@lezer/markdown";
-import { markdownExtensions } from "../../../core/parser";
+import { getMarkdownParser } from "../../../core/parser";
 import {
   analyzeEquations,
   analyzeFencedDivs,
@@ -12,7 +11,7 @@ import {
 } from "../document";
 import { extractStructuralWindow } from "./window-extractor";
 
-const parser = baseParser.configure(markdownExtensions);
+const parser = getMarkdownParser("semantic");
 
 describe("extractStructuralWindow", () => {
   it("matches the full-document structural output used by current analyzers", () => {

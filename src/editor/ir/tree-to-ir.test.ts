@@ -1,10 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { parser as baseParser } from "@lezer/markdown";
-import { markdownExtensions } from "../../core/parser";
+import { getMarkdownParser } from "../../core/parser";
 import { treeToIR } from "./tree-to-ir";
 import type { DocumentIR } from "./types";
 
-const parser = baseParser.configure(markdownExtensions);
+const parser = getMarkdownParser("semantic");
 
 function parseDoc(doc: string): DocumentIR {
   const tree = parser.parse(doc);

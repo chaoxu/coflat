@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parser as baseParser } from "@lezer/markdown";
-import { markdownExtensions } from "../../core/parser";
+import { getMarkdownParser } from "../../core/parser";
 import {
   analyzeDocumentSemantics,
   analyzeEquations,
@@ -13,7 +12,7 @@ import {
   stringTextSource,
 } from "./document";
 
-const parser = baseParser.configure(markdownExtensions);
+const parser = getMarkdownParser("semantic");
 
 describe("document semantics analyzers", () => {
   it("analyzes headings with shared numbering and attribute stripping", () => {

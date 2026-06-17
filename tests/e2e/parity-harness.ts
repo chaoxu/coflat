@@ -1,10 +1,9 @@
 import { expect, type Page } from "@playwright/test";
-import { parser as baseMarkdownParser } from "@lezer/markdown";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import { CSS } from "../../src/core/constants/css-classes";
 import {
-  htmlRenderExtensions,
+  getMarkdownParser,
   parseFrontmatter,
 } from "../../src/core/parser";
 import {
@@ -54,7 +53,7 @@ export interface CorpusSource {
   readonly source: string;
 }
 
-const corpusParser = baseMarkdownParser.configure(htmlRenderExtensions);
+const corpusParser = getMarkdownParser("html-render");
 let cachedCorpusDocuments:
   | { readonly dir: string; readonly sources: readonly CorpusSource[] }
   | null = null;
