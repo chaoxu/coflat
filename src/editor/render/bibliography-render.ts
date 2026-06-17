@@ -29,6 +29,11 @@ import {
 } from "../citations/citation-matching";
 import type { CitationFormatter } from "../../core/document-context-types";
 import { type CslJsonItem } from "../../core/citations/csl-json";
+import {
+  bibliographyListElement,
+  createBibliographyEntryElement,
+  createBibliographySectionElement,
+} from "../../core/bibliography-surface";
 import { CSS } from "../../core/constants/css-classes";
 import { sanitizeCslHtml } from "../lib/sanitize-csl-html";
 import { type BibStore, bibDataEffect, bibDataField } from "../state/bib-data";
@@ -73,24 +78,14 @@ export class BibliographyWidget extends RenderWidget {
   }
 
   createDOM(): HTMLElement {
-    const section = document.createElement("div");
-    section.className = CSS.bibliography;
-
-    const heading = document.createElement("h2");
-    heading.className = CSS.bibliographyHeading;
-    heading.textContent = "References";
-    section.appendChild(heading);
-
-    const list = document.createElement("div");
-    list.className = CSS.bibliographyList;
+    const section = createBibliographySectionElement(document);
+    const list = bibliographyListElement(section);
 
     if (this.cslHtml.length > 0) {
       // Use CSL-formatted entries (already include [1] numbering for IEEE).
       for (let i = 0; i < this.cslHtml.length; i++) {
         const entry = this.entries[i];
-        const div = document.createElement("div");
-        div.className = CSS.bibliographyEntry;
-        div.id = `bib-${entry.id}`;
+        const div = createBibliographyEntryElement(document, entry.id);
         div.innerHTML = sanitizeCslHtml(this.cslHtml[i]);
         appendBacklinks(div, entry.id, this.backlinks);
         list.appendChild(div);
@@ -98,16 +93,13 @@ export class BibliographyWidget extends RenderWidget {
     } else {
       for (let i = 0; i < this.entries.length; i++) {
         const entry = this.entries[i];
-        const div = document.createElement("div");
-        div.className = CSS.bibliographyEntry;
-        div.id = `bib-${entry.id}`;
+        const div = createBibliographyEntryElement(document, entry.id);
         div.textContent = `[${i + 1}] ${formatBibEntry(entry)}`;
         appendBacklinks(div, entry.id, this.backlinks);
         list.appendChild(div);
       }
     }
 
-    section.appendChild(list);
     return section;
   }
 

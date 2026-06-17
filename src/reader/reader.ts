@@ -57,6 +57,7 @@ import {
   citeInline as coreCiteInline,
   isCitationKey as coreIsCitationKey,
 } from "../core/references/citation-rendering";
+import { renderBibliographySectionHtml } from "../core/bibliography-surface";
 import {
   formatBlockReferenceLabel,
   formatEquationReferenceLabel,
@@ -2049,18 +2050,7 @@ function renderReferencesList(ctx: WalkContext): string {
   if (!formatter || ctx.citedKeys.length === 0) return "";
   const entries = coreBibliographyEntries(formatter, ctx.citedKeys);
   if (entries.length === 0) return "";
-  const items = entries.map(
-    (entry) =>
-      `<div class="${CSS.bibliographyEntry}" id="bib-${escapeHtml(encodeURIComponent(entry.id))}">${entry.html}</div>`,
-  );
-  // A <div> (not <section>) to match the editor's bibliography DOM and the
-  // reader's sanitize allowlist.
-  return (
-    `<div class="${CSS.bibliography}" aria-label="References">` +
-    `<h2 class="${CSS.bibliographyHeading}">References</h2>` +
-    `<div class="${CSS.bibliographyList}">${items.join("")}</div>` +
-    `</div>`
-  );
+  return renderBibliographySectionHtml(entries);
 }
 
 // ---------------------------------------------------------------------------
