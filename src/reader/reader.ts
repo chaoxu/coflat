@@ -94,6 +94,7 @@ import {
   taskMarkerChecked,
 } from "../core/list-surface";
 import { renderCodeBlockHtml } from "../core/code-block-surface";
+import { renderReaderFootnoteReferenceHtml } from "../core/footnote-reference-surface";
 import { renderFootnoteSectionHtml } from "../core/footnote-section-surface";
 import {
   displayMathSurfaceClassNames,
@@ -840,13 +841,9 @@ function renderInlineNode(
       } else {
         entry.hasRef = true;
       }
-      const safeId = encodeURIComponent(id);
       const sp = sourcePosAttrs(ctx, node.from, node.to);
       return {
-        html:
-          `<sup class="${CSS.footnoteRef}"${sp}>` +
-          `<a href="#fn-${escapeHtml(safeId)}" id="fnref-${escapeHtml(safeId)}">${entry.number}</a>` +
-          `</sup>`,
+        html: renderReaderFootnoteReferenceHtml(entry.number, id, sp),
         text: `[${entry.number}]`,
         hasMath: false,
       };

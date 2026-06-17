@@ -1,5 +1,6 @@
 import { type EditorView, WidgetType } from "@codemirror/view";
 import { CSS } from "../../core/constants/css-classes";
+import { createEditorFootnoteReferenceElement } from "../../core/footnote-reference-surface";
 import { renderDocumentFragmentToDom } from "../document-surfaces";
 import {
   footnoteInlineToggleEffect,
@@ -46,6 +47,10 @@ export class FootnoteRefWidget extends SimpleTextRenderWidget {
       text: String(number),
       attrs: { "data-footnote-id": id, "aria-label": `Footnote ${id}` },
     });
+  }
+
+  override createDOM(): HTMLElement {
+    return createEditorFootnoteReferenceElement(document, this.number, this.id);
   }
 
   override toDOM(view?: EditorView): HTMLElement {
