@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { CSS } from "./constants/css-classes";
 import {
+  appendBibliographyBacklinks,
+  BIBLIOGRAPHY_BACKLINK_TEXT,
   bibliographyEntryId,
   bibliographyListElement,
+  createBibliographyBacklinksElement,
   createBibliographyEntryElement,
   createBibliographySectionElement,
   renderBibliographySectionHtml,
@@ -30,5 +33,32 @@ describe("bibliography surface", () => {
     expect(section.querySelector(`.${CSS.bibliographyList}`)).toBe(list);
     expect(entry.className).toBe(CSS.bibliographyEntry);
     expect(entry.id).toBe(bibliographyEntryId("smith:2024"));
+  });
+
+  it("creates canonical bibliography backlink groups", () => {
+    const backlinks = createBibliographyBacklinksElement(document, [
+      { occurrence: 1, sourceFrom: 12 },
+      { occurrence: 2, sourceFrom: 34, ariaLabel: "Jump to second citation" },
+    ]);
+
+    expect(backlinks?.outerHTML).toBe(
+      '<span class="cf-bibliography-backlinks">' +
+        `<a class="cf-bibliography-backlink" href="#cite-ref-1" data-source-from="12" aria-label="Jump to citation">${BIBLIOGRAPHY_BACKLINK_TEXT}</a> ` +
+        `<a class="cf-bibliography-backlink" href="#cite-ref-2" data-source-from="34" aria-label="Jump to second citation">${BIBLIOGRAPHY_BACKLINK_TEXT}</a>` +
+        "</span>",
+    );
+  });
+
+  it("appends bibliography backlinks after entry content", () => {
+    const entry = createBibliographyEntryElement(document, "smith:2024");
+    entry.textContent = "[1] Smith";
+
+    appendBibliographyBacklinks(entry, [{ occurrence: 1, sourceFrom: 12 }]);
+
+    expect(entry.outerHTML).toBe(
+      '<div class="cf-bibliography-entry" id="bib-smith%3A2024">[1] Smith ' +
+        `<span class="cf-bibliography-backlinks"><a class="cf-bibliography-backlink" href="#cite-ref-1" data-source-from="12" aria-label="Jump to citation">${BIBLIOGRAPHY_BACKLINK_TEXT}</a></span>` +
+        "</div>",
+    );
   });
 });

@@ -15,7 +15,6 @@ import {
 import {
   buildCitationBacklinkAriaLabel,
   buildCitationBacklinkContextFromDoc,
-  COMPACT_CITATION_BACKLINK_TEXT,
 } from "../citations/bibliography-backlinks";
 import { formatBibEntry, sortBibEntries } from "../citations/bibliography";
 import {
@@ -30,6 +29,7 @@ import {
 import type { CitationFormatter } from "../../core/document-context-types";
 import { type CslJsonItem } from "../../core/citations/csl-json";
 import {
+  appendBibliographyBacklinks,
   bibliographyListElement,
   createBibliographyEntryElement,
   createBibliographySectionElement,
@@ -283,25 +283,13 @@ function appendBacklinks(
 ): void {
   const refs = backlinks.get(id);
   if (!refs || refs.length === 0) return;
-
-  const container = document.createElement("span");
-  container.className = CSS.bibliographyBacklinks;
-
-  for (const backlink of refs) {
-    const link = document.createElement("a");
-    link.className = CSS.bibliographyBacklink;
-    link.href = `#cite-ref-${backlink.occurrence}`;
-    link.dataset.sourceFrom = String(backlink.from);
-    link.textContent = COMPACT_CITATION_BACKLINK_TEXT;
-    link.setAttribute("aria-label", "Jump to citation");
-    if (container.childNodes.length > 0) {
-      container.append(" ");
-    }
-    container.appendChild(link);
-  }
-
-  entryEl.append(" ");
-  entryEl.appendChild(container);
+  appendBibliographyBacklinks(
+    entryEl,
+    refs.map((backlink) => ({
+      occurrence: backlink.occurrence,
+      sourceFrom: backlink.from,
+    })),
+  );
 }
 
 export function buildBibliographyDecorations(

@@ -6,6 +6,14 @@ export interface BibliographySurfaceEntryHtml {
   readonly html: string;
 }
 
+export interface BibliographyBacklinkSurfaceEntry {
+  readonly occurrence: number;
+  readonly sourceFrom: number;
+  readonly ariaLabel?: string;
+}
+
+export const BIBLIOGRAPHY_BACKLINK_TEXT = "↩";
+
 export function bibliographyEntryId(id: string): string {
   return `bib-${encodeURIComponent(id)}`;
 }
@@ -64,4 +72,40 @@ export function createBibliographyEntryElement(
   entry.className = CSS.bibliographyEntry;
   entry.id = bibliographyEntryId(id);
   return entry;
+}
+
+export function createBibliographyBacklinksElement(
+  ownerDocument: Document,
+  backlinks: readonly BibliographyBacklinkSurfaceEntry[],
+): HTMLSpanElement | null {
+  if (backlinks.length === 0) return null;
+
+  const container = ownerDocument.createElement("span");
+  container.className = CSS.bibliographyBacklinks;
+
+  for (const backlink of backlinks) {
+    if (container.childNodes.length > 0) {
+      container.append(" ");
+    }
+
+    const link = ownerDocument.createElement("a");
+    link.className = CSS.bibliographyBacklink;
+    link.href = `#cite-ref-${backlink.occurrence}`;
+    link.dataset.sourceFrom = String(backlink.sourceFrom);
+    link.textContent = BIBLIOGRAPHY_BACKLINK_TEXT;
+    link.setAttribute("aria-label", backlink.ariaLabel ?? "Jump to citation");
+    container.appendChild(link);
+  }
+
+  return container;
+}
+
+export function appendBibliographyBacklinks(
+  entryEl: HTMLElement,
+  backlinks: readonly BibliographyBacklinkSurfaceEntry[],
+): void {
+  const backlinksEl = createBibliographyBacklinksElement(entryEl.ownerDocument, backlinks);
+  if (!backlinksEl) return;
+  entryEl.append(" ");
+  entryEl.appendChild(backlinksEl);
 }
