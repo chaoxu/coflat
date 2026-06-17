@@ -148,6 +148,7 @@ export {
 export {
   programmaticDocumentChangeAnnotation,
 } from "./state/programmatic-document-change";
+export { renderInlineMarkdown } from "./render/inline-render";
 export { type EditorPlugin, EditorPluginManager } from "./editor-plugin";
 export { defaultEditorPlugins } from "./editor-plugins-registry";
 export { createInlineEditor, type InlineEditorOptions } from "./inline-editor";
