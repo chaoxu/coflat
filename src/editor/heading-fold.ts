@@ -30,11 +30,13 @@ import {
   unfoldEffect,
   foldedRanges,
 } from "@codemirror/language";
-import { __iconNode as chevronDownIconNode } from "lucide-react/dist/esm/icons/chevron-down.js";
-import { __iconNode as chevronRightIconNode } from "lucide-react/dist/esm/icons/chevron-right.js";
 import { isCollapsibleBlockType } from "../core/constants/block-manifest";
 import { CSS } from "../core/constants/css-classes";
-import { createLucideIcon } from "../core/lib/lucide-icon";
+import {
+  EDITOR_BLOCK_FOLD_LABELS,
+  EDITOR_SECTION_FOLD_LABELS,
+  syncDisclosureToggle,
+} from "../core/disclosure-toggle";
 import { buildDecorations, RenderWidget } from "./render/render-core";
 import type { FencedDivSemantics, HeadingSemantics } from "./semantics/document";
 import {
@@ -316,20 +318,14 @@ class FoldToggleWidget extends RenderWidget {
       CSS.foldToggle,
       this.kind === "section" ? CSS.foldHeading(this.level) : "cf-fold-block",
     ];
-    if (this.folded) classes.push(CSS.foldToggleFolded);
     span.className = classes.join(" ");
-    span.appendChild(
-      this.folded
-        ? createLucideIcon(chevronRightIconNode, "chevron-right")
-        : createLucideIcon(chevronDownIconNode, "chevron-down"),
-    );
+    syncDisclosureToggle(span, {
+      expanded: !this.folded,
+      labels: this.kind === "section" ? EDITOR_SECTION_FOLD_LABELS : EDITOR_BLOCK_FOLD_LABELS,
+      collapsedClassName: CSS.foldToggleFolded,
+    });
     span.dataset.cfFoldLineFrom = String(this.pos);
     span.setAttribute("role", "button");
-    const labelTarget = this.kind === "section" ? "section" : "block";
-    span.setAttribute(
-      "aria-label",
-      this.folded ? `Unfold ${labelTarget}` : `Fold ${labelTarget}`,
-    );
 
     const pos = this.pos;
     const showFoldRail = () => {

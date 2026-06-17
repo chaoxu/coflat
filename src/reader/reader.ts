@@ -9,8 +9,6 @@
 
 import type { SyntaxNode, Tree } from "@lezer/common";
 import createDOMPurify from "dompurify";
-import { __iconNode as chevronDownIconNode } from "lucide-react/dist/esm/icons/chevron-down.js";
-import { __iconNode as chevronRightIconNode } from "lucide-react/dist/esm/icons/chevron-right.js";
 
 import { parseFrontmatter, parseMarkdownSource } from "../core/parser";
 import {
@@ -18,7 +16,6 @@ import {
   trailingBlankLineRangesAfterLastBlock,
 } from "../core/parser/blank-lines";
 import { NODE } from "../core/constants/node-types";
-import { createLucideIcon } from "../core/lib/lucide-icon";
 import { isSafeUrl } from "../core/lib/url-utils";
 import { escapeHtml } from "../core/lib/html-escape";
 import { buildLineOffsets, lineAt } from "../core/lib/line-offsets";
@@ -35,6 +32,13 @@ import {
   hostReferenceClassNames,
   mathSurfaceClassNames,
 } from "../core/constants/css-classes";
+import {
+  createDisclosureToggleButton,
+  READER_BLOCK_DISCLOSURE_LABELS,
+  READER_SECTION_DISCLOSURE_LABELS,
+  syncDisclosureToggle,
+  type DisclosureToggleLabels,
+} from "../core/disclosure-toggle";
 import { LINK_LAYOUT_ATTRIBUTE, linkLayoutForHref } from "../core/link-layout";
 import { readBracedLabelId } from "../core/parser/label-utils";
 import type { NumberingScheme } from "../core/parser/frontmatter";
@@ -116,19 +120,6 @@ export type {
   FileEntry,
   FileSystem,
 } from "../core/lib/file-system-types";
-
-const BLOCK_DISCLOSURE_COLLAPSE_LABEL = "Collapse block";
-const BLOCK_DISCLOSURE_EXPAND_LABEL = "Expand block";
-const SECTION_DISCLOSURE_COLLAPSE_LABEL = "Collapse section";
-const SECTION_DISCLOSURE_EXPAND_LABEL = "Expand section";
-const BLOCK_DISCLOSURE_LABELS = {
-  collapse: BLOCK_DISCLOSURE_COLLAPSE_LABEL,
-  expand: BLOCK_DISCLOSURE_EXPAND_LABEL,
-} as const;
-const SECTION_DISCLOSURE_LABELS = {
-  collapse: SECTION_DISCLOSURE_COLLAPSE_LABEL,
-  expand: SECTION_DISCLOSURE_EXPAND_LABEL,
-} as const;
 
 // ---------------------------------------------------------------------------
 // Parser (lazy: only constructed when the fast path can't handle the input).
@@ -2773,11 +2764,6 @@ const BLOCK_OPEN_ATTR = "data-cf-block-open";
 const SECTION_DISCLOSURE_HYDRATED_ATTR = "data-cf-section-disclosure-hydrated";
 const SECTION_OPEN_ATTR = "data-cf-section-open";
 
-interface DisclosureLabels {
-  readonly collapse: string;
-  readonly expand: string;
-}
-
 interface DisclosureParts {
   readonly body: HTMLElement;
   readonly toggle: HTMLButtonElement;
@@ -2796,18 +2782,15 @@ function applyDisclosureState(
   openAttr: string,
   parts: DisclosureParts,
   expanded: boolean,
-  labels: DisclosureLabels,
+  labels: DisclosureToggleLabels,
 ): void {
   owner.setAttribute(openAttr, expanded ? "true" : "false");
   parts.body.hidden = !expanded;
-  parts.toggle.replaceChildren(
-    expanded
-      ? createLucideIcon(chevronDownIconNode, "chevron-down")
-      : createLucideIcon(chevronRightIconNode, "chevron-right"),
-  );
-  parts.toggle.classList.toggle(CSS.blockDisclosureToggleCollapsed, !expanded);
-  parts.toggle.setAttribute("aria-expanded", expanded ? "true" : "false");
-  parts.toggle.setAttribute("aria-label", expanded ? labels.collapse : labels.expand);
+  syncDisclosureToggle(parts.toggle, {
+    expanded,
+    labels,
+    collapsedClassName: CSS.blockDisclosureToggleCollapsed,
+  });
 }
 
 function applyBlockDisclosureState(
@@ -2815,7 +2798,7 @@ function applyBlockDisclosureState(
   parts: DisclosureParts,
   expanded: boolean,
 ): void {
-  applyDisclosureState(block, BLOCK_OPEN_ATTR, parts, expanded, BLOCK_DISCLOSURE_LABELS);
+  applyDisclosureState(block, BLOCK_OPEN_ATTR, parts, expanded, READER_BLOCK_DISCLOSURE_LABELS);
 }
 
 function setBlockDisclosureState(block: HTMLElement, expanded: boolean): void {
@@ -2825,10 +2808,7 @@ function setBlockDisclosureState(block: HTMLElement, expanded: boolean): void {
 }
 
 function createBlockDisclosureToggle(): HTMLButtonElement {
-  const toggle = document.createElement("button");
-  toggle.className = CSS.blockDisclosureToggle;
-  toggle.type = "button";
-  return toggle;
+  return createDisclosureToggleButton();
 }
 
 /**
@@ -2877,7 +2857,7 @@ function applySectionDisclosureState(
     SECTION_OPEN_ATTR,
     { body, toggle },
     expanded,
-    SECTION_DISCLOSURE_LABELS,
+    READER_SECTION_DISCLOSURE_LABELS,
   );
 }
 
@@ -2900,10 +2880,7 @@ function isSectionBoundaryNode(node: Node, level: number): boolean {
 }
 
 function createSectionDisclosureToggle(): HTMLButtonElement {
-  const toggle = document.createElement("button");
-  toggle.className = `${CSS.blockDisclosureToggle} ${CSS.sectionDisclosureToggle}`;
-  toggle.type = "button";
-  return toggle;
+  return createDisclosureToggleButton(CSS.sectionDisclosureToggle);
 }
 
 function hydrateSectionDisclosures(root: HTMLElement): void {

@@ -247,6 +247,7 @@ describe("headingFold", () => {
     );
     expect(blockToggle).not.toBeUndefined();
     expect(blockToggle?.getAttribute("aria-label")).toBe("Fold block");
+    expect(blockToggle?.getAttribute("aria-expanded")).toBe("true");
 
     if (!range || !blockToggle) {
       throw new Error("expected a foldable semantic block");
@@ -262,6 +263,7 @@ describe("headingFold", () => {
     );
     expect(updatedBlockToggle?.querySelector(".lucide-chevron-right")).not.toBeNull();
     expect(updatedBlockToggle?.getAttribute("aria-label")).toBe("Unfold block");
+    expect(updatedBlockToggle?.getAttribute("aria-expanded")).toBe("false");
   });
 
   it("shows editor fold rails for the hovered block toggle body only", () => {
