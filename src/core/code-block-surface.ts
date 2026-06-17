@@ -29,6 +29,16 @@ export function renderCodeBlockHtml(
   );
 }
 
+export function createCodeBlockLanguageElement(
+  ownerDocument: Document,
+  language: string,
+): HTMLSpanElement {
+  const languageEl = ownerDocument.createElement("span");
+  languageEl.className = CSS.codeblockLanguage;
+  languageEl.textContent = language;
+  return languageEl;
+}
+
 export function appendCodeBlockDom(
   parent: HTMLElement | DocumentFragment,
   ownerDocument: Document,
@@ -42,10 +52,7 @@ export function appendCodeBlockDom(
   pre.className = DOCUMENT_SURFACE_CLASS.codeBlock;
   if (language) {
     pre.dataset.lang = language;
-    const languageEl = ownerDocument.createElement("span");
-    languageEl.className = CSS.codeblockLanguage;
-    languageEl.textContent = language;
-    pre.appendChild(languageEl);
+    pre.appendChild(createCodeBlockLanguageElement(ownerDocument, language));
   }
   if (codeClass) code.className = codeClass;
   code.textContent = codeText;

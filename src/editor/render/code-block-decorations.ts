@@ -12,6 +12,7 @@ import {
 import { __iconNode as checkIconNode } from "lucide-react/dist/esm/icons/check.js";
 import { __iconNode as copyIconNode } from "lucide-react/dist/esm/icons/copy.js";
 import { createLucideIcon } from "../../core/lib/lucide-icon";
+import { createCodeBlockLanguageElement } from "../../core/code-block-surface";
 import { COPY_RESET_MS } from "../../core/constants";
 import { CSS } from "../../core/constants/css-classes";
 import {
@@ -41,7 +42,6 @@ import {
   editorFocusField,
   focusEffect,
 } from "./focus-state";
-import { makeTextElement } from "./widget-core";
 import { ShellWidget } from "./shell-widget";
 import { createChangeChecker } from "../state/change-detection";
 
@@ -127,7 +127,7 @@ class CodeBlockLanguageWidget extends ShellWidget {
   }
 
   createDOM(): HTMLElement {
-    return makeTextElement("span", CSS.codeblockLanguage, this.language);
+    return createCodeBlockLanguageElement(document, this.language);
   }
 
   eq(other: CodeBlockLanguageWidget): boolean {
