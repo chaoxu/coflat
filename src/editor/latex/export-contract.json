@@ -16,7 +16,7 @@
       "--from={pandoc_from}",
       "--to=latex",
       "--wrap=preserve",
-      "--syntax-highlighting=none",
+      "--no-highlight",
       "--lua-filter={latex_filter_path}",
       "--template={latex_template_path}",
       "--resource-path={resource_path}",
