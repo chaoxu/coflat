@@ -36,6 +36,7 @@ export const codeThemeStyles = {
   ".cf-codeblock-header": {
     position: "relative",
     fontFamily: monoFont,
+    fontStyle: "normal",
     backgroundColor: "var(--cf-subtle)",
     boxShadow: codeBlockChrome.topShadow,
     borderTopLeftRadius: "var(--cf-border-radius-lg)",
@@ -47,17 +48,20 @@ export const codeThemeStyles = {
   },
   ".cf-codeblock-language": {
     fontWeight: "600",
+    fontStyle: "normal",
     color: "var(--cf-muted)",
     textTransform: "uppercase",
   },
   ".cf-codeblock-body": {
     fontFamily: monoFont,
+    fontStyle: "normal",
     backgroundColor: "var(--cf-subtle)",
     boxShadow: codeBlockChrome.sideShadow,
     ...codeBlockPreWrapStyle,
   },
   ".cf-codeblock-last": {
     fontFamily: monoFont,
+    fontStyle: "normal",
     backgroundColor: "var(--cf-subtle)",
     boxShadow: codeBlockChrome.bottomShadow,
     borderBottomLeftRadius: "var(--cf-border-radius-lg)",

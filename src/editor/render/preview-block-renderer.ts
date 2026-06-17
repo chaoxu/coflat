@@ -14,6 +14,7 @@ import {
   DOCUMENT_SURFACE_CLASS,
   documentSurfaceClassNames,
 } from "../../core/document-surface-classes";
+import { appendCodeBlockDom } from "../../core/code-block-surface";
 import type { BlockCounterEntry } from "../../core/lib/file-system-types";
 import {
   extractRawFrontmatter,
@@ -276,23 +277,15 @@ function renderFencedCode(
   node: SyntaxNode,
   context: PreviewRenderContext,
 ): void {
-  const pre = document.createElement("pre");
-  const code = document.createElement("code");
   const codeInfo = node.getChild("CodeInfo");
   const language = codeInfo ? context.doc.slice(codeInfo.from, codeInfo.to).trim() : "";
   const codeText = node.getChild("CodeText");
-
-  pre.className = DOCUMENT_SURFACE_CLASS.codeBlock;
-  if (language) {
-    pre.dataset.lang = language;
-    const languageToken = language.split(/\s+/)[0] ?? "";
-    if (/^[A-Za-z0-9_-]+$/.test(languageToken)) {
-      code.classList.add(`language-${languageToken}`);
-    }
-  }
-  code.textContent = codeText ? context.doc.slice(codeText.from, codeText.to) : "";
-  pre.appendChild(code);
-  parent.appendChild(pre);
+  appendCodeBlockDom(
+    parent,
+    document,
+    language,
+    codeText ? context.doc.slice(codeText.from, codeText.to) : "",
+  );
 }
 
 function renderList(

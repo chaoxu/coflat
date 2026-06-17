@@ -377,6 +377,7 @@ describe("renderToHtml — block-level rendering ()", () => {
     const r = renderToHtml("```js\nconst x = '<b>';\n```");
     expect(r.html).toContain('class="cf-doc-code-block"');
     expect(r.html).toContain('data-lang="js"');
+    expect(r.html).toContain('<span class="cf-codeblock-language">js</span>');
     expect(r.html).toContain('<code class="language-js">');
     expect(r.html).toContain('&lt;b&gt;');
     expect(r.html).not.toContain('<b>');
@@ -456,6 +457,15 @@ describe("renderToHtml — block-level rendering ()", () => {
     expect(r.html).toContain('class="cf-doc-inline-math cf-math-inline"');
     expect(r.html).toContain('data-math="x^2"');
     expect(r.hasMath).toBe(true);
+  });
+
+  it("renders fenced div inline titles", () => {
+    const r = renderToHtml("::: {.definition #def-edge} Edge Connectivity\nbody\n:::");
+    expect(r.html).toContain('<span class="cf-block-header-rendered">Definition 1</span>');
+    expect(r.html).toContain(
+      '<span class="cf-block-attr-title"><span class="cf-block-title-paren">(</span><span>Edge Connectivity</span><span class="cf-block-title-paren">)</span></span>',
+    );
+    expect(r.html).toContain("body");
   });
 
   it("renders below-content captions for figure and table blocks", () => {

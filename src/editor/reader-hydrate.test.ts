@@ -100,20 +100,18 @@ describe("hydrateMath", () => {
     expect(placeholder.getAttribute("data-math-hydrated")).toBe("true");
   });
 
-  it("on invalid LaTeX, keeps original text and adds error markers", async () => {
+  it("on invalid LaTeX, renders KaTeX error markup and adds error markers", async () => {
     const root = makeRoot(
       `<p><span class="cf-doc-inline-math" data-math="\\invalidcmd{">$\\invalidcmd{$</span></p>`,
     );
     const placeholder = root.querySelector<HTMLElement>("[data-math]");
-    const originalText = placeholder?.textContent;
 
     await hydrateMath(root);
 
     expect(placeholder?.classList.contains("cf-math-error")).toBe(true);
     expect(placeholder?.getAttribute("data-math-error")).toBeTruthy();
-    expect(placeholder?.getAttribute("data-math-hydrated")).toBeNull();
-    // Original placeholder text is retained as the user-visible fallback.
-    expect(placeholder?.textContent).toBe(originalText);
+    expect(placeholder?.getAttribute("data-math-hydrated")).toBe("true");
+    expect(placeholder?.querySelector(".katex-error")).not.toBeNull();
   });
 
   it("is idempotent: a second call does not re-render", async () => {
@@ -134,14 +132,18 @@ describe("hydrateMath", () => {
   });
 
   it("forwards mathMacros to KaTeX", async () => {
-    // `\myfoo` is not a built-in KaTeX command. Without the macro it errors;
-    // with the macro it expands to `\mathbb{R}` and renders successfully.
+    // `\myfoo` is not a built-in KaTeX command. Without the macro KaTeX still
+    // hydrates a non-throwing error surface; with the macro it expands to
+    // `\mathbb{R}` and renders successfully.
     const root = makeRoot(
       `<p><span class="cf-doc-inline-math" data-math="\\myfoo">$\\myfoo$</span></p>`,
     );
     const placeholder = requireMathPlaceholder(root);
     await hydrateMath(root);
-    expect(placeholder.classList.contains("cf-math-error")).toBe(true);
+    expect(placeholder.getAttribute("data-math-hydrated")).toBe("true");
+    expect(placeholder.classList.contains("cf-math-error")).toBe(false);
+    expect(placeholder.innerHTML).toContain("katex");
+    expect(placeholder.textContent).toContain("\\myfoo");
 
     const root2 = makeRoot(
       `<div class="cf-doc-display-math" data-math="\\myfoo">$$\\myfoo$$</div>`,
@@ -186,13 +188,19 @@ describe("hydrateMath", () => {
     }
   });
 
-  it("without forwarding macros, frontmatter-defined title/body math errors", async () => {
-    // Documents the failure the fix prevents: hydrateMath(root) with no macros
-    // leaves custom-macro math unrendered (cf-math-error).
+  it("without forwarding macros, frontmatter-defined title/body math remains hydrated", async () => {
+    // Even when the caller forgets to forward result.mathMacros, reader output
+    // should stay on the KaTeX surface instead of falling back to raw dollar
+    // math. The macro expansion itself still requires the forwarded macros.
     const root = makeRoot(renderToHtml(MACRO_DOC).html);
     await hydrateMath(root); // forgot to forward result.mathMacros
-    const errored = root.querySelectorAll(".cf-math-error");
-    expect(errored.length).toBe(2);
+    const placeholders = Array.from(root.querySelectorAll<HTMLElement>("[data-math]"));
+    expect(placeholders).toHaveLength(2);
+    for (const p of placeholders) {
+      expect(p.getAttribute("data-math-hydrated")).toBe("true");
+      expect(p.classList.contains("cf-math-error")).toBe(false);
+      expect(p.innerHTML).toContain("katex");
+    }
   });
 });
 

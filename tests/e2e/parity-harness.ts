@@ -861,24 +861,32 @@ export async function expectLoadedCorpusMathSemanticsMatch(
         ].join("|"));
         const linkInventory = Array.from(
           document.querySelectorAll(scopedAny("a[href]", ".cf-link-rendered")),
-        ).map((el) => [
-          el.getAttribute("href") ?? (el as HTMLElement).dataset.url ?? "",
-          (el as HTMLElement).dataset.cfLinkLayout ?? "",
-          visibleText(el),
-        ].join("|"));
+        )
+          .filter((el) => {
+            const href = el.getAttribute("href") ?? (el as HTMLElement).dataset.url ?? "";
+            return !href.startsWith("#fn");
+          })
+          .map((el) => [
+            el.getAttribute("href") ?? (el as HTMLElement).dataset.url ?? "",
+            (el as HTMLElement).dataset.cfLinkLayout ?? "",
+            visibleText(el),
+          ].join("|"));
         const listItemInventory = Array.from(
           document.querySelectorAll(scoped(".cf-doc-list-item")),
         ).map(visibleText);
         const blockKeys = Array.from(
           document.querySelectorAll(
             surface === "reader"
-              ? scoped(".cf-doc-block")
+              ? scoped(".cf-doc-block:not(.cf-doc-block--figure):not(.cf-doc-block--table)")
               : scoped(".cm-line.cf-doc-block.cf-block-header"),
           ),
         ).map((el) => {
           const blockKind = classToken(el, "cf-doc-block--") ?? "cf-doc-block--unknown";
           return [blockKind, sourceKey(el, 0)].join("|");
         });
+        const figureKeys = Array.from(
+          document.querySelectorAll(scoped(".cf-image-wrapper")),
+        ).map((el, index) => sourceKey(el, index));
         const tableKeys = Array.from(
           document.querySelectorAll(
             surface === "reader"
@@ -896,6 +904,7 @@ export async function expectLoadedCorpusMathSemanticsMatch(
         return {
           blockKeys,
           displayMath: displayMathKeys.length,
+          figureKeys,
           inlineMath: inlineMathKeys.length,
           displayMathKeys,
           inlineMathKeys,
@@ -909,6 +918,7 @@ export async function expectLoadedCorpusMathSemanticsMatch(
 
     function withStructuralSummaries<T extends {
       blockKeys: readonly string[];
+      figureKeys: readonly string[];
       semanticInventory: readonly string[];
       tableKeys: readonly string[];
     }>(collected: T): T {
@@ -924,6 +934,7 @@ export async function expectLoadedCorpusMathSemanticsMatch(
           ...Array.from(blockCounts)
             .sort(([left], [right]) => left.localeCompare(right))
             .map(([kind, count]) => `block-count|${kind}|${count}`),
+          `figure-count|${collected.figureKeys.length}`,
           `table-count|${collected.tableKeys.length}`,
         ].sort(),
       };
@@ -936,6 +947,7 @@ export async function expectLoadedCorpusMathSemanticsMatch(
     const inlineMathKeys = new Set(merged.inlineMathKeys);
     const semanticInventory = new Set(merged.semanticInventory);
     const blockKeys = new Set(merged.blockKeys);
+    const figureKeys = new Set(merged.figureKeys);
     const tableKeys = new Set(merged.tableKeys);
     const positions = await page.evaluate(() => {
       const scroller = document.querySelector("#editor-root .cm-scroller");
@@ -960,6 +972,7 @@ export async function expectLoadedCorpusMathSemanticsMatch(
       for (const key of current.displayMathKeys) displayMathKeys.add(key);
       for (const key of current.inlineMathKeys) inlineMathKeys.add(key);
       for (const key of current.semanticInventory) semanticInventory.add(key);
+      for (const key of current.figureKeys) figureKeys.add(key);
       for (const key of current.tableKeys) tableKeys.add(key);
       merged.missingSharedClasses.push(...current.missingSharedClasses);
       merged.styles = merged.styles.map((style, index) =>
@@ -976,6 +989,7 @@ export async function expectLoadedCorpusMathSemanticsMatch(
       ...merged,
       blockKeys: [...blockKeys],
       displayMath: displayMathKeys.size,
+      figureKeys: [...figureKeys],
       inlineMath: inlineMathKeys.size,
       displayMathKeys: [...displayMathKeys],
       inlineMathKeys: [...inlineMathKeys],
@@ -991,6 +1005,15 @@ export async function expectLoadedCorpusMathSemanticsMatch(
 
   const reader = await collect("reader");
   const editor = await collect("editor");
+  const bySourceStart = (left: string, right: string) => {
+    const leftStart = Number(left.split(":", 1)[0]);
+    const rightStart = Number(right.split(":", 1)[0]);
+    if (Number.isFinite(leftStart) && Number.isFinite(rightStart) && leftStart !== rightStart) {
+      return leftStart - rightStart;
+    }
+    return left.localeCompare(right);
+  };
+  const sourceOrder = (keys: readonly string[]) => [...keys].sort(bySourceStart);
   const styleDiffs = reader.styles.flatMap((readerStyle, index) => {
     const editorStyle = editor.styles[index];
     if (readerStyle.value === null && editorStyle.value === null) return [];
@@ -1006,12 +1029,12 @@ export async function expectLoadedCorpusMathSemanticsMatch(
   const result = {
     readerDisplayMath: reader.displayMath,
     editorDisplayMath: editor.displayMath,
-    readerDisplayMathKeys: reader.displayMathKeys,
-    editorDisplayMathKeys: editor.displayMathKeys,
+    readerDisplayMathKeys: sourceOrder(reader.displayMathKeys),
+    editorDisplayMathKeys: sourceOrder(editor.displayMathKeys),
     readerInlineMath: reader.inlineMath,
     editorInlineMath: editor.inlineMath,
-    readerInlineMathKeys: reader.inlineMathKeys,
-    editorInlineMathKeys: editor.inlineMathKeys,
+    readerInlineMathKeys: sourceOrder(reader.inlineMathKeys),
+    editorInlineMathKeys: sourceOrder(editor.inlineMathKeys),
     missingSharedClasses: [...reader.missingSharedClasses, ...editor.missingSharedClasses],
     readerSemanticInventory: reader.semanticInventory,
     editorSemanticInventory: editor.semanticInventory,

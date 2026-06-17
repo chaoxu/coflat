@@ -134,12 +134,15 @@ describe("theme CSS contract", () => {
     expect(cssRuleBody(css, ".cm-line.cf-doc-list-item")).toContain("margin: 0;");
     expect(cssRuleBody(css, ".cf-reader .cf-doc-list-item--check input[type=\"checkbox\"]")).toContain("pointer-events: none;");
     expect(cssRuleBody(css, ".cf-reader .cf-doc-code-block")).toContain("margin: 0;");
+    expect(cssRuleBody(css, ".cf-reader .cf-doc-code-block")).toContain("overflow: visible;");
     expect(cssRuleBody(css, ".cf-reader .cf-doc-code-block")).toContain("padding: 0;");
     expect(cssRuleBody(css, ".cf-reader .cf-doc-code-block")).toContain("border: 0;");
     expect(cssRuleBody(css, ".cf-reader .cf-doc-code-block")).toContain('font-family: var(--cf-code-font, Monaco, "DejaVu Sans Mono", Consolas, monospace);');
+    expect(cssRuleBody(css, ".cf-reader .cf-doc-code-block")).toContain("font-style: normal;");
     expect(cssRuleBody(css, ".cf-reader .cf-doc-code-block")).toContain("line-height: var(--cf-line-height, 1.5);");
-    expect(cssRuleBody(css, ".cf-reader .cf-doc-code-block[data-lang]::before")).toContain("content: attr(data-lang);");
+    expect(cssRuleBody(css, ".cf-reader .cf-doc-code-block > .cf-codeblock-language")).toContain("display: block;");
     expect(cssRuleBody(css, ".cf-reader .cf-doc-code-block code")).toContain("display: block;");
+    expect(cssRuleBody(css, ".cm-line.cf-codeblock-header,\n.cm-line.cf-codeblock-body,\n.cm-line.cf-codeblock-last")).toContain("font-style: normal;");
     expect(cssRuleBody(css, ".cf-reader .cf-doc-display-math")).toContain("text-align: center;");
     expect(cssRuleBody(css, ".cf-math-display-content")).toContain("display: block;");
     expect(cssRuleBody(css, ".cf-math-display-content")).toContain("width: fit-content;");

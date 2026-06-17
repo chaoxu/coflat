@@ -6,21 +6,27 @@ describe("codeThemeStyles", () => {
   it("keeps rendered code block rows on the shared monospace token", () => {
     expect(codeThemeStyles[".cf-codeblock-header"]).toMatchObject({
       fontFamily: monoFont,
+      fontStyle: "normal",
       whiteSpace: "pre",
       wordBreak: "normal",
       overflowWrap: "normal",
     });
     expect(codeThemeStyles[".cf-codeblock-body"]).toMatchObject({
       fontFamily: monoFont,
+      fontStyle: "normal",
       whiteSpace: "pre",
       wordBreak: "normal",
       overflowWrap: "normal",
     });
     expect(codeThemeStyles[".cf-codeblock-last"]).toMatchObject({
       fontFamily: monoFont,
+      fontStyle: "normal",
       whiteSpace: "pre",
       wordBreak: "normal",
       overflowWrap: "normal",
+    });
+    expect(codeThemeStyles[".cf-codeblock-language"]).toMatchObject({
+      fontStyle: "normal",
     });
   });
 });

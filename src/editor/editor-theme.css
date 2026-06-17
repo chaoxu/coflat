@@ -578,18 +578,18 @@
 
 .cf-reader .cf-doc-code-block {
   margin: 0;
-  overflow-x: auto;
+  overflow: visible;
   background: transparent;
   border: 0;
   border-radius: 0;
   box-shadow: none;
   font-family: var(--cf-code-font, Monaco, "DejaVu Sans Mono", Consolas, monospace);
+  font-style: normal;
   padding: 0;
   line-height: var(--cf-line-height, 1.5);
 }
 
-.cf-reader .cf-doc-code-block[data-lang]::before {
-  content: attr(data-lang);
+.cf-reader .cf-doc-code-block > .cf-codeblock-language {
   display: block;
   background: var(--cf-subtle);
   box-shadow: var(--cf-code-block-top-shadow);
@@ -731,6 +731,7 @@
 .cm-line.cf-codeblock-header,
 .cm-line.cf-codeblock-body,
 .cm-line.cf-codeblock-last {
+  font-style: normal;
   white-space: pre;
   word-break: normal;
   overflow-wrap: normal;
@@ -1505,6 +1506,12 @@
 .cf-doc-block--algorithm { font-style: var(--cf-block-algorithm-style); border-left-color: var(--cf-block-algorithm-accent); }
 .cf-doc-block--figure { font-style: var(--cf-block-figure-style); border-left-color: var(--cf-block-figure-accent); }
 .cf-doc-block--table { font-style: var(--cf-block-table-style); border-left-color: var(--cf-block-table-accent); }
+
+.cm-line.cf-codeblock-header,
+.cm-line.cf-codeblock-body,
+.cm-line.cf-codeblock-last {
+  font-style: normal;
+}
 
 .cf-reader .cf-doc-block {
   border-left: var(--cf-block-header-border-width) solid var(--cf-block-header-accent);

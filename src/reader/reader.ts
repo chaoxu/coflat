@@ -60,6 +60,7 @@ import {
   DOCUMENT_SURFACE_CLASS,
   documentSurfaceClassNames,
 } from "../core/document-surface-classes";
+import { renderCodeBlockHtml } from "../core/code-block-surface";
 import {
   createPreviewSurfaceBody,
   createPreviewSurfaceContent,
@@ -1762,15 +1763,8 @@ function renderFencedCode(ctx: WalkContext, node: SyntaxNode): BlockResult {
   while (contentTo > contentFrom && (ctx.source[contentTo - 1] === "\n")) contentTo--;
 
   const code = ctx.source.slice(contentFrom, contentTo);
-  const langAttr = lang ? ` data-lang="${escapeHtml(lang)}"` : "";
-  const languageToken = lang.split(/\s+/)[0] ?? "";
-  const codeClass = /^[A-Za-z0-9_-]+$/.test(languageToken)
-    ? ` class="language-${escapeHtml(languageToken)}"`
-    : "";
   return {
-    html:
-      `<pre class="${DOCUMENT_SURFACE_CLASS.codeBlock}"${langAttr}${blockSourceAttrs(ctx, node.from, node.to)}>` +
-      `<code${codeClass}>${escapeHtml(code)}</code></pre>`,
+    html: renderCodeBlockHtml(lang, code, blockSourceAttrs(ctx, node.from, node.to)),
     text: code,
     hasMath: false,
   };
@@ -1779,9 +1773,7 @@ function renderFencedCode(ctx: WalkContext, node: SyntaxNode): BlockResult {
 function renderIndentedCode(ctx: WalkContext, node: SyntaxNode): BlockResult {
   const code = ctx.source.slice(node.from, node.to).replace(/^( {4}|\t)/gm, "");
   return {
-    html:
-      `<pre class="${DOCUMENT_SURFACE_CLASS.codeBlock}"${blockSourceAttrs(ctx, node.from, node.to)}>` +
-      `<code>${escapeHtml(code)}</code></pre>`,
+    html: renderCodeBlockHtml("", code, blockSourceAttrs(ctx, node.from, node.to)),
     text: code,
     hasMath: false,
   };
@@ -1889,6 +1881,7 @@ function renderFencedDiv(ctx: WalkContext, node: SyntaxNode): BlockResult {
   let previousRenderable: SyntaxNode | null = null;
   let bodyFrom: number | null = null;
   let bodyTo: number | null = null;
+  let inlineTitle: string | undefined;
   let child = node.firstChild;
   while (child) {
     if (child.name === NODE.FencedDivFence) {
@@ -1904,6 +1897,10 @@ function renderFencedDiv(ctx: WalkContext, node: SyntaxNode): BlockResult {
       child.name === NODE.FencedDivAttributes ||
       child.name === "FencedDivTitle"
     ) {
+      if (child.name === "FencedDivTitle") {
+        const rawTitle = ctx.source.slice(child.from, child.to).trim();
+        if (rawTitle) inlineTitle = rawTitle;
+      }
       child = child.nextSibling;
       continue;
     }
@@ -1939,7 +1936,7 @@ function renderFencedDiv(ctx: WalkContext, node: SyntaxNode): BlockResult {
   }
   const body = combineBlocks(blocks);
   const sourceAttrs = blockSourceAttrs(ctx, node.from, node.to);
-  const title = kvs.title;
+  const title = kvs.title ?? inlineTitle;
   const number = normalizedClassName ? nextBlockNumber(ctx, normalizedClassName) : undefined;
   const caption = manifestEntry?.captionPosition === "below" && title
     ? renderBlockCaption(ctx, normalizedClassName, title, number, node.from, node.to)
@@ -3534,18 +3531,15 @@ export async function hydrateMath(
 
     const isDisplay = el.classList.contains(DOCUMENT_SURFACE_CLASS.displayMath);
     let html: string;
-    try {
-      html = katex.renderToString(latex, {
-        displayMode: isDisplay,
-        throwOnError: true,
-        output: isDisplay ? "htmlAndMathml" : "html",
-        ...(macros ? { macros: { ...macros } } : {}),
-      });
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : String(error);
+    html = katex.renderToString(latex, {
+      displayMode: isDisplay,
+      throwOnError: false,
+      output: isDisplay ? "htmlAndMathml" : "html",
+      ...(macros ? { macros: { ...macros } } : {}),
+    });
+    if (html.includes("katex-error")) {
       el.classList.add(CSS.mathError);
-      el.setAttribute("data-math-error", message);
-      continue;
+      el.setAttribute("data-math-error", "KaTeX error");
     }
 
     if (isDisplay) {
