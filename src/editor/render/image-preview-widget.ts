@@ -5,6 +5,12 @@ import {
 import { CSS } from "../../core/constants/css-classes";
 import { IMAGE_PREVIEW_RESERVED_HEIGHT_PX } from "../../core/constants/layout";
 import {
+  createImageElement,
+  createMediaWrapperElement,
+  renderImagePlaceholderInto,
+  renderMediaLoadingInto,
+} from "../../core/media-surface";
+import {
   LazyWidgetBase,
   type LazyWidgetHeightSpec,
 } from "./lazy-widget-base";
@@ -54,7 +60,7 @@ export class ImagePreviewWidget extends LazyWidgetBase {
   }
 
   createDOM(): HTMLElement {
-    const wrapper = document.createElement(this.isBlock ? "div" : "span");
+    const wrapper = createMediaWrapperElement(document, this.isBlock ? "div" : "span");
     this.renderInto(wrapper);
     return wrapper;
   }
@@ -123,10 +129,7 @@ export class ImagePreviewWidget extends LazyWidgetBase {
     switch (this.state.kind) {
       case "image": {
         wrapper.className = CSS.imageWrapper;
-        const img = document.createElement("img");
-        img.className = CSS.image;
-        img.src = this.state.src;
-        img.alt = this.alt;
+        const img = createImageElement(document, this.state.src, this.alt);
         const syncInlineSize = () => {
           if (this.isBlock || img.naturalWidth <= 0 || img.naturalHeight <= 0) {
             return;
@@ -166,10 +169,7 @@ export class ImagePreviewWidget extends LazyWidgetBase {
         break;
       }
       case "loading":
-        wrapper.className = `${CSS.imageWrapper} ${CSS.imageLoading}`;
-        wrapper.textContent = this.state.isPdf
-          ? `[Loading PDF: ${this.alt || "preview"}]`
-          : `[Loading image: ${this.alt || "preview"}]`;
+        renderMediaLoadingInto(wrapper, this.state.isPdf ? "pdf" : "image", this.alt);
         break;
       case "error": {
         if (this.isBlock) {
@@ -177,10 +177,7 @@ export class ImagePreviewWidget extends LazyWidgetBase {
           break;
         }
         wrapper.className = CSS.imageWrapper;
-        const img = document.createElement("img");
-        img.className = CSS.image;
-        img.src = this.state.fallbackSrc;
-        img.alt = this.alt;
+        const img = createImageElement(document, this.state.fallbackSrc, this.alt);
         img.addEventListener("error", () => {
           this.renderUnavailablePlaceholder(wrapper);
         });
@@ -191,10 +188,7 @@ export class ImagePreviewWidget extends LazyWidgetBase {
   }
 
   private renderUnavailablePlaceholder(wrapper: HTMLElement): void {
-    wrapper.textContent = `[Image: ${this.alt || "preview"}]`;
-    wrapper.className = this.isBlock
-      ? `${CSS.imageWrapper} ${CSS.imagePlaceholder}`
-      : CSS.imageError;
+    renderImagePlaceholderInto(wrapper, this.alt, { block: this.isBlock });
   }
 }
 

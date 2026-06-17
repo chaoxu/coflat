@@ -147,7 +147,7 @@ export const blockThemeStyles: Record<string, Record<string, string>> = {
   // line-box around the image whose height is line-height (not the image
   // height). CM6 measures only the wrapper, so the extra line-box space
   // shifts subsequent click targets. Force block layout for the div form.
-  "div.cf-image-wrapper": {
+  "div.cf-image-wrapper:not(.cf-image-loading):not(.cf-image-placeholder)": {
     display: "block",
   },
   ".cf-image-loading, .cf-image-placeholder": {
@@ -164,7 +164,7 @@ export const blockThemeStyles: Record<string, Record<string, string>> = {
     maxWidth: "100%",
     maxHeight: IMAGE_MAX_HEIGHT,
   },
-  ".cf-doc-block--figure .cf-image-wrapper": {
+  ".cf-doc-block--figure .cf-image-wrapper:not(.cf-image-loading):not(.cf-image-placeholder)": {
     display: "block",
     width: "fit-content",
     maxWidth: "100%",

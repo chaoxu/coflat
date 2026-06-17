@@ -37,6 +37,15 @@ console.log(value);
 \`\`\`
 `;
 
+const IMAGE_CAPTION_PARITY_SOURCE = `# Media Caption
+
+::: {.figure #fig:rich title="Caption with [doc](chapter.md), [@fig:rich], $x^2$, and \`code\`"}
+![Figure loading](figures/rich.png)
+:::
+
+![Loading alt](relative/figure.png)
+`;
+
 async function setEditorDoc(page: Page, doc: string, mode: "rich" | "source" = "rich") {
   await page.evaluate(({ doc, mode }) => {
     const editor = (window as unknown as {
@@ -1259,6 +1268,45 @@ test("theme presets keep full reader and CM6 content pixels aligned", async ({ p
     await loadParityPairSurface(page, preset);
     await expectLoadedSplitContentPixelsMatch(page, preset);
   }
+});
+
+test("reader and CM6 rich editor keep image and caption surfaces aligned", async ({ page }) => {
+  await page.setViewportSize({ width: 2560, height: 1800 });
+  await loadParityPairSurface(page, "default", IMAGE_CAPTION_PARITY_SOURCE);
+
+  const readerImageWrappers = page.locator(".parity-reader .cf-image-wrapper");
+  const editorImageWrappers = page.locator(".parity-editor .cf-image-wrapper");
+  await expect(readerImageWrappers).toHaveCount(2);
+  await expect(editorImageWrappers).toHaveCount(2);
+
+  await expect(page.locator(".parity-reader .cf-image-loading")).toHaveCount(2);
+  await expect(page.locator(".parity-editor .cf-image-loading")).toHaveCount(2);
+  await expect(page.locator(".parity-reader .cf-image-loading").first()).toContainText("[Loading image: Figure loading]");
+  await expect(page.locator(".parity-editor .cf-image-loading").first()).toContainText("[Loading image: Figure loading]");
+  await expect(page.locator(".parity-reader .cf-image-loading").nth(1)).toContainText("[Loading image: Loading alt]");
+  await expect(page.locator(".parity-editor .cf-image-loading").nth(1)).toContainText("[Loading image: Loading alt]");
+
+  const readerCaption = page.locator(".parity-reader .cf-block-caption");
+  const editorCaption = page.locator(".parity-editor .cf-block-caption");
+  await expect(readerCaption).toContainText("Figure 1");
+  await expect(editorCaption).toContainText("Figure 1");
+  await expect(readerCaption.locator(".cf-block-caption-text")).toContainText("Caption with doc, Figure 1");
+  await expect(editorCaption.locator(".cf-block-caption-text")).toContainText("Caption with doc, Figure 1");
+  await expect(readerCaption.locator(".cf-doc-link")).toHaveAttribute("data-cf-link-layout", "atomic");
+  await expect(editorCaption.locator(".cf-doc-link")).toHaveAttribute("data-cf-link-layout", "atomic");
+  await expect(readerCaption.locator(".cf-doc-inline-math .katex")).toBeVisible();
+  await expect(editorCaption.locator(".cf-doc-inline-math .katex")).toBeVisible();
+  await expect(readerCaption.locator(".cf-doc-code-token")).toContainText("code");
+  await expect(editorCaption.locator(".cf-doc-code-token")).toContainText("code");
+
+  for (const property of ["font-family", "font-size", "line-height", "text-align"] as const) {
+    const expected = await readerCaption.evaluate((el, property) =>
+      getComputedStyle(el).getPropertyValue(property),
+    property);
+    await expect(editorCaption).toHaveCSS(property, expected);
+  }
+
+  await expectLoadedSplitContentPixelsMatch(page, "image caption parity");
 });
 
 test("public showcase keeps reader and CM6 rich editor block geometry aligned", async ({ page }) => {

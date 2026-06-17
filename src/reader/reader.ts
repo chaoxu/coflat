@@ -11,6 +11,7 @@ import type { SyntaxNode, Tree } from "@lezer/common";
 import createDOMPurify from "dompurify";
 
 import { parseFrontmatter, parseMarkdownSource } from "../core/parser";
+import { renderBlockCaptionHtml } from "../core/block-caption-surface";
 import {
   blankLineRangesBetweenBlocks,
   trailingBlankLineRangesAfterLastBlock,
@@ -81,6 +82,10 @@ import {
   displayMathSurfaceClassNames,
   replaceDisplayMathContent,
 } from "../core/math-display-surface";
+import {
+  renderImageSurfaceHtml,
+  renderMediaLoadingHtml,
+} from "../core/media-surface";
 import { renderParagraphHtml } from "../core/paragraph-surface";
 import {
   renderTableCellHtml,
@@ -286,11 +291,7 @@ function renderBlockCaption(
   const renderedTitle = renderInlineSnippet(ctx, title);
   const label = formatBlockReferenceLabel(blockDisplayTitle(ctx, type), number);
   return {
-    html:
-      `<div class="cf-block-caption"${sourcePosAttrs(ctx, sourceFrom, sourceTo)}>` +
-      `<span class="${CSS.blockHeaderRendered}">${escapeHtml(label)}</span>` +
-      `<span class="cf-block-caption-text">${renderedTitle.html}</span>` +
-      `</div>`,
+    html: renderBlockCaptionHtml(label, renderedTitle.html, sourcePosAttrs(ctx, sourceFrom, sourceTo)),
     text: `${label} ${renderedTitle.text}`,
     hasMath: renderedTitle.hasMath,
   };
@@ -1129,13 +1130,6 @@ function isUnresolvedLocalMediaUrl(src: string): boolean {
   return !/^(?:[a-z][a-z0-9+.-]*:|\/)/i.test(src);
 }
 
-function mediaLoadingLabel(src: string, alt: string): string {
-  const fallback = alt || "preview";
-  return /\.pdf(?:[?#].*)?$/i.test(src)
-    ? `[Loading PDF: ${fallback}]`
-    : `[Loading image: ${fallback}]`;
-}
-
 function emitImage(
   ctx: WalkContext,
   node: SyntaxNode,
@@ -1178,16 +1172,13 @@ function emitImage(
   }
   if (isUnresolvedLocalMediaUrl(src)) {
     return {
-      html:
-        `<span class="${CSS.imageWrapper} ${CSS.imageLoading}"${sp}>` +
-        escapeHtml(mediaLoadingLabel(src, alt)) +
-        `</span>`,
+      html: renderMediaLoadingHtml(src, alt, sp),
       text: alt,
       hasMath: false,
     };
   }
   return {
-    html: `<img class="${CSS.image}" src="${escapeHtml(src)}" alt="${escapeHtml(alt)}"${sp}>`,
+    html: renderImageSurfaceHtml(src, alt, sp),
     text: alt,
     hasMath: false,
   };

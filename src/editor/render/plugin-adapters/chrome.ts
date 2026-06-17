@@ -5,6 +5,12 @@ import {
   WidgetType,
 } from "@codemirror/view";
 import { CSS } from "../../../core/constants/css-classes";
+import {
+  appendBlockCaptionLabel,
+  appendBlockCaptionText,
+  blockCaptionClassName,
+  createBlockCaptionElement,
+} from "../../../core/block-caption-surface";
 import { renderDocumentFragmentToDom } from "../../document-surfaces";
 import type { FencedDivInfo } from "../../fenced-block/model";
 import {
@@ -66,12 +72,6 @@ const closeParenWidget = Decoration.widget({
   widget: createSimpleTextWidget("span", CSS.blockTitleParen, ")"),
   side: 1,
 });
-
-function captionClassName(active: boolean): string {
-  return active
-    ? `cf-block-caption ${CSS.activeShellWidget} ${CSS.activeShellFooter}`
-    : "cf-block-caption";
-}
 
 abstract class MacroRenderingWidget extends ShellMacroAwareWidget {
   protected readonly macros: Record<string, string>;
@@ -165,23 +165,18 @@ export class BlockCaptionWidget extends MacroRenderingWidget {
   private renderCaptionContent(el: HTMLElement): void {
     el.textContent = "";
 
-    const headerEl = document.createElement("span");
-    headerEl.className = CSS.blockHeaderRendered;
+    const headerEl = appendBlockCaptionLabel(el, "");
     this.renderBlockTitle(headerEl, this.header);
-    el.appendChild(headerEl);
 
     if (!this.title) return;
 
-    const titleEl = document.createElement("span");
-    titleEl.className = "cf-block-caption-text";
+    const titleEl = appendBlockCaptionText(el);
     this.renderBlockTitle(titleEl, this.title);
-    el.appendChild(titleEl);
   }
 
   createDOM(): HTMLElement {
     return this.createRenderedDOM(() => {
-      const el = document.createElement("div");
-      el.className = captionClassName(this.active);
+      const el = createBlockCaptionElement(document, this.active);
       this.renderCaptionContent(el);
       return el;
     });
@@ -213,7 +208,7 @@ export class BlockCaptionWidget extends MacroRenderingWidget {
   ): boolean {
     if (!dom.classList.contains("cf-block-caption")) return false;
     this.withReferenceContext(view, () => this.refreshRenderedDOM(dom, (el) => {
-      el.className = captionClassName(this.active);
+      el.className = blockCaptionClassName(this.active);
       this.renderCaptionContent(el);
     }));
     this.syncWidgetAttrs(dom, view);

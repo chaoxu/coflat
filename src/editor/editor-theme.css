@@ -1730,7 +1730,7 @@
   max-width: 100%;
 }
 
-div.cf-image-wrapper {
+div.cf-image-wrapper:not(.cf-image-loading):not(.cf-image-placeholder) {
   display: block;
 }
 
@@ -1751,7 +1751,7 @@ div.cf-image-wrapper {
   max-height: 360px;
 }
 
-.cf-doc-block--figure .cf-image-wrapper {
+.cf-doc-block--figure .cf-image-wrapper:not(.cf-image-loading):not(.cf-image-placeholder) {
   display: block;
   width: fit-content;
   max-width: 100%;
