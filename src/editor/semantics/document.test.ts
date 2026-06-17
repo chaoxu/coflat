@@ -56,6 +56,38 @@ describe("document semantics analyzers", () => {
     expect(headings[0]?.id).toBe("sec:intro");
   });
 
+  it("analyzes setext headings in the shared heading slice", () => {
+    const doc = "Setext One\n==========\n\nSetext Two {#sec:two}\n----------\n";
+    const tree = parser.parse(doc);
+
+    const headings = analyzeHeadings(stringTextSource(doc), tree);
+
+    expect(headings).toEqual([
+      {
+        from: 0,
+        to: 21,
+        level: 1,
+        textFrom: 0,
+        textTo: 10,
+        text: "Setext One",
+        id: undefined,
+        number: "1",
+        unnumbered: false,
+      },
+      {
+        from: 23,
+        to: 55,
+        level: 2,
+        textFrom: 23,
+        textTo: 33,
+        text: "Setext Two",
+        id: "sec:two",
+        number: "1.1",
+        unnumbered: false,
+      },
+    ]);
+  });
+
   it("analyzes footnote refs and definitions once", () => {
     const doc = "Alpha[^note]\n\n[^note]: hello world\n";
     const tree = parser.parse(doc);

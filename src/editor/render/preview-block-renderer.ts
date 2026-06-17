@@ -175,6 +175,8 @@ function renderNode(
     case "ATXHeading4":
     case "ATXHeading5":
     case "ATXHeading6":
+    case "SetextHeading1":
+    case "SetextHeading2":
       renderHeading(parent, node, context);
       return;
     case "FencedCode":

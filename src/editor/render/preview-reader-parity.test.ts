@@ -99,6 +99,10 @@ describe("reader / editor-preview emission parity", () => {
       source: "# One\n\n## Two {-}\n\n### Three {#sec:three}",
     },
     {
+      name: "setext headings",
+      source: "Setext One\n==========\n\nSetext Two\n----------\n\nbody",
+    },
+    {
       // Two paragraphs: the reader deliberately unwraps a lone top-level
       // paragraph to bare inline ("short input" shape), so single-paragraph
       // documents are not comparable at the block level.

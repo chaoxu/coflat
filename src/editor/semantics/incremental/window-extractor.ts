@@ -1,5 +1,6 @@
 import type { Tree } from "@lezer/common";
 import { NODE } from "../../../core/constants/node-types";
+import { extractRawFrontmatter } from "../../../core/parser/frontmatter";
 import { scanReferenceTokens } from "../../lib/reference-tokens";
 import type { FencedDivSemantics, MathSemantics, ReferenceSemantics, TextSource } from "../document-model";
 import {
@@ -34,6 +35,19 @@ interface StructuralWindowExtractOptions {
 
 const ATX_HEADING_RE = /^ATXHeading(\d)$/;
 
+function headingLevelForNode(name: string): number {
+  const atx = ATX_HEADING_RE.exec(name);
+  if (atx) return Number(atx[1]);
+  switch (name) {
+    case NODE.SetextHeading1:
+      return 1;
+    case NODE.SetextHeading2:
+      return 2;
+    default:
+      return 0;
+  }
+}
+
 function normalizeWindow(
   doc: TextSource,
   window?: StructuralWindow,
@@ -50,6 +64,7 @@ function shouldDescendIntoStructuralNode(name: string): boolean {
     case NODE.DisplayMath:
     case NODE.Link:
     case NODE.FootnoteRef:
+    case NODE.Frontmatter:
       return false;
     default:
       return true;
@@ -199,16 +214,30 @@ export function collectStructuralWindow(
   options?: StructuralWindowExtractOptions,
 ): StructuralWindowExtraction {
   const range = normalizeWindow(doc, window);
+  const frontmatterEnd = extractRawFrontmatter(doc.slice(0, doc.length))?.end ?? -1;
+  if (frontmatterEnd > range.from) {
+    result.excludedRanges.push({
+      from: 0,
+      to: Math.min(frontmatterEnd, range.to),
+    });
+  }
 
   const c = tree.cursor();
   scan: for (;;) {
     if (c.from <= range.to && c.to >= range.from) {
+      if (frontmatterEnd > 0 && c.from >= 0 && c.to <= frontmatterEnd) {
+        for (;;) {
+          if (c.nextSibling()) break;
+          if (!c.parent()) break scan;
+        }
+        continue;
+      }
       const name = c.name;
       let shouldDescend = shouldDescendIntoStructuralNode(name);
 
-      const headingMatch = ATX_HEADING_RE.exec(name);
-      if (headingMatch) {
-        collectHeading(doc, c, result, Number(headingMatch[1]));
+      const headingLevel = headingLevelForNode(name);
+      if (headingLevel) {
+        collectHeading(doc, c, result, headingLevel);
       } else {
         switch (name) {
           case NODE.FootnoteRef:

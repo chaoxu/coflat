@@ -87,8 +87,14 @@ export function collectHeading(
 ): void {
   const rawText = doc.slice(node.from, node.to);
   const headerMark = node.node.getChild(NODE.HeaderMark);
-  const textFrom = headerMark ? headerMark.to : node.from;
-  const headingTail = doc.slice(textFrom, node.to);
+  let textFrom = node.from;
+  let textTo = node.to;
+  if (headerMark?.from === node.from) {
+    textFrom = headerMark.to;
+  } else if (headerMark && headerMark.from > node.from) {
+    textTo = headerMark.from;
+  }
+  const headingTail = doc.slice(textFrom, textTo);
   const leadingWs = headingTail.length - headingTail.trimStart().length;
   const rawHeadingText = headingTail.trim();
   const rawHeadingTextFrom = textFrom + leadingWs;
