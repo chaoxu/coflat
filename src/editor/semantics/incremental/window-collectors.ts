@@ -91,6 +91,10 @@ export function collectHeading(
   let textTo = node.to;
   if (headerMark?.from === node.from) {
     textFrom = headerMark.to;
+    const trailing = node.node.lastChild;
+    if (trailing?.name === NODE.HeaderMark && trailing.from !== headerMark.from) {
+      textTo = trailing.from;
+    }
   } else if (headerMark && headerMark.from > node.from) {
     textTo = headerMark.from;
   }

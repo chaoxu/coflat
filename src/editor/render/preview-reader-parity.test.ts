@@ -249,6 +249,19 @@ describe("reader / editor-preview emission parity", () => {
     expect(readerDiv?.textContent).toContain("Body text.");
   });
 
+  it("closed ATX heading markers are stripped in both pipelines", () => {
+    const source = "# Closed #\n\n## Two ##\n";
+    const readerHost = document.createElement("div");
+    readerHost.innerHTML = renderToHtml(source).html;
+    const previewHost = document.createElement("div");
+    renderPreviewBlockContentToDom(previewHost, source);
+
+    expect([...readerHost.querySelectorAll("h1, h2")].map((el) => el.textContent))
+      .toEqual(["Closed", "Two"]);
+    expect([...previewHost.querySelectorAll("h1, h2")].map((el) => el.textContent))
+      .toEqual(["Closed", "Two"]);
+  });
+
   it("preview footnote definitions use the shared footnote entry chrome", () => {
     const host = document.createElement("div");
     renderPreviewBlockContentToDom(

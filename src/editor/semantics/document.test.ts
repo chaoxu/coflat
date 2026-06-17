@@ -56,6 +56,24 @@ describe("document semantics analyzers", () => {
     expect(headings[0]?.id).toBe("sec:intro");
   });
 
+  it("strips closing ATX heading markers in the shared heading slice", () => {
+    const doc = "# Closed #\n\n## Two ##\n";
+    const tree = parser.parse(doc);
+
+    const headings = analyzeHeadings(stringTextSource(doc), tree);
+
+    expect(headings.map((heading) => ({
+      level: heading.level,
+      text: heading.text,
+      textFrom: heading.textFrom,
+      textTo: heading.textTo,
+      number: heading.number,
+    }))).toEqual([
+      { level: 1, text: "Closed", textFrom: 2, textTo: 8, number: "1" },
+      { level: 2, text: "Two", textFrom: 15, textTo: 18, number: "1.1" },
+    ]);
+  });
+
   it("analyzes setext headings in the shared heading slice", () => {
     const doc = "Setext One\n==========\n\nSetext Two {#sec:two}\n----------\n";
     const tree = parser.parse(doc);
