@@ -23,7 +23,9 @@ const FULL_SURFACE_SIGNIFICANT_DELTA = 32;
 const ANTIALIAS_EDGE_DELTA = 2;
 const MAX_RESIDUAL_SIGNIFICANT_PIXELS = 256;
 const MAX_RESIDUAL_SIGNIFICANT_RATIO = 0.00025;
-const CORPUS_CHUNK_LINES = 400;
+// Keep screenshot chunks inside CodeMirror's rendered viewport. Larger chunks
+// can compare reader DOM against CM's virtual spacer nodes instead of editor DOM.
+const CORPUS_CHUNK_LINES = 20;
 
 export const PARITY_PIXEL_PRESETS: readonly ParityPreset[] = [
   "default",
@@ -490,7 +492,10 @@ async function parityPairContentClip(
 
     function surfaceRect(root: HTMLElement, surface: "reader" | "editor") {
       const rootRect = root.getBoundingClientRect();
-      const contentNodes = Array.from(root.children).filter((el) => {
+      const candidates = surface === "reader" && sourceRange
+        ? Array.from(root.querySelectorAll("[data-source-from][data-source-to]"))
+        : Array.from(root.children);
+      const contentNodes = candidates.filter((el) => {
         const rect = el.getBoundingClientRect();
         if (!(rect.height > 0 && rect.width > 0)) return false;
         if (!sourceRange) return true;
