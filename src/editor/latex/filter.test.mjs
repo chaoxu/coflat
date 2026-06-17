@@ -54,10 +54,10 @@ describe("LaTeX filter custom blocks", () => {
 });
 
 describe("LaTeX filter inline mappings", () => {
-  it.skipIf(!hasPandoc)("lets Pandoc mark spans render as soul highlights", () => {
+  it.skipIf(!hasPandoc)("does not require newer Pandoc mark syntax support", () => {
     const latex = runPandoc("A ==highlighted **term**==.\n");
 
-    expect(latex).toContain("\\hl{highlighted \\textbf{term}}");
+    expect(latex).toContain("==highlighted \\textbf{term}==");
   });
 
   it.skipIf(!hasPandoc)("renders all citation syntax as cross-reference clusters", () => {

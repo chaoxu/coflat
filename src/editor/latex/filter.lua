@@ -240,9 +240,9 @@ local function transform_cite(el)
   return pandoc.RawInline("latex", "\\cref{" .. table.concat(ids, ",") .. "}")
 end
 
--- The Pandoc reader profile enables the `mark` extension, so ==text== reaches
--- the LaTeX writer as a mark span and becomes \hl{...}; no custom filter
--- handling is needed here.
+-- Keep the reader profile compatible with Pandoc 2.17, which ships in the
+-- Cosheaf production image. Newer optional extensions such as `mark` must not
+-- be required by this filter.
 
 function Pandoc(doc)
   return doc:walk({ Cite = transform_cite, Div = transform_div })
