@@ -12,7 +12,7 @@ import {
   appendBlockDisclosure,
   createBlockLabelElement,
   createBlockSummaryFragment as createBlockSummarySurfaceFragment,
-  createInlineBlockHeadingElement,
+  prependInlineBlockHeading,
 } from "../../core/block-heading-surface";
 import {
   createBlankLineElement,
@@ -48,7 +48,7 @@ import {
   listSurfaceClassNames,
   taskMarkerChecked,
 } from "../../core/list-surface";
-import { appendParagraphDom, createParagraphDom } from "../../core/paragraph-surface";
+import { appendParagraphDom } from "../../core/paragraph-surface";
 import type { BlockCounterEntry } from "../../core/lib/file-system-types";
 import {
   extractRawFrontmatter,
@@ -549,7 +549,7 @@ function renderFencedDiv(
       if (primaryClass?.specialBehavior === "qed") {
         addClassToLastChildElement(body, CSS.blockQed);
       }
-      prependInlineHeader(body, summary);
+      prependInlineBlockHeading(body, summary);
     }
 
     if (summary && isCollapsibleBlockType(primaryClassName)) {
@@ -600,21 +600,6 @@ function appendBlockHeader(
   body: DocumentFragment,
 ): void {
   appendBlockDisclosure(block, summary, body);
-}
-
-function prependInlineHeader(body: DocumentFragment, summary: DocumentFragment): void {
-  const header = createInlineBlockHeadingElement(document, summary);
-
-  const first = body.firstElementChild;
-  if (first instanceof HTMLParagraphElement) {
-    first.prepend(header);
-    return;
-  }
-
-  const paragraph = createParagraphDom(document, (paragraph) => {
-    paragraph.appendChild(header);
-  });
-  body.prepend(paragraph);
 }
 
 function addClassToLastChildElement(parent: DocumentFragment, className: string): void {

@@ -17,8 +17,8 @@ import {
 import {
   renderBlockDisclosureHtml,
   renderBlockLabelHtml,
+  renderInlineBlockHeadingContainerHtml,
   renderBlockSummaryHtml as renderBlockSummarySurfaceHtml,
-  renderInlineBlockHeadingHtml,
 } from "../core/block-heading-surface";
 import {
   blankLineRangesBetweenBlocks,
@@ -322,40 +322,6 @@ function addClassToLastHtmlBlock(blocks: BlockResult[], className: string): void
     };
     return;
   }
-}
-
-function renderProofBlockHtml(attrs: string, sourceAttrs: string, summaryHtml: string, bodyHtml: string): string {
-  const firstParagraph = bodyHtml.match(/^<p\b([^>]*)>/);
-  if (!firstParagraph?.[1] || !/\bclass="[^"]*\bcf-doc-paragraph\b[^"]*"/.test(firstParagraph[1])) {
-    return (
-      `<div${attrs}${sourceAttrs}>` +
-      renderParagraphHtml(renderInlineBlockHeadingHtml(summaryHtml)) +
-      bodyHtml +
-      `</div>`
-    );
-  }
-  const openEnd = firstParagraph[0].length - 1;
-  const closeStart = bodyHtml.indexOf("</p>", openEnd + 1);
-  if (closeStart < 0) {
-    return (
-      `<div${attrs}${sourceAttrs}>` +
-      renderParagraphHtml(renderInlineBlockHeadingHtml(summaryHtml)) +
-      bodyHtml +
-      `</div>`
-    );
-  }
-  const paragraphAttrs = firstParagraph[1];
-  const firstInner = bodyHtml.slice(openEnd + 1, closeStart).replace(/^\s+/, "");
-  const rest = bodyHtml.slice(closeStart + "</p>".length);
-  return (
-    `<div${attrs}${sourceAttrs}>` +
-    `<p${paragraphAttrs}>` +
-    renderInlineBlockHeadingHtml(summaryHtml) +
-    firstInner +
-    `</p>` +
-    rest +
-    `</div>`
-  );
 }
 
 // ---------------------------------------------------------------------------
@@ -1959,7 +1925,7 @@ function renderFencedDiv(ctx: WalkContext, node: SyntaxNode): BlockResult {
     : emptyBlock();
   const summaryHtml = summary.html;
   const html = plan?.hasInlineHeader
-    ? renderProofBlockHtml(attrs, sourceAttrs, summaryHtml, bodyHtml)
+    ? renderInlineBlockHeadingContainerHtml(attrs, sourceAttrs, summaryHtml, bodyHtml)
     : collapsibleBlock
     ? `<div${attrs}${sourceAttrs}${interactiveBlock ? ' data-cf-block-open="true"' : ""}>${renderBlockHeader(summaryHtml, bodyHtml)}</div>`
     : `<div${attrs}${sourceAttrs}>${bodyHtml}</div>`;

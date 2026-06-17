@@ -5,9 +5,11 @@ import {
   appendBlockDisclosure,
   createBlockSummaryFragment,
   createInlineBlockHeadingElement,
+  prependInlineBlockHeading,
   renderBlockDisclosureHtml,
   renderBlockLabelHtml,
   renderBlockSummaryHtml,
+  renderInlineBlockHeadingContainerHtml,
   renderInlineBlockHeadingHtml,
 } from "./block-heading-surface";
 
@@ -77,6 +79,62 @@ describe("block heading surface", () => {
     summary.append("Proof");
     expect(createInlineBlockHeadingElement(document, summary).outerHTML).toBe(
       `<span class="${DOCUMENT_SURFACE_CLASS.blockHeading}">Proof</span>`,
+    );
+  });
+
+  it("injects inline block headings into the first paragraph in reader HTML", () => {
+    expect(
+      renderInlineBlockHeadingContainerHtml(
+        ' class="cf-doc-block cf-doc-block--proof"',
+        ' data-source-from="1"',
+        "Proof.",
+        `<p class="${DOCUMENT_SURFACE_CLASS.paragraph}"> Body</p><p class="${DOCUMENT_SURFACE_CLASS.paragraph}">More</p>`,
+      ),
+    ).toBe(
+      `<div class="cf-doc-block cf-doc-block--proof" data-source-from="1">` +
+        `<p class="${DOCUMENT_SURFACE_CLASS.paragraph}">` +
+        `<span class="${DOCUMENT_SURFACE_CLASS.blockHeading}">Proof.</span>` +
+        `Body</p>` +
+        `<p class="${DOCUMENT_SURFACE_CLASS.paragraph}">More</p>` +
+        `</div>`,
+    );
+  });
+
+  it("synthesizes an inline-heading paragraph when the body has no first paragraph", () => {
+    expect(
+      renderInlineBlockHeadingContainerHtml(
+        ' class="cf-doc-block cf-doc-block--proof"',
+        "",
+        "Proof.",
+        "<ul><li>Body</li></ul>",
+      ),
+    ).toBe(
+      `<div class="cf-doc-block cf-doc-block--proof">` +
+        `<p class="${DOCUMENT_SURFACE_CLASS.paragraph}">` +
+        `<span class="${DOCUMENT_SURFACE_CLASS.blockHeading}">Proof.</span>` +
+        `</p>` +
+        `<ul><li>Body</li></ul>` +
+        `</div>`,
+    );
+  });
+
+  it("shares inline block heading insertion for editor DOM", () => {
+    const summary = document.createDocumentFragment();
+    summary.append("Proof.");
+    const body = document.createDocumentFragment();
+    const paragraph = document.createElement("p");
+    paragraph.className = DOCUMENT_SURFACE_CLASS.paragraph;
+    paragraph.append(" Body");
+    body.appendChild(paragraph);
+
+    prependInlineBlockHeading(body, summary);
+
+    const host = document.createElement("div");
+    host.appendChild(body);
+    expect(host.innerHTML).toBe(
+      `<p class="${DOCUMENT_SURFACE_CLASS.paragraph}">` +
+        `<span class="${DOCUMENT_SURFACE_CLASS.blockHeading}">Proof.</span>` +
+        ` Body</p>`,
     );
   });
 });

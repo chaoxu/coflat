@@ -1,6 +1,7 @@
 import { CSS } from "./constants/css-classes";
 import { DOCUMENT_SURFACE_CLASS } from "./document-surface-classes";
 import { escapeHtml } from "./lib/html-escape";
+import { createParagraphDom, renderParagraphHtml } from "./paragraph-surface";
 
 export function renderBlockLabelHtml(label: string): string {
   return `<span class="${CSS.blockHeaderRendered}">${escapeHtml(label)}</span>`;
@@ -31,6 +32,43 @@ export function renderBlockDisclosureHtml(summaryHtml: string, bodyHtml: string)
 
 export function renderInlineBlockHeadingHtml(summaryHtml: string): string {
   return `<span class="${DOCUMENT_SURFACE_CLASS.blockHeading}">${summaryHtml}</span>`;
+}
+
+export function renderInlineBlockHeadingContainerHtml(
+  attrs: string,
+  sourceAttrs: string,
+  summaryHtml: string,
+  bodyHtml: string,
+): string {
+  const fallbackHtml = (
+    `<div${attrs}${sourceAttrs}>` +
+    renderParagraphHtml(renderInlineBlockHeadingHtml(summaryHtml)) +
+    bodyHtml +
+    `</div>`
+  );
+  const firstParagraph = bodyHtml.match(/^<p\b([^>]*)>/);
+  if (!firstParagraph?.[1] || !/\bclass="[^"]*\bcf-doc-paragraph\b[^"]*"/.test(firstParagraph[1])) {
+    return fallbackHtml;
+  }
+
+  const openEnd = firstParagraph[0].length - 1;
+  const closeStart = bodyHtml.indexOf("</p>", openEnd + 1);
+  if (closeStart < 0) {
+    return fallbackHtml;
+  }
+
+  const paragraphAttrs = firstParagraph[1];
+  const firstInner = bodyHtml.slice(openEnd + 1, closeStart).replace(/^\s+/, "");
+  const rest = bodyHtml.slice(closeStart + "</p>".length);
+  return (
+    `<div${attrs}${sourceAttrs}>` +
+    `<p${paragraphAttrs}>` +
+    renderInlineBlockHeadingHtml(summaryHtml) +
+    firstInner +
+    `</p>` +
+    rest +
+    `</div>`
+  );
 }
 
 export function createBlockLabelElement(
@@ -134,4 +172,22 @@ export function createInlineBlockHeadingElement(
   header.className = DOCUMENT_SURFACE_CLASS.blockHeading;
   header.appendChild(summary);
   return header;
+}
+
+export function prependInlineBlockHeading(
+  body: DocumentFragment,
+  summary: DocumentFragment,
+): void {
+  const header = createInlineBlockHeadingElement(body.ownerDocument, summary);
+
+  const first = body.firstElementChild;
+  if (first?.tagName === "P") {
+    first.prepend(header);
+    return;
+  }
+
+  const paragraph = createParagraphDom(body.ownerDocument, (paragraph) => {
+    paragraph.appendChild(header);
+  });
+  body.prepend(paragraph);
 }
