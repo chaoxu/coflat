@@ -1,11 +1,18 @@
 import { describe, expect, it } from "vitest";
 import {
+  appendListMarker,
+  appendReadOnlyTaskCheckbox,
+  createListItemSurfaceElement,
+  createListSurfaceElement,
   createReadOnlyTaskCheckboxElement,
   editorListItemLineClassNames,
   listItemSurfaceClassNames,
   listMarkerClassName,
   listMarkerText,
   listSurfaceClassNames,
+  renderListItemSurfaceHtml,
+  renderListMarkerHtml,
+  renderListSurfaceHtml,
   renderReadOnlyTaskCheckboxHtml,
   taskMarkerChecked,
 } from "./list-surface";
@@ -43,6 +50,53 @@ describe("list surface", () => {
     expect(listMarkerText(false, 3)).toBe("•");
     expect(listMarkerClassName(true)).toBe("cf-list-number");
     expect(listMarkerText(true, 3)).toBe("3.");
+    expect(renderListMarkerHtml(true, 3)).toBe(
+      '<span class="cf-list-number">3.</span> ',
+    );
+  });
+
+  it("renders and creates list wrappers from the same surface contract", () => {
+    expect(
+      renderListSurfaceHtml(
+        { ordered: true, task: true, loose: false, start: 3 },
+        "<li>item</li>",
+        ' data-source-from="1"',
+      ),
+    ).toBe(
+      '<ol class="cf-doc-list cf-doc-list--ordered cf-doc-list--check cf-doc-list--tight" start="3" data-source-from="1"><li>item</li></ol>',
+    );
+
+    const list = createListSurfaceElement(document, {
+      ordered: false,
+      task: false,
+      loose: true,
+    });
+    expect(list.outerHTML).toBe(
+      '<ul class="cf-doc-list cf-doc-list--unordered cf-doc-list--loose"></ul>',
+    );
+  });
+
+  it("renders and creates list item wrappers with shared marker and checked attrs", () => {
+    expect(
+      renderListItemSurfaceHtml(
+        { ordered: false, task: true, checked: false },
+        1,
+        "<span>task</span>",
+        ' data-source-to="9"',
+      ),
+    ).toBe(
+      '<li class="cf-doc-list-item cf-doc-list-item--check" data-checked="false" data-source-to="9"><span class="cf-list-bullet">•</span> <span>task</span></li>',
+    );
+
+    const item = createListItemSurfaceElement(document, {
+      ordered: true,
+      task: true,
+      checked: true,
+    });
+    appendListMarker(item, true, 7);
+    expect(item.outerHTML).toBe(
+      '<li class="cf-doc-list-item cf-doc-list-item--check" data-checked="true"><span class="cf-list-number">7.</span> </li>',
+    );
   });
 
   it("shares read-only task checkbox rendering", () => {
@@ -62,5 +116,12 @@ describe("list surface", () => {
       '<input type="checkbox" tabindex="-1" aria-disabled="true">',
     );
     expect(input.checked).toBe(true);
+
+    const host = document.createElement("li");
+    appendReadOnlyTaskCheckbox(host, true);
+    expect(host.innerHTML).toBe(
+      '<input type="checkbox" tabindex="-1" aria-disabled="true"> ',
+    );
+    expect(host.querySelector("input")?.checked).toBe(true);
   });
 });

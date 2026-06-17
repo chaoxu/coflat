@@ -87,10 +87,8 @@ import {
 } from "../core/heading-surface";
 import {
   renderReadOnlyTaskCheckboxHtml,
-  listItemSurfaceClassNames,
-  listMarkerClassName,
-  listMarkerText,
-  listSurfaceClassNames,
+  renderListItemSurfaceHtml,
+  renderListSurfaceHtml,
   taskMarkerChecked,
 } from "../core/list-surface";
 import { renderCodeBlockHtml } from "../core/code-block-surface";
@@ -1577,18 +1575,12 @@ function renderList(ctx: WalkContext, node: SyntaxNode, ordered: boolean): Block
     child = child.nextSibling;
   }
 
-  // Detect start number for ordered lists.
-  let startAttr = "";
-  if (ordered) {
-    if (startNumber !== 1) startAttr = ` start="${startNumber}"`;
-  }
-
-  const tag = ordered ? "ol" : "ul";
   return {
-    html:
-      `<${tag} class="${listSurfaceClassNames({ ordered, task: isTaskList, loose: isLoose })}"${startAttr}${blockSourceAttrs(ctx, node.from, node.to)}>` +
-      items.map((b) => b.html).join("") +
-      `</${tag}>`,
+    html: renderListSurfaceHtml(
+      { ordered, task: isTaskList, loose: isLoose, start: startNumber },
+      items.map((b) => b.html).join(""),
+      blockSourceAttrs(ctx, node.from, node.to),
+    ),
     text: items.map((b) => b.text).join("\n"),
     hasMath: items.some((b) => b.hasMath),
   };
@@ -1665,16 +1657,18 @@ function renderListItem(
     text = blocks.map((b) => b.text).join("\n");
   }
 
-  let dataAttrs = "";
   if (task) {
-    dataAttrs = ` data-checked="${task.checked}"`;
     const cb = `${renderReadOnlyTaskCheckboxHtml(task.checked)} `;
     inner = cb + inner;
     text = (task.checked ? "[x] " : "[ ] ") + text;
   }
-  const marker = `<span class="${listMarkerClassName(ordered)}">${listMarkerText(ordered, number)}</span> `;
   return {
-    html: `<li class="${listItemSurfaceClassNames({ ordered, task: task !== null })}"${dataAttrs}${blockSourceAttrs(ctx, node.from, node.to)}>${marker}${inner}</li>`,
+    html: renderListItemSurfaceHtml(
+      { ordered, task: task !== null, checked: task?.checked },
+      number,
+      inner,
+      blockSourceAttrs(ctx, node.from, node.to),
+    ),
     text,
     hasMath,
   };

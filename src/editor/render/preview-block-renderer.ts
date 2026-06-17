@@ -41,11 +41,10 @@ import {
   setHeadingNumberingAttrs,
 } from "../../core/heading-surface";
 import {
-  createReadOnlyTaskCheckboxElement,
-  listItemSurfaceClassNames,
-  listMarkerClassName,
-  listMarkerText,
-  listSurfaceClassNames,
+  appendListMarker,
+  appendReadOnlyTaskCheckbox,
+  createListItemSurfaceElement,
+  createListSurfaceElement,
   taskMarkerChecked,
 } from "../../core/list-surface";
 import { appendParagraphDom } from "../../core/paragraph-surface";
@@ -318,43 +317,43 @@ function renderList(
   context: PreviewRenderContext,
   tag: "ul" | "ol",
 ): void {
-  const list = document.createElement(tag);
-  const start = tag === "ol" ? orderedListStartNumber(node, context.doc) : 1;
-  if (tag === "ol") {
-    if (start !== 1) {
-      list.setAttribute("start", String(start));
-    }
-  }
+  const ordered = tag === "ol";
+  const start = ordered ? orderedListStartNumber(node, context.doc) : 1;
   const loose = isLooseListNode(node, context.doc);
   let isTaskList = false;
+  const renderedItems: HTMLLIElement[] = [];
   let child = node.firstChild;
   let itemIndex = 0;
 
   while (child) {
     if (child.name === "ListItem") {
-      const item = document.createElement("li");
       const markerNumber = start + itemIndex;
       itemIndex += 1;
       const taskMarker = child.getChild("Task")?.getChild("TaskMarker") ?? null;
       const isTask = taskMarker !== null;
+      const checked = taskMarker
+        ? taskMarkerChecked(context.doc.slice(taskMarker.from, taskMarker.to))
+        : undefined;
       isTaskList ||= isTask;
-      item.className = listItemSurfaceClassNames({ ordered: tag === "ol", task: isTask });
-      if (taskMarker) {
-        const checked = context.doc.slice(taskMarker.from, taskMarker.to) !== "[ ]";
-        item.dataset.checked = String(checked);
-      }
-      appendListMarker(item, tag, markerNumber);
+      const item = createListItemSurfaceElement(document, {
+        ordered,
+        task: isTask,
+        checked,
+      });
+      appendListMarker(item, ordered, markerNumber);
       renderListItem(item, child, context);
-      list.appendChild(item);
+      renderedItems.push(item);
     }
     child = child.nextSibling;
   }
 
-  list.className = listSurfaceClassNames({
-    ordered: tag === "ol",
+  const list = createListSurfaceElement(document, {
+    ordered,
     task: isTaskList,
     loose,
+    start,
   });
+  list.append(...renderedItems);
   parent.appendChild(list);
 }
 
@@ -385,15 +384,6 @@ function appendBlankLine(
   _to: number,
 ): void {
   parent.appendChild(createBlankLineElement(document));
-}
-
-function appendListMarker(parent: HTMLElement, tag: "ul" | "ol", number: number): void {
-  const marker = document.createElement("span");
-  const ordered = tag === "ol";
-  marker.className = listMarkerClassName(ordered);
-  marker.textContent = listMarkerText(ordered, number);
-  parent.appendChild(marker);
-  parent.appendChild(document.createTextNode(" "));
 }
 
 // Matches the reader's unwrap rule: an item whose content is exactly one
@@ -456,9 +446,7 @@ function renderTaskListItem(
   const taskMarker = node.getChild("TaskMarker");
   if (taskMarker) {
     const markerText = context.doc.slice(taskMarker.from, taskMarker.to);
-    const input = createReadOnlyTaskCheckboxElement(document, taskMarkerChecked(markerText));
-    parent.appendChild(input);
-    parent.appendChild(document.createTextNode(" "));
+    appendReadOnlyTaskCheckbox(parent, taskMarkerChecked(markerText));
 
     const contentStart = Math.min(taskMarker.to + 1, node.to);
     const content = context.doc.slice(contentStart, node.to).trim();
