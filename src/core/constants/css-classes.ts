@@ -207,9 +207,6 @@ export const CSS = {
 
   sectionNumber: "cf-section-number",
 
-  /** Block blockquote. */
-  blockBlockquote: "cf-block-blockquote",
-
   /** Hidden elements (markers, URLs, etc. collapsed when cursor is away). */
   hidden: "cf-hidden",
 

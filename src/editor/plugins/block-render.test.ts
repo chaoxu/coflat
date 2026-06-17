@@ -36,9 +36,9 @@ describe("createBlockRender", () => {
   });
 
   it("uses a custom className when provided", () => {
-    const render = createBlockRender("Quote", CSS.blockBlockquote);
+    const render = createBlockRender("Quote", "cf-custom-quote-block");
     const spec = render({ type: "blockquote" });
-    expect(spec.className).toBe(CSS.blockBlockquote);
+    expect(spec.className).toBe("cf-custom-quote-block");
     expect(spec.header).toBe("Quote");
   });
 });

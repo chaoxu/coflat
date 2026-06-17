@@ -110,9 +110,8 @@ export const blockThemeStyles: Record<string, Record<string, string>> = {
   },
 
   /* Blockquote plugin styling: fenced div blockquote blocks */
-  ".cf-block-blockquote": {
+  ".cf-doc-block--blockquote": {
     borderLeft: "var(--cf-border-width-accent) solid var(--cf-blockquote-border)",
-    color: "var(--cf-blockquote-color)",
     paddingLeft: "1em",
     fontStyle: "italic",
   },

@@ -25,6 +25,11 @@ describe("blockThemeStyles", () => {
         ".cf-block-blockquote .cf-block-header, .cf-block-blockquote.cf-block-header"
       ],
     ).toBeUndefined();
+    expect(blockThemeStyles[".cf-doc-block--blockquote"]).toMatchObject({
+      borderLeft: "var(--cf-border-width-accent) solid var(--cf-blockquote-border)",
+      paddingLeft: "1em",
+      fontStyle: "italic",
+    });
   });
 
   it("keeps proof and caption styling on their token-driven structural selectors", () => {

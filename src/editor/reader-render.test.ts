@@ -373,6 +373,13 @@ describe("renderToHtml — block-level rendering ()", () => {
     expect(r.html).toContain('quoted');
   });
 
+  it("renders fenced blockquotes with the shared document block class", () => {
+    const r = renderToHtml("::: {.blockquote}\nquoted\n:::");
+    expect(r.html).toContain('class="cf-doc-block cf-doc-block--blockquote"');
+    expect(r.html).toContain("quoted");
+    expect(r.html).not.toContain("cf-block-blockquote");
+  });
+
   it("renders fenced code with language attribute, HTML-escaped contents", () => {
     const r = renderToHtml("```js\nconst x = '<b>';\n```");
     expect(r.html).toContain('class="cf-doc-code-block"');

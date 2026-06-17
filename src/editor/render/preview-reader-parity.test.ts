@@ -142,6 +142,16 @@ describe("reader / editor-preview emission parity", () => {
       source: "> quoted *text*\n>\n> second paragraph",
     },
     {
+      name: "fenced blockquote",
+      source: [
+        "::: {.blockquote}",
+        "quoted *text*",
+        "",
+        "second paragraph",
+        ":::",
+      ].join("\n"),
+    },
+    {
       name: "fenced code with language",
       source: "```python\nprint('hi')\n```",
     },

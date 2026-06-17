@@ -1785,13 +1785,12 @@ div.cf-image-wrapper {
   max-width: 100%;
 }
 
-/* Blockquote styling — cf-block-blockquote is unscoped (shared with preview DOM),
- * bare blockquote stays scoped to hover preview. */
-.cf-block-blockquote {
+/* Fenced-div blockquote styling. Bare blockquote stays scoped to hover preview. */
+.cf-doc-block.cf-doc-block--blockquote {
   border-left: 3px solid var(--cf-blockquote-border);
   padding-left: 1em;
   margin-left: 0;
-  color: var(--cf-blockquote-color);
+  font-style: italic;
 }
 
 /* Block header rendered label (e.g. "Theorem 1."): bold, normal style, inline.

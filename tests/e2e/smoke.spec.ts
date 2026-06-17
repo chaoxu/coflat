@@ -1234,6 +1234,7 @@ test("theme presets keep reader and CM6 rich editor surfaces visually aligned", 
     [".parity-reader .cf-doc-block--proof", ".parity-editor .cm-line.cf-doc-block--proof", ["border-left-color", "border-left-style", "border-left-width", "font-style", "padding-left"]],
     [".parity-reader .cf-doc-block--proof .cf-doc-inline-math .katex", ".parity-editor .cm-line.cf-doc-block--proof .cf-doc-inline-math .katex", ["color", "font-size", "font-style", "font-weight"]],
     [".parity-reader .cf-doc-block--definition", ".parity-editor .cm-line.cf-doc-block--definition", ["font-style"]],
+    [".parity-reader .cf-doc-block--blockquote", ".parity-editor .cm-line.cf-doc-block--blockquote", ["border-left-color", "border-left-style", "border-left-width", "font-style", "padding-left"]],
   ] as const;
 
   for (const preset of PARITY_PIXEL_PRESETS) {

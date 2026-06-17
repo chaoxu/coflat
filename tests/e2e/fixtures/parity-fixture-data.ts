@@ -41,4 +41,8 @@ Every optimal document theme has a readable column, $r$, and stable theorem rail
 ::: {.proof title="the readable column theorem"}
 The host applies a scoped class, and Coflat surfaces inherit variables from $s$.
 :::
+
+::: {.blockquote}
+Quoted document surfaces should share blockquote styling.
+:::
 `;
