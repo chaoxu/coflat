@@ -222,6 +222,8 @@ describe("theme CSS contract", () => {
     expect(cssRuleBody(css, ".cf-inline-code")).toContain("padding: 0.1em 0.25em;");
     expect(cssRuleBody(css, ".cf-crossref")).toContain("font-kerning: none;");
     expect(cssRuleBody(css, ".cf-crossref")).toContain("text-decoration-style: dotted;");
+    expect(cssRuleBody(css, ".cf-crossref-unresolved")).toContain("text-decoration-style: dotted;");
+    expect(cssRuleBody(css, ".cf-crossref-unresolved")).not.toContain("box-shadow:");
     expect(cssRuleBody(css, ".cf-citation")).toContain("font-kerning: none;");
   });
 
