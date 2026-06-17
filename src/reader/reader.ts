@@ -103,6 +103,7 @@ import {
   renderMediaLoadingHtml,
 } from "../core/media-surface";
 import { renderParagraphHtml } from "../core/paragraph-surface";
+import { renderReferenceSurfaceHtml } from "../core/reference-surface";
 import {
   renderTableCellHtml,
   renderTableRowHtml,
@@ -1046,7 +1047,11 @@ function emitReferenceCluster(
       if (label !== null) {
         if (!ctx.citedKeys.includes(id)) ctx.citedKeys.push(id);
         parts.push(
-          `<span class="${CSS.citation}" data-ref-key="${escapeHtml(id)}" data-ref-mode="bracketed">${escapeHtml(label)}</span>`,
+          renderReferenceSurfaceHtml(escapeHtml(label), {
+            className: CSS.citation,
+            refKey: id,
+            refMode: "bracketed",
+          }),
         );
         textParts.push(label);
         continue;
@@ -1059,7 +1064,14 @@ function emitReferenceCluster(
     if (catalogTarget) {
       const fragment = escapeHtml(encodeURIComponent(id));
       parts.push(
-        `<span class="${CSS.crossref}" data-ref-key="${escapeHtml(id)}" data-ref-mode="bracketed"><a href="#${fragment}">${escapeHtml(catalogTarget.label)}</a></span>`,
+        renderReferenceSurfaceHtml(
+          `<a href="#${fragment}">${escapeHtml(catalogTarget.label)}</a>`,
+          {
+            className: CSS.crossref,
+            refKey: id,
+            refMode: "bracketed",
+          },
+        ),
       );
       textParts.push(catalogTarget.label);
       continue;
@@ -1074,7 +1086,11 @@ function emitReferenceCluster(
         const cls = hostReferenceClassNames(resolved.className);
         const inner = renderReaderHostReference(resolved);
         parts.push(
-          `<span class="${escapeHtml(cls)}" data-ref-key="${escapeHtml(id)}" data-ref-mode="bracketed">${inner}</span>`,
+          renderReferenceSurfaceHtml(inner, {
+            className: cls,
+            refKey: id,
+            refMode: "bracketed",
+          }),
         );
         textParts.push(stripTags(resolved.content));
         continue;
@@ -1082,7 +1098,11 @@ function emitReferenceCluster(
     }
     const display = ids.length === 1 ? raw : `@${id}`;
     parts.push(
-      `<span class="${CSS.crossrefUnresolved}" data-ref-key="${escapeHtml(id)}" data-ref-mode="bracketed">${escapeHtml(display)}</span>`,
+      renderReferenceSurfaceHtml(escapeHtml(display), {
+        className: CSS.crossrefUnresolved,
+        refKey: id,
+        refMode: "bracketed",
+      }),
     );
     textParts.push(display);
   }

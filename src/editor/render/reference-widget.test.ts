@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CitationWidget } from "./citation-widget";
+import { CitationWidget, HostRefWidget } from "./citation-widget";
 import {
   ClusteredCrossrefWidget,
   CrossrefWidget,
@@ -63,5 +63,30 @@ describe("ReferenceWidget shared DOM contract", () => {
 
     expect(widgetEl.matches(REFERENCE_WIDGET_SELECTOR)).toBe(true);
     expect(isReferenceWidgetTarget(widgetEl)).toBe(true);
+  });
+
+  it("routes host references through shared reference and link surfaces", () => {
+    const widgetEl = new HostRefWidget(
+      "<em>Remote theorem</em>",
+      "external:thm",
+      "bracketed",
+      "/owner/repo/src/branch/main/theory.md#external%3Athm",
+      "host-ref cf-crossref",
+      true,
+    ).toDOM();
+
+    expect(widgetEl.matches(REFERENCE_WIDGET_SELECTOR)).toBe(true);
+    expect(widgetEl.className).toBe("cf-crossref host-ref");
+    expect(widgetEl.dataset.refKey).toBe("external:thm");
+    expect(widgetEl.dataset.refMode).toBe("bracketed");
+    expect(widgetEl.dataset.refResolver).toBe("1");
+
+    const anchor = widgetEl.querySelector("a");
+    expect(anchor?.className).toBe("cf-doc-link cf-link-rendered");
+    expect(anchor?.getAttribute("href")).toBe(
+      "/owner/repo/src/branch/main/theory.md#external%3Athm",
+    );
+    expect(anchor?.getAttribute("data-cf-link-layout")).toBe("atomic");
+    expect(anchor?.innerHTML).toBe("<em>Remote theorem</em>");
   });
 });

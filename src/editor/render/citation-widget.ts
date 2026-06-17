@@ -1,7 +1,8 @@
 import type { WidgetType } from "@codemirror/view";
 import { CSS, hostReferenceClassNames } from "../../core/constants/css-classes";
-import { LINK_LAYOUT_ATTRIBUTE, linkLayoutForHref } from "../../core/link-layout";
+import { applyLinkSurface } from "../../core/link-surface";
 import { isSafeUrl } from "../../core/lib/url-utils";
+import { applyReferenceSurface } from "../../core/reference-surface";
 import { ReferenceWidget, SimpleTextReferenceWidget } from "./render-core";
 
 /**
@@ -31,13 +32,16 @@ export class HostRefWidget extends ReferenceWidget {
 
   createDOM(): HTMLElement {
     const root = this.createReferenceRoot();
-    root.dataset.refKey = this.key;
-    root.dataset.refMode = this.mode;
+    applyReferenceSurface(root, {
+      className: this.className,
+      refKey: this.key,
+      refMode: this.mode,
+    });
+    root.dataset.referenceWidget = "true";
     if (this.hasOnClick) root.dataset.refResolver = "1";
     if (this.href !== undefined && isSafeUrl(this.href)) {
       const anchor = document.createElement("a");
-      anchor.href = this.href;
-      anchor.setAttribute(LINK_LAYOUT_ATTRIBUTE, linkLayoutForHref(this.href));
+      applyLinkSurface(anchor, this.href);
       anchor.innerHTML = this.html;
       root.appendChild(anchor);
     } else {
