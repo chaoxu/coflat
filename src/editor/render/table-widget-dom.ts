@@ -1,9 +1,10 @@
 import type { EditorView } from "@codemirror/view";
-import {
-  DOCUMENT_SURFACE_CLASS,
-  documentSurfaceClassNames,
-} from "../../core/document-surface-classes";
 import { CSS } from "../../core/constants/css-classes";
+import {
+  applyTableCellSurface,
+  createTableRowSurfaceElement,
+  createTableSurfaceElement,
+} from "../../core/table-surface";
 import { createInlineEditorController } from "../inline-editor";
 import { documentContextFacet } from "../document-context";
 import { coarseHitTestPosition, preciseHitTestPosition } from "../lib/editor-hit-test";
@@ -72,7 +73,7 @@ interface OpenCellEditorOptions {
 }
 
 export function buildTableWidgetDOM(options: TableWidgetDomOptions): HTMLTableElement {
-  const tableEl = document.createElement("table");
+  const tableEl = createTableSurfaceElement();
   const navigationModel = createTableNavigationModel(options.table);
 
   const findCell = (address: TableCellAddress): HTMLElement | null => {
@@ -378,18 +379,10 @@ export function buildTableWidgetDOM(options: TableWidgetDomOptions): HTMLTableEl
     content: string,
   ): void => {
     const address: TableCellAddress = { section, row, col };
-    cell.className = documentSurfaceClassNames(
-      DOCUMENT_SURFACE_CLASS.tableCell,
-      section === "header" && DOCUMENT_SURFACE_CLASS.tableHeader,
-    );
+    applyTableCellSurface(cell, section === "header", options.table.alignments[col]);
     cell.dataset.row = String(row);
     cell.dataset.col = String(col);
     cell.dataset.section = section;
-
-    const align = options.table.alignments[col];
-    if (align && align !== "none") {
-      cell.style.textAlign = align;
-    }
 
     options.restoreRenderedCell(cell, content, options.referenceContext);
 
@@ -531,7 +524,7 @@ export function buildTableWidgetDOM(options: TableWidgetDomOptions): HTMLTableEl
   };
 
   const thead = document.createElement("thead");
-  const headerTr = document.createElement("tr");
+  const headerTr = createTableRowSurfaceElement();
   const headerCells = options.table.header.cells;
 
   for (let col = 0; col < headerCells.length; col++) {
@@ -546,7 +539,7 @@ export function buildTableWidgetDOM(options: TableWidgetDomOptions): HTMLTableEl
   const tbody = document.createElement("tbody");
 
   for (let row = 0; row < options.table.rows.length; row++) {
-    const tr = document.createElement("tr");
+    const tr = createTableRowSurfaceElement();
     const rowCells = options.table.rows[row].cells;
 
     for (let col = 0; col < rowCells.length; col++) {

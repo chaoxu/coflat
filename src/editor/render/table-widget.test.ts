@@ -52,7 +52,7 @@ beforeEach(() => {
 function makeTable(): ParsedTable {
   return {
     header: { cells: [{ content: "A" }, { content: "B" }] },
-    alignments: ["none", "none"],
+    alignments: ["left", "right"],
     rows: [{ cells: [{ content: "1" }, { content: "2" }] }],
   };
 }
@@ -116,13 +116,17 @@ describe("TableWidget source range attributes", () => {
   it("uses shared document surface classes on table cells", () => {
     const widget = new TableWidget(makeTable(), "| A | B |\n|---|---|\n| 1 | 2 |", 0, {});
     const dom = widget.toDOM(makeStubView());
-    const header = dom.querySelector("th");
-    const cell = dom.querySelector("tbody td");
+    const header = dom.querySelector<HTMLElement>("th");
+    const cell = dom.querySelector<HTMLElement>("tbody td");
 
     expect(header?.classList.contains("cf-doc-table-cell")).toBe(true);
     expect(header?.classList.contains("cf-doc-table-header")).toBe(true);
+    expect(header?.dataset.align).toBe("left");
+    expect(header?.style.textAlign).toBe("left");
     expect(cell?.classList.contains("cf-doc-table-cell")).toBe(true);
     expect(cell?.classList.contains("cf-doc-table-header")).toBe(false);
+    expect(cell?.dataset.align).toBe("left");
+    expect(cell?.style.textAlign).toBe("left");
   });
 
   it("computes sourceTo from tableFrom + tableText.length", () => {

@@ -79,6 +79,11 @@ import { renderCodeBlockHtml } from "../core/code-block-surface";
 import { renderFootnoteSectionHtml } from "../core/footnote-section-surface";
 import { renderParagraphHtml } from "../core/paragraph-surface";
 import {
+  renderTableCellHtml,
+  tableRowSurfaceAttrs,
+  tableSurfaceAttrs,
+} from "../core/table-surface";
+import {
   createPreviewSurfaceBody,
   createPreviewSurfaceContent,
   createPreviewSurfaceHeader,
@@ -1792,7 +1797,7 @@ function renderTable(ctx: WalkContext, node: SyntaxNode): BlockResult {
   if (headerRowsHtml.length) inner += `<thead>${headerRowsHtml.join("")}</thead>`;
   if (bodyRowsHtml.length) inner += `<tbody>${bodyRowsHtml.join("")}</tbody>`;
   return {
-    html: `<table class="${DOCUMENT_SURFACE_CLASS.tableBlock}"${blockSourceAttrs(ctx, node.from, node.to)}>${inner}</table>`,
+    html: `<table${tableSurfaceAttrs(blockSourceAttrs(ctx, node.from, node.to))}>${inner}</table>`,
     text: textRows.join("\n"),
     hasMath: false,
   };
@@ -1824,18 +1829,11 @@ function renderTableRow(
   cells.forEach((cell, idx) => {
     const inner = renderInline(ctx, cell, cell.from, cell.to);
     const tag = isHeader ? "th" : "td";
-    const classes = documentSurfaceClassNames(
-      DOCUMENT_SURFACE_CLASS.tableCell,
-      isHeader && DOCUMENT_SURFACE_CLASS.tableHeader,
-    );
-    const align = aligns[idx];
-    const styleAttr = align ? ` style="text-align:${align}"` : "";
-    const alignAttr = align ? ` data-align="${align}"` : "";
-    cellHtmls.push(`<${tag} class="${classes}"${alignAttr}${styleAttr}>${inner.html}</${tag}>`);
+    cellHtmls.push(renderTableCellHtml(tag, inner.html, aligns[idx]));
     cellTexts.push(inner.text);
   });
   return {
-    rowHtml: `<tr class="${DOCUMENT_SURFACE_CLASS.tableRow}"${blockSourceAttrs(ctx, row.from, row.to)}>${cellHtmls.join("")}</tr>`,
+    rowHtml: `<tr${tableRowSurfaceAttrs(blockSourceAttrs(ctx, row.from, row.to))}>${cellHtmls.join("")}</tr>`,
     rowText: cellTexts.join("\t"),
   };
 }
