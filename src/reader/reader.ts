@@ -94,10 +94,11 @@ import {
   tableSurfaceAttrs,
 } from "../core/table-surface";
 import {
-  createPreviewSurfaceBody,
-  createPreviewSurfaceContent,
-  createPreviewSurfaceHeader,
-} from "../core/preview-surface";
+  createHoverPreviewBodyElement,
+  createHoverPreviewCitationBodyElement,
+  createHoverPreviewContentElement,
+  createHoverPreviewHeaderElement,
+} from "../core/hover-preview-surface";
 import { extractDivClass } from "../core/parser/fenced-div-attrs";
 import {
   isLooseListNode,
@@ -3060,17 +3061,15 @@ type HoverTooltipModule = typeof import("../core/hover-tooltip");
 const readerHoverCacheScope = {};
 
 function createReaderHoverContainer(): HTMLElement {
-  return createPreviewSurfaceContent(CSS.hoverPreview);
+  return createHoverPreviewContentElement();
 }
 
 function createReaderHoverHeader(text: string): HTMLElement {
-  const header = createPreviewSurfaceHeader(CSS.hoverPreviewHeader);
-  header.textContent = text;
-  return header;
+  return createHoverPreviewHeaderElement(text);
 }
 
 function createReaderHoverBody(): HTMLElement {
-  return createPreviewSurfaceBody(CSS.hoverPreviewBody);
+  return createHoverPreviewBodyElement();
 }
 
 function createReaderUnresolvedPreview(key: string): HTMLElement {
@@ -3081,7 +3080,7 @@ function createReaderUnresolvedPreview(key: string): HTMLElement {
 
 function createReaderTextPreview(preview: string): HTMLElement {
   const container = createReaderHoverContainer();
-  const body = createPreviewSurfaceBody(CSS.hoverPreviewCitation);
+  const body = createHoverPreviewCitationBodyElement();
   body.textContent = preview;
   container.appendChild(body);
   return container;
@@ -3105,7 +3104,7 @@ function buildReaderCitationPreview(
   const entry = coreBibliographyEntryFor(context.citationFormatter, key);
   if (!entry) return null;
   const container = createReaderHoverContainer();
-  const body = createPreviewSurfaceBody(CSS.hoverPreviewCitation);
+  const body = createHoverPreviewCitationBodyElement();
   body.innerHTML = sanitize(entry.html);
   container.appendChild(body);
   return container;

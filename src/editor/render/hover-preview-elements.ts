@@ -1,16 +1,15 @@
-import { CSS } from "../../core/constants";
-import { renderDocumentFragmentToDom } from "../document-surfaces";
 import {
-  createPreviewSurfaceContent,
-  createPreviewSurfaceHeader,
-} from "../../core/preview-surface";
+  createHoverPreviewContentElement,
+  createHoverPreviewHeaderElement,
+} from "../../core/hover-preview-surface";
+import { renderDocumentFragmentToDom } from "../document-surfaces";
 
 export function createHoverPreviewHeader(
   text: string,
   macros: Record<string, string> = {},
   extraClass?: string,
 ): HTMLElement {
-  const header = createPreviewSurfaceHeader(CSS.hoverPreviewHeader, extraClass);
+  const header = createHoverPreviewHeaderElement("", extraClass);
   renderDocumentFragmentToDom(header, {
     kind: "title",
     text,
@@ -22,5 +21,5 @@ export function createHoverPreviewHeader(
 export function createHoverPreviewContent(
   extraClass?: string | null,
 ): HTMLElement {
-  return createPreviewSurfaceContent(CSS.hoverPreview, extraClass);
+  return createHoverPreviewContentElement(extraClass);
 }
