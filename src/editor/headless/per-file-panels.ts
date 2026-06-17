@@ -2,6 +2,7 @@ import type { Extension, Text } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 
 import { isFrontmatterDelimiterLine } from "../../core/parser/frontmatter";
+import { inlineFragmentsPlainText, parseInlineFragments } from "../inline-fragments";
 import { documentAnalysisField } from "../state/document-analysis";
 import type { DocumentAnalysis } from "../semantics/document";
 
@@ -10,6 +11,8 @@ export interface OutlineEntry {
   readonly level: 1 | 2 | 3 | 4 | 5 | 6;
   /** Heading text without Markdown markers or trailing attributes. */
   readonly text: string;
+  /** Heading inline Markdown without leading heading markers or trailing attributes. */
+  readonly markdown: string;
   /** 1-based line number for display and line-oriented navigation. */
   readonly line: number;
   /** 0-based CodeMirror document offset for exact editor navigation. */
@@ -125,6 +128,7 @@ function sameOutlineEntries(
       const next = after[index];
       return entry.level === next?.level
         && entry.text === next.text
+        && entry.markdown === next.markdown
         && entry.line === next.line
         && entry.from === next.from
         && entry.key === next.key
@@ -205,9 +209,11 @@ function computeOutline(view: EditorView): readonly OutlineEntry[] {
 
   return analysis.headings.map((heading) => {
     const line = view.state.doc.lineAt(heading.from);
+    const markdown = view.state.doc.sliceString(heading.textFrom, heading.textTo);
     return {
       level: heading.level as OutlineEntry["level"],
-      text: heading.text,
+      text: inlineFragmentsPlainText(parseInlineFragments(markdown)),
+      markdown,
       line: line.number,
       from: heading.from,
       key: String(heading.from),

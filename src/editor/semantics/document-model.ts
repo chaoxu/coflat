@@ -36,6 +36,8 @@ export interface HeadingSemantics {
   readonly from: number;
   readonly to: number;
   readonly level: number;
+  readonly textFrom: number;
+  readonly textTo: number;
   readonly text: string;
   readonly id?: string;
   readonly number: string;

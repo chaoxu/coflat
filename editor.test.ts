@@ -81,6 +81,7 @@ describe("mountEditor", () => {
       {
         level: 1,
         text: "Intro",
+        markdown: "Intro",
         line: 1,
         from: 0,
         key: "0",
@@ -90,6 +91,7 @@ describe("mountEditor", () => {
       {
         level: 2,
         text: "Lemma",
+        markdown: "Lemma",
         line: 5,
         from: 28,
         key: "28",

@@ -69,6 +69,8 @@ describe("heading slice", () => {
       ...methods,
       from: methods.from + insert.length,
       to: methods.to + insert.length,
+      textFrom: methods.textFrom + insert.length,
+      textTo: methods.textTo + insert.length,
     });
     expect(mapped).not.toBe(methods);
   });

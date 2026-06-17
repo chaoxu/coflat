@@ -88,16 +88,28 @@ export function collectHeading(
   const rawText = doc.slice(node.from, node.to);
   const headerMark = node.node.getChild(NODE.HeaderMark);
   const textFrom = headerMark ? headerMark.to : node.from;
-  const rawHeadingText = doc.slice(textFrom, node.to).trim();
+  const headingTail = doc.slice(textFrom, node.to);
+  const leadingWs = headingTail.length - headingTail.trimStart().length;
+  const rawHeadingText = headingTail.trim();
+  const rawHeadingTextFrom = textFrom + leadingWs;
   const attrs = findTrailingHeadingAttributes(rawHeadingText);
   const text = attrs
     ? rawHeadingText.slice(0, attrs.index).trim()
     : rawHeadingText;
+  const textTrailingWs = attrs
+    ? rawHeadingText.slice(0, attrs.index).length - text.length
+    : rawHeadingText.length - text.length;
+  const headingTextFrom = rawHeadingTextFrom;
+  const headingTextTo = attrs
+    ? rawHeadingTextFrom + attrs.index - textTrailingWs
+    : rawHeadingTextFrom + rawHeadingText.length - textTrailingWs;
 
   result.headings.push({
     from: node.from,
     to: node.to,
     level,
+    textFrom: headingTextFrom,
+    textTo: Math.max(headingTextFrom, headingTextTo),
     text,
     id: extractHeadingId(rawHeadingText),
     unnumbered: hasUnnumberedHeadingAttributes(rawText),

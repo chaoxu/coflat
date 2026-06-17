@@ -23,6 +23,7 @@ import {
 import { CitationWidget } from "./citation-widget";
 import {
   buildInlineFragments,
+  inlineFragmentsPlainText,
   type InlineFragment,
   parseInlineFragments,
 } from "../inline-fragments";
@@ -166,43 +167,6 @@ function renderPresentationRoute(
   }
 }
 
-function fragmentPlainText(fragments: readonly InlineFragment[]): string {
-  let out = "";
-  for (const fragment of fragments) {
-    switch (fragment.kind) {
-      case "text":
-      case "code":
-        out += fragment.text;
-        break;
-      case "math":
-        out += fragment.raw;
-        break;
-      case "emphasis":
-      case "strong":
-      case "strikethrough":
-      case "highlight":
-        out += fragmentPlainText(fragment.children);
-        break;
-      case "link":
-        out += fragmentPlainText(fragment.children);
-        break;
-      case "reference":
-        out += fragment.parenthetical ? `[${fragment.rawText}]` : fragment.rawText;
-        break;
-      case "image":
-        out += fragment.rawAlt;
-        break;
-      case "footnote-ref":
-        out += fragment.id;
-        break;
-      case "hard-break":
-        out += " ";
-        break;
-    }
-  }
-  return out;
-}
-
 function renderFragment(
   container: HTMLElement | DocumentFragment,
   fragment: InlineFragment,
@@ -295,7 +259,7 @@ function renderFragment(
       let title: string | undefined;
       const resolved = referenceContext?.linkResolver?.resolve?.(
         href,
-        fragmentPlainText(fragment.children),
+        inlineFragmentsPlainText(fragment.children),
         {
           from: referenceContext.documentPath,
           documentPath: referenceContext.documentPath,

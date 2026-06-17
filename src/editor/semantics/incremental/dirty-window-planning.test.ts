@@ -41,6 +41,8 @@ function headingRange(from: number, to: number): HeadingSemantics {
     from,
     to,
     level: 1,
+    textFrom: from,
+    textTo: to,
     text: "Heading",
     number: "1",
     unnumbered: false,

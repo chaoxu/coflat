@@ -224,6 +224,8 @@ function shiftHeadingSemantics(
     from: value.from + delta,
     to: value.to + delta,
     level: value.level,
+    textFrom: value.textFrom + delta,
+    textTo: value.textTo + delta,
     text: value.text,
     id: value.id,
     number: value.number,
@@ -237,13 +239,17 @@ export function mapHeadingSemantics(
 ): HeadingSemantics {
   const from = changes.mapPos(value.from, 1);
   const to = Math.max(from, changes.mapPos(value.to, -1));
-  if (from === value.from && to === value.to) {
+  const textFrom = changes.mapPos(value.textFrom, 1);
+  const textTo = Math.max(textFrom, changes.mapPos(value.textTo, -1));
+  if (from === value.from && to === value.to && textFrom === value.textFrom && textTo === value.textTo) {
     return value;
   }
   return {
     from,
     to,
     level: value.level,
+    textFrom,
+    textTo,
     text: value.text,
     id: value.id,
     number: value.number,
