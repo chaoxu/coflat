@@ -15,6 +15,12 @@ import {
   createInlineBlockHeadingElement,
 } from "../../core/block-heading-surface";
 import {
+  createBlankLineElement,
+  createBlockquoteElement,
+  createHorizontalRuleElement,
+  blockSurfaceClassNames,
+} from "../../core/block-surface";
+import {
   BLOCK_MANIFEST_ENTRIES,
   EXCLUDED_FROM_FALLBACK,
   isCollapsibleBlockType,
@@ -183,9 +189,7 @@ function renderNode(
       renderList(parent, node, context, "ol");
       return;
     case "HorizontalRule": {
-      const hr = document.createElement("hr");
-      hr.className = CSS.block("hr");
-      parent.appendChild(hr);
+      parent.appendChild(createHorizontalRuleElement(document));
       return;
     }
     case "FencedDiv":
@@ -380,11 +384,7 @@ function appendBlankLine(
   _from: number,
   _to: number,
 ): void {
-  const spacer = document.createElement("div");
-  spacer.className = DOCUMENT_SURFACE_CLASS.blankLine;
-  spacer.setAttribute("aria-hidden", "true");
-  spacer.appendChild(document.createElement("br"));
-  parent.appendChild(spacer);
+  parent.appendChild(createBlankLineElement(document));
 }
 
 function appendListMarker(parent: HTMLElement, tag: "ul" | "ol", number: number): void {
@@ -495,7 +495,7 @@ function renderFencedDiv(
 
   const block = document.createElement("div");
   for (const className of classes) {
-    block.classList.add(...CSS.block(className).split(" "));
+    block.classList.add(...blockSurfaceClassNames(className).split(" "));
   }
   if (id) {
     block.id = id;
@@ -689,8 +689,7 @@ function renderBlockquote(
   node: SyntaxNode,
   context: PreviewRenderContext,
 ): void {
-  const blockquote = document.createElement("blockquote");
-  blockquote.className = DOCUMENT_SURFACE_CLASS.blockquote;
+  const blockquote = createBlockquoteElement(document);
   renderChildNodes(blockquote, node, context);
   parent.appendChild(blockquote);
 }

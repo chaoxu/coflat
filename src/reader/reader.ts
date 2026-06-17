@@ -76,6 +76,12 @@ import {
   documentSurfaceClassNames,
 } from "../core/document-surface-classes";
 import {
+  blockSurfaceClassNames,
+  renderBlankLineHtml,
+  renderBlockquoteHtml,
+  renderHorizontalRuleHtml,
+} from "../core/block-surface";
+import {
   headingNumberingHtmlAttrs,
   headingSurfaceClassNames,
 } from "../core/heading-surface";
@@ -179,10 +185,7 @@ const FAST_PATH_RE = /[$[:`#^<>\n|-]|^---\n/m;
 const paragraphClasses = DOCUMENT_SURFACE_CLASS.paragraph;
 
 function blockClasses(type: string | undefined): string {
-  return documentSurfaceClassNames(
-    DOCUMENT_SURFACE_CLASS.block,
-    type && DOCUMENT_SURFACE_CLASS.blockType(type),
-  );
+  return blockSurfaceClassNames(type);
 }
 
 function blockDisplayTitle(ctx: WalkContext, type: string): string {
@@ -1328,7 +1331,7 @@ function renderBlock(ctx: WalkContext, node: SyntaxNode): BlockResult {
       return renderIndentedCode(ctx, node);
     case NODE.HorizontalRule:
       return {
-        html: `<hr class="${blockClasses("hr")}"${blockSourceAttrs(ctx, node.from, node.to)}>`,
+        html: renderHorizontalRuleHtml(blockSourceAttrs(ctx, node.from, node.to)),
         text: "",
         hasMath: false,
       };
@@ -1718,10 +1721,10 @@ function renderBlockquote(ctx: WalkContext, node: SyntaxNode): BlockResult {
     child = child.nextSibling;
   }
   return {
-    html:
-      `<blockquote class="${DOCUMENT_SURFACE_CLASS.blockquote}"${blockSourceAttrs(ctx, node.from, node.to)}>` +
-      blocks.map((b) => b.html).join("") +
-      `</blockquote>`,
+    html: renderBlockquoteHtml(
+      blocks.map((b) => b.html).join(""),
+      blockSourceAttrs(ctx, node.from, node.to),
+    ),
     text: blocks.map((b) => b.text).join("\n"),
     hasMath: blocks.some((b) => b.hasMath),
   };
@@ -1828,7 +1831,7 @@ function renderTableRow(
 
 function renderBlankLine(ctx: WalkContext, from: number, to: number): BlockResult {
   return {
-    html: `<div class="${DOCUMENT_SURFACE_CLASS.blankLine}" aria-hidden="true"${blockSourceAttrs(ctx, from, to)}><br></div>`,
+    html: renderBlankLineHtml(blockSourceAttrs(ctx, from, to)),
     text: "",
     hasMath: false,
   };
