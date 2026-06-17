@@ -139,7 +139,8 @@
 
 .cf-theme-blueprint-book .cf-reader a {
   color: #396282;
-  text-decoration: underline;
+  text-decoration-line: underline;
+  text-decoration-style: dotted;
   text-decoration-thickness: 1px;
   text-underline-offset: 2px;
 }

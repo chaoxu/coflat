@@ -390,7 +390,10 @@
 .cf-reader .cf-doc-link {
   display: inline;
   color: var(--cf-color-link, var(--cf-accent));
-  text-decoration: none;
+  text-decoration-line: underline;
+  text-decoration-style: dotted;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
 }
 
 .cf-reader a[data-cf-link-layout="flow"],
@@ -1735,7 +1738,10 @@
 /* Resolved cross-reference */
 .cf-crossref {
   font-kerning: none;
-  text-decoration: none;
+  text-decoration-line: underline;
+  text-decoration-style: dotted;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
   cursor: pointer;
 }
 

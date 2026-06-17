@@ -148,7 +148,8 @@ export const typographyThemeStyles = {
   ".cf-link-rendered": {
     display: "inline",
     color: "var(--cf-color-link, var(--cf-accent))",
-    textDecoration: "underline",
+    textDecorationLine: "underline",
+    textDecorationStyle: "dotted",
     textDecorationThickness: "1px",
     textUnderlineOffset: "2px",
     cursor: "pointer",

@@ -107,6 +107,7 @@ describe("theme CSS contract", () => {
       'content: attr(data-section-number) ".\\2002";',
     );
     expect(cssRuleBody(css, ".cf-reader a,\n.cf-reader .cf-doc-link")).toContain("display: inline;");
+    expect(cssRuleBody(css, ".cf-reader a,\n.cf-reader .cf-doc-link")).toContain("text-decoration-style: dotted;");
     expect(cssRuleBody(css, ".cf-reader a[data-cf-link-layout=\"flow\"],\n.cf-reader .cf-doc-link[data-cf-link-layout=\"flow\"]")).toContain(
       "display: inline;",
     );
@@ -220,6 +221,7 @@ describe("theme CSS contract", () => {
     );
     expect(cssRuleBody(css, ".cf-inline-code")).toContain("padding: 0.1em 0.25em;");
     expect(cssRuleBody(css, ".cf-crossref")).toContain("font-kerning: none;");
+    expect(cssRuleBody(css, ".cf-crossref")).toContain("text-decoration-style: dotted;");
     expect(cssRuleBody(css, ".cf-citation")).toContain("font-kerning: none;");
   });
 

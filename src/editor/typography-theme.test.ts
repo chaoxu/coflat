@@ -37,6 +37,8 @@ describe("typographyThemeStyles", () => {
     expect(typographyThemeStyles[".cf-link-rendered"]).toMatchObject({
       display: "inline",
       color: "var(--cf-color-link, var(--cf-accent))",
+      textDecorationLine: "underline",
+      textDecorationStyle: "dotted",
       textDecorationThickness: "1px",
       textUnderlineOffset: "2px",
     });
