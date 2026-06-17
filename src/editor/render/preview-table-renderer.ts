@@ -1,7 +1,7 @@
 import type { SyntaxNode } from "@lezer/common";
 import { parseTableDelimiterAlignments } from "../../core/parser/table";
 import {
-  applyTableCellSurface,
+  createTableCellElement,
   createTableRowSurfaceElement,
   createTableSurfaceElement,
 } from "../../core/table-surface";
@@ -21,7 +21,7 @@ export function renderPreviewTable(
   );
   const headerNode = node.getChild("TableHeader");
   const headerCells = headerNode?.getChildren("TableCell") ?? [];
-  const table = createTableSurfaceElement();
+  const table = createTableSurfaceElement(document);
   const thead = document.createElement("thead");
   const tbody = document.createElement("tbody");
 
@@ -46,10 +46,9 @@ function renderTableRow(
   alignments: readonly (string | null)[],
   context: PreviewRenderContext,
 ): HTMLTableRowElement {
-  const row = createTableRowSurfaceElement();
+  const row = createTableRowSurfaceElement(document);
   for (let index = 0; index < alignments.length; index += 1) {
-    const cell = document.createElement(tag);
-    applyTableCellSurface(cell, tag === "th", alignments[index]);
+    const cell = createTableCellElement(document, tag, alignments[index]);
     const cellNode = cells[index];
     if (cellNode) {
       renderInlineSyntaxNodeToDom(

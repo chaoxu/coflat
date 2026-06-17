@@ -105,8 +105,8 @@ import {
 import { renderParagraphHtml } from "../core/paragraph-surface";
 import {
   renderTableCellHtml,
-  tableRowSurfaceAttrs,
-  tableSurfaceAttrs,
+  renderTableRowHtml,
+  renderTableSurfaceHtml,
 } from "../core/table-surface";
 import {
   createHoverPreviewBodyElement,
@@ -1753,7 +1753,7 @@ function renderTable(ctx: WalkContext, node: SyntaxNode): BlockResult {
   if (headerRowsHtml.length) inner += `<thead>${headerRowsHtml.join("")}</thead>`;
   if (bodyRowsHtml.length) inner += `<tbody>${bodyRowsHtml.join("")}</tbody>`;
   return {
-    html: `<table${tableSurfaceAttrs(blockSourceAttrs(ctx, node.from, node.to))}>${inner}</table>`,
+    html: renderTableSurfaceHtml(inner, blockSourceAttrs(ctx, node.from, node.to)),
     text: textRows.join("\n"),
     hasMath: false,
   };
@@ -1789,7 +1789,7 @@ function renderTableRow(
     cellTexts.push(inner.text);
   });
   return {
-    rowHtml: `<tr${tableRowSurfaceAttrs(blockSourceAttrs(ctx, row.from, row.to))}>${cellHtmls.join("")}</tr>`,
+    rowHtml: renderTableRowHtml(cellHtmls.join(""), blockSourceAttrs(ctx, row.from, row.to)),
     rowText: cellTexts.join("\t"),
   };
 }

@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
   applyTableCellSurface,
+  createTableCellElement,
   createTableRowSurfaceElement,
   createTableSurfaceElement,
   normalizeTableCellAlign,
   renderTableCellHtml,
+  renderTableRowHtml,
+  renderTableSurfaceHtml,
   tableCellClassNames,
   tableCellSurfaceAttrs,
   tableRowSurfaceAttrs,
@@ -33,14 +36,16 @@ describe("table surface", () => {
       .toBe(' class="cf-doc-table-cell cf-doc-table-header" data-align="right" style="text-align:right"');
     expect(renderTableCellHtml("td", "x", "none"))
       .toBe('<td class="cf-doc-table-cell">x</td>');
+    expect(renderTableRowHtml("<td>x</td>", ' data-source-to="8"'))
+      .toBe('<tr class="cf-doc-table-row" data-source-to="8"><td>x</td></tr>');
+    expect(renderTableSurfaceHtml("<tbody></tbody>", ' data-source-from="1"'))
+      .toBe('<table class="cf-doc-table-block" data-source-from="1"><tbody></tbody></table>');
   });
 
   it("applies the same surface contract to DOM table cells", () => {
-    const table = createTableSurfaceElement();
-    const row = createTableRowSurfaceElement();
-    const cell = document.createElement("th");
-
-    applyTableCellSurface(cell, true, "center");
+    const table = createTableSurfaceElement(document);
+    const row = createTableRowSurfaceElement(document);
+    const cell = createTableCellElement(document, "th", "center");
     row.appendChild(cell);
     table.appendChild(row);
 

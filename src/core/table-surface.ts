@@ -47,14 +47,28 @@ export function applyTableCellSurface(
   }
 }
 
-export function createTableSurfaceElement(): HTMLTableElement {
-  const table = document.createElement("table");
+export function createTableCellElement(
+  ownerDocument: Document,
+  tag: "th" | "td",
+  align: string | null | undefined,
+): HTMLTableCellElement {
+  const cell = ownerDocument.createElement(tag);
+  applyTableCellSurface(cell, tag === "th", align);
+  return cell;
+}
+
+export function createTableSurfaceElement(
+  ownerDocument: Document = document,
+): HTMLTableElement {
+  const table = ownerDocument.createElement("table");
   table.className = DOCUMENT_SURFACE_CLASS.tableBlock;
   return table;
 }
 
-export function createTableRowSurfaceElement(): HTMLTableRowElement {
-  const row = document.createElement("tr");
+export function createTableRowSurfaceElement(
+  ownerDocument: Document = document,
+): HTMLTableRowElement {
+  const row = ownerDocument.createElement("tr");
   row.className = DOCUMENT_SURFACE_CLASS.tableRow;
   return row;
 }
@@ -65,6 +79,14 @@ export function tableRowSurfaceAttrs(attrs = ""): string {
 
 export function tableSurfaceAttrs(attrs = ""): string {
   return ` class="${DOCUMENT_SURFACE_CLASS.tableBlock}"${attrs}`;
+}
+
+export function renderTableSurfaceHtml(innerHtml: string, attrs = ""): string {
+  return `<table${tableSurfaceAttrs(attrs)}>${innerHtml}</table>`;
+}
+
+export function renderTableRowHtml(innerHtml: string, attrs = ""): string {
+  return `<tr${tableRowSurfaceAttrs(attrs)}>${innerHtml}</tr>`;
 }
 
 export function renderTableCellHtml(
