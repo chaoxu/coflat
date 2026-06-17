@@ -9,6 +9,18 @@ export interface FootnoteSectionHtmlEntry {
   readonly backrefHref?: string;
 }
 
+export interface FootnoteSectionDomEntry {
+  readonly num: number;
+  readonly id: string;
+  readonly defFrom?: number;
+  readonly backrefHref?: string;
+  readonly appendContent: (content: HTMLSpanElement) => void;
+}
+
+export function footnoteEntryId(id: string): string {
+  return `fn-${encodeURIComponent(id)}`;
+}
+
 export function renderFootnoteSectionHtml(entries: readonly FootnoteSectionHtmlEntry[]): string {
   if (entries.length === 0) return "";
   const items = entries.map((entry) => {
@@ -19,7 +31,7 @@ export function renderFootnoteSectionHtml(entries: readonly FootnoteSectionHtmlE
       ? ` <a href="${escapeHtml(entry.backrefHref)}" class="${CSS.footnoteBackref}">↩</a>`
       : "";
     return (
-      `<div id="fn-${escapeHtml(encodeURIComponent(entry.id))}" class="${CSS.bibliographyEntry}"${defFromAttr}>` +
+      `<div id="${escapeHtml(footnoteEntryId(entry.id))}" class="${CSS.bibliographyEntry}"${defFromAttr}>` +
       `<sup class="${CSS.bibliographyEntryNumber}">${entry.num}</sup>` +
       `<span>${entry.html}</span>${backref}</div>`
     );
@@ -30,4 +42,59 @@ export function renderFootnoteSectionHtml(entries: readonly FootnoteSectionHtmlE
     `<div class="${CSS.bibliographyList}">${items.join("")}</div>` +
     `</div>`
   );
+}
+
+export function createFootnoteSectionElement(
+  ownerDocument: Document,
+  entries: readonly FootnoteSectionDomEntry[],
+): HTMLDivElement {
+  const section = ownerDocument.createElement("div");
+  section.className = CSS.footnoteSection;
+  section.setAttribute("aria-label", "Footnotes");
+
+  const heading = ownerDocument.createElement("h2");
+  heading.className = CSS.bibliographyHeading;
+  heading.textContent = "Footnotes";
+  section.appendChild(heading);
+
+  const list = ownerDocument.createElement("div");
+  list.className = CSS.bibliographyList;
+  for (const entry of entries) {
+    list.appendChild(createFootnoteEntryElement(ownerDocument, entry));
+  }
+  section.appendChild(list);
+
+  return section;
+}
+
+export function createFootnoteEntryElement(
+  ownerDocument: Document,
+  entry: FootnoteSectionDomEntry,
+): HTMLDivElement {
+  const wrapper = ownerDocument.createElement("div");
+  wrapper.id = footnoteEntryId(entry.id);
+  wrapper.className = CSS.bibliographyEntry;
+  if (entry.defFrom !== undefined) {
+    wrapper.dataset.defFrom = String(entry.defFrom);
+  }
+
+  const number = ownerDocument.createElement("sup");
+  number.className = CSS.bibliographyEntryNumber;
+  number.textContent = String(entry.num);
+  wrapper.appendChild(number);
+
+  const content = ownerDocument.createElement("span");
+  entry.appendContent(content);
+  wrapper.appendChild(content);
+
+  if (entry.backrefHref) {
+    wrapper.appendChild(ownerDocument.createTextNode(" "));
+    const backref = ownerDocument.createElement("a");
+    backref.href = entry.backrefHref;
+    backref.className = CSS.footnoteBackref;
+    backref.textContent = "↩";
+    wrapper.appendChild(backref);
+  }
+
+  return wrapper;
 }

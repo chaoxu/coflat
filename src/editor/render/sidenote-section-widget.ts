@@ -1,6 +1,6 @@
 import { type EditorView } from "@codemirror/view";
 import { CSS } from "../../core/constants/css-classes";
-import { renderFootnoteSectionHtml } from "../../core/footnote-section-surface";
+import { createFootnoteSectionElement } from "../../core/footnote-section-surface";
 import { renderDocumentFragmentToDom } from "../document-surfaces";
 import { sidenotesCollapsedEffect } from "./sidenote-state";
 import { RenderWidget, serializeMacros } from "./source-widget";
@@ -26,20 +26,17 @@ export class FootnoteSectionWidget extends RenderWidget {
 
   createDOM(): HTMLElement {
     return this.createCachedDOM(() => {
-      const template = document.createElement("template");
-      template.innerHTML = renderFootnoteSectionHtml(
+      return createFootnoteSectionElement(
+        document,
         this.entries.map((entry) => ({
           num: entry.num,
           id: entry.id,
-          html: renderFootnoteEntryContentHtml(entry.content, this.macros),
           defFrom: entry.defFrom,
+          appendContent: (content) => {
+            renderFootnoteEntryContent(content, entry.content, this.macros);
+          },
         })),
       );
-      const section = template.content.firstElementChild;
-      if (!(section instanceof HTMLElement)) {
-        throw new Error("footnote section helper did not render an element");
-      }
-      return section;
     });
   }
 
@@ -72,15 +69,14 @@ export class FootnoteSectionWidget extends RenderWidget {
   }
 }
 
-function renderFootnoteEntryContentHtml(
+function renderFootnoteEntryContent(
+  target: HTMLElement,
   content: string,
   macros: Record<string, string>,
-): string {
-  const span = document.createElement("span");
-  renderDocumentFragmentToDom(span, {
+): void {
+  renderDocumentFragmentToDom(target, {
     kind: "footnote",
     text: content,
     macros,
   });
-  return span.innerHTML;
 }
