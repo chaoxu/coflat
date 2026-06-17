@@ -35,10 +35,12 @@ import {
   setHeadingNumberingAttrs,
 } from "../../core/heading-surface";
 import {
+  createReadOnlyTaskCheckboxElement,
   listItemSurfaceClassNames,
   listMarkerClassName,
   listMarkerText,
   listSurfaceClassNames,
+  taskMarkerChecked,
 } from "../../core/list-surface";
 import { appendParagraphDom, createParagraphDom } from "../../core/paragraph-surface";
 import type { BlockCounterEntry } from "../../core/lib/file-system-types";
@@ -454,15 +456,7 @@ function renderTaskListItem(
   const taskMarker = node.getChild("TaskMarker");
   if (taskMarker) {
     const markerText = context.doc.slice(taskMarker.from, taskMarker.to);
-    const input = document.createElement("input");
-    input.type = "checkbox";
-    // Non-interactive without `disabled`, matching the reader's emission
-    // (disabled checkboxes gray out in some user agents).
-    input.tabIndex = -1;
-    input.setAttribute("aria-disabled", "true");
-    input.checked = markerText !== "[ ]";
-    // The checkbox sits directly in the <li>, before any paragraph wrapper,
-    // matching the reader's emission.
+    const input = createReadOnlyTaskCheckboxElement(document, taskMarkerChecked(markerText));
     parent.appendChild(input);
     parent.appendChild(document.createTextNode(" "));
 

@@ -53,3 +53,23 @@ export function listMarkerClassName(ordered: boolean): string {
 export function listMarkerText(ordered: boolean, number: number): string {
   return ordered ? `${number}.` : "•";
 }
+
+export function taskMarkerChecked(markerText: string): boolean {
+  return /\[[xX]\]/.test(markerText);
+}
+
+export function renderReadOnlyTaskCheckboxHtml(checked: boolean): string {
+  return `<input type="checkbox" tabindex="-1" aria-disabled="true"${checked ? " checked" : ""}>`;
+}
+
+export function createReadOnlyTaskCheckboxElement(
+  ownerDocument: Document,
+  checked: boolean,
+): HTMLInputElement {
+  const input = ownerDocument.createElement("input");
+  input.type = "checkbox";
+  input.tabIndex = -1;
+  input.setAttribute("aria-disabled", "true");
+  input.checked = checked;
+  return input;
+}

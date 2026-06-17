@@ -80,10 +80,12 @@ import {
   headingSurfaceClassNames,
 } from "../core/heading-surface";
 import {
+  renderReadOnlyTaskCheckboxHtml,
   listItemSurfaceClassNames,
   listMarkerClassName,
   listMarkerText,
   listSurfaceClassNames,
+  taskMarkerChecked,
 } from "../core/list-surface";
 import { renderCodeBlockHtml } from "../core/code-block-surface";
 import { renderFootnoteSectionHtml } from "../core/footnote-section-surface";
@@ -1633,7 +1635,7 @@ function renderListItem(
       const tm = scan.firstChild;
       if (tm && tm.name === "TaskMarker") {
         const raw = ctx.source.slice(tm.from, tm.to);
-        task = { checked: /\[[xX]\]/.test(raw) };
+        task = { checked: taskMarkerChecked(raw) };
       }
       break;
     }
@@ -1692,7 +1694,7 @@ function renderListItem(
   let dataAttrs = "";
   if (task) {
     dataAttrs = ` data-checked="${task.checked}"`;
-    const cb = `<input type="checkbox" tabindex="-1" aria-disabled="true"${task.checked ? " checked" : ""}> `;
+    const cb = `${renderReadOnlyTaskCheckboxHtml(task.checked)} `;
     inner = cb + inner;
     text = (task.checked ? "[x] " : "[ ] ") + text;
   }

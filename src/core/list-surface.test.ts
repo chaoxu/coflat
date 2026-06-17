@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
+  createReadOnlyTaskCheckboxElement,
   editorListItemLineClassNames,
   listItemSurfaceClassNames,
   listMarkerClassName,
   listMarkerText,
   listSurfaceClassNames,
+  renderReadOnlyTaskCheckboxHtml,
+  taskMarkerChecked,
 } from "./list-surface";
 
 describe("list surface", () => {
@@ -40,5 +43,24 @@ describe("list surface", () => {
     expect(listMarkerText(false, 3)).toBe("•");
     expect(listMarkerClassName(true)).toBe("cf-list-number");
     expect(listMarkerText(true, 3)).toBe("3.");
+  });
+
+  it("shares read-only task checkbox rendering", () => {
+    expect(taskMarkerChecked("[ ]")).toBe(false);
+    expect(taskMarkerChecked("[x]")).toBe(true);
+    expect(taskMarkerChecked("[X]")).toBe(true);
+
+    expect(renderReadOnlyTaskCheckboxHtml(false)).toBe(
+      '<input type="checkbox" tabindex="-1" aria-disabled="true">',
+    );
+    expect(renderReadOnlyTaskCheckboxHtml(true)).toBe(
+      '<input type="checkbox" tabindex="-1" aria-disabled="true" checked>',
+    );
+
+    const input = createReadOnlyTaskCheckboxElement(document, true);
+    expect(input.outerHTML).toBe(
+      '<input type="checkbox" tabindex="-1" aria-disabled="true">',
+    );
+    expect(input.checked).toBe(true);
   });
 });
