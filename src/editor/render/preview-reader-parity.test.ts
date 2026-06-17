@@ -164,6 +164,14 @@ describe("reader / editor-preview emission parity", () => {
       source: "| a | b | c |\n| :--- | :---: | ---: |\n| 1 | 2 | 3 |",
     },
     {
+      name: "ragged table with extra body cell",
+      source: "| a | b |\n| --- | --- |\n| 1 | 2 | 3 |",
+    },
+    {
+      name: "ragged table with missing body cell",
+      source: "| a | b | c |\n| --- | --- | --- |\n| 1 | 2 |",
+    },
+    {
       name: "horizontal rule between paragraphs",
       source: "before\n\n---\n\nafter",
     },

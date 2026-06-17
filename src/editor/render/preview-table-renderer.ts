@@ -47,19 +47,17 @@ function renderTableRow(
   context: PreviewRenderContext,
 ): HTMLTableRowElement {
   const row = createTableRowSurfaceElement(document);
-  for (let index = 0; index < alignments.length; index += 1) {
+  for (let index = 0; index < cells.length; index += 1) {
     const cell = createTableCellElement(document, tag, alignments[index]);
     const cellNode = cells[index];
-    if (cellNode) {
-      renderInlineSyntaxNodeToDom(
-        cell,
-        cellNode,
-        context.doc,
-        context.macros,
-        "document-body",
-        context.referenceContext,
-      );
-    }
+    renderInlineSyntaxNodeToDom(
+      cell,
+      cellNode,
+      context.doc,
+      context.macros,
+      "document-body",
+      context.referenceContext,
+    );
     row.appendChild(cell);
   }
   return row;
