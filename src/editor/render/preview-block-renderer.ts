@@ -28,6 +28,7 @@ import {
 } from "../../core/constants/block-manifest";
 import { CSS } from "../../core/constants/css-classes";
 import { appendCodeBlockDom } from "../../core/code-block-surface";
+import { createFootnoteEntryElement } from "../../core/footnote-section-surface";
 import {
   createDisplayMathContentElement,
   createDisplayMathSurfaceElement,
@@ -62,6 +63,7 @@ import {
 } from "../../core/parser/list-shape";
 import {
   analyzeDocumentSemantics,
+  numberFootnotes,
   stringTextSource,
   type DocumentSemantics,
 } from "../semantics/document";
@@ -634,22 +636,17 @@ function renderFootnoteDef(
   const footnote = context.semantics.footnotes.defByFrom.get(node.from);
   if (!footnote) return;
 
-  const block = document.createElement("div");
-  block.className = "footnote";
-  block.id = `fn-${footnote.id}`;
-
-  const label = document.createElement("sup");
-  label.textContent = footnote.id;
-  block.appendChild(label);
-  block.appendChild(document.createTextNode(" "));
-
-  if (footnote.content) {
-    const paragraph = createParagraphDom(document);
-    appendInlineText(paragraph, footnote.content, context, "document-body");
-    block.appendChild(paragraph);
-  }
-
-  parent.appendChild(block);
+  const numbers = numberFootnotes(context.semantics.footnotes);
+  parent.appendChild(
+    createFootnoteEntryElement(document, {
+      num: numbers.get(footnote.id) ?? 0,
+      id: footnote.id,
+      defFrom: footnote.from,
+      appendContent: (content) => {
+        appendInlineText(content, footnote.content, context, "document-body");
+      },
+    }),
+  );
 }
 
 function renderBlockquote(

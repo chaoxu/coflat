@@ -220,4 +220,21 @@ describe("reader / editor-preview emission parity", () => {
     expect(previewDiv?.textContent).toContain("Body text.");
     expect(readerDiv?.textContent).toContain("Body text.");
   });
+
+  it("preview footnote definitions use the shared footnote entry chrome", () => {
+    const host = document.createElement("div");
+    renderPreviewBlockContentToDom(
+      host,
+      "Intro[^note:1].\n\n[^note:1]: Footnote with **bold** and $x^2$.",
+    );
+
+    const entry = host.querySelector<HTMLElement>('[id="fn-note%3A1"]');
+    expect(entry?.className).toBe("cf-bibliography-entry");
+    expect(entry?.dataset.defFrom).toBe("17");
+    expect(entry?.querySelector("sup")?.className).toBe("cf-bibliography-entry-number");
+    expect(entry?.querySelector("sup")?.textContent).toBe("1");
+    expect(entry?.querySelector("strong")?.className).toBe("cf-bold");
+    expect(entry?.querySelector(".cf-doc-inline-math.cf-math-inline")?.getAttribute("aria-label")).toBe("x^2");
+    expect(host.querySelector(".footnote")).toBeNull();
+  });
 });
