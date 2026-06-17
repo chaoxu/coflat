@@ -2,10 +2,16 @@ import {
   CSS,
   mathSurfaceClassNames,
 } from "./constants/css-classes";
+import { escapeHtml } from "./lib/html-escape";
 
 export interface DisplayMathSurfaceOptions {
   readonly equationNumber?: number | string;
   readonly hasQedMarker?: boolean;
+}
+
+export interface DisplayMathPlaceholderHtmlOptions extends DisplayMathSurfaceOptions {
+  readonly id?: string;
+  readonly sourceAttrs?: string;
 }
 
 export function displayMathSurfaceClassNames(
@@ -29,6 +35,23 @@ export function createDisplayMathSurfaceElement(
   el.setAttribute("aria-label", latex);
   if (options.id) el.id = options.id;
   return el;
+}
+
+export function renderDisplayMathPlaceholderHtml(
+  latex: string,
+  fallbackText: string,
+  options: DisplayMathPlaceholderHtmlOptions = {},
+): string {
+  const idAttr = options.id ? ` id="${escapeHtml(options.id)}"` : "";
+  const numberAttr = options.equationNumber !== undefined
+    ? ` data-equation-number="${escapeHtml(String(options.equationNumber))}"`
+    : "";
+  const sourceAttrs = options.sourceAttrs ?? "";
+  return (
+    `<div class="${displayMathSurfaceClassNames(options)}"${idAttr}` +
+    ` data-math="${escapeHtml(latex)}"${numberAttr}${sourceAttrs}>` +
+    `${escapeHtml(fallbackText)}</div>`
+  );
 }
 
 export function createDisplayMathContentElement(

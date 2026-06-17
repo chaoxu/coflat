@@ -97,8 +97,8 @@ import { renderCodeBlockHtml } from "../core/code-block-surface";
 import { renderReaderFootnoteReferenceHtml } from "../core/footnote-reference-surface";
 import { renderFootnoteSectionHtml } from "../core/footnote-section-surface";
 import {
-  displayMathSurfaceClassNames,
   replaceDisplayMathContent,
+  renderDisplayMathPlaceholderHtml,
 } from "../core/math-display-surface";
 import {
   renderImageSurfaceHtml,
@@ -1378,16 +1378,12 @@ function renderBlock(ctx: WalkContext, node: SyntaxNode): BlockResult {
           ordinal: equationNumber,
         });
       }
-      const classes = displayMathSurfaceClassNames({ equationNumber });
-      const idAttr = equationId ? ` id="${escapeHtml(equationId)}"` : "";
-      const numberAttr = equationNumber !== undefined
-        ? ` data-equation-number="${equationNumber}"`
-        : "";
       return {
-        html:
-          `<div class="${classes}"${idAttr} data-math="${escapeHtml(inner)}"${numberAttr}${blockMathSourceAttrs(ctx, node.from, node.to)}>` +
-          escapeHtml(raw) +
-          `</div>`,
+        html: renderDisplayMathPlaceholderHtml(inner, raw, {
+          equationNumber,
+          id: equationId ?? undefined,
+          sourceAttrs: blockMathSourceAttrs(ctx, node.from, node.to),
+        }),
         text: raw,
         hasMath: true,
       };

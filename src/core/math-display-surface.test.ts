@@ -5,6 +5,7 @@ import {
   createDisplayMathSurfaceElement,
   displayMathSurfaceClassNames,
   replaceDisplayMathContent,
+  renderDisplayMathPlaceholderHtml,
   syncDisplayMathEquationNumber,
 } from "./math-display-surface";
 
@@ -27,6 +28,18 @@ describe("display math surface", () => {
     expect(el.className).toBe("cf-doc-display-math cf-math-display cf-math-display-numbered");
     expect(el.getAttribute("role")).toBe("img");
     expect(el.getAttribute("aria-label")).toBe("x^2");
+  });
+
+  it("renders reader placeholder HTML with the same wrapper contract", () => {
+    expect(
+      renderDisplayMathPlaceholderHtml("x < y", "$$x < y$$", {
+        equationNumber: 4,
+        id: "eq:main",
+        sourceAttrs: ' data-source-from="10" data-source-to="20"',
+      }),
+    ).toBe(
+      '<div class="cf-doc-display-math cf-math-display cf-math-display-numbered" id="eq:main" data-math="x &lt; y" data-equation-number="4" data-source-from="10" data-source-to="20">$$x &lt; y$$</div>',
+    );
   });
 
   it("replaces content and syncs equation numbers", () => {
