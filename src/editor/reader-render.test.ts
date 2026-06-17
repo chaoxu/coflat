@@ -413,6 +413,13 @@ describe("renderToHtml — block-level rendering ()", () => {
     expect(r.html).toMatch(/text-align:right|data-align="right"/);
   });
 
+  it("propagates hasMath when math appears inside a table cell", () => {
+    const r = renderToHtml("| value |\n| --- |\n| $x^2$ |");
+    expect(r.html).toContain('class="cf-doc-inline-math cf-math-inline"');
+    expect(r.html).toContain('data-math="x^2"');
+    expect(r.hasMath).toBe(true);
+  });
+
   it("renders footnote refs + shared numbered section at end", () => {
     const r = renderToHtml("Here[^a] and there[^b].\n\n[^a]: first\n[^b]: second");
     expect(r.html).toContain('class="cf-footnote-ref"');

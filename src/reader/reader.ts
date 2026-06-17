@@ -1723,19 +1723,22 @@ function renderTable(ctx: WalkContext, node: SyntaxNode): BlockResult {
   const headerRowsHtml: string[] = [];
   const bodyRowsHtml: string[] = [];
   const textRows: string[] = [];
+  let hasMath = false;
 
   const header = node.getChild("TableHeader");
   if (header) {
-    const { rowHtml, rowText } = renderTableRow(ctx, header, /*head*/ true, aligns);
+    const { rowHtml, rowText, hasMath: rowHasMath } = renderTableRow(ctx, header, /*head*/ true, aligns);
     headerRowsHtml.push(rowHtml);
     textRows.push(rowText);
+    if (rowHasMath) hasMath = true;
   }
   // Each TableRow → tbody.
   const rows = node.getChildren("TableRow");
   for (const row of rows) {
-    const { rowHtml, rowText } = renderTableRow(ctx, row, /*head*/ false, aligns);
+    const { rowHtml, rowText, hasMath: rowHasMath } = renderTableRow(ctx, row, /*head*/ false, aligns);
     bodyRowsHtml.push(rowHtml);
     textRows.push(rowText);
+    if (rowHasMath) hasMath = true;
   }
 
   let inner = "";
@@ -1744,7 +1747,7 @@ function renderTable(ctx: WalkContext, node: SyntaxNode): BlockResult {
   return {
     html: renderTableSurfaceHtml(inner, blockSourceAttrs(ctx, node.from, node.to)),
     text: textRows.join("\n"),
-    hasMath: false,
+    hasMath,
   };
 }
 
@@ -1767,19 +1770,22 @@ function renderTableRow(
   row: SyntaxNode,
   isHeader: boolean,
   aligns: (string | null)[],
-): { rowHtml: string; rowText: string } {
+): { rowHtml: string; rowText: string; hasMath: boolean } {
   const cellHtmls: string[] = [];
   const cellTexts: string[] = [];
+  let hasMath = false;
   const cells = row.getChildren("TableCell");
   cells.forEach((cell, idx) => {
     const inner = renderInline(ctx, cell, cell.from, cell.to);
     const tag = isHeader ? "th" : "td";
     cellHtmls.push(renderTableCellHtml(tag, inner.html, aligns[idx]));
     cellTexts.push(inner.text);
+    if (inner.hasMath) hasMath = true;
   });
   return {
     rowHtml: renderTableRowHtml(cellHtmls.join(""), blockSourceAttrs(ctx, row.from, row.to)),
     rowText: cellTexts.join("\t"),
+    hasMath,
   };
 }
 
