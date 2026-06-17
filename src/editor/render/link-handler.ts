@@ -1,10 +1,12 @@
 import { Decoration, type EditorView } from "@codemirror/view";
 
-import { CSS } from "../../core/constants/css-classes";
 import { documentContextFacet } from "../document-context";
 import { documentPathFacet } from "../lib/types";
 import { isSafeUrl } from "../../core/lib/url-utils";
-import { LINK_LAYOUT_ATTRIBUTE, linkLayoutForHref } from "../../core/link-layout";
+import {
+  linkSurfaceClassNames,
+  renderedLinkDecorationAttributes,
+} from "../../core/link-surface";
 import { openExternalUrl } from "../lib/open-link";
 
 const maxLinkDecorationCacheSize = 256;
@@ -19,11 +21,8 @@ export function getLinkDecoration(url: string): Decoration {
   }
 
   const linkDeco = Decoration.mark({
-    class: CSS.linkRendered,
-    attributes: {
-      "data-url": url,
-      [LINK_LAYOUT_ATTRIBUTE]: linkLayoutForHref(url),
-    },
+    class: linkSurfaceClassNames(),
+    attributes: renderedLinkDecorationAttributes(url),
   });
   linkDecorationCache.set(url, linkDeco);
   if (linkDecorationCache.size > maxLinkDecorationCacheSize) {
@@ -48,12 +47,9 @@ export function buildResolvedLinkDecoration(
   if (!override.className && !override.title && !override.hasOnClick && !override.force) {
     return null;
   }
-  const cls = override.className
-    ? `${CSS.linkRendered} ${override.className}`
-    : CSS.linkRendered;
+  const cls = linkSurfaceClassNames(override.className);
   const attributes: Record<string, string> = {
-    "data-url": url,
-    [LINK_LAYOUT_ATTRIBUTE]: linkLayoutForHref(url),
+    ...renderedLinkDecorationAttributes(url),
   };
   if (override.title) attributes.title = override.title;
   if (override.hasOnClick) attributes["data-link-resolver"] = "1";

@@ -39,7 +39,7 @@ import {
   syncDisclosureToggle,
   type DisclosureToggleLabels,
 } from "../core/disclosure-toggle";
-import { LINK_LAYOUT_ATTRIBUTE, linkLayoutForHref } from "../core/link-layout";
+import { applyLinkSurface, renderLinkSurfaceHtml } from "../core/link-surface";
 import { readBracedLabelId } from "../core/parser/label-utils";
 import type { NumberingScheme } from "../core/parser/frontmatter";
 import {
@@ -77,6 +77,10 @@ import {
 } from "../core/list-surface";
 import { renderCodeBlockHtml } from "../core/code-block-surface";
 import { renderFootnoteSectionHtml } from "../core/footnote-section-surface";
+import {
+  displayMathSurfaceClassNames,
+  replaceDisplayMathContent,
+} from "../core/math-display-surface";
 import { renderParagraphHtml } from "../core/paragraph-surface";
 import {
   renderTableCellHtml,
@@ -640,10 +644,6 @@ function mathSourcePosAttrs(ctx: WalkContext, from: number, to: number): string 
   return ` data-source-from="${from}" data-source-to="${to}"`;
 }
 
-function linkLayoutAttr(href: string): string {
-  return ` ${LINK_LAYOUT_ATTRIBUTE}="${linkLayoutForHref(href)}"`;
-}
-
 // ---------------------------------------------------------------------------
 // Inline rendering (text-only output side-channel optional).
 // ---------------------------------------------------------------------------
@@ -779,7 +779,7 @@ function renderInlineNode(
       const sp = sourcePosAttrs(ctx, node.from, node.to);
       if (isSafeUrl(href)) {
         return {
-          html: `<a href="${escapeHtml(href)}"${linkLayoutAttr(href)}${sp}>${escapeHtml(href)}</a>`,
+          html: renderLinkSurfaceHtml(href, escapeHtml(href), { sourceAttrs: sp }),
           text: href,
           hasMath: false,
         };
@@ -1003,12 +1003,12 @@ function emitLink(
     return { html: label.html, text: label.text, hasMath: label.hasMath };
   }
 
-  let attrs = ` href="${escapeHtml(href)}"${linkLayoutAttr(href)}`;
-  if (className) attrs += ` class="${escapeHtml(className)}"`;
-  if (title) attrs += ` title="${escapeHtml(title)}"`;
-  attrs += sourcePosAttrs(ctx, node.from, node.to);
   return {
-    html: `<a${attrs}>${label.html}</a>`,
+    html: renderLinkSurfaceHtml(href, label.html, {
+      className,
+      title,
+      sourceAttrs: sourcePosAttrs(ctx, node.from, node.to),
+    }),
     text: label.text,
     hasMath: label.hasMath,
   };
@@ -1040,7 +1040,7 @@ function buildReaderRefResolverEnv(
 
 function renderReaderHostReference(resolved: HostReferenceResolution): string {
   if (resolved.href && isSafeUrl(resolved.href)) {
-    return `<a href="${escapeHtml(resolved.href)}"${linkLayoutAttr(resolved.href)}>${resolved.content}</a>`;
+    return renderLinkSurfaceHtml(resolved.href, resolved.content);
   }
   return resolved.content;
 }
@@ -1375,10 +1375,7 @@ function renderBlock(ctx: WalkContext, node: SyntaxNode): BlockResult {
           ordinal: equationNumber,
         });
       }
-      const classes = mathSurfaceClassNames(
-        true,
-        equationNumber !== undefined && CSS.mathDisplayNumbered,
-      );
+      const classes = displayMathSurfaceClassNames({ equationNumber });
       const idAttr = equationId ? ` id="${escapeHtml(equationId)}"` : "";
       const numberAttr = equationNumber !== undefined
         ? ` data-equation-number="${equationNumber}"`
@@ -2988,9 +2985,7 @@ function hydrateReferenceElement(
   el.classList.remove(CSS.citationUnresolvedMarker, CSS.crossrefUnresolvedMarker);
   el.classList.add(...hostReferenceClassNames(resolved.className).split(/\s+/));
   if (resolved.href && isSafeUrl(resolved.href)) {
-    el.innerHTML = sanitize(
-      `<a href="${escapeHtml(resolved.href)}"${linkLayoutAttr(resolved.href)}>${resolved.content}</a>`,
-    );
+    el.innerHTML = sanitize(renderLinkSurfaceHtml(resolved.href, resolved.content));
   } else {
     el.innerHTML = sanitize(resolved.content);
   }
@@ -3019,13 +3014,14 @@ function hydrateLinkElement(
   });
   if (!resolved) return;
   if (resolved.href !== undefined && isSafeUrl(resolved.href)) {
-    el.setAttribute("href", resolved.href);
-    el.setAttribute(LINK_LAYOUT_ATTRIBUTE, linkLayoutForHref(resolved.href));
-  }
-  if (resolved.className) {
+    applyLinkSurface(el, resolved.href, {
+      className: resolved.className,
+      title: resolved.title,
+    });
+  } else if (resolved.className) {
     el.classList.add(...resolved.className.split(/\s+/).filter(Boolean));
   }
-  if (resolved.title !== undefined) {
+  if (resolved.href === undefined && resolved.title !== undefined) {
     el.title = resolved.title;
   }
   if (typeof resolved.onClick === "function") {
@@ -3523,16 +3519,9 @@ export async function hydrateMath(
 
     if (isDisplay) {
       const content = document.createElement("div");
-      content.className = CSS.mathDisplayContent;
       content.innerHTML = html;
-      el.replaceChildren(content);
       const equationNumber = el.dataset.equationNumber;
-      if (equationNumber) {
-        const number = document.createElement("span");
-        number.className = CSS.mathDisplayNumber;
-        number.textContent = `(${equationNumber})`;
-        el.appendChild(number);
-      }
+      replaceDisplayMathContent(el, content, equationNumber);
     } else {
       el.innerHTML = html;
     }

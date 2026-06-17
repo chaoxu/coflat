@@ -4,6 +4,12 @@ import {
   CSS,
   mathSurfaceClassNames,
 } from "../../core/constants/css-classes";
+import {
+  createDisplayMathContentElement,
+  createDisplayMathSurfaceElement,
+  replaceDisplayMathContent,
+  syncDisplayMathEquationNumber,
+} from "../../core/math-display-surface";
 import { isPlainPrimaryMouseEvent } from "../state/mouse-selection";
 import { documentAnalysisField } from "../state/document-analysis";
 import type { MathSemantics } from "../semantics/document";
@@ -180,26 +186,7 @@ export class MathWidget extends LazyMacroAwareWidget {
   }
 
   private syncDisplayEquationNumber(el: HTMLElement): void {
-    const selector = `.${CSS.mathDisplayNumber}`;
-    const numberText = this.equationNumber !== undefined
-      ? `(${this.equationNumber})`
-      : undefined;
-    const numberEl = el.querySelector<HTMLElement>(selector);
-
-    if (!numberText) {
-      numberEl?.remove();
-      return;
-    }
-
-    if (numberEl) {
-      numberEl.textContent = numberText;
-      return;
-    }
-
-    const nextNumberEl = document.createElement("span");
-    nextNumberEl.className = CSS.mathDisplayNumber;
-    nextNumberEl.textContent = numberText;
-    el.appendChild(nextNumberEl);
+    syncDisplayMathEquationNumber(el, this.equationNumber);
   }
 
   protected override bindSourceReveal(
@@ -251,14 +238,13 @@ export class MathWidget extends LazyMacroAwareWidget {
       return cloneRenderedHTMLElement(cached);
     }
 
-    const el = document.createElement("div");
-    el.className = mathSurfaceClassNames(true, this.hasQedMarker && CSS.blockQed);
-    el.setAttribute("role", "img");
-    el.setAttribute("aria-label", this.latex);
-    const content = document.createElement("div");
+    const el = createDisplayMathSurfaceElement(document, this.latex, {
+      equationNumber: this.equationNumber,
+      hasQedMarker: this.hasQedMarker,
+    });
+    const content = createDisplayMathContentElement(document);
     renderKatex(content, this.latex, this.isDisplay, this.macros);
-    content.className = CSS.mathDisplayContent;
-    el.appendChild(content);
+    replaceDisplayMathContent(el, content, this.equationNumber);
     this.syncDisplayLayout(el);
     this.syncDisplayEquationNumber(el);
     displayMathDomCache.set(this.displayDomCacheKey, cloneRenderedHTMLElement(el));

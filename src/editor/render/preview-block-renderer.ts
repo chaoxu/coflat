@@ -15,6 +15,11 @@ import {
 } from "../../core/document-surface-classes";
 import { appendCodeBlockDom } from "../../core/code-block-surface";
 import {
+  createDisplayMathContentElement,
+  createDisplayMathSurfaceElement,
+  replaceDisplayMathContent,
+} from "../../core/math-display-surface";
+import {
   headingSurfaceClassNames,
   setHeadingNumberingAttrs,
 } from "../../core/heading-surface";
@@ -680,27 +685,13 @@ function renderDisplayMath(
     ? context.semantics.equationById.get(equationId)?.number
     : undefined;
 
-  const wrapper = document.createElement("div");
-  wrapper.className = equationNumber === undefined
-    ? CSS.mathDisplay
-    : `${CSS.mathDisplay} ${CSS.mathDisplayNumbered}`;
-  if (equationId) {
-    wrapper.id = equationId;
-  }
-
-  if (equationNumber === undefined) {
-    renderKatex(wrapper, latex, true, context.macros);
-  } else {
-    const content = document.createElement("div");
-    content.className = CSS.mathDisplayContent;
-    renderKatex(content, latex, true, context.macros);
-    wrapper.appendChild(content);
-
-    const number = document.createElement("span");
-    number.className = CSS.mathDisplayNumber;
-    number.textContent = `(${equationNumber})`;
-    wrapper.appendChild(number);
-  }
+  const wrapper = createDisplayMathSurfaceElement(document, latex, {
+    equationNumber,
+    id: equationId ?? undefined,
+  });
+  const content = createDisplayMathContentElement(document);
+  renderKatex(content, latex, true, context.macros);
+  replaceDisplayMathContent(wrapper, content, equationNumber);
 
   parent.appendChild(wrapper);
 }

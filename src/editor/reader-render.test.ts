@@ -77,13 +77,15 @@ describe("renderToHtml — slow path (Lezer)", () => {
 
   it("renders a [label](url) link", () => {
     const r = renderToHtml("[label](https://example.com)");
-    expect(r.html).toMatch(/<a href="https:\/\/example\.com"[^>]*>label<\/a>/);
-    expect(r.html).toContain('data-cf-link-layout="flow"');
+    expect(r.html).toBe(
+      '<a class="cf-doc-link cf-link-rendered" href="https://example.com" data-cf-link-layout="flow">label</a>',
+    );
   });
 
   it("renders an autolink", () => {
     const r = renderToHtml("<https://example.com>");
-    expect(r.html).toMatch(/<a href="https:\/\/example\.com"[^>]*>/);
+    expect(r.html).toContain('class="cf-doc-link cf-link-rendered"');
+    expect(r.html).toContain('href="https://example.com"');
     expect(r.html).toContain('data-cf-link-layout="flow"');
     expect(r.html).toContain("https://example.com</a>");
   });
@@ -250,7 +252,7 @@ describe("renderToHtml — slow path (Lezer)", () => {
     const r = renderToHtml("[Home](page:home)", { linkResolver });
     expect(r.html).toContain('href="/home"');
     expect(r.html).toContain('data-cf-link-layout="atomic"');
-    expect(r.html).toContain('class="page-link"');
+    expect(r.html).toContain('class="cf-doc-link cf-link-rendered page-link"');
     expect(r.html).toContain('title="Home page"');
   });
 

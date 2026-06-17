@@ -666,7 +666,7 @@ describe("markdownRenderPlugin (Decoration.mark approach)", () => {
         [{ from: 0, to: doc.length }],
         () => false,
       );
-      const linkItems = items.filter((item) => item.value.spec.class === "cf-link-rendered");
+      const linkItems = items.filter((item) => item.value.spec.class?.includes("cf-link-rendered"));
 
       expect(linkItems).toHaveLength(2);
       expect(linkItems[0].value).toBe(linkItems[1].value);
@@ -685,7 +685,7 @@ describe("markdownRenderPlugin (Decoration.mark approach)", () => {
         [{ from: 0, to: doc.length }],
         () => false,
       );
-      const linkItem = items.find((item) => item.value.spec.class === "cf-link-rendered");
+      const linkItem = items.find((item) => item.value.spec.class?.includes("cf-link-rendered"));
 
       expect(linkItem?.value.spec.attributes).toMatchObject({
         "data-cf-link-layout": "atomic",

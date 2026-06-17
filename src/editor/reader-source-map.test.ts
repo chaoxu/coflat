@@ -38,7 +38,7 @@ describe("renderToHtml — sourcePositions emission", () => {
     const src = "see [doc](https://x.y) please";
     const r = renderToHtml(src, undefined, { sourcePositions: true });
     expect(r.html).toMatch(
-      /<a href="https:\/\/x\.y" data-cf-link-layout="flow" data-source-from="4" data-source-to="22">/,
+      /<a class="cf-doc-link cf-link-rendered" href="https:\/\/x\.y" data-cf-link-layout="flow" data-source-from="4" data-source-to="22">/,
     );
   });
 
