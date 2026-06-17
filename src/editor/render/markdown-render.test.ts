@@ -370,6 +370,15 @@ describe("markdownRenderPlugin (Decoration.mark approach)", () => {
       return items.filter((r) => r.value.spec.class === CSS.inlineSource);
     }
 
+    function hasDecorationClass(v: EditorView, className: string): boolean {
+      const items = collectMarkdownItems(
+        v,
+        [{ from: 0, to: v.state.doc.length }],
+        () => false,
+      );
+      return items.some((item) => item.value.spec.class === className);
+    }
+
     it("applies cf-source-delimiter to bold markers when cursor is inside", () => {
       view = createView("**bold**", 4);
       const delims = getSourceDelimiters(view);
@@ -435,6 +444,157 @@ describe("markdownRenderPlugin (Decoration.mark approach)", () => {
       );
 
       expect(items.some((item) => item.value.spec.class === CSS.italic)).toBe(false);
+    });
+
+    it("does not treat underscores inside inline math as active emphasis delimiters", () => {
+      const doc = [
+        "::: {.proof}",
+        "Let $x_i$ be paired with $y_i$.",
+        ":::",
+      ].join("\n");
+      view = createView(doc, doc.indexOf("x_i") + "x_i".length);
+
+      expect(hasDecorationClass(view, CSS.italic)).toBe(false);
+    });
+
+    it("does not treat stars inside inline code as active emphasis delimiters", () => {
+      const doc = "Use `F^*` and `G^*` as literal code.";
+      view = createView(doc, doc.indexOf("F^*") + "F^*".length);
+
+      expect(hasDecorationClass(view, CSS.italic)).toBe(false);
+    });
+
+    it("does not treat stars inside link URLs as active emphasis delimiters", () => {
+      const doc = "[target](https://example.com/a*b/c*d)";
+      view = createView(doc, doc.indexOf("a*b") + "a*".length);
+
+      expect(hasDecorationClass(view, CSS.italic)).toBe(false);
+    });
+
+    it("does not treat stars inside link titles as active emphasis delimiters", () => {
+      const doc = '[target](https://example.com "t*u v*w")';
+      view = createView(doc, doc.indexOf("u v"));
+
+      expect(hasDecorationClass(view, CSS.italic)).toBe(false);
+    });
+
+    it("does not treat stars inside image titles as active emphasis delimiters", () => {
+      const doc = '![alt](image.png "t*u v*w")';
+      view = createView(doc, doc.indexOf("u v"));
+
+      expect(hasDecorationClass(view, CSS.italic)).toBe(false);
+    });
+
+    it("does not treat stars inside reference link titles as active emphasis delimiters", () => {
+      const doc = [
+        "[target][ref]",
+        "",
+        '[ref]: https://example.com "t*u v*w"',
+      ].join("\n");
+      view = createView(doc, doc.indexOf("u v"));
+
+      expect(hasDecorationClass(view, CSS.italic)).toBe(false);
+    });
+
+    it("does not treat stars inside inline reference labels as active emphasis delimiters", () => {
+      const doc = [
+        "[target][a*b c*d]",
+        "",
+        "[a*b c*d]: https://example.com",
+      ].join("\n");
+      view = createView(doc, doc.indexOf("b c"));
+
+      expect(hasDecorationClass(view, CSS.italic)).toBe(false);
+    });
+
+    it("does not treat stars inside reference definition labels as active emphasis delimiters", () => {
+      const doc = "[a*b c*d]: https://example.com";
+      view = createView(doc, doc.indexOf("b c"));
+
+      expect(hasDecorationClass(view, CSS.italic)).toBe(false);
+    });
+
+    it("does not treat stars inside footnote reference labels as active emphasis delimiters", () => {
+      const doc = "See [^a*b*c] here.";
+      view = createView(doc, doc.indexOf("b"));
+
+      expect(hasDecorationClass(view, CSS.italic)).toBe(false);
+    });
+
+    it("does not treat stars inside footnote definition labels as active emphasis delimiters", () => {
+      const doc = "[^a*b*c]: note body";
+      view = createView(doc, doc.indexOf("b"));
+
+      expect(hasDecorationClass(view, CSS.italic)).toBe(false);
+    });
+
+    it("does not treat stars inside fenced div attributes as active emphasis delimiters", () => {
+      const doc = [
+        "::: {.a*b c*d}",
+        "content",
+        ":::",
+      ].join("\n");
+      view = createView(doc, doc.indexOf("b c"));
+
+      expect(hasDecorationClass(view, CSS.italic)).toBe(false);
+    });
+
+    it("does not treat escaped stars as active emphasis delimiters", () => {
+      const doc = "\\*not italic \\*";
+      view = createView(doc, doc.indexOf("italic"));
+
+      expect(hasDecorationClass(view, CSS.italic)).toBe(false);
+    });
+
+    it("does not treat stars inside inline HTML tags as active emphasis delimiters", () => {
+      const doc = '<span title="t*u v*w">text</span>';
+      view = createView(doc, doc.indexOf("u v"));
+
+      expect(hasDecorationClass(view, CSS.italic)).toBe(false);
+    });
+
+    it("does not treat stars inside HTML comments as active emphasis delimiters", () => {
+      const doc = "<!-- a*b c*d -->";
+      view = createView(doc, doc.indexOf("b c"));
+
+      expect(hasDecorationClass(view, CSS.italic)).toBe(false);
+    });
+
+    it("does not treat stars inside inline HTML comments as active emphasis delimiters", () => {
+      const doc = "before <!-- a*b c*d --> after";
+      view = createView(doc, doc.indexOf("b c"));
+
+      expect(hasDecorationClass(view, CSS.italic)).toBe(false);
+    });
+
+    it("does not treat stars inside processing instruction blocks as active emphasis delimiters", () => {
+      const doc = "<?pi a*b c*d?>";
+      view = createView(doc, doc.indexOf("b c"));
+
+      expect(hasDecorationClass(view, CSS.italic)).toBe(false);
+    });
+
+    it("does not treat stars inside inline processing instructions as active emphasis delimiters", () => {
+      const doc = "before <?pi a*b c*d?> after";
+      view = createView(doc, doc.indexOf("b c"));
+
+      expect(hasDecorationClass(view, CSS.italic)).toBe(false);
+    });
+
+    it("keeps active fallback styling when real delimiters wrap inline math", () => {
+      const doc = "*see $F^*$ now *";
+      view = createView(doc, doc.indexOf("now"));
+      const items = collectMarkdownItems(
+        view,
+        [{ from: 0, to: view.state.doc.length }],
+        () => false,
+      );
+
+      expect(items.some((item) =>
+        item.from === 1 &&
+        item.to === doc.length - 1 &&
+        item.value.spec.class === CSS.italic
+      )).toBe(true);
     });
 
     it("applies compact reveal metrics to link source marks and URL content", () => {

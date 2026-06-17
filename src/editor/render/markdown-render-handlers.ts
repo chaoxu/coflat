@@ -107,11 +107,27 @@ const activeLineDelimiterMarks: readonly {
   { delimiter: "_", decoration: italicDecoration },
 ];
 
+// The active-line fallback bridges temporary CommonMark flanking failures; it
+// must not reinterpret delimiter-like characters inside parsed syntax atoms.
 const ACTIVE_LINE_DELIMITER_EXCLUSION_NODES = new Set([
+  "Comment",
+  "CommentBlock",
   "DisplayMath",
+  "Entity",
+  "EquationLabel",
+  "Escape",
   "FencedCode",
+  "FencedDivAttributes",
+  "FootnoteDefLabel",
+  "FootnoteRef",
+  "HTMLBlock",
+  "HTMLTag",
   "InlineCode",
   "InlineMath",
+  "LinkLabel",
+  "LinkTitle",
+  "ProcessingInstruction",
+  "ProcessingInstructionBlock",
   "URL",
 ]);
 
