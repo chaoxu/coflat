@@ -12,6 +12,7 @@ import {
 } from "@codemirror/view";
 import { __iconNode as checkIconNode } from "lucide-react/dist/esm/icons/check.js";
 import { __iconNode as copyIconNode } from "lucide-react/dist/esm/icons/copy.js";
+import { createLucideIcon } from "../../core/lib/lucide-icon";
 import { COPY_RESET_MS } from "../../core/constants";
 import { CSS } from "../../core/constants/css-classes";
 import {
@@ -46,36 +47,6 @@ import { makeTextElement } from "./widget-core";
 import { ShellWidget } from "./shell-widget";
 import { createChangeChecker } from "../state/change-detection";
 
-type IconNode = ReadonlyArray<readonly [string, Readonly<Record<string, string>>]>;
-
-function createLucideIcon(iconNode: IconNode): SVGSVGElement {
-  const ns = "http://www.w3.org/2000/svg";
-  const svg = document.createElementNS(ns, "svg");
-  svg.setAttribute("xmlns", ns);
-  svg.setAttribute("width", "24");
-  svg.setAttribute("height", "24");
-  svg.setAttribute("viewBox", "0 0 24 24");
-  svg.setAttribute("fill", "none");
-  svg.setAttribute("stroke", "currentColor");
-  svg.setAttribute("stroke-width", "2");
-  svg.setAttribute("stroke-linecap", "round");
-  svg.setAttribute("stroke-linejoin", "round");
-  svg.setAttribute("aria-hidden", "true");
-  svg.setAttribute("focusable", "false");
-  svg.classList.add("lucide");
-
-  for (const [tag, attrs] of iconNode) {
-    const child = document.createElementNS(ns, tag);
-    for (const [name, value] of Object.entries(attrs)) {
-      if (name === "key") continue;
-      child.setAttribute(name, value);
-    }
-    svg.appendChild(child);
-  }
-
-  return svg;
-}
-
 /** Widget that renders a copy-to-clipboard button in the code block header. */
 class CopyButtonWidget extends ShellWidget {
   private resetTimer: ReturnType<typeof setTimeout> | null = null;
@@ -102,7 +73,7 @@ class CopyButtonWidget extends ShellWidget {
     btn.className = CSS.codeblockCopy;
     btn.type = "button";
     btn.setAttribute("aria-label", "Copy code to clipboard");
-    btn.appendChild(createLucideIcon(copyIconNode));
+    btn.appendChild(createLucideIcon(copyIconNode, "copy"));
     this.buttonEl = btn;
     btn.addEventListener("mousedown", (e) => {
       e.preventDefault();
@@ -110,14 +81,14 @@ class CopyButtonWidget extends ShellWidget {
       void navigator.clipboard.writeText(this.code).then(() => {
         const button = this.getLiveButton(btn);
         if (!button) return;
-        button.replaceChildren(createLucideIcon(checkIconNode));
+        button.replaceChildren(createLucideIcon(checkIconNode, "check"));
         button.setAttribute("aria-label", "Copied");
         this.clearResetTimer();
         this.resetTimer = setTimeout(() => {
           this.resetTimer = null;
           const liveButton = this.getLiveButton(btn);
           if (!liveButton) return;
-          liveButton.replaceChildren(createLucideIcon(copyIconNode));
+          liveButton.replaceChildren(createLucideIcon(copyIconNode, "copy"));
           liveButton.setAttribute("aria-label", "Copy code to clipboard");
         }, COPY_RESET_MS);
       }).catch((e: unknown) => {

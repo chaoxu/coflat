@@ -389,7 +389,7 @@ describe("hydrateReaderDisclosures", () => {
     const introButton = introHeading?.querySelector<HTMLButtonElement>(":scope > .cf-section-disclosure-toggle");
     const introBody = introHeading?.nextElementSibling as HTMLElement | null;
     expect(introButton).not.toBeNull();
-    expect(introButton?.textContent).toBe("▼");
+    expect(introButton?.querySelector(".lucide-chevron-down")).not.toBeNull();
     expect(introButton?.getAttribute("aria-expanded")).toBe("true");
     expect(introBody?.classList.contains("cf-section-disclosure-body")).toBe(true);
     expect(introBody?.textContent).toContain("intro body");
@@ -402,7 +402,7 @@ describe("hydrateReaderDisclosures", () => {
 
     introButton?.click();
     expect(introHeading?.getAttribute("data-cf-section-open")).toBe("false");
-    expect(introButton?.textContent).toBe("▶");
+    expect(introButton?.querySelector(".lucide-chevron-right")).not.toBeNull();
     expect(introButton?.getAttribute("aria-expanded")).toBe("false");
     expect(introBody?.hidden).toBe(true);
   });
@@ -443,7 +443,7 @@ describe("hydrateReaderDisclosures", () => {
     const button = root.querySelector<HTMLButtonElement>(".cf-block-disclosure-toggle");
     expect(button).not.toBeNull();
     expect(block?.getAttribute("data-cf-block-open")).toBe("true");
-    expect(button?.textContent).toBe("▼");
+    expect(button?.querySelector(".lucide-chevron-down")).not.toBeNull();
     expect(button?.getAttribute("aria-expanded")).toBe("true");
     expect(body?.hidden).toBe(false);
 
@@ -453,13 +453,13 @@ describe("hydrateReaderDisclosures", () => {
 
     button?.click();
     expect(block?.getAttribute("data-cf-block-open")).toBe("false");
-    expect(button?.textContent).toBe("▶");
+    expect(button?.querySelector(".lucide-chevron-right")).not.toBeNull();
     expect(button?.getAttribute("aria-expanded")).toBe("false");
     expect(body?.hidden).toBe(true);
 
     button?.click();
     expect(block?.getAttribute("data-cf-block-open")).toBe("true");
-    expect(button?.textContent).toBe("▼");
+    expect(button?.querySelector(".lucide-chevron-down")).not.toBeNull();
     expect(button?.getAttribute("aria-expanded")).toBe("true");
     expect(body?.hidden).toBe(false);
   });

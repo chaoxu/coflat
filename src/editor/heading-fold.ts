@@ -30,8 +30,11 @@ import {
   unfoldEffect,
   foldedRanges,
 } from "@codemirror/language";
+import { __iconNode as chevronDownIconNode } from "lucide-react/dist/esm/icons/chevron-down.js";
+import { __iconNode as chevronRightIconNode } from "lucide-react/dist/esm/icons/chevron-right.js";
 import { isCollapsibleBlockType } from "../core/constants/block-manifest";
 import { CSS } from "../core/constants/css-classes";
+import { createLucideIcon } from "../core/lib/lucide-icon";
 import { buildDecorations, RenderWidget } from "./render/render-core";
 import type { FencedDivSemantics, HeadingSemantics } from "./semantics/document";
 import {
@@ -315,7 +318,11 @@ class FoldToggleWidget extends RenderWidget {
     ];
     if (this.folded) classes.push(CSS.foldToggleFolded);
     span.className = classes.join(" ");
-    span.textContent = this.folded ? "▶" : "▼";
+    span.appendChild(
+      this.folded
+        ? createLucideIcon(chevronRightIconNode, "chevron-right")
+        : createLucideIcon(chevronDownIconNode, "chevron-down"),
+    );
     span.dataset.cfFoldLineFrom = String(this.pos);
     span.setAttribute("role", "button");
     const labelTarget = this.kind === "section" ? "section" : "block";

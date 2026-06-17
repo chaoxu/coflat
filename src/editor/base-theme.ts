@@ -68,6 +68,12 @@ export const baseThemeStyles = {
     opacity: "0",
     transition: "opacity var(--cf-transition, 0.15s ease)",
   },
+  /* Chevron icon scales with the per-level font size; color via currentColor. */
+  ".cf-fold-toggle svg": {
+    width: "1em",
+    height: "1em",
+    display: "block",
+  },
   /* Show fold toggle when hovering the heading line */
   ".cm-line:hover .cf-fold-toggle": {
     opacity: "1",

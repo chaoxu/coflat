@@ -126,7 +126,7 @@ describe("headingFold", () => {
 
     const range = getFoldRange(view, 1);
     expect(range).not.toBeNull();
-    expect(getFoldToggles(view)[0]?.textContent).toBe("▼");
+    expect(getFoldToggles(view)[0]?.querySelector(".lucide-chevron-down")).not.toBeNull();
 
     if (!range) {
       throw new Error("expected a foldable heading range");
@@ -136,7 +136,7 @@ describe("headingFold", () => {
 
     const toggle = getFoldToggles(view)[0];
     expect(toggle?.classList.contains("cf-fold-toggle-folded")).toBe(true);
-    expect(toggle?.textContent).toBe("▶");
+    expect(toggle?.querySelector(".lucide-chevron-right")).not.toBeNull();
   });
 
   it("reuses the existing fold state when body edits do not move headings", () => {
@@ -219,7 +219,7 @@ describe("headingFold", () => {
     );
 
     expect(isRangeFolded(view, range)).toBe(true);
-    expect(getFoldToggles(view)[1]?.textContent).toBe("▶");
+    expect(getFoldToggles(view)[1]?.querySelector(".lucide-chevron-right")).not.toBeNull();
   });
 
   it("folds semantic fenced blocks from the block header line", () => {
@@ -260,7 +260,7 @@ describe("headingFold", () => {
     const updatedBlockToggle = getFoldToggles(view).find((toggle) =>
       toggle.classList.contains("cf-fold-block")
     );
-    expect(updatedBlockToggle?.textContent).toBe("▶");
+    expect(updatedBlockToggle?.querySelector(".lucide-chevron-right")).not.toBeNull();
     expect(updatedBlockToggle?.getAttribute("aria-label")).toBe("Unfold block");
   });
 

@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { baseThemeStyles } from "./base-theme";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -193,6 +194,10 @@ describe("theme CSS contract", () => {
     expect(disclosureToggle).toContain("right: 100%;");
     expect(disclosureToggle).toContain("transition: opacity");
     expect(disclosureToggle).not.toMatch(/\bfont-(?:family|size)\s*:/);
+    const disclosureToggleIcon = cssRuleBody(css, ".cf-reader .cf-block-disclosure-toggle svg");
+    expect(disclosureToggleIcon).toContain("display: block;");
+    expect(disclosureToggleIcon).toContain("width: 1em;");
+    expect(disclosureToggleIcon).toContain("height: 1em;");
     expect(cssRuleBody(css, ".cf-reader .cf-doc-block-collapsible:hover > .cf-doc-block-heading > .cf-block-disclosure-toggle,\n.cf-reader .cf-doc-block-collapsible:focus-within > .cf-doc-block-heading > .cf-block-disclosure-toggle,\n.cf-reader .cf-doc-section-heading-collapsible:hover > .cf-block-disclosure-toggle,\n.cf-reader .cf-doc-section-heading-collapsible:focus-within > .cf-block-disclosure-toggle")).toContain("opacity: 1;");
     expect(cssRuleBody(css, ".cf-reader .cf-block-disclosure-toggle:hover,\n.cf-reader .cf-block-disclosure-toggle:focus-visible,\n.cf-reader .cf-block-disclosure-toggle-collapsed")).toContain("opacity: 1;");
     expect(cssRuleBody(css, ".cf-reader .cf-block-disclosure-body[hidden]")).toContain("display: none;");
@@ -207,6 +212,14 @@ describe("theme CSS contract", () => {
     expect(blockSource).toContain("line-height: inherit;");
     expect(blockSource).not.toMatch(/\bfont-(?:family|size|style)\s*:/);
     expect(blockSource).not.toMatch(/\b(?:padding|margin|border)\s*:/);
+  });
+
+  it("keeps editor fold icon sizing stable", () => {
+    expect(baseThemeStyles[".cf-fold-toggle svg"]).toEqual({
+      width: "1em",
+      height: "1em",
+      display: "block",
+    });
   });
 
   it("keeps shared inline mark styling available outside CM6", () => {

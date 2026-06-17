@@ -1593,6 +1593,13 @@
   user-select: none;
 }
 
+/* Chevron icon scales with the heading's inherited font size; color via currentColor. */
+.cf-reader .cf-block-disclosure-toggle svg {
+  display: block;
+  width: 1em;
+  height: 1em;
+}
+
 .cf-reader .cf-doc-block-collapsible:hover > .cf-doc-block-heading > .cf-block-disclosure-toggle,
 .cf-reader .cf-doc-block-collapsible:focus-within > .cf-doc-block-heading > .cf-block-disclosure-toggle,
 .cf-reader .cf-doc-section-heading-collapsible:hover > .cf-block-disclosure-toggle,
