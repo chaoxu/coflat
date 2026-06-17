@@ -1,4 +1,5 @@
 import type { EditorState, Range } from "@codemirror/state";
+import { syntaxTree } from "@codemirror/language";
 import { Decoration, WidgetType } from "@codemirror/view";
 import type { SyntaxNodeRef } from "@lezer/common";
 import { CSS } from "../../core/constants/css-classes";
@@ -106,6 +107,14 @@ const activeLineDelimiterMarks: readonly {
   { delimiter: "_", decoration: italicDecoration },
 ];
 
+const ACTIVE_LINE_DELIMITER_EXCLUSION_NODES = new Set([
+  "DisplayMath",
+  "FencedCode",
+  "InlineCode",
+  "InlineMath",
+  "URL",
+]);
+
 class HorizontalRuleWidget extends WidgetType {
   override toDOM(): HTMLElement {
     const hr = document.createElement("hr");
@@ -155,6 +164,34 @@ export interface MarkdownHandlerContext {
 interface MarkdownRange {
   readonly from: number;
   readonly to: number;
+}
+
+function collectActiveLineDelimiterExclusions(
+  state: EditorState,
+  line: { readonly from: number; readonly to: number },
+): readonly MarkdownRange[] {
+  const ranges: MarkdownRange[] = [];
+  syntaxTree(state).iterate({
+    from: line.from,
+    to: line.to,
+    enter(node) {
+      if (!ACTIVE_LINE_DELIMITER_EXCLUSION_NODES.has(node.name)) return undefined;
+      ranges.push({ from: node.from, to: node.to });
+      return false;
+    },
+  });
+  return ranges;
+}
+
+function delimiterTouchesExcludedRange(
+  lineFrom: number,
+  delimiterFrom: number,
+  delimiterLength: number,
+  exclusions: readonly MarkdownRange[],
+): boolean {
+  const from = lineFrom + delimiterFrom;
+  const to = from + delimiterLength;
+  return exclusions.some((range) => from < range.to && range.from < to);
 }
 
 /** Entry in the markdown node handler registry. */
@@ -394,29 +431,55 @@ export function addActiveLineTypingSupplements(
   if (!ranges.some((range) => line.from <= range.to && range.from <= line.to)) {
     return;
   }
+  const exclusions = collectActiveLineDelimiterExclusions(state, line);
   const cursor = selection.from - line.from;
   for (const { delimiter, decoration } of activeLineDelimiterMarks) {
-    const open = line.text.lastIndexOf(delimiter, Math.max(0, cursor - 1));
-    if (open < 0) continue;
-    const contentFrom = open + delimiter.length;
-    if (cursor < contentFrom) continue;
+    let openSearchFrom = Math.max(0, cursor - 1);
+    while (openSearchFrom >= 0) {
+      const open = line.text.lastIndexOf(delimiter, openSearchFrom);
+      if (open < 0) break;
+      if (delimiterTouchesExcludedRange(line.from, open, delimiter.length, exclusions)) {
+        openSearchFrom = open - 1;
+        continue;
+      }
+      const contentFrom = open + delimiter.length;
+      if (cursor < contentFrom) {
+        openSearchFrom = open - 1;
+        continue;
+      }
 
-    const close = line.text.indexOf(delimiter, Math.max(cursor, contentFrom));
-    if (close < 0 || close <= contentFrom) continue;
+      let closeSearchFrom = Math.max(cursor, contentFrom);
+      let close = -1;
+      while (closeSearchFrom <= line.text.length) {
+        const candidate = line.text.indexOf(delimiter, closeSearchFrom);
+        if (candidate < 0) break;
+        closeSearchFrom = candidate + delimiter.length;
+        if (candidate <= contentFrom) continue;
+        if (delimiterTouchesExcludedRange(line.from, candidate, delimiter.length, exclusions)) {
+          continue;
+        }
+        close = candidate;
+        break;
+      }
+      if (close < 0) {
+        openSearchFrom = open - 1;
+        continue;
+      }
 
-    const from = line.from + contentFrom;
-    const to = line.from + close;
-    if (ctx.items.some((item) =>
-      item.from <= from &&
-      item.to >= to &&
-      item.value === decoration
-    )) {
+      const from = line.from + contentFrom;
+      const to = line.from + close;
+      if (ctx.items.some((item) =>
+        item.from <= from &&
+        item.to >= to &&
+        item.value === decoration
+      )) {
+        return;
+      }
+      ctx.items.push(
+        decoration.range(from, to),
+      );
       return;
     }
-    ctx.items.push(
-      decoration.range(from, to),
-    );
-    return;
   }
 }
 

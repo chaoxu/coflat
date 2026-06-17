@@ -421,6 +421,22 @@ describe("markdownRenderPlugin (Decoration.mark approach)", () => {
       )).toBe(true);
     });
 
+    it("does not treat stars inside inline math as active emphasis delimiters", () => {
+      const doc = [
+        "::: {.proof}",
+        "Let $F^*$ be a flat and $G^*$ be another.",
+        ":::",
+      ].join("\n");
+      view = createView(doc, doc.indexOf("F^*") + "F^*".length);
+      const items = collectMarkdownItems(
+        view,
+        [{ from: 0, to: view.state.doc.length }],
+        () => false,
+      );
+
+      expect(items.some((item) => item.value.spec.class === CSS.italic)).toBe(false);
+    });
+
     it("applies compact reveal metrics to link source marks and URL content", () => {
       const doc = "[target](https://example.com)";
       view = createView(doc, doc.indexOf("target") + 2);
