@@ -103,7 +103,10 @@ import {
   renderMediaLoadingHtml,
 } from "../core/media-surface";
 import { renderParagraphHtml } from "../core/paragraph-surface";
-import { renderReferenceSurfaceHtml } from "../core/reference-surface";
+import {
+  renderReferenceListSurfaceHtml,
+  renderReferenceSurfaceHtml,
+} from "../core/reference-surface";
 import {
   renderTableCellHtml,
   renderTableRowHtml,
@@ -1032,7 +1035,7 @@ function emitReferenceCluster(
   to: number,
 ): { html: string; text: string; hasMath: boolean } {
   const refResolver = ctx.resolvers.refResolver;
-  const parts: string[] = [];
+  const parts: Array<{ className: string; id: string; innerHtml: string }> = [];
   const textParts: string[] = [];
 
   const citationFormatter = ctx.resolvers.citationFormatter;
@@ -1046,13 +1049,11 @@ function emitReferenceCluster(
       const label = coreCiteInline(citationFormatter, [id], [locators[index]]);
       if (label !== null) {
         if (!ctx.citedKeys.includes(id)) ctx.citedKeys.push(id);
-        parts.push(
-          renderReferenceSurfaceHtml(escapeHtml(label), {
-            className: CSS.citation,
-            refKey: id,
-            refMode: "bracketed",
-          }),
-        );
+        parts.push({
+          className: CSS.citation,
+          id,
+          innerHtml: escapeHtml(label),
+        });
         textParts.push(label);
         continue;
       }
@@ -1063,16 +1064,11 @@ function emitReferenceCluster(
     const catalogTarget = ctx.resolvers.referenceCatalog?.get(id);
     if (catalogTarget) {
       const fragment = escapeHtml(encodeURIComponent(id));
-      parts.push(
-        renderReferenceSurfaceHtml(
-          `<a href="#${fragment}">${escapeHtml(catalogTarget.label)}</a>`,
-          {
-            className: CSS.crossref,
-            refKey: id,
-            refMode: "bracketed",
-          },
-        ),
-      );
+      parts.push({
+        className: CSS.crossref,
+        id,
+        innerHtml: `<a href="#${fragment}">${escapeHtml(catalogTarget.label)}</a>`,
+      });
       textParts.push(catalogTarget.label);
       continue;
     }
@@ -1085,31 +1081,41 @@ function emitReferenceCluster(
       if (resolved) {
         const cls = hostReferenceClassNames(resolved.className);
         const inner = renderReaderHostReference(resolved);
-        parts.push(
-          renderReferenceSurfaceHtml(inner, {
-            className: cls,
-            refKey: id,
-            refMode: "bracketed",
-          }),
-        );
+        parts.push({ className: cls, id, innerHtml: inner });
         textParts.push(stripTags(resolved.content));
         continue;
       }
     }
     const display = ids.length === 1 ? raw : `@${id}`;
-    parts.push(
-      renderReferenceSurfaceHtml(escapeHtml(display), {
-        className: CSS.crossrefUnresolved,
-        refKey: id,
-        refMode: "bracketed",
-      }),
-    );
+    parts.push({
+      className: CSS.crossrefUnresolved,
+      id,
+      innerHtml: escapeHtml(display),
+    });
     textParts.push(display);
   }
 
-  const inner = parts.join("; ");
-  const html = ctx.sourcePositions
-    ? `<span class="${CSS.citationCluster}"${sourcePosAttrs(ctx, from, to)}>${inner}</span>`
+  const sourceAttrs = ctx.sourcePositions ? sourcePosAttrs(ctx, from, to) : "";
+  const inner = parts.length === 1
+    ? renderReferenceSurfaceHtml(parts[0].innerHtml, {
+      className: parts[0].className,
+      refKey: parts[0].id,
+      refMode: "bracketed",
+    })
+    : renderReferenceListSurfaceHtml({
+      className: CSS.citationCluster,
+      refMode: "bracketed",
+      items: parts.map((part) => ({
+        className: part.className,
+        id: part.id,
+        innerHtml: part.innerHtml,
+        refMode: "bracketed",
+      })),
+      separatorText: "; ",
+      sourceAttrs,
+    });
+  const html = ctx.sourcePositions && parts.length === 1
+    ? `<span class="${CSS.citationCluster}"${sourceAttrs}>${inner}</span>`
     : inner;
   return {
     html,

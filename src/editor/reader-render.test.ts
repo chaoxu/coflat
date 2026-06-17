@@ -694,6 +694,10 @@ describe("renderToHtml — block-level rendering ()", () => {
     expect(refs).toHaveLength(2);
     expect(refs[0].textContent).toBe("Theorem 1");
     expect(refs[1].textContent).toBe("Eq. (1)");
+    const items = root.querySelectorAll("[data-ref-id]");
+    expect(items).toHaveLength(2);
+    expect(items[0].getAttribute("data-ref-id")).toBe("thm:main");
+    expect(items[1].getAttribute("data-ref-id")).toBe("eq:gaussian");
   });
 
   it("uses shared crossref classes for resolved reader crossrefs", () => {

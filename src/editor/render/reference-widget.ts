@@ -1,4 +1,5 @@
 import { type WidgetType } from "@codemirror/view";
+import { appendReferenceListSurfaceDom } from "../../core/reference-surface";
 import { makeTextElement } from "./widget-core";
 import { RenderWidget } from "./source-widget";
 
@@ -88,36 +89,12 @@ export abstract class ReferenceWidget extends RenderWidget {
     return el;
   }
 
-  protected appendReferenceItem(
-    container: HTMLElement,
-    item: ReferenceItemSpec,
-  ): HTMLElement {
-    const span = document.createElement("span");
-    span.setAttribute("data-ref-id", item.id);
-    if (item.className) {
-      span.className = item.className;
-    }
-    span.textContent = item.text;
-    container.appendChild(span);
-    return span;
-  }
-
   protected createReferenceListDOM(spec: ReferenceListSpec): HTMLElement {
     const container = this.createReferenceRoot(spec);
-    if (spec.prefixText) {
-      container.appendChild(document.createTextNode(spec.prefixText));
-    }
-
-    for (let i = 0; i < spec.items.length; i++) {
-      if (i > 0 && spec.separatorText) {
-        container.appendChild(document.createTextNode(spec.separatorText));
-      }
-      this.appendReferenceItem(container, spec.items[i]);
-    }
-
-    if (spec.suffixText) {
-      container.appendChild(document.createTextNode(spec.suffixText));
-    }
+    appendReferenceListSurfaceDom(container, {
+      ...spec,
+      items: spec.items,
+    });
     return container;
   }
 
