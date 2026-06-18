@@ -65,4 +65,23 @@ describe("mounted editor outline", () => {
     expect(entry?.html).toContain("Theorem 4");
     expect(entry?.html).not.toContain("@cor:rank-reduction-from-bounded-gap");
   });
+
+  it("uses the shared reader heading-anchor ids for generated outline anchors", () => {
+    const editor = mount([
+      "# Background",
+      "",
+      "## Setup {#background}",
+      "",
+      "# Méthodes & Results!",
+      "",
+      "# Méthodes & Results!",
+    ].join("\n"));
+
+    expect(editor.outline.get().map((entry) => entry.id)).toEqual([
+      "background-2",
+      "background",
+      "methodes-results",
+      "methodes-results-2",
+    ]);
+  });
 });

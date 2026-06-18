@@ -1,5 +1,9 @@
 import type { EquationSemantics } from "../../document-model";
 import {
+  initialEquationNumberCounter,
+  nextEquationNumber,
+} from "../../../../core/semantics/equation-numbering";
+import {
   firstOverlapIndex,
   rangesOverlap,
   replaceOverlappingRanges,
@@ -133,17 +137,21 @@ function finalizeEquationTail(
   equations: readonly EquationStructure[],
   startIndex: number,
 ): readonly EquationSemantics[] {
-  let nextNumber = 1;
+  let counter = initialEquationNumberCounter();
   const prefix: EquationSemantics[] = [];
   for (let i = 0; i < startIndex; i++) {
     const eq = equations[i];
-    prefix.push(finalizeEquation(eq, nextNumber++));
+    const result = nextEquationNumber(counter);
+    counter = result.counter;
+    prefix.push(finalizeEquation(eq, result.number));
   }
 
   const tail: EquationSemantics[] = [];
   for (let i = startIndex; i < equations.length; i++) {
     const eq = equations[i];
-    tail.push(finalizeEquation(eq, nextNumber++));
+    const result = nextEquationNumber(counter);
+    counter = result.counter;
+    tail.push(finalizeEquation(eq, result.number));
   }
 
   if (startIndex === 0) return tail;

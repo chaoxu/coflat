@@ -80,6 +80,15 @@ import {
   nextHeadingNumber,
   type HeadingNumberCounters,
 } from "../core/semantics/heading-numbering";
+import {
+  initialEquationNumberCounter,
+  nextEquationNumber,
+  type EquationNumberCounter,
+} from "../core/semantics/equation-numbering";
+import {
+  reserveExplicitHeadingAnchorIds,
+  uniqueHeadingAnchorId,
+} from "../core/semantics/heading-anchors";
 import { blockPresentationPlan } from "../core/block-presentation";
 import {
   bibliographyEntries as coreBibliographyEntries,
@@ -620,7 +629,7 @@ interface WalkContext {
   blockNumbering: NumberingScheme;
   blockNumberingSpec: BlockNumberingSpecLookup;
   blockTitles: ReadonlyMap<string, string>;
-  equationCounter: number;
+  equationCounter: EquationNumberCounter;
   // Footnote tracking
   footnotesById: Map<string, FootnoteEntry>;
   footnotesInOrder: FootnoteEntry[];
@@ -1177,7 +1186,12 @@ function renderBlock(ctx: WalkContext, node: SyntaxNode): BlockResult {
       const plan = displayMathRenderPlan(ctx.source, node);
       const raw = ctx.source.slice(plan.sourceRange.from, plan.sourceRange.to);
       const equationId = plan.equationId;
-      const equationNumber = equationId ? ++ctx.equationCounter : undefined;
+      let equationNumber: number | undefined;
+      if (equationId) {
+        const result = nextEquationNumber(ctx.equationCounter);
+        ctx.equationCounter = result.counter;
+        equationNumber = result.number;
+      }
       if (ctx.buildCatalog && equationId && equationNumber !== undefined) {
         ctx.catalog.set(equationId, {
           kind: "equation",
@@ -1219,41 +1233,20 @@ function renderBlock(ctx: WalkContext, node: SyntaxNode): BlockResult {
   });
 }
 
-/** Canonical heading slug: fold diacritics, lowercase, non-alphanumeric runs →
- *  "-", trimmed. Diacritic folding (NFKD + combining-mark strip) keeps accented
- *  headings readable ("Méthodes" → "methodes") instead of degrading to "m-thodes". */
-function slugifyHeading(text: string): string {
-  return text
-    .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
-
-/** A heading id unique within the document, de-duplicating with a numeric
- *  suffix. Empty slugs (headings with no alphanumerics) fall back to "section". */
-function uniqueHeadingId(base: string, used: Set<string>): string {
-  const root = base || "section";
-  let candidate = root;
-  let n = 2;
-  while (used.has(candidate)) candidate = `${root}-${n++}`;
-  used.add(candidate);
-  return candidate;
-}
-
 /** Reserve every explicit `{#id}` heading id so auto-slugs yield to author-set
  *  anchors (explicit ids win; an auto-slug that would collide gets suffixed). */
 function reserveExplicitHeadingIds(ctx: WalkContext, tree: Tree): void {
+  const headings: Array<{ id?: string }> = [];
   tree.iterate({
     enter(node) {
       if (!headingLevelFor(node.name)) return;
       const plan = headingRenderPlan(ctx.source, node.node);
-      if (plan.attributes?.id) ctx.usedHeadingIds.add(plan.attributes.id);
+      headings.push({ id: plan.attributes?.id });
       // A heading can't contain another heading — skip its inline subtree.
       return false;
     },
   });
+  ctx.usedHeadingIds = reserveExplicitHeadingAnchorIds(headings);
 }
 
 function renderHeading(ctx: WalkContext, node: SyntaxNode): BlockResult {
@@ -1303,8 +1296,10 @@ function renderHeading(ctx: WalkContext, node: SyntaxNode): BlockResult {
   // (explicit `{#id}` or a deduplicated slug) and contributes an outline entry.
   let headingId = plan.attributes?.id;
   if (ctx.collectOutline) {
-    if (headingId) ctx.usedHeadingIds.add(headingId);
-    else headingId = uniqueHeadingId(slugifyHeading(plan.text), ctx.usedHeadingIds);
+    headingId = uniqueHeadingAnchorId(
+      { text: plan.text, id: headingId },
+      ctx.usedHeadingIds,
+    );
     ctx.outline.push(
       displayUnnumbered
         ? { id: headingId, text: plan.text, html: inner.html, level: plan.level }
@@ -1682,7 +1677,7 @@ function walkDocument(
     blockNumbering: frontmatter.config.numbering ?? "grouped",
     blockNumberingSpec: createConfiguredBlockNumberingSpecLookup(blockConfig),
     blockTitles: blockTitleOverridesFromConfig(blockConfig),
-    equationCounter: 0,
+    equationCounter: initialEquationNumberCounter(),
     footnotesById: new Map(),
     footnotesInOrder: [],
     citedKeys: [],

@@ -97,7 +97,7 @@ describe("mountEditor", () => {
         line: 5,
         from: 28,
         key: "28",
-        id: undefined,
+        id: "lemma",
         number: "1.1",
       },
     ]);

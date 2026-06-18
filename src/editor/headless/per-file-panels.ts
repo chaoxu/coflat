@@ -9,6 +9,7 @@ import { renderDocumentFragmentToHtml } from "../document-surfaces";
 import { createEditorReferencePresentationController } from "../references/presentation";
 import { documentAnalysisField } from "../state/document-analysis";
 import type { DocumentAnalysis } from "../semantics/document";
+import { buildHeadingAnchorIds } from "../../core/semantics/heading-anchors";
 
 export interface OutlineEntry {
   /** Heading level, 1 for `#`, 6 for `######`. */
@@ -25,7 +26,7 @@ export interface OutlineEntry {
   readonly from: number;
   /** Stable render key generated from the heading position and content. */
   readonly key: string;
-  /** Explicit Markdown heading id, when present, for example `{#sec:intro}`. */
+  /** Stable heading anchor id: explicit `{#id}` when present, else a generated slug. */
   readonly id?: string;
   /** Hierarchical section number, when the heading participates in numbering. */
   readonly number?: string;
@@ -219,6 +220,7 @@ function computeOutline(view: EditorView): readonly OutlineEntry[] {
     surface: surfacePolicy.referenceHostSurface,
   });
   const mathMacros = view.state.facet(documentContextFacet).mathMacros;
+  const headingAnchorIds = buildHeadingAnchorIds(analysis.headings);
 
   return analysis.headings.map((heading) => {
     const line = view.state.doc.lineAt(heading.from);
@@ -237,7 +239,7 @@ function computeOutline(view: EditorView): readonly OutlineEntry[] {
       line: line.number,
       from: heading.from,
       key: String(heading.from),
-      id: heading.id || undefined,
+      id: headingAnchorIds.get(heading.from),
       number: heading.number || undefined,
     };
   });
