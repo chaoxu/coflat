@@ -7,6 +7,8 @@
 
 /** Lezer node type names from @lezer/markdown and custom extensions. */
 export const NODE = {
+  Document: "Document",
+
   // Headings
   ATXHeading1: "ATXHeading1",
   ATXHeading2: "ATXHeading2",
@@ -47,6 +49,7 @@ export const NODE = {
   Blockquote: "Blockquote",
   HorizontalRule: "HorizontalRule",
   HTMLBlock: "HTMLBlock",
+  CommentBlock: "CommentBlock",
   SetextHeading1: "SetextHeading1",
   SetextHeading2: "SetextHeading2",
 

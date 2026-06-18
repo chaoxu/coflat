@@ -254,6 +254,21 @@ export interface BlockRenderPlanOptions {
   readonly sourceRanges?: boolean;
 }
 
+export type BlockNodeRenderKind =
+  | "document"
+  | "paragraph"
+  | "heading"
+  | "horizontal-rule"
+  | "display-math"
+  | "code-block"
+  | "blockquote"
+  | "list"
+  | "table"
+  | "fenced-div"
+  | "footnote-definition"
+  | "ignored"
+  | "fallback";
+
 export interface DocumentRenderChildPlan {
   readonly node: SyntaxNode;
   readonly blankBeforeRanges: readonly {
@@ -271,6 +286,40 @@ export interface DocumentRenderPlan {
     readonly to: number;
   }[];
   readonly topLevelRenderableCount: number;
+}
+
+export function blockNodeRenderKind(name: string): BlockNodeRenderKind {
+  if (headingLevelFor(name)) return "heading";
+  switch (name) {
+    case NODE.Document:
+      return "document";
+    case NODE.Paragraph:
+      return "paragraph";
+    case NODE.HorizontalRule:
+      return "horizontal-rule";
+    case NODE.DisplayMath:
+      return "display-math";
+    case NODE.FencedCode:
+    case NODE.CodeBlock:
+      return "code-block";
+    case NODE.Blockquote:
+      return "blockquote";
+    case NODE.BulletList:
+    case NODE.OrderedList:
+      return "list";
+    case NODE.Table:
+      return "table";
+    case NODE.FencedDiv:
+      return "fenced-div";
+    case NODE.FootnoteDef:
+      return "footnote-definition";
+    case NODE.HTMLBlock:
+    case NODE.CommentBlock:
+    case NODE.Frontmatter:
+      return "ignored";
+    default:
+      return "fallback";
+  }
 }
 
 export function documentRenderPlan(

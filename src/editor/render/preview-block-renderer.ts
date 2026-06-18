@@ -68,6 +68,7 @@ import {
 } from "../../core/semantics/block-numbering";
 import type { BlockPresentationPlan } from "../../core/block-presentation";
 import {
+  blockNodeRenderKind,
   blockquoteRenderPlan,
   codeBlockRenderPlan,
   documentRenderPlan,
@@ -173,55 +174,44 @@ function renderNode(
   node: SyntaxNode,
   context: PreviewRenderContext,
 ): void {
-  switch (node.name) {
-    case "Document":
+  switch (blockNodeRenderKind(node.name)) {
+    case "document":
       renderDocument(parent, node, context);
       return;
-    case "Paragraph":
+    case "paragraph":
       renderParagraph(parent, node, context);
       return;
-    case "ATXHeading1":
-    case "ATXHeading2":
-    case "ATXHeading3":
-    case "ATXHeading4":
-    case "ATXHeading5":
-    case "ATXHeading6":
-    case "SetextHeading1":
-    case "SetextHeading2":
+    case "heading":
       renderHeading(parent, node, context);
       return;
-    case "FencedCode":
+    case "code-block":
       renderFencedCode(parent, node, context);
       return;
-    case "CodeBlock":
-      renderFencedCode(parent, node, context);
-      return;
-    case "BulletList":
+    case "list":
       renderList(parent, node, context);
       return;
-    case "OrderedList":
-      renderList(parent, node, context);
-      return;
-    case "HorizontalRule": {
+    case "horizontal-rule": {
       renderHorizontalRule(parent, node);
       return;
     }
-    case "FencedDiv":
+    case "fenced-div":
       renderFencedDiv(parent, node, context);
       return;
-    case "DisplayMath":
+    case "display-math":
       renderDisplayMath(parent, node, context);
       return;
-    case "FootnoteDef":
+    case "footnote-definition":
       renderFootnoteDef(parent, node, context);
       return;
-    case "Table":
+    case "table":
       renderPreviewTable(parent, node, context);
       return;
-    case "Blockquote":
+    case "blockquote":
       renderBlockquote(parent, node, context);
       return;
-    default:
+    case "ignored":
+      return;
+    case "fallback":
       renderChildNodes(parent, node, context);
       return;
   }

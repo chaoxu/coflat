@@ -2,6 +2,11 @@ import {
   DOCUMENT_SURFACE_CLASS,
   documentSurfaceClassNames,
 } from "./document-surface-classes";
+import type {
+  TableCellRenderPlan,
+  TableRenderPlan,
+  TableRowRenderPlan,
+} from "./block-render-plan";
 
 export type TableCellAlign = "left" | "center" | "right";
 
@@ -95,4 +100,86 @@ export function renderTableCellHtml(
   align: string | null | undefined,
 ): string {
   return `<${tag}${tableCellSurfaceAttrs(tag === "th", align)}>${innerHtml}</${tag}>`;
+}
+
+export function createTablePlanElement(
+  ownerDocument: Document,
+  plan: TableRenderPlan,
+  renderCellContent: (
+    cell: HTMLTableCellElement,
+    cellPlan: TableCellRenderPlan,
+    rowPlan: TableRowRenderPlan,
+  ) => void,
+): HTMLTableElement {
+  const table = createTableSurfaceElement(ownerDocument);
+  const thead = ownerDocument.createElement("thead");
+  const tbody = ownerDocument.createElement("tbody");
+
+  if (plan.header) {
+    thead.appendChild(createTablePlanRowElement(ownerDocument, plan.header, renderCellContent));
+  }
+  for (const row of plan.rows) {
+    tbody.appendChild(createTablePlanRowElement(ownerDocument, row, renderCellContent));
+  }
+
+  if (thead.children.length > 0) table.appendChild(thead);
+  if (tbody.children.length > 0) table.appendChild(tbody);
+  return table;
+}
+
+function createTablePlanRowElement(
+  ownerDocument: Document,
+  rowPlan: TableRowRenderPlan,
+  renderCellContent: (
+    cell: HTMLTableCellElement,
+    cellPlan: TableCellRenderPlan,
+    rowPlan: TableRowRenderPlan,
+  ) => void,
+): HTMLTableRowElement {
+  const row = createTableRowSurfaceElement(ownerDocument);
+  const tag = rowPlan.header ? "th" : "td";
+  for (const cellPlan of rowPlan.cells) {
+    const cell = createTableCellElement(ownerDocument, tag, cellPlan.align);
+    renderCellContent(cell, cellPlan, rowPlan);
+    row.appendChild(cell);
+  }
+  return row;
+}
+
+export function renderTablePlanHtml(
+  plan: TableRenderPlan,
+  options: {
+    readonly tableAttrs?: string;
+    readonly rowAttrs?: (rowPlan: TableRowRenderPlan) => string;
+    readonly renderCell: (
+      cellPlan: TableCellRenderPlan,
+      rowPlan: TableRowRenderPlan,
+    ) => string;
+  },
+): string {
+  const headerRowsHtml = plan.header
+    ? [renderTablePlanRowHtml(plan.header, options)]
+    : [];
+  const bodyRowsHtml = plan.rows.map((row) => renderTablePlanRowHtml(row, options));
+  let inner = "";
+  if (headerRowsHtml.length) inner += `<thead>${headerRowsHtml.join("")}</thead>`;
+  if (bodyRowsHtml.length) inner += `<tbody>${bodyRowsHtml.join("")}</tbody>`;
+  return renderTableSurfaceHtml(inner, options.tableAttrs ?? "");
+}
+
+function renderTablePlanRowHtml(
+  rowPlan: TableRowRenderPlan,
+  options: {
+    readonly rowAttrs?: (rowPlan: TableRowRenderPlan) => string;
+    readonly renderCell: (
+      cellPlan: TableCellRenderPlan,
+      rowPlan: TableRowRenderPlan,
+    ) => string;
+  },
+): string {
+  const tag = rowPlan.header ? "th" : "td";
+  const cells = rowPlan.cells.map((cell) =>
+    renderTableCellHtml(tag, options.renderCell(cell, rowPlan), cell.align)
+  );
+  return renderTableRowHtml(cells.join(""), options.rowAttrs?.(rowPlan) ?? "");
 }

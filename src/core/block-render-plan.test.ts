@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { parseMarkdownSource } from "./parser";
 import {
+  blockNodeRenderKind,
   blockquoteRenderPlan,
   codeBlockRenderPlan,
   documentRenderPlan,
@@ -61,6 +62,29 @@ describe("documentRenderPlan", () => {
     expect(withoutTitle.trailingBlankRanges).toEqual([]);
     expect(withTitle.topLevelRenderableCount).toBe(2);
     expect(withTitle.trailingBlankRanges.map((range) => source.slice(range.from, range.to))).toEqual(["\n"]);
+  });
+});
+
+describe("blockNodeRenderKind", () => {
+  it("classifies block nodes once for reader and editor dispatch", () => {
+    expect(blockNodeRenderKind("Document")).toBe("document");
+    expect(blockNodeRenderKind("Paragraph")).toBe("paragraph");
+    expect(blockNodeRenderKind("ATXHeading1")).toBe("heading");
+    expect(blockNodeRenderKind("SetextHeading2")).toBe("heading");
+    expect(blockNodeRenderKind("HorizontalRule")).toBe("horizontal-rule");
+    expect(blockNodeRenderKind("DisplayMath")).toBe("display-math");
+    expect(blockNodeRenderKind("FencedCode")).toBe("code-block");
+    expect(blockNodeRenderKind("CodeBlock")).toBe("code-block");
+    expect(blockNodeRenderKind("Blockquote")).toBe("blockquote");
+    expect(blockNodeRenderKind("BulletList")).toBe("list");
+    expect(blockNodeRenderKind("OrderedList")).toBe("list");
+    expect(blockNodeRenderKind("Table")).toBe("table");
+    expect(blockNodeRenderKind("FencedDiv")).toBe("fenced-div");
+    expect(blockNodeRenderKind("FootnoteDef")).toBe("footnote-definition");
+    expect(blockNodeRenderKind("HTMLBlock")).toBe("ignored");
+    expect(blockNodeRenderKind("CommentBlock")).toBe("ignored");
+    expect(blockNodeRenderKind("Frontmatter")).toBe("ignored");
+    expect(blockNodeRenderKind("CustomContainer")).toBe("fallback");
   });
 });
 

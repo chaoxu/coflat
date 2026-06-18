@@ -21,6 +21,7 @@ import {
 } from "../core/document-surface-policy";
 import { inlineSurfacePolicy } from "../core/inline-surface-policy";
 import {
+  blockNodeRenderKind,
   blockquoteRenderPlan,
   codeBlockRenderPlan,
   documentRenderPlan,
@@ -124,9 +125,7 @@ import {
   renderReferenceSurfaceHtml,
 } from "../core/reference-surface";
 import {
-  renderTableCellHtml,
-  renderTableRowHtml,
-  renderTableSurfaceHtml,
+  renderTablePlanHtml,
 } from "../core/table-surface";
 import {
   createHoverPreviewBodyElement,
@@ -1166,36 +1165,26 @@ function blockMathSourceAttrs(ctx: WalkContext, from: number, to: number): strin
 }
 
 function renderBlock(ctx: WalkContext, node: SyntaxNode): BlockResult {
-  const name = node.name;
-
-  // Headings (ATX + Setext) — uniform handling.
-  const headingLevel = headingLevelFor(name);
-  if (headingLevel) {
-    return renderHeading(ctx, node);
-  }
-
-  switch (name) {
-    case NODE.Paragraph:
+  switch (blockNodeRenderKind(node.name)) {
+    case "heading":
+      return renderHeading(ctx, node);
+    case "paragraph":
       return renderParagraph(ctx, node);
-    case NODE.BulletList:
+    case "list":
       return renderList(ctx, node);
-    case NODE.OrderedList:
-      return renderList(ctx, node);
-    case NODE.Blockquote:
+    case "blockquote":
       return renderBlockquote(ctx, node);
-    case NODE.FencedCode:
+    case "code-block":
       return renderFencedCode(ctx, node);
-    case "CodeBlock":
-      return renderIndentedCode(ctx, node);
-    case NODE.HorizontalRule:
+    case "horizontal-rule":
       return renderHorizontalRule(ctx, node);
-    case "Table":
+    case "table":
       return renderTable(ctx, node);
-    case NODE.FencedDiv:
+    case "fenced-div":
       return renderFencedDiv(ctx, node);
-    case "FootnoteDef":
+    case "footnote-definition":
       return renderFootnoteDef(ctx, node);
-    case NODE.DisplayMath: {
+    case "display-math": {
       const plan = displayMathRenderPlan(ctx.source, node);
       const raw = ctx.source.slice(plan.sourceRange.from, plan.sourceRange.to);
       const equationId = plan.equationId;
@@ -1233,12 +1222,13 @@ function renderBlock(ctx: WalkContext, node: SyntaxNode): BlockResult {
         hasMath: true,
       };
     }
-    case NODE.HTMLBlock:
-    case "CommentBlock":
-    case NODE.Frontmatter:
+    case "ignored":
       // Drop frontmatter / HTML blocks from rendered output. Sanitizer
       // would strip raw HTML anyway; explicit drop avoids re-injection.
       return emptyBlock();
+    case "document":
+    case "fallback":
+      break;
   }
 
   // Unknown block — emit its inline content as a paragraph fallback.
@@ -1480,77 +1470,36 @@ function renderFencedCode(ctx: WalkContext, node: SyntaxNode): BlockResult {
   };
 }
 
-function renderIndentedCode(ctx: WalkContext, node: SyntaxNode): BlockResult {
-  const plan = codeBlockRenderPlan(ctx.source, node);
-  return {
-    html: renderCodeBlockHtml(
-      plan.language,
-      plan.code,
-      blockSourceAttrs(ctx, plan.sourceRange.from, plan.sourceRange.to),
-    ),
-    text: plan.code,
-    hasMath: false,
-  };
-}
-
 function renderTable(ctx: WalkContext, node: SyntaxNode): BlockResult {
   const plan = tableRenderPlan(ctx.source, node, {
     sourceRanges: ctx.sourcePositions || ctx.mathSourcePositions,
   });
 
-  const headerRowsHtml: string[] = [];
-  const bodyRowsHtml: string[] = [];
-  const textRows: string[] = [];
+  const textRowsByFrom = new Map<number, string[]>();
   let hasMath = false;
-
-  if (plan.header) {
-    const { rowHtml, rowText, hasMath: rowHasMath } = renderTableRow(ctx, plan.header);
-    headerRowsHtml.push(rowHtml);
-    textRows.push(rowText);
-    if (rowHasMath) hasMath = true;
-  }
-  for (const row of plan.rows) {
-    const { rowHtml, rowText, hasMath: rowHasMath } = renderTableRow(ctx, row);
-    bodyRowsHtml.push(rowHtml);
-    textRows.push(rowText);
-    if (rowHasMath) hasMath = true;
-  }
-
-  let inner = "";
-  if (headerRowsHtml.length) inner += `<thead>${headerRowsHtml.join("")}</thead>`;
-  if (bodyRowsHtml.length) inner += `<tbody>${bodyRowsHtml.join("")}</tbody>`;
-  return {
-    html: renderTableSurfaceHtml(inner, blockSourceAttrs(ctx, plan.sourceRange.from, plan.sourceRange.to)),
-    text: textRows.join("\n"),
-    hasMath,
-  };
-}
-
-function renderTableRow(
-  ctx: WalkContext,
-  row: TableRowRenderPlan,
-): { rowHtml: string; rowText: string; hasMath: boolean } {
-  const cellHtmls: string[] = [];
-  const cellTexts: string[] = [];
-  let hasMath = false;
-  row.cells.forEach((cell) => {
-    const inner = renderInlineFragmentsForReader(
-      ctx,
-      cell.fragments,
-      cell.contentRange.from,
-      cell.contentRange.to,
-    );
-    const tag = row.header ? "th" : "td";
-    cellHtmls.push(renderTableCellHtml(tag, inner.html, cell.align));
-    cellTexts.push(inner.text);
-    if (inner.hasMath) hasMath = true;
+  const html = renderTablePlanHtml(plan, {
+    tableAttrs: blockSourceAttrs(ctx, plan.sourceRange.from, plan.sourceRange.to),
+    rowAttrs: (row) => blockSourceAttrs(ctx, row.sourceRange.from, row.sourceRange.to),
+    renderCell: (cell, row) => {
+      const inner = renderInlineFragmentsForReader(
+        ctx,
+        cell.fragments,
+        cell.contentRange.from,
+        cell.contentRange.to,
+      );
+      const rowTexts = textRowsByFrom.get(row.sourceRange.from) ?? [];
+      rowTexts.push(inner.text);
+      textRowsByFrom.set(row.sourceRange.from, rowTexts);
+      if (inner.hasMath) hasMath = true;
+      return inner.html;
+    },
   });
+  const textRows = [plan.header, ...plan.rows]
+    .filter((row): row is TableRowRenderPlan => row !== null)
+    .map((row) => (textRowsByFrom.get(row.sourceRange.from) ?? []).join("\t"));
   return {
-    rowHtml: renderTableRowHtml(
-      cellHtmls.join(""),
-      blockSourceAttrs(ctx, row.sourceRange.from, row.sourceRange.to),
-    ),
-    rowText: cellTexts.join("\t"),
+    html,
+    text: textRows.join("\n"),
     hasMath,
   };
 }
@@ -1714,20 +1663,13 @@ function renderReferencesList(ctx: WalkContext): string {
 //   table=row count, math display=1, fenced div=1+nested cost, hr=1,
 //   blockquote=recurse, other=0.
 function blockLineCost(source: string, node: SyntaxNode): number {
-  const name = node.name;
-  switch (name) {
-    case NODE.ATXHeading1: case NODE.ATXHeading2: case NODE.ATXHeading3:
-    case NODE.ATXHeading4: case NODE.ATXHeading5: case NODE.ATXHeading6:
-    case NODE.SetextHeading1: case NODE.SetextHeading2:
+  switch (blockNodeRenderKind(node.name)) {
+    case "heading":
+    case "paragraph":
+    case "horizontal-rule":
+    case "display-math":
       return 1;
-    case NODE.Paragraph:
-      return 1;
-    case NODE.HorizontalRule:
-      return 1;
-    case NODE.DisplayMath:
-      return 1;
-    case NODE.BulletList:
-    case NODE.OrderedList: {
+    case "list": {
       let count = 0;
       let c = node.firstChild;
       while (c) {
@@ -1736,11 +1678,10 @@ function blockLineCost(source: string, node: SyntaxNode): number {
       }
       return count;
     }
-    case NODE.FencedCode:
-    case "CodeBlock": {
+    case "code-block": {
       // Count newlines in the fenced content region.
-      const marks = node.getChildren("CodeMark");
-      const info = node.getChild("CodeInfo");
+      const marks = node.getChildren(NODE.CodeMark);
+      const info = node.getChild(NODE.CodeInfo);
       let from = node.from;
       let to = node.to;
       if (marks.length >= 1) from = info ? info.to : marks[0].to;
@@ -1749,23 +1690,23 @@ function blockLineCost(source: string, node: SyntaxNode): number {
       if (content.length === 0) return 0;
       return content.split("\n").length;
     }
-    case "Table": {
+    case "table": {
       let count = 0;
       let c = node.firstChild;
       while (c) {
-        if (c.name === "TableHeader" || c.name === "TableRow") count++;
+        if (c.name === NODE.TableHeader || c.name === NODE.TableRow) count++;
         c = c.nextSibling;
       }
       return count;
     }
-    case NODE.FencedDiv: {
+    case "fenced-div": {
       let nested = 0;
       let c = node.firstChild;
       while (c) {
         if (
           c.name !== NODE.FencedDivFence &&
           c.name !== NODE.FencedDivAttributes &&
-          c.name !== "FencedDivTitle"
+          c.name !== NODE.FencedDivTitle
         ) {
           nested += blockLineCost(source, c);
         }
@@ -1773,7 +1714,7 @@ function blockLineCost(source: string, node: SyntaxNode): number {
       }
       return 1 + nested;
     }
-    case NODE.Blockquote: {
+    case "blockquote": {
       let nested = 0;
       let c = node.firstChild;
       while (c) {
@@ -1782,6 +1723,11 @@ function blockLineCost(source: string, node: SyntaxNode): number {
       }
       return nested;
     }
+    case "document":
+    case "footnote-definition":
+    case "ignored":
+    case "fallback":
+      return 0;
     default:
       return 0;
   }
