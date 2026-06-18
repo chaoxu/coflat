@@ -77,6 +77,7 @@ import {
   fencedDivRenderPlan,
   headingRenderPlan,
   horizontalRuleRenderPlan,
+  listItemEmissionPlan,
   listRenderPlan,
   type ListItemRenderPlan,
   paragraphRenderPlan,
@@ -332,18 +333,18 @@ function renderListItem(
   plan: ListItemRenderPlan,
   context: PreviewRenderContext,
 ): void {
-  for (const child of plan.children) {
-    if (child.name === "Task") {
-      renderTaskListItem(parent, child, plan, context, !plan.inlineOnly);
-      continue;
+  for (const childPlan of listItemEmissionPlan(plan)) {
+    switch (childPlan.kind) {
+      case "task":
+        renderTaskListItem(parent, childPlan.node, plan, context, childPlan.wrapTaskContent);
+        break;
+      case "inline-paragraph":
+        appendInlineNode(parent, childPlan.node, context);
+        break;
+      case "block":
+        renderNode(parent, childPlan.node, context);
+        break;
     }
-
-    if (child.name === "Paragraph" && plan.inlineOnly) {
-      appendInlineNode(parent, child, context);
-      continue;
-    }
-
-    renderNode(parent, child, context);
   }
 }
 

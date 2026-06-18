@@ -121,6 +121,17 @@ export interface ListItemRenderPlan {
   readonly children: readonly SyntaxNode[];
 }
 
+export type ListItemChildEmissionKind =
+  | "task"
+  | "inline-paragraph"
+  | "block";
+
+export interface ListItemChildEmissionPlan {
+  readonly kind: ListItemChildEmissionKind;
+  readonly node: SyntaxNode;
+  readonly wrapTaskContent: boolean;
+}
+
 export interface ListRenderPlan {
   readonly kind: "list";
   readonly sourceRange: {
@@ -658,6 +669,32 @@ export function listItemRenderPlan(
     task,
     children,
   };
+}
+
+export function listItemEmissionPlan(
+  plan: ListItemRenderPlan,
+): readonly ListItemChildEmissionPlan[] {
+  return plan.children.map((child) => {
+    if (child.name === NODE.Task) {
+      return {
+        kind: "task",
+        node: child,
+        wrapTaskContent: !plan.inlineOnly,
+      };
+    }
+    if (child.name === NODE.Paragraph && plan.inlineOnly) {
+      return {
+        kind: "inline-paragraph",
+        node: child,
+        wrapTaskContent: false,
+      };
+    }
+    return {
+      kind: "block",
+      node: child,
+      wrapTaskContent: false,
+    };
+  });
 }
 
 export function tableRenderPlan(

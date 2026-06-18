@@ -33,6 +33,7 @@ import {
   headingLevelFor,
   headingRenderPlan,
   horizontalRuleRenderPlan,
+  listItemEmissionPlan,
   listRenderPlan,
   type ListItemRenderPlan,
   paragraphRenderPlan,
@@ -97,6 +98,15 @@ import {
   citeInline as coreCiteInline,
   isCitationKey as coreIsCitationKey,
 } from "../core/references/citation-rendering";
+import {
+  classifyReferenceTarget,
+  createHostReferenceRouteResolver,
+  planReferencePresentation,
+  type ReferencePresentationContext,
+  type ReferencePresentationInput,
+  type ReferencePresentationRoute,
+  type ResolvedCrossref,
+} from "../core/references/presentation";
 import { renderBibliographySectionHtml } from "../core/bibliography-surface";
 import {
   formatBlockReferenceLabel,
@@ -155,9 +165,7 @@ import {
 import type {
   CitationFormatter,
   DocumentContext,
-  HostReferenceResolution,
   LinkResolver,
-  RefResolverEnv,
   RefResolver,
 } from "../core/document-context-types";
 export {
@@ -910,35 +918,171 @@ function renderInline(
   );
 }
 
-function buildReaderRefResolverEnv(
-  ctx: WalkContext,
-  raw: string,
-  from: number,
-  to: number,
-  ids: readonly string[],
-  locators: readonly (string | undefined)[],
-  index: number,
-): RefResolverEnv {
+function readerCatalogCrossref(ctx: WalkContext, id: string): ResolvedCrossref | null {
+  const catalogTarget = ctx.resolvers.referenceCatalog?.get(id);
+  if (!catalogTarget) return null;
   return {
-    raw,
-    sourceRange: { from, to },
-    locator: locators[index],
-    cluster: {
-      ids,
-      locators,
-      index,
-      raw,
-    },
-    documentPath: ctx.resolvers.documentPath,
-    surface: ctx.surfacePolicy.referenceHostSurface,
+    kind: catalogTarget.kind,
+    label: catalogTarget.label,
   };
 }
 
-function renderReaderHostReference(resolved: HostReferenceResolution): string {
-  if (resolved.href && isSafeUrl(resolved.href)) {
-    return renderLinkSurfaceHtml(resolved.href, resolved.content);
+function readerReferencePresentationContext(ctx: WalkContext): ReferencePresentationContext {
+  const resolveCrossref = (id: string) => readerCatalogCrossref(ctx, id);
+  return {
+    classify(id) {
+      const resolved = classifyReferenceTarget(resolveCrossref, id);
+      if (resolved.kind === "crossref") return resolved;
+      return coreIsCitationKey(ctx.resolvers.citationKeys, id)
+        ? { kind: "citation", id }
+        : resolved;
+    },
+    cite(ids, locators) {
+      return coreCiteInline(ctx.resolvers.citationFormatter, ids, locators) ?? "";
+    },
+    citeNarrative(id) {
+      return ctx.resolvers.citationFormatter?.citeNarrative(id) ?? id;
+    },
+    resolveHostReference: createHostReferenceRouteResolver({
+      resolver: ctx.resolvers.refResolver,
+      resolveCrossref,
+      documentPath: ctx.resolvers.documentPath,
+      surface: ctx.surfacePolicy.referenceHostSurface,
+    }),
+  };
+}
+
+function readerReferenceInput(
+  ids: readonly string[],
+  locators: readonly (string | undefined)[],
+  raw: string,
+  from: number,
+  to: number,
+  mode: "bracketed" | "narrative",
+): ReferencePresentationInput {
+  return {
+    bracketed: mode === "bracketed",
+    ids,
+    locators,
+    raw,
+    sourceRange: { from, to },
+  };
+}
+
+function routeReferenceText(route: ReferencePresentationRoute): string {
+  switch (route.kind) {
+    case "citation":
+      return route.rendered;
+    case "mixed-cluster":
+      return route.parts.map((part) => part.text).join("; ");
+    case "crossref":
+      return route.resolved.label;
+    case "clustered-crossref":
+      return route.parts.map((part) => part.text).join("; ");
+    case "unresolved":
+      return route.raw;
+    case "host-ref":
+      return route.parts.length > 0
+        ? route.parts.map((part) => part.text).join("; ")
+        : stripTags(route.html);
   }
-  return resolved.content;
+}
+
+function renderReaderReferenceRouteHtml(
+  ctx: WalkContext,
+  input: ReferencePresentationInput,
+  route: ReferencePresentationRoute,
+  sourceAttrs: string,
+): string {
+  const mode = input.bracketed ? "bracketed" : "narrative";
+  switch (route.kind) {
+    case "citation":
+      if (!route.rendered) return escapeHtml(input.raw);
+      if (!input.ids.length) return escapeHtml(route.rendered);
+      return renderReferenceSurfaceHtml(escapeHtml(route.rendered), {
+        className: route.narrative ? CSS.citationNarrative : CSS.citation,
+        refKey: input.ids.join(";"),
+        refMode: mode,
+        sourceAttrs,
+      });
+    case "mixed-cluster":
+      return renderReferenceListSurfaceHtml({
+        className: CSS.citation,
+        refMode: mode,
+        items: route.parts.map((part) => ({
+          id: part.id,
+          text: part.text,
+          refMode: mode,
+        })),
+        prefixText: "(",
+        separatorText: "; ",
+        suffixText: ")",
+        sourceAttrs,
+      });
+    case "crossref": {
+      const id = input.ids[0] ?? "";
+      const catalogTarget = id ? ctx.resolvers.referenceCatalog?.get(id) : undefined;
+      const innerHtml = catalogTarget
+        ? `<a href="#${escapeHtml(encodeURIComponent(id))}">${escapeHtml(route.resolved.label)}</a>`
+        : escapeHtml(route.resolved.label);
+      return renderReferenceSurfaceHtml(innerHtml, {
+        className: CSS.crossref,
+        refKey: id,
+        refMode: mode,
+        sourceAttrs,
+      });
+    }
+    case "clustered-crossref":
+      return renderReferenceListSurfaceHtml({
+        className: CSS.citationCluster,
+        refMode: mode,
+        items: route.parts.map((part) => ({
+          className: part.unresolved ? CSS.crossrefUnresolved : CSS.crossref,
+          id: part.id,
+          innerHtml: part.unresolved
+            ? escapeHtml(part.text)
+            : ctx.resolvers.referenceCatalog?.has(part.id)
+              ? `<a href="#${escapeHtml(encodeURIComponent(part.id))}">${escapeHtml(part.text)}</a>`
+              : escapeHtml(part.text),
+          refMode: mode,
+        })),
+        separatorText: "; ",
+        sourceAttrs,
+      });
+    case "unresolved":
+      return renderReferenceSurfaceHtml(escapeHtml(route.raw), {
+        className: CSS.crossrefUnresolved,
+        refKey: input.ids[0],
+        refMode: mode,
+        sourceAttrs,
+      });
+    case "host-ref": {
+      const className = hostReferenceClassNames(route.className);
+      if (route.parts.length > 1) {
+        return renderReferenceListSurfaceHtml({
+          className: CSS.citationCluster,
+          refMode: route.mode,
+          items: route.parts.map((part) => ({
+            className: hostReferenceClassNames(part.className),
+            id: part.id,
+            innerHtml: part.html,
+            refMode: route.mode,
+          })),
+          separatorText: "; ",
+          sourceAttrs,
+        });
+      }
+      const innerHtml = route.href && isSafeUrl(route.href)
+        ? renderLinkSurfaceHtml(route.href, route.html)
+        : route.html;
+      return renderReferenceSurfaceHtml(innerHtml, {
+        className,
+        refKey: route.key,
+        refMode: route.mode,
+        sourceAttrs,
+      });
+    }
+  }
 }
 
 function emitReferenceCluster(
@@ -950,108 +1094,27 @@ function emitReferenceCluster(
   to: number,
   mode: "bracketed" | "narrative" = "bracketed",
 ): { html: string; text: string; hasMath: boolean } {
-  const refResolver = ctx.resolvers.refResolver;
-  const parts: Array<{ className: string; id: string; innerHtml: string }> = [];
-  const textParts: string[] = [];
-
-  const citationFormatter = ctx.resolvers.citationFormatter;
-  const citationKeys = ctx.resolvers.citationKeys;
-  for (let index = 0; index < ids.length; index += 1) {
-    const id = ids[index];
-    // Paper citation: resolve via the host-supplied formatter (the single source
-    // of truth lives in core/references/citation-rendering), so the reader needs
-    // no host refResolver for citations and can emit the bibliography itself.
-    if (citationFormatter && coreIsCitationKey(citationKeys, id)) {
-      const label = coreCiteInline(citationFormatter, [id], [locators[index]]);
-      if (label !== null) {
-        if (!ctx.citedKeys.includes(id)) ctx.citedKeys.push(id);
-        parts.push({
-          className: CSS.citation,
-          id,
-          innerHtml: escapeHtml(label),
-        });
-        textParts.push(label);
-        continue;
-      }
-    }
-    // In-document crossref resolved from the reader's own numbering catalog
-    // (first walk). The host refResolver stays the fallback for ids the
-    // document doesn't define — e.g. cross-file or workspace references.
-    const catalogTarget = ctx.resolvers.referenceCatalog?.get(id);
-    if (catalogTarget) {
-      const fragment = escapeHtml(encodeURIComponent(id));
-      parts.push({
-        className: CSS.crossref,
-        id,
-        innerHtml: `<a href="#${fragment}">${escapeHtml(catalogTarget.label)}</a>`,
-      });
-      textParts.push(catalogTarget.label);
-      continue;
-    }
-    if (refResolver) {
-      const resolved = refResolver.resolve(
-        id,
-        mode,
-        buildReaderRefResolverEnv(ctx, raw, from, to, ids, locators, index),
-      );
-      if (resolved) {
-        const cls = hostReferenceClassNames(resolved.className);
-        const inner = renderReaderHostReference(resolved);
-        parts.push({ className: cls, id, innerHtml: inner });
-        textParts.push(stripTags(resolved.content));
-        continue;
-      }
-    }
-    if (!ctx.sourcePositions && !id.includes(":")) {
-      parts.push({
-        className: "",
-        id,
-        innerHtml: escapeHtml(ids.length === 1 ? raw : `@${id}`),
-      });
-      textParts.push(ids.length === 1 ? raw : `@${id}`);
-      continue;
-    }
-    const display = ids.length === 1 ? raw : `@${id}`;
-    parts.push({
-      className: CSS.crossrefUnresolved,
-      id,
-      innerHtml: escapeHtml(display),
-    });
-    textParts.push(display);
-  }
-
   const sourceAttrs = ctx.sourcePositions ? sourcePosAttrs(ctx, from, to) : "";
-  if (parts.length === 1 && parts[0].className === "") {
+  const input = readerReferenceInput(ids, locators, raw, from, to, mode);
+  const route = planReferencePresentation(readerReferencePresentationContext(ctx), input);
+  const shouldKeepUnknownCitationInert = route?.kind === "unresolved"
+    && !ctx.sourcePositions
+    && ids.every((id) => !id.includes(":"));
+  if (!route || shouldKeepUnknownCitationInert) {
     return {
-      html: parts[0].innerHtml,
-      text: textParts[0] ?? raw,
+      html: escapeHtml(raw),
+      text: raw,
       hasMath: false,
     };
   }
-  const inner = parts.length === 1
-    ? renderReferenceSurfaceHtml(parts[0].innerHtml, {
-      className: parts[0].className,
-      refKey: parts[0].id,
-      refMode: mode,
-    })
-    : renderReferenceListSurfaceHtml({
-      className: CSS.citationCluster,
-      refMode: mode,
-      items: parts.map((part) => ({
-        className: part.className,
-        id: part.id,
-        innerHtml: part.innerHtml,
-        refMode: mode,
-      })),
-      separatorText: "; ",
-      sourceAttrs,
-    });
-  const html = ctx.sourcePositions && parts.length === 1
-    ? `<span class="${CSS.citationCluster}"${sourceAttrs}>${inner}</span>`
-    : inner;
+  for (const id of ids) {
+    if (coreIsCitationKey(ctx.resolvers.citationKeys, id) && !ctx.citedKeys.includes(id)) {
+      ctx.citedKeys.push(id);
+    }
+  }
   return {
-    html,
-    text: textParts.join("; "),
+    html: renderReaderReferenceRouteHtml(ctx, input, route, sourceAttrs),
+    text: routeReferenceText(route),
     hasMath: false,
   };
 }
@@ -1379,29 +1442,30 @@ function renderListItem(
   plan: ListItemRenderPlan,
 ): BlockResult {
   const blocks: BlockResult[] = [];
-  for (const child of plan.children) {
-    const n = child.name;
-    if (n === NODE.Task && plan.task) {
-      const inner = renderInline(
-        ctx,
-        child,
-        plan.task.trimmedContentRange.from,
-        plan.task.trimmedContentRange.to,
-      );
-      blocks.push({
-        html: renderParagraphHtml(
-          inner.html,
-          blockSourceAttrs(ctx, plan.task.trimmedContentRange.from, plan.task.trimmedContentRange.to),
-        ),
-        text: inner.text,
-        hasMath: inner.hasMath,
-      });
-      continue;
-    }
-    if (n === NODE.Paragraph) {
-      blocks.push(renderParagraph(ctx, child));
-    } else {
-      blocks.push(renderBlock(ctx, child));
+  for (const childPlan of listItemEmissionPlan(plan)) {
+    switch (childPlan.kind) {
+      case "task": {
+        if (!plan.task) break;
+        const inner = renderInline(
+          ctx,
+          childPlan.node,
+          plan.task.trimmedContentRange.from,
+          plan.task.trimmedContentRange.to,
+        );
+        blocks.push({
+          html: renderParagraphHtml(
+            inner.html,
+            blockSourceAttrs(ctx, plan.task.trimmedContentRange.from, plan.task.trimmedContentRange.to),
+          ),
+          text: inner.text,
+          hasMath: inner.hasMath,
+        });
+        break;
+      }
+      case "inline-paragraph":
+      case "block":
+        blocks.push(renderBlock(ctx, childPlan.node));
+        break;
     }
   }
 

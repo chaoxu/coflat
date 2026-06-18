@@ -236,6 +236,11 @@ function buildDegradedCitationItem(
     key: singleKey ?? "",
     mode,
     html,
+    parts: ids.map((id) => ({
+      id,
+      html,
+      text: display,
+    })),
     hasOnClick: false,
     raw,
     ids,

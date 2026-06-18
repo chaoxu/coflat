@@ -13,6 +13,7 @@ import {
   footnoteDefinitionRenderPlan,
   headingRenderPlan,
   horizontalRuleRenderPlan,
+  listItemEmissionPlan,
   listRenderPlan,
   paragraphRenderPlan,
   tableRenderPlan,
@@ -499,6 +500,50 @@ describe("listRenderPlan", () => {
       "Paragraph",
       "BulletList",
     ]);
+  });
+
+  it("plans tight paragraph children for unwrapped list item emission", () => {
+    const source = "- parent";
+    const item = listRenderPlan(source, firstBlock(source, "BulletList")).items[0];
+
+    expect(listItemEmissionPlan(item).map((child) => ({
+      kind: child.kind,
+      node: child.node.name,
+      wrapTaskContent: child.wrapTaskContent,
+    }))).toEqual([
+      { kind: "inline-paragraph", node: "Paragraph", wrapTaskContent: false },
+    ]);
+  });
+
+  it("plans nested list children as block emission", () => {
+    const source = "- parent\n  - child";
+    const item = listRenderPlan(source, firstBlock(source, "BulletList")).items[0];
+
+    expect(listItemEmissionPlan(item).map((child) => ({
+      kind: child.kind,
+      node: child.node.name,
+      wrapTaskContent: child.wrapTaskContent,
+    }))).toEqual([
+      { kind: "block", node: "Paragraph", wrapTaskContent: false },
+      { kind: "block", node: "BulletList", wrapTaskContent: false },
+    ]);
+  });
+
+  it("plans task item wrapping consistently for tight and loose items", () => {
+    const tight = listRenderPlan("- [ ] task", firstBlock("- [ ] task", "BulletList")).items[0];
+    const looseSource = "- [ ] task\n\n  more";
+    const loose = listRenderPlan(looseSource, firstBlock(looseSource, "BulletList")).items[0];
+
+    expect(listItemEmissionPlan(tight)[0]).toMatchObject({
+      kind: "task",
+      node: { name: "Task" },
+      wrapTaskContent: false,
+    });
+    expect(listItemEmissionPlan(loose)[0]).toMatchObject({
+      kind: "task",
+      node: { name: "Task" },
+      wrapTaskContent: true,
+    });
   });
 });
 
