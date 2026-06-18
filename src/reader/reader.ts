@@ -130,6 +130,7 @@ import {
 } from "../core/outline-surface";
 import {
   blockReferenceTarget,
+  compareDocumentReferenceTargetPreference,
   equationReferenceTarget,
   headingReferenceTarget,
   type DocumentReferenceTarget,
@@ -173,6 +174,7 @@ import {
 } from "../core/hover-preview-surface";
 import {
   findReferencePreviewSource,
+  referencePreviewBodyPlan,
   referencePreviewHeaderText,
   unresolvedReferencePreviewLabel,
 } from "../core/reference-preview-source";
@@ -607,6 +609,23 @@ export type ReaderReferencePreviewEntry =
 export type ReaderReferencePreviewIndex = Readonly<Record<string, ReaderReferencePreviewEntry>>;
 
 type ReaderReferencePreviewCatalog = Map<string, ReaderReferencePreviewEntry>;
+
+function setPreferredReaderReferenceTarget(
+  ctx: WalkContext,
+  id: string,
+  target: DocumentReferenceTarget,
+  previewEntry?: ReaderReferencePreviewEntry,
+): boolean {
+  const current = ctx.catalog.get(id);
+  if (current && compareDocumentReferenceTargetPreference(target, current) >= 0) {
+    return false;
+  }
+  ctx.catalog.set(id, target);
+  if (previewEntry) {
+    ctx.referencePreviewIndex.set(id, previewEntry);
+  }
+  return true;
+}
 
 interface Resolvers {
   linkResolver?: LinkResolver;
@@ -1166,12 +1185,9 @@ function renderBlock(ctx: WalkContext, node: SyntaxNode): BlockResult {
           latex: plan.latex,
         })
         : null;
-      if (ctx.buildCatalog && equationId && target) {
-        ctx.catalog.set(equationId, target);
-      }
       if (ctx.buildReferencePreviews && equationId && target && equationNumber !== undefined) {
         const range = displayMathLatexRange(ctx.source, node);
-        ctx.referencePreviewIndex.set(equationId, {
+        setPreferredReaderReferenceTarget(ctx, equationId, target, {
           kind: "equation",
           id: equationId,
           label: target.displayLabel,
@@ -1184,6 +1200,8 @@ function renderBlock(ctx: WalkContext, node: SyntaxNode): BlockResult {
           number: String(equationNumber),
           ordinal: equationNumber,
         });
+      } else if (ctx.buildCatalog && equationId && target) {
+        setPreferredReaderReferenceTarget(ctx, equationId, target);
       }
       return {
         html: renderDisplayMathPlaceholderHtml(plan.latex, raw, {
@@ -1246,11 +1264,8 @@ function renderHeading(ctx: WalkContext, node: SyntaxNode): BlockResult {
     number: headingNumber,
     text: headingTitle,
   });
-  if (ctx.buildCatalog && plan.attributes?.id) {
-    ctx.catalog.set(plan.attributes.id, headingTarget);
-  }
   if (ctx.buildReferencePreviews && plan.attributes?.id) {
-    ctx.referencePreviewIndex.set(plan.attributes.id, {
+    setPreferredReaderReferenceTarget(ctx, plan.attributes.id, headingTarget, {
       kind: "heading",
       id: plan.attributes.id,
       label: headingTarget.displayLabel,
@@ -1261,6 +1276,8 @@ function renderHeading(ctx: WalkContext, node: SyntaxNode): BlockResult {
       to: plan.sourceRange.to,
       ...(headingNumber ? { number: headingNumber } : {}),
     });
+  } else if (ctx.buildCatalog && plan.attributes?.id) {
+    setPreferredReaderReferenceTarget(ctx, plan.attributes.id, headingTarget);
   }
   const displayUnnumbered = !!plan.attributes?.unnumbered || !ctx.numberHeadings;
 
@@ -1514,16 +1531,13 @@ function renderFencedDiv(ctx: WalkContext, node: SyntaxNode): BlockResult {
       number: plan.number,
     })
     : null;
-  if (ctx.buildCatalog && plan.id && blockTarget) {
-    ctx.catalog.set(plan.id, blockTarget);
-  }
   if (ctx.buildReferencePreviews && plan.id && normalizedClassName && blockTarget) {
     const bodyRange = trimSourceRange(
       ctx.source,
       plan.bodyRange?.from ?? plan.sourceRange.from,
       plan.bodyRange?.to ?? plan.sourceRange.from,
     );
-    ctx.referencePreviewIndex.set(plan.id, {
+    setPreferredReaderReferenceTarget(ctx, plan.id, blockTarget, {
       kind: "block",
       id: plan.id,
       label: blockTarget.displayLabel,
@@ -1535,6 +1549,8 @@ function renderFencedDiv(ctx: WalkContext, node: SyntaxNode): BlockResult {
       bodyTo: bodyRange.to,
       ...(plan.number === undefined ? {} : { number: String(plan.number), ordinal: plan.number }),
     });
+  } else if (ctx.buildCatalog && plan.id && blockTarget) {
+    setPreferredReaderReferenceTarget(ctx, plan.id, blockTarget);
   }
   const summary = normalizedClassName
     ? renderBlockSummary(ctx, normalizedClassName, plan.title, plan.titleFragments, plan.number)
@@ -2618,22 +2634,21 @@ function buildReaderIndexedPreview(
   const container = createReaderHoverContainer();
   container.appendChild(createReaderHoverHeader(referencePreviewHeaderText(entry, fallbackLabel)));
 
-  if (entry.kind === "heading") {
-    return container;
-  }
+  const bodyPlan = referencePreviewBodyPlan(
+    entry.kind === "heading"
+      ? { kind: "heading" }
+      : entry.kind === "equation"
+      ? { kind: "equation", latex: entry.latex }
+      : {
+        kind: "block",
+        fullSource: source?.slice(entry.from, entry.to) ?? "",
+        bodySource: source?.slice(entry.bodyFrom, entry.bodyTo) ?? "",
+        useFullSource: false,
+      },
+  );
 
-  if (entry.kind === "equation") {
-    container.appendChild(
-      renderReaderPreviewSource(`$$\n${entry.latex}\n$$`, context, mathMacros),
-    );
-    return container;
-  }
-
-  if (entry.kind === "block" && source) {
-    const bodySource = source.slice(entry.bodyFrom, entry.bodyTo).trim();
-    if (bodySource) {
-      container.appendChild(renderReaderPreviewSource(bodySource, context, mathMacros));
-    }
+  if (bodyPlan.kind === "display-math" || bodyPlan.kind === "markdown") {
+    container.appendChild(renderReaderPreviewSource(bodyPlan.markdownSource, context, mathMacros));
   }
   return container;
 }

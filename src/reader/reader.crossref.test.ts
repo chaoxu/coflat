@@ -134,6 +134,52 @@ describe("reader in-document crossref resolution", () => {
     });
   });
 
+  it("uses the shared preferred target when a heading and block share an id", () => {
+    const src = [
+      "# Duplicate heading {#dup}",
+      "",
+      "::: {.theorem #dup}",
+      "Preferred body.",
+      ":::",
+      "",
+      "See [@dup].",
+    ].join("\n");
+
+    const { html, referencePreviewIndex } = renderToHtml(src, undefined, {
+      referencePreviews: true,
+      resolveReferences: true,
+    });
+
+    expect(html).toMatch(/data-ref-key="dup"[\s\S]*?>Theorem 1</);
+    expect(html).not.toMatch(/data-ref-key="dup"[\s\S]*?>Section 1</);
+    expect(referencePreviewIndex?.dup).toMatchObject({
+      kind: "block",
+      label: "Theorem 1",
+    });
+  });
+
+  it("keeps the first same-kind target when duplicate headings share an id", () => {
+    const src = [
+      "# First {#dup}",
+      "",
+      "# Second {#dup}",
+      "",
+      "See [@dup].",
+    ].join("\n");
+
+    const { html, referencePreviewIndex } = renderToHtml(src, undefined, {
+      referencePreviews: true,
+      resolveReferences: true,
+    });
+
+    expect(html).toMatch(/data-ref-key="dup"[\s\S]*?>Section 1</);
+    expect(referencePreviewIndex?.dup).toMatchObject({
+      kind: "heading",
+      label: "Section 1",
+      title: "First",
+    });
+  });
+
   it("resolves a FORWARD reference (ref before its target)", () => {
     const src = "See [@thm:later].\n\n::: {.theorem #thm:later}\nBody.\n:::";
     const { html } = renderToHtml(src, undefined, OPTS);

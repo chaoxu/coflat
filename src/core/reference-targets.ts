@@ -142,14 +142,32 @@ export function buildReferenceTargetIndexes(
   };
 }
 
+export function compareDocumentReferenceTargetPreference(
+  left: Pick<DocumentReferenceTarget, "kind">,
+  right: Pick<DocumentReferenceTarget, "kind">,
+): number {
+  const rank = (kind: DocumentReferenceTargetKind) => {
+    switch (kind) {
+      case "block":
+        return 0;
+      case "equation":
+        return 1;
+      case "heading":
+        return 2;
+    }
+  };
+  return rank(left.kind) - rank(right.kind);
+}
+
 export function getPreferredDocumentReferenceTarget(
   targetsById: ReadonlyMap<string, readonly DocumentReferenceTarget[]>,
   id: string,
 ): DocumentReferenceTarget | undefined {
   const targets = targetsById.get(id);
   if (!targets) return undefined;
-  return targets.find((target) => target.kind === "block")
-    ?? targets.find((target) => target.kind === "equation")
-    ?? targets.find((target) => target.kind === "heading");
+  return targets.reduce<DocumentReferenceTarget | undefined>((preferred, target) =>
+    !preferred || compareDocumentReferenceTargetPreference(target, preferred) < 0
+      ? target
+      : preferred,
+  undefined);
 }
-

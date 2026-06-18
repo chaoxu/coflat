@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   blockReferenceTarget,
   buildReferenceTargetIndexes,
+  compareDocumentReferenceTargetPreference,
   equationReferenceTarget,
   getPreferredDocumentReferenceTarget,
   headingReferenceTarget,
@@ -85,5 +86,13 @@ describe("reference target helpers", () => {
     expect(getPreferredDocumentReferenceTarget(indexes.targetsById, "dup")?.kind)
       .toBe("block");
   });
-});
 
+  it("compares target preference without reordering equal kinds", () => {
+    expect(compareDocumentReferenceTargetPreference({ kind: "block" }, { kind: "heading" }))
+      .toBeLessThan(0);
+    expect(compareDocumentReferenceTargetPreference({ kind: "equation" }, { kind: "block" }))
+      .toBeGreaterThan(0);
+    expect(compareDocumentReferenceTargetPreference({ kind: "heading" }, { kind: "heading" }))
+      .toBe(0);
+  });
+});

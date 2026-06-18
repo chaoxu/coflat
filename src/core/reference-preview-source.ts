@@ -12,6 +12,38 @@ export interface ReferencePreviewSourceMatch {
   readonly previewSource: string;
 }
 
+export type ReferencePreviewBodyPlan =
+  | {
+      readonly kind: "none";
+      readonly key: "none";
+    }
+  | {
+      readonly kind: "display-math";
+      readonly latex: string;
+      readonly markdownSource: string;
+      readonly key: string;
+    }
+  | {
+      readonly kind: "markdown";
+      readonly markdownSource: string;
+      readonly key: string;
+    };
+
+export type ReferencePreviewBodyInput =
+  | {
+      readonly kind: "heading";
+    }
+  | {
+      readonly kind: "equation";
+      readonly latex: string;
+    }
+  | {
+      readonly kind: "block";
+      readonly fullSource: string;
+      readonly bodySource: string;
+      readonly useFullSource: boolean;
+    };
+
 export function unresolvedReferencePreviewLabel(key: string): string {
   return `Unresolved: ${key}`;
 }
@@ -28,6 +60,33 @@ export function referencePreviewHeaderText(
     return `${entry.label ?? fallback} ${entry.title}`;
   }
   return entry.label || fallback;
+}
+
+export function referencePreviewBodyPlan(
+  input: ReferencePreviewBodyInput,
+): ReferencePreviewBodyPlan {
+  if (input.kind === "heading") {
+    return { kind: "none", key: "none" };
+  }
+
+  if (input.kind === "equation") {
+    const latex = input.latex.trim();
+    if (!latex) return { kind: "none", key: "none" };
+    return {
+      kind: "display-math",
+      latex,
+      markdownSource: `$$\n${latex}\n$$`,
+      key: `display-math\0${latex}`,
+    };
+  }
+
+  const markdownSource = (input.useFullSource ? input.fullSource : input.bodySource).trim();
+  if (!markdownSource) return { kind: "none", key: "none" };
+  return {
+    kind: "markdown",
+    markdownSource,
+    key: `${input.useFullSource ? "full" : "body"}\0${markdownSource}`,
+  };
 }
 
 function escapeRegExpLiteral(value: string): string {

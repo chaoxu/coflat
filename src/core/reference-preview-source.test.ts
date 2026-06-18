@@ -5,6 +5,7 @@ import {
   findFencedDivPreviewSource,
   findHeadingPreviewSource,
   findReferencePreviewSource,
+  referencePreviewBodyPlan,
   referencePreviewHeaderText,
   stripBracedLabelId,
   unresolvedReferencePreviewLabel,
@@ -23,6 +24,43 @@ describe("reference preview source helpers", () => {
       title: "Theorem 4",
     }, "thm:main")).toBe("Theorem 4");
     expect(unresolvedReferencePreviewLabel("missing")).toBe("Unresolved: missing");
+  });
+
+  it("plans shared hover preview bodies", () => {
+    expect(referencePreviewBodyPlan({ kind: "heading" })).toEqual({
+      kind: "none",
+      key: "none",
+    });
+
+    expect(referencePreviewBodyPlan({ kind: "equation", latex: " a=b " }))
+      .toEqual({
+        kind: "display-math",
+        latex: "a=b",
+        markdownSource: "$$\na=b\n$$",
+        key: "display-math\0a=b",
+      });
+
+    expect(referencePreviewBodyPlan({
+      kind: "block",
+      fullSource: "::: {.theorem #t}\nBody\n:::",
+      bodySource: "\nBody\n",
+      useFullSource: false,
+    })).toEqual({
+      kind: "markdown",
+      markdownSource: "Body",
+      key: "body\0Body",
+    });
+
+    expect(referencePreviewBodyPlan({
+      kind: "block",
+      fullSource: "::: {.figure #f}\n![x](x.png)\n:::",
+      bodySource: "![x](x.png)",
+      useFullSource: true,
+    })).toMatchObject({
+      kind: "markdown",
+      markdownSource: "::: {.figure #f}\n![x](x.png)\n:::",
+      key: "full\0::: {.figure #f}\n![x](x.png)\n:::",
+    });
   });
 
   it("extracts dollar and bracket display math preview source", () => {

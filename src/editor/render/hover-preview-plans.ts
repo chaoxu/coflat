@@ -17,6 +17,7 @@ import {
   type LocalMediaDependencies,
 } from "./media-preview";
 import {
+  referencePreviewBodyPlan,
   referencePreviewHeaderText,
   unresolvedReferencePreviewLabel,
 } from "../../core/reference-preview-source";
@@ -133,17 +134,21 @@ function buildBlockPreviewPlan(
   useFullBlockSource: boolean,
   macros: Record<string, string>,
 ): BlockPreviewPlan {
-  const text = useFullBlockSource
-    ? extractBlockSource(view, block)
-    : extractBlockContent(view, block);
-  if (!text) {
+  const bodyPlan = referencePreviewBodyPlan({
+    kind: "block",
+    fullSource: extractBlockSource(view, block),
+    bodySource: extractBlockContent(view, block),
+    useFullSource: useFullBlockSource,
+  });
+  if (bodyPlan.kind !== "markdown") {
     return {
       buildBody: () => null,
-      key: `${useFullBlockSource ? "full" : "inner"}\0empty`,
+      key: bodyPlan.key,
       mediaDependencies: EMPTY_LOCAL_MEDIA_DEPENDENCIES,
     };
   }
 
+  const text = bodyPlan.markdownSource;
   const mediaState = buildBlockPreviewMediaState(view, text);
   return {
     buildBody: () => {
@@ -162,7 +167,7 @@ function buildBlockPreviewPlan(
       );
       return body;
     },
-    key: `${useFullBlockSource ? "full" : "inner"}\0${text}\0${mediaState.key}`,
+    key: `${bodyPlan.key}\0${mediaState.key}`,
     mediaDependencies: mediaState.mediaDependencies,
   };
 }
@@ -249,16 +254,19 @@ function buildCrossrefTooltipPlan(
   }
 
   if (resolved.kind === "equation") {
-    const eqContent = findEquationSource(view, id);
+    const equationPlan = referencePreviewBodyPlan({
+      kind: "equation",
+      latex: findEquationSource(view, id) ?? "",
+    });
     return {
       buildContent: () => {
         const container = createCrossrefPreviewContainer(variant);
-        const body = eqContent
+        const body = equationPlan.kind === "display-math"
           ? createPreviewSurfaceBody(CSS.hoverPreviewBody)
           : null;
 
-        if (body && eqContent) {
-          renderKatex(body, eqContent, true, macros);
+        if (body && equationPlan.kind === "display-math") {
+          renderKatex(body, equationPlan.latex, true, macros);
         }
 
         if (variant === "completion" && body) {
@@ -278,7 +286,7 @@ function buildCrossrefTooltipPlan(
       cacheScope: view.state,
       dependsOnBibliography: false,
       dependsOnMacros: true,
-      key: `crossref:equation\0${variant}\0${id}\0${resolved.label}\0${eqContent ?? ""}`,
+      key: `crossref:equation\0${variant}\0${id}\0${resolved.label}\0${equationPlan.key}`,
       mediaDependencies: EMPTY_LOCAL_MEDIA_DEPENDENCIES,
     };
   }
