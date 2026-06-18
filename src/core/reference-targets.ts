@@ -56,6 +56,14 @@ export interface DocumentReferenceTargetIndexes {
   readonly duplicatesById: ReadonlyMap<string, readonly DocumentReferenceTarget[]>;
 }
 
+export interface DocumentReferenceTargetCollection extends DocumentReferenceTargetIndexes {
+  readonly targets: readonly DocumentReferenceTarget[];
+}
+
+export interface DocumentReferenceTargetPositionMapper {
+  mapPos(pos: number, assoc?: number): number;
+}
+
 function lineField(line: number | undefined): { line?: number } {
   return line === undefined ? {} : { line };
 }
@@ -143,6 +151,16 @@ export function buildReferenceTargetIndexes(
   };
 }
 
+export function buildDocumentReferenceTargetCollection(
+  targets: readonly DocumentReferenceTarget[],
+): DocumentReferenceTargetCollection {
+  const sortedTargets = sortDocumentReferenceTargets(targets);
+  return {
+    targets: sortedTargets,
+    ...buildReferenceTargetIndexes(sortedTargets),
+  };
+}
+
 export function compareDocumentReferenceTargetPreference(
   left: Pick<DocumentReferenceTarget, "kind">,
   right: Pick<DocumentReferenceTarget, "kind">,
@@ -160,6 +178,25 @@ export function compareDocumentReferenceTargetPreference(
   return rank(left.kind) - rank(right.kind);
 }
 
+export function shouldReplacePreferredDocumentReferenceTarget(
+  candidate: DocumentReferenceTarget,
+  current: DocumentReferenceTarget | undefined,
+): boolean {
+  return !current || compareDocumentReferenceTargetPreference(candidate, current) < 0;
+}
+
+export function setPreferredDocumentReferenceTarget(
+  targetsById: Map<string, DocumentReferenceTarget>,
+  id: string,
+  target: DocumentReferenceTarget,
+): boolean {
+  if (!shouldReplacePreferredDocumentReferenceTarget(target, targetsById.get(id))) {
+    return false;
+  }
+  targetsById.set(id, target);
+  return true;
+}
+
 export function getPreferredDocumentReferenceTarget(
   targetsById: ReadonlyMap<string, readonly DocumentReferenceTarget[]>,
   id: string,
@@ -167,10 +204,39 @@ export function getPreferredDocumentReferenceTarget(
   const targets = targetsById.get(id);
   if (!targets) return undefined;
   return targets.reduce<DocumentReferenceTarget | undefined>((preferred, target) =>
-    !preferred || compareDocumentReferenceTargetPreference(target, preferred) < 0
+    shouldReplacePreferredDocumentReferenceTarget(target, preferred)
       ? target
       : preferred,
   undefined);
+}
+
+export function mapDocumentReferenceTarget(
+  target: DocumentReferenceTarget,
+  mapper: DocumentReferenceTargetPositionMapper,
+): DocumentReferenceTarget {
+  const from = mapper.mapPos(target.from, 1);
+  const to = Math.max(from, mapper.mapPos(target.to, -1));
+  if (from === target.from && to === target.to) {
+    return target;
+  }
+  return {
+    ...target,
+    from,
+    to,
+  };
+}
+
+export function mapDocumentReferenceTargets(
+  targets: readonly DocumentReferenceTarget[],
+  mapper: DocumentReferenceTargetPositionMapper,
+): readonly DocumentReferenceTarget[] {
+  let changed = false;
+  const mapped = targets.map((target) => {
+    const next = mapDocumentReferenceTarget(target, mapper);
+    if (next !== target) changed = true;
+    return next;
+  });
+  return changed ? mapped : targets;
 }
 
 export function resolvedCrossrefFromReferenceTarget(

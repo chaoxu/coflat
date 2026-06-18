@@ -6,11 +6,12 @@ import type {
 } from "./document";
 import {
   blockReferenceTarget,
+  buildDocumentReferenceTargetCollection,
   buildReferenceTargetIndexes,
   equationReferenceTarget,
   getPreferredDocumentReferenceTarget as getPreferredTarget,
   headingReferenceTarget,
-  sortDocumentReferenceTargets,
+  mapDocumentReferenceTargets,
   type BlockReferenceTargetInput,
   type DocumentReferenceTarget,
 } from "../../core/reference-targets";
@@ -103,17 +104,17 @@ export function buildDocumentReferenceCatalog(
   analysis: DocumentAnalysis,
   options: DocumentReferenceCatalogOptions = {},
 ): DocumentReferenceCatalog {
-  const targets = sortDocumentReferenceTargets([
+  const {
+    targets,
+    targetsById,
+    uniqueTargetById,
+    duplicatesById,
+  } = buildDocumentReferenceTargetCollection([
     ...buildBlockTargets(options.blocks ?? buildDefaultBlockReferenceTargetInputs(analysis)),
     ...buildEquationTargets(analysis),
     ...buildHeadingTargets(analysis),
   ]);
 
-  const {
-    targetsById,
-    uniqueTargetById,
-    duplicatesById,
-  } = buildReferenceTargetIndexes(targets);
   return {
     targets,
     targetsById,
@@ -123,51 +124,13 @@ export function buildDocumentReferenceCatalog(
   };
 }
 
-function mapDocumentReferenceTarget(
-  target: DocumentReferenceTarget,
-  changes: ChangeDesc,
-): DocumentReferenceTarget {
-  const from = changes.mapPos(target.from, 1);
-  const to = Math.max(from, changes.mapPos(target.to, -1));
-  if (from === target.from && to === target.to) {
-    return target;
-  }
-  return {
-    ...target,
-    from,
-    to,
-  };
-}
-
 export function mapDocumentReferenceCatalog(
   catalog: DocumentReferenceCatalog,
   changes: ChangeDesc,
   references = catalog.references,
 ): DocumentReferenceCatalog {
-  let targetsChanged = false;
-  const targets: DocumentReferenceTarget[] = [];
-  const targetsById = new Map<string, DocumentReferenceTarget[]>();
-  const uniqueTargetById = new Map<string, DocumentReferenceTarget>();
-  const duplicatesById = new Map<string, readonly DocumentReferenceTarget[]>();
-
-  for (const target of catalog.targets) {
-    const next = mapDocumentReferenceTarget(target, changes);
-    if (next !== target) targetsChanged = true;
-    targets.push(next);
-
-    if (!next.id) continue;
-    const bucket = targetsById.get(next.id);
-    if (!bucket) {
-      targetsById.set(next.id, [next]);
-      uniqueTargetById.set(next.id, next);
-      continue;
-    }
-    if (bucket.length === 1) {
-      uniqueTargetById.delete(next.id);
-      duplicatesById.set(next.id, bucket);
-    }
-    bucket.push(next);
-  }
+  const targets = mapDocumentReferenceTargets(catalog.targets, changes);
+  const targetsChanged = targets !== catalog.targets;
 
   if (!targetsChanged && references === catalog.references) {
     return catalog;
@@ -179,6 +142,12 @@ export function mapDocumentReferenceCatalog(
       references,
     };
   }
+
+  const {
+    targetsById,
+    uniqueTargetById,
+    duplicatesById,
+  } = buildReferenceTargetIndexes(targets);
 
   return {
     targets,

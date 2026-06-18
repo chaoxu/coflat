@@ -146,10 +146,10 @@ import {
 } from "../core/outline-surface";
 import {
   blockReferenceTarget,
-  compareDocumentReferenceTargetPreference,
   equationReferenceTarget,
   headingReferenceTarget,
   resolvedCrossrefFromReferenceTarget,
+  setPreferredDocumentReferenceTarget,
   type DocumentReferenceTarget,
 } from "../core/reference-targets";
 import {
@@ -603,11 +603,7 @@ function setPreferredReaderReferenceTarget(
   target: DocumentReferenceTarget,
   previewEntry?: ReaderReferencePreviewEntry,
 ): boolean {
-  const current = ctx.catalog.get(id);
-  if (current && compareDocumentReferenceTargetPreference(target, current) >= 0) {
-    return false;
-  }
-  ctx.catalog.set(id, target);
+  if (!setPreferredDocumentReferenceTarget(ctx.catalog, id, target)) return false;
   if (previewEntry) {
     ctx.referencePreviewIndex.set(id, previewEntry);
   }

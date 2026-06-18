@@ -229,6 +229,53 @@ export interface BlockChildRenderPlan {
 
 export type FencedDivRenderChildPlan = BlockChildRenderPlan;
 
+export interface FencedDivSyntaxPlan {
+  readonly sourceRange: {
+    readonly from: number;
+    readonly to: number;
+  };
+  readonly openerRange: {
+    readonly from: number;
+    readonly to: number;
+  };
+  readonly openFenceRange?: {
+    readonly from: number;
+    readonly to: number;
+  };
+  readonly closeFenceRange?: {
+    readonly from: number;
+    readonly to: number;
+  };
+  readonly closeFenceLineRange?: {
+    readonly from: number;
+    readonly to: number;
+  };
+  readonly attrRange?: {
+    readonly from: number;
+    readonly to: number;
+  };
+  readonly titleRange?: {
+    readonly from: number;
+    readonly to: number;
+  };
+  readonly titleSourceRange?: {
+    readonly from: number;
+    readonly to: number;
+  };
+  readonly classes: readonly string[];
+  readonly primaryClassName: string | undefined;
+  readonly id: string | undefined;
+  readonly keyValues: Readonly<Record<string, string>>;
+  readonly title: string | undefined;
+  readonly singleLine: boolean;
+  readonly isSelfClosing: boolean;
+  readonly bodyRange: {
+    readonly from: number;
+    readonly to: number;
+  } | null;
+  readonly children: readonly FencedDivRenderChildPlan[];
+}
+
 export interface FencedDivRenderPlanOptions {
   readonly displayTitleForBlockType?: (blockType: string) => string;
   readonly numberForFencedDiv?: (block: FencedDivNumberingInfo) => number | undefined;
@@ -885,11 +932,22 @@ export function footnoteDefinitionSemanticPlan(
   };
 }
 
-export function fencedDivRenderPlan(
+function lineRangeAt(source: string, pos: number): { from: number; to: number } {
+  const safePos = Math.max(0, Math.min(pos, source.length));
+  const from = Math.max(0, source.lastIndexOf("\n", Math.max(0, safePos - 1)) + 1);
+  const nextBreak = source.indexOf("\n", safePos);
+  const to = nextBreak === -1 ? source.length : nextBreak;
+  return { from, to };
+}
+
+function rangeFromNode(node: SyntaxNode): { from: number; to: number } {
+  return { from: node.from, to: node.to };
+}
+
+export function fencedDivSyntaxPlan(
   source: string,
   node: SyntaxNode,
-  options: FencedDivRenderPlanOptions = {},
-): FencedDivRenderPlan {
+): FencedDivSyntaxPlan {
   if (node.name !== NODE.FencedDiv) {
     throw new Error(`expected fenced div node, got ${node.name}`);
   }
@@ -897,37 +955,52 @@ export function fencedDivRenderPlan(
   let classes: readonly string[] = [];
   let id: string | undefined;
   let keyValues: Readonly<Record<string, string>> = {};
-  const attrsNode = node.getChild(NODE.FencedDivAttributes);
-  if (attrsNode) {
-    const parsed = extractDivClass(source.slice(attrsNode.from, attrsNode.to).trim());
-    if (parsed) {
-      classes = parsed.classes;
-      id = parsed.id;
-      keyValues = { ...parsed.keyValues };
-    }
-  }
-
-  let title = keyValues.title;
+  let title = "";
+  let keyValueTitle: string | undefined;
+  let keyValueTitleRange: { from: number; to: number } | undefined;
+  let openFenceRange: { from: number; to: number } | undefined;
+  let closeFenceRange: { from: number; to: number } | undefined;
+  let attrRange: { from: number; to: number } | undefined;
+  let titleRange: { from: number; to: number } | undefined;
+  let titleSourceRange: { from: number; to: number } | undefined;
   const children: FencedDivRenderChildPlan[] = [];
   let previousRenderable: SyntaxNode | null = null;
   let bodyFrom: number | null = null;
   let bodyTo: number | null = null;
-  let hasClosingFence = false;
-  let firstFence: SyntaxNode | null = null;
-  let lastFence: SyntaxNode | null = null;
+
   let child = node.firstChild;
   while (child) {
     switch (child.name) {
       case NODE.FencedDivFence:
-        firstFence ??= child;
-        lastFence = child;
-        if (child !== firstFence) hasClosingFence = true;
+        if (!openFenceRange) {
+          openFenceRange = rangeFromNode(child);
+        } else if (!closeFenceRange) {
+          closeFenceRange = rangeFromNode(child);
+        }
         break;
-      case NODE.FencedDivAttributes:
+      case NODE.FencedDivAttributes: {
+        attrRange ??= rangeFromNode(child);
+        const parsed = extractDivClass(source.slice(child.from, child.to).trim());
+        if (parsed) {
+          classes = parsed.classes;
+          id = parsed.id;
+          keyValues = { ...parsed.keyValues };
+          keyValueTitle = parsed.keyValues.title;
+          const titleAttrRange = parsed.keyValueRanges.title;
+          if (titleAttrRange) {
+            keyValueTitleRange = {
+              from: child.from + titleAttrRange.valueFrom,
+              to: child.from + titleAttrRange.valueTo,
+            };
+          }
+        }
         break;
+      }
       case NODE.FencedDivTitle: {
+        titleRange ??= rangeFromNode(child);
         const rawTitle = source.slice(child.from, child.to).trim();
         if (rawTitle) title = rawTitle;
+        titleSourceRange = rangeFromNode(child);
         break;
       }
       default: {
@@ -948,7 +1021,67 @@ export function fencedDivRenderPlan(
     child = child.nextSibling;
   }
 
+  if (!closeFenceRange) {
+    const next = node.nextSibling;
+    if (next?.name === NODE.FencedDivFence) {
+      closeFenceRange = rangeFromNode(next);
+    }
+  }
+
+  if (!title && keyValueTitle) {
+    title = keyValueTitle;
+    titleSourceRange = keyValueTitleRange;
+  }
+
+  const openFenceFrom = openFenceRange?.from ?? node.from;
+  const openFenceTo = openFenceRange?.to ?? node.from;
+  const openerTo = Math.max(
+    openFenceTo,
+    attrRange?.to ?? openFenceTo,
+    titleRange?.to ?? openFenceTo,
+  );
+  let closeFenceLineRange: { from: number; to: number } | undefined;
+  let singleLine = false;
+  if (closeFenceRange && closeFenceRange.from >= 0 && closeFenceRange.from <= source.length) {
+    const openLine = lineRangeAt(source, openFenceFrom);
+    const closeLine = lineRangeAt(source, closeFenceRange.from);
+    singleLine = openLine.from === closeLine.from;
+    closeFenceLineRange = singleLine ? closeFenceRange : closeLine;
+  }
+  const isSelfClosing = !!closeFenceLineRange
+    && !source.slice(openFenceFrom, closeFenceLineRange.to).includes("\n");
   const primaryClassName = primaryClassNameForFencedDivClasses(classes);
+
+  return {
+    sourceRange: { from: node.from, to: node.to },
+    openerRange: { from: openFenceFrom, to: openerTo },
+    openFenceRange,
+    closeFenceRange,
+    closeFenceLineRange,
+    attrRange,
+    titleRange,
+    titleSourceRange,
+    classes,
+    primaryClassName,
+    id,
+    keyValues,
+    title: title || undefined,
+    singleLine,
+    isSelfClosing,
+    bodyRange: bodyFrom === null || bodyTo === null
+      ? null
+      : { from: bodyFrom, to: bodyTo },
+    children,
+  };
+}
+
+export function fencedDivRenderPlan(
+  source: string,
+  node: SyntaxNode,
+  options: FencedDivRenderPlanOptions = {},
+): FencedDivRenderPlan {
+  const syntax = fencedDivSyntaxPlan(source, node);
+  const { classes, id, keyValues, title, children, bodyRange, primaryClassName } = syntax;
   const primaryManifestEntry = BLOCK_MANIFEST_ENTRIES.find((entry) => entry.name === primaryClassName);
   const displayTitle = primaryClassName
     ? (options.displayTitleForBlockType?.(primaryClassName) ?? primaryClassName)
@@ -968,15 +1101,11 @@ export function fencedDivRenderPlan(
       title,
     })
     : undefined;
-  const fenceRange = firstFence && lastFence
-    ? source.slice(firstFence.from, lastFence.to)
-    : "";
-  const isSelfClosing = hasClosingFence && !fenceRange.includes("\n");
   const emission = fencedDivEmissionPlan({
     blockType: primaryClassName,
     presentation,
     title,
-    isSelfClosing,
+    isSelfClosing: syntax.isSelfClosing,
     semanticBlockDisclosures: options.semanticBlockDisclosures ?? "static",
   });
   const titleFragments = title ? parseInlineFragments(title) : [];
@@ -991,10 +1120,8 @@ export function fencedDivRenderPlan(
     titleFragments,
     titleText: inlineFragmentsPlainText(titleFragments),
     titleHasMath: fragmentsContainMath(titleFragments),
-    isSelfClosing,
-    bodyRange: bodyFrom === null || bodyTo === null
-      ? null
-      : { from: bodyFrom, to: bodyTo },
+    isSelfClosing: syntax.isSelfClosing,
+    bodyRange,
     children,
     primaryManifestEntry,
     primaryClassName,
@@ -1009,21 +1136,13 @@ export function fencedDivNumberingInfo(
   source: string,
   node: SyntaxNode,
 ): FencedDivNumberingInfo | null {
-  if (node.name !== NODE.FencedDiv) {
-    throw new Error(`expected fenced div node, got ${node.name}`);
-  }
-
-  const attrsNode = node.getChild(NODE.FencedDivAttributes);
-  if (!attrsNode) return null;
-  const attrs = extractDivClass(source.slice(attrsNode.from, attrsNode.to).trim());
-  if (!attrs) return null;
-  const primaryClass = primaryClassNameForFencedDivClasses(attrs.classes);
-  if (!primaryClass) return null;
+  const syntax = fencedDivSyntaxPlan(source, node);
+  if (!syntax.primaryClassName) return null;
   return {
     from: node.from,
     to: node.to,
-    primaryClass,
-    id: attrs.id,
+    primaryClass: syntax.primaryClassName,
+    id: syntax.id,
   };
 }
 

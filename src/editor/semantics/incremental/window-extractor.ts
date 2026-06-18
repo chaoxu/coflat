@@ -234,7 +234,7 @@ export function collectStructuralWindow(
             collectFootnoteDef(source, c, result);
             break;
           case NODE.FencedDiv:
-            collectFencedDiv(doc, c, result);
+            collectFencedDiv(source, c, result);
             break;
           case NODE.InlineMath:
           case NODE.DisplayMath:
@@ -342,6 +342,7 @@ export function extractFencedDivExpansionWindow(
 ): FencedDivExpansionExtraction {
   const range = normalizeWindow(doc, window);
   const structural = createStructuralWindowExtraction();
+  const source = doc.slice(0, doc.length);
 
   const c = tree.cursor();
   scan: for (;;) {
@@ -349,7 +350,7 @@ export function extractFencedDivExpansionWindow(
       let shouldDescend = true;
       switch (c.name) {
         case NODE.FencedDiv:
-          collectFencedDiv(doc, c, structural);
+          collectFencedDiv(source, c, structural);
           break;
         case NODE.InlineMath:
         case NODE.DisplayMath:

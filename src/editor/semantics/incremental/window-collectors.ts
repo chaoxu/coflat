@@ -1,14 +1,12 @@
-import type { SyntaxNode, SyntaxNodeRef } from "@lezer/common";
+import type { SyntaxNodeRef } from "@lezer/common";
 import {
+  fencedDivSyntaxPlan,
   headingSemanticPlan,
 } from "../../../core/block-render-plan";
 import { NODE } from "../../../core/constants/node-types";
-import { primaryClassNameForFencedDivClasses } from "../../../core/semantics/block-numbering";
 import {
   isDisplayMath,
-  isFencedDivFence,
 } from "../../lib/syntax-tree-helpers";
-import { extractDivClass } from "../../../core/parser/fenced-div-attrs";
 import { readBracedLabelId } from "../../../core/parser/label-utils";
 import {
   extractFootnoteDefinition,
@@ -101,169 +99,23 @@ export function collectFootnoteDef(
   if (footnote) result.footnoteDefs.push(footnote);
 }
 
-interface NodeSpan {
-  readonly from: number;
-  readonly to: number;
-}
-
-interface FencedDivChildNodes {
-  readonly openFenceNode?: NodeSpan;
-  readonly closeFenceNode?: NodeSpan;
-  readonly attrNode?: NodeSpan;
-  readonly titleNode?: NodeSpan;
-}
-
-function collectFencedDivChildren(divNode: SyntaxNode): FencedDivChildNodes {
-  let openFenceNode: NodeSpan | undefined;
-  let closeFenceNode: NodeSpan | undefined;
-  let attrNode: NodeSpan | undefined;
-  let titleNode: NodeSpan | undefined;
-
-  const cursor = divNode.cursor();
-  if (!cursor.firstChild()) {
-    return {
-      openFenceNode,
-      closeFenceNode,
-      attrNode,
-      titleNode,
-    };
-  }
-
-  do {
-    const span = {
-      from: cursor.from,
-      to: cursor.to,
-    };
-    switch (cursor.name) {
-      case NODE.FencedDivFence:
-        if (!openFenceNode) {
-          openFenceNode = span;
-        } else if (!closeFenceNode) {
-          closeFenceNode = span;
-        }
-        break;
-      case NODE.FencedDivAttributes:
-        if (!attrNode) {
-          attrNode = span;
-        }
-        break;
-      case "FencedDivTitle":
-        if (!titleNode) {
-          titleNode = span;
-        }
-        break;
-    }
-  } while (cursor.nextSibling());
-
-  return {
-    openFenceNode,
-    closeFenceNode,
-    attrNode,
-    titleNode,
-  };
-}
-
 export function collectFencedDiv(
-  doc: TextSource,
+  source: string,
   node: SyntaxNodeRef,
   result: StructuralWindowExtraction,
 ): void {
   const divNode = node.node;
-  let classes: readonly string[] = [];
-  let primaryClass: string | undefined;
-  let id: string | undefined;
-  let title: string | undefined;
-  let openFenceFrom = node.from;
-  let openFenceTo = node.from;
-  let attrFrom: number | undefined;
-  let attrTo: number | undefined;
-  let titleFrom: number | undefined;
-  let titleTo: number | undefined;
-  let titleSourceFrom: number | undefined;
-  let titleSourceTo: number | undefined;
-  let closeFenceFrom = -1;
-  let closeFenceTo = -1;
-
-  const {
-    openFenceNode,
-    closeFenceNode: childCloseFenceNode,
-    attrNode,
-    titleNode,
-  } = collectFencedDivChildren(divNode);
-  if (openFenceNode) {
-    openFenceFrom = openFenceNode.from;
-    openFenceTo = openFenceNode.to;
-  }
-
-  let closeFenceNode = childCloseFenceNode;
-  if (!closeFenceNode) {
-    const next = divNode.nextSibling;
-    if (next && isFencedDivFence(next)) {
-      closeFenceNode = {
-        from: next.from,
-        to: next.to,
-      };
-    }
-  }
-
-  let singleLine = false;
-  if (
-    closeFenceNode
-    && closeFenceNode.from >= 0
-    && closeFenceNode.from <= doc.length
-  ) {
-    const closePos = closeFenceNode.from;
-    const openLine = doc.lineAt(openFenceFrom);
-    const closeLine = doc.lineAt(closePos);
-    singleLine = openLine.from === closeLine.from;
-    if (singleLine) {
-      closeFenceFrom = closePos;
-      closeFenceTo = closeFenceNode.to;
-    } else {
-      closeFenceFrom = closeLine.from;
-      closeFenceTo = closeLine.to;
-    }
-  }
-
-  let keyValueTitle: string | undefined;
-  let keyValueTitleFrom: number | undefined;
-  let keyValueTitleTo: number | undefined;
-  let keyValues: Readonly<Record<string, string>> = {};
-  if (attrNode) {
-    const attrs = extractDivClass(doc.slice(attrNode.from, attrNode.to));
-    if (attrs) {
-      classes = [...attrs.classes];
-      primaryClass = primaryClassNameForFencedDivClasses(attrs.classes);
-      id = attrs.id;
-      keyValues = { ...attrs.keyValues };
-      keyValueTitle = attrs.keyValues.title;
-      const titleRange = attrs.keyValueRanges.title;
-      if (titleRange) {
-        keyValueTitleFrom = attrNode.from + titleRange.valueFrom;
-        keyValueTitleTo = attrNode.from + titleRange.valueTo;
-      }
-    }
-    attrFrom = attrNode.from;
-    attrTo = attrNode.to;
-    openFenceTo = Math.max(openFenceTo, attrNode.to);
-  }
-
-  if (titleNode) {
-    title = doc.slice(titleNode.from, titleNode.to).trim();
-    titleFrom = titleNode.from;
-    titleTo = titleNode.to;
-    titleSourceFrom = titleNode.from;
-    titleSourceTo = titleNode.to;
-    openFenceTo = Math.max(openFenceTo, titleNode.to);
-  } else if (keyValueTitle) {
-    title = keyValueTitle;
-    titleSourceFrom = keyValueTitleFrom;
-    titleSourceTo = keyValueTitleTo;
-  }
-
-  const isSelfClosing =
-    closeFenceFrom >= 0
-    && !doc.slice(openFenceFrom, closeFenceTo).includes("\n");
+  const syntax = fencedDivSyntaxPlan(source, divNode);
+  const openFenceFrom = syntax.openFenceRange?.from ?? node.from;
+  const openFenceTo = syntax.openerRange.to;
+  const closeFenceFrom = syntax.closeFenceLineRange?.from ?? -1;
+  const closeFenceTo = syntax.closeFenceLineRange?.to ?? -1;
+  const attrFrom = syntax.attrRange?.from;
+  const attrTo = syntax.attrRange?.to;
+  const titleFrom = syntax.titleRange?.from;
+  const titleTo = syntax.titleRange?.to;
+  const titleSourceFrom = syntax.titleSourceRange?.from;
+  const titleSourceTo = syntax.titleSourceRange?.to;
 
   result.fencedDivs.push({
     from: node.from,
@@ -278,13 +130,13 @@ export function collectFencedDiv(
     titleSourceTo,
     closeFenceFrom,
     closeFenceTo,
-    singleLine,
-    isSelfClosing,
-    classes,
-    primaryClass,
-    id,
-    title,
-    keyValues,
+    singleLine: syntax.singleLine,
+    isSelfClosing: syntax.isSelfClosing,
+    classes: syntax.classes,
+    primaryClass: syntax.primaryClassName,
+    id: syntax.id,
+    title: syntax.title,
+    keyValues: syntax.keyValues,
   });
 }
 

@@ -2,13 +2,17 @@ import { describe, expect, it } from "vitest";
 
 import {
   blockReferenceTarget,
+  buildDocumentReferenceTargetCollection,
   buildReferenceTargetIndexes,
   compareDocumentReferenceTargetPreference,
   equationReferenceTarget,
   getPreferredDocumentReferenceTarget,
   headingReferenceTarget,
+  mapDocumentReferenceTargets,
   resolvedCrossrefFromReferenceTarget,
+  setPreferredDocumentReferenceTarget,
   sortDocumentReferenceTargets,
+  type DocumentReferenceTarget,
 } from "./reference-targets";
 
 describe("reference target helpers", () => {
@@ -95,6 +99,95 @@ describe("reference target helpers", () => {
       .toBeGreaterThan(0);
     expect(compareDocumentReferenceTargetPreference({ kind: "heading" }, { kind: "heading" }))
       .toBe(0);
+  });
+
+  it("collects sorted targets and indexes duplicate ids from one core helper", () => {
+    const heading = headingReferenceTarget({
+      from: 30,
+      to: 40,
+      id: "dup",
+      number: "1",
+      text: "Duplicate",
+    });
+    const equation = equationReferenceTarget({
+      from: 10,
+      to: 20,
+      id: "eq:main",
+      number: 1,
+      latex: "x",
+    });
+    const block = blockReferenceTarget({
+      from: 20,
+      to: 25,
+      id: "dup",
+      blockType: "theorem",
+      displayTitle: "Theorem",
+      number: 1,
+    });
+
+    const collection = buildDocumentReferenceTargetCollection([heading, equation, block]);
+
+    expect(collection.targets.map((target) => target.kind)).toEqual([
+      "equation",
+      "block",
+      "heading",
+    ]);
+    expect(collection.uniqueTargetById.get("eq:main")?.kind).toBe("equation");
+    expect(collection.uniqueTargetById.has("dup")).toBe(false);
+    expect(collection.duplicatesById.get("dup")).toHaveLength(2);
+  });
+
+  it("updates preferred target maps with the shared target preference policy", () => {
+    const targets = new Map<string, DocumentReferenceTarget>();
+    const heading = headingReferenceTarget({
+      from: 20,
+      to: 30,
+      id: "dup",
+      number: "1",
+      text: "Duplicate",
+    });
+    const block = blockReferenceTarget({
+      from: 10,
+      to: 15,
+      id: "dup",
+      blockType: "theorem",
+      displayTitle: "Theorem",
+      number: 1,
+    });
+
+    expect(setPreferredDocumentReferenceTarget(targets, "dup", heading)).toBe(true);
+    expect(setPreferredDocumentReferenceTarget(targets, "dup", block)).toBe(true);
+    expect(setPreferredDocumentReferenceTarget(targets, "dup", heading)).toBe(false);
+    expect(targets.get("dup")).toBe(block);
+  });
+
+  it("maps target positions while preserving target identity for no-op changes", () => {
+    const heading = headingReferenceTarget({
+      from: 20,
+      to: 30,
+      id: "sec:intro",
+      number: "1",
+      text: "Intro",
+    });
+    const unchanged = mapDocumentReferenceTargets([heading], {
+      mapPos(pos) {
+        return pos;
+      },
+    });
+    expect(unchanged[0]).toBe(heading);
+    expect(unchanged).toBeInstanceOf(Array);
+
+    const mapped = mapDocumentReferenceTargets([heading], {
+      mapPos(pos) {
+        return pos + 5;
+      },
+    });
+    expect(mapped[0]).toMatchObject({
+      from: 25,
+      to: 35,
+      id: "sec:intro",
+    });
+    expect(mapped[0]).not.toBe(heading);
   });
 
   it("maps document targets into shared resolved crossref shapes", () => {
