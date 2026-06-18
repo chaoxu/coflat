@@ -4,6 +4,7 @@ import { parseMarkdownSource } from "./parser";
 import {
   blockquoteRenderPlan,
   codeBlockRenderPlan,
+  documentRenderPlan,
   displayMathRenderPlan,
   fencedDivRenderPlan,
   footnoteDefinitionRenderPlan,
@@ -13,6 +14,10 @@ import {
   paragraphRenderPlan,
   tableRenderPlan,
 } from "./block-render-plan";
+
+function documentNode(source: string) {
+  return parseMarkdownSource(source, "html-render").topNode;
+}
 
 function firstParagraph(source: string) {
   const node = parseMarkdownSource(source, "html-render").topNode.firstChild;
@@ -31,6 +36,33 @@ function firstHeading(source: string) {
   if (!node || !node.name.includes("Heading")) throw new Error("expected heading");
   return node;
 }
+
+describe("documentRenderPlan", () => {
+  it("skips frontmatter and shares blank-line traversal for document emitters", () => {
+    const source = "---\ntitle: T\n---\n\nFirst\n\nSecond\n";
+    const plan = documentRenderPlan(source, documentNode(source));
+
+    expect(plan.frontmatterEnd).toBe(source.indexOf("\n\nFirst") + 1);
+    expect(plan.children.map((child) => child.node.name)).toEqual(["Paragraph", "Paragraph"]);
+    expect(plan.children[0].blankBeforeRanges).toEqual([]);
+    expect(plan.children[1].blankBeforeRanges.map((range) => source.slice(range.from, range.to))).toEqual([
+      "\n",
+    ]);
+    expect(plan.trailingBlankRanges.map((range) => source.slice(range.from, range.to))).toEqual(["\n"]);
+    expect(plan.topLevelRenderableCount).toBe(2);
+  });
+
+  it("accounts for reader-only leading blocks when deciding trailing blank lines", () => {
+    const source = "Only paragraph\n";
+    const withoutTitle = documentRenderPlan(source, documentNode(source));
+    const withTitle = documentRenderPlan(source, documentNode(source), { leadingBlockCount: 1 });
+
+    expect(withoutTitle.topLevelRenderableCount).toBe(1);
+    expect(withoutTitle.trailingBlankRanges).toEqual([]);
+    expect(withTitle.topLevelRenderableCount).toBe(2);
+    expect(withTitle.trailingBlankRanges.map((range) => source.slice(range.from, range.to))).toEqual(["\n"]);
+  });
+});
 
 describe("paragraphRenderPlan", () => {
   it("builds a shared inline fragment plan from trimmed paragraph content", () => {
@@ -278,6 +310,25 @@ describe("listRenderPlan", () => {
     expect(source.slice(item.task?.contentRange.from, item.task?.contentRange.to).trim()).toBe(
       "done **now**",
     );
+    expect(item.task?.contentMarkdown).toBe("done **now**");
+    expect(item.task?.trimmedContentRange).toEqual({
+      from: source.indexOf("done"),
+      to: source.length,
+    });
+  });
+
+  it("normalizes task item content once for both reader and editor emitters", () => {
+    const source = "- [ ]   padded task  ";
+    const plan = listRenderPlan(source, firstBlock(source, "BulletList"));
+    const task = plan.items[0].task;
+
+    expect(task).not.toBeNull();
+    expect(source.slice(task?.contentRange.from, task?.contentRange.to)).toBe("  padded task  ");
+    expect(task?.contentMarkdown).toBe("padded task");
+    expect(task?.trimmedContentRange).toEqual({
+      from: source.indexOf("padded"),
+      to: source.indexOf("task") + "task".length,
+    });
   });
 
   it("keeps nested list children for the emitters", () => {

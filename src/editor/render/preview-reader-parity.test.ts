@@ -132,6 +132,10 @@ describe("reader / editor-preview emission parity", () => {
       source: "First source line  \nsecond source line.\n\nNext paragraph.",
     },
     {
+      name: "frontmatter is skipped while document blank lines are preserved",
+      source: "---\nid: fixture\n---\n\nFirst paragraph.\n\nSecond paragraph.\n",
+    },
+    {
       name: "tight unordered list",
       source: "- one\n- two\n- three",
     },

@@ -17,8 +17,12 @@ import {
   isLooseListNode,
   orderedListStartNumber,
 } from "./parser/list-shape";
-import { blankLineRangesBetweenBlocks } from "./parser/blank-lines";
+import {
+  blankLineRangesBetweenBlocks,
+  trailingBlankLineRangesAfterLastBlock,
+} from "./parser/blank-lines";
 import { extractDivClass } from "./parser/fenced-div-attrs";
+import { extractRawFrontmatter } from "./parser/frontmatter";
 import { taskMarkerChecked } from "./list-surface";
 import { displayMathLatex } from "./math-source";
 import { readBracedLabelId } from "./parser/label-utils";
@@ -90,6 +94,11 @@ export interface ListTaskRenderPlan {
     readonly from: number;
     readonly to: number;
   };
+  readonly trimmedContentRange: {
+    readonly from: number;
+    readonly to: number;
+  };
+  readonly contentMarkdown: string;
 }
 
 export interface ListItemRenderPlan {
@@ -228,6 +237,71 @@ export interface HeadingRenderPlan {
 
 export interface BlockRenderPlanOptions {
   readonly sourceRanges?: boolean;
+}
+
+export interface DocumentRenderChildPlan {
+  readonly node: SyntaxNode;
+  readonly blankBeforeRanges: readonly {
+    readonly from: number;
+    readonly to: number;
+  }[];
+}
+
+export interface DocumentRenderPlan {
+  readonly kind: "document";
+  readonly frontmatterEnd: number;
+  readonly children: readonly DocumentRenderChildPlan[];
+  readonly trailingBlankRanges: readonly {
+    readonly from: number;
+    readonly to: number;
+  }[];
+  readonly topLevelRenderableCount: number;
+}
+
+export function documentRenderPlan(
+  source: string,
+  documentNode: SyntaxNode,
+  options: { readonly leadingBlockCount?: number } = {},
+): DocumentRenderPlan {
+  if (documentNode.name !== "Document") {
+    throw new Error(`expected document node, got ${documentNode.name}`);
+  }
+
+  const frontmatterEnd = extractRawFrontmatter(source)?.end ?? -1;
+  const children: DocumentRenderChildPlan[] = [];
+  let child = documentNode.firstChild;
+  let previousRenderable: SyntaxNode | null = null;
+
+  if (frontmatterEnd >= 0) {
+    while (child && child.to <= frontmatterEnd) {
+      child = child.nextSibling;
+    }
+    if (child && child.from < frontmatterEnd) {
+      child = child.nextSibling;
+    }
+  }
+
+  while (child) {
+    children.push({
+      node: child,
+      blankBeforeRanges: previousRenderable && child.from > previousRenderable.to
+        ? blankLineRangesBetweenBlocks(source, previousRenderable.to, child.from).map(([from, to]) => ({ from, to }))
+        : [],
+    });
+    previousRenderable = child;
+    child = child.nextSibling;
+  }
+
+  const topLevelRenderableCount = (options.leadingBlockCount ?? 0) + children.length;
+  return {
+    kind: "document",
+    frontmatterEnd,
+    children,
+    trailingBlankRanges: previousRenderable && topLevelRenderableCount > 1
+      ? trailingBlankLineRangesAfterLastBlock(source, previousRenderable.to).map(([from, to]) => ({ from, to }))
+      : [],
+    topLevelRenderableCount,
+  };
 }
 
 export function paragraphRenderPlan(
@@ -403,10 +477,13 @@ export function listItemRenderPlan(
       const taskMarker = child.getChild(NODE.TaskMarker);
       if (taskMarker) {
         const contentFrom = Math.min(taskMarker.to + 1, child.to);
+        const trimmedContentRange = trimmedNodeRange(source, contentFrom, child.to);
         task = {
           checked: taskMarkerChecked(source.slice(taskMarker.from, taskMarker.to)),
           markerRange: { from: taskMarker.from, to: taskMarker.to },
           contentRange: { from: contentFrom, to: child.to },
+          trimmedContentRange,
+          contentMarkdown: source.slice(trimmedContentRange.from, trimmedContentRange.to),
         };
       }
     }

@@ -49,15 +49,10 @@ import {
 import { appendParagraphDom, createParagraphDom } from "../../core/paragraph-surface";
 import type { BlockCounterEntry } from "../../core/lib/file-system-types";
 import {
-  extractRawFrontmatter,
   parseFrontmatter,
   parseMarkdownSource,
   type FrontmatterConfig,
 } from "../../core/parser";
-import {
-  blankLineRangesBetweenBlocks,
-  trailingBlankLineRangesAfterLastBlock,
-} from "../../core/parser/blank-lines";
 import {
   analyzeDocumentSemantics,
   numberFootnotes,
@@ -74,6 +69,7 @@ import type { BlockPresentationPlan } from "../../core/block-presentation";
 import {
   blockquoteRenderPlan,
   codeBlockRenderPlan,
+  documentRenderPlan,
   displayMathRenderPlan,
   fencedDivRenderPlan,
   footnoteDefinitionRenderPlan,
@@ -235,32 +231,15 @@ function renderDocument(
   node: SyntaxNode,
   context: PreviewRenderContext,
 ): void {
-  let child = node.firstChild;
-  const frontmatterEnd = extractRawFrontmatter(context.doc)?.end ?? -1;
-  let previousRenderable: SyntaxNode | null = null;
-  let topCount = 0;
-
-  if (frontmatterEnd >= 0) {
-    while (child && child.to <= frontmatterEnd) {
-      child = child.nextSibling;
+  const plan = documentRenderPlan(context.doc, node);
+  for (const childPlan of plan.children) {
+    for (const range of childPlan.blankBeforeRanges) {
+      appendBlankLine(parent, range.from, range.to);
     }
-    if (child && child.from < frontmatterEnd) {
-      child = child.nextSibling;
-    }
+    renderNode(parent, childPlan.node, context);
   }
-
-  while (child) {
-    if (previousRenderable && child.from > previousRenderable.to) {
-      appendBlankLines(parent, context, previousRenderable.to, child.from);
-    }
-    renderNode(parent, child, context);
-    previousRenderable = child;
-    topCount += 1;
-    child = child.nextSibling;
-  }
-
-  if (previousRenderable && topCount > 1) {
-    appendTrailingBlankLines(parent, context, previousRenderable.to);
+  for (const range of plan.trailingBlankRanges) {
+    appendBlankLine(parent, range.from, range.to);
   }
 }
 
@@ -374,27 +353,6 @@ function renderList(
   parent.appendChild(list);
 }
 
-function appendBlankLines(
-  parent: HTMLElement | DocumentFragment,
-  context: PreviewRenderContext,
-  from: number,
-  to: number,
-): void {
-  for (const [lineFrom, lineTo] of blankLineRangesBetweenBlocks(context.doc, from, to)) {
-    appendBlankLine(parent, lineFrom, lineTo);
-  }
-}
-
-function appendTrailingBlankLines(
-  parent: HTMLElement | DocumentFragment,
-  context: PreviewRenderContext,
-  previousBlockTo: number,
-): void {
-  for (const [from, to] of trailingBlankLineRangesAfterLastBlock(context.doc, previousBlockTo)) {
-    appendBlankLine(parent, from, to);
-  }
-}
-
 function appendBlankLine(
   parent: HTMLElement | DocumentFragment,
   _from: number,
@@ -434,11 +392,10 @@ function renderTaskListItem(
   if (plan.task) {
     appendReadOnlyTaskCheckbox(parent, plan.task.checked);
 
-    const content = context.doc.slice(plan.task.contentRange.from, plan.task.contentRange.to).trim();
-    if (content) {
+    if (plan.task.contentMarkdown) {
       renderInlineMarkdown(
         target,
-        content,
+        plan.task.contentMarkdown,
         context.macros,
         context.surfacePolicy.bodyInlineSurface,
         {

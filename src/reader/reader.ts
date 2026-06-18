@@ -23,6 +23,7 @@ import { inlineSurfacePolicy } from "../core/inline-surface-policy";
 import {
   blockquoteRenderPlan,
   codeBlockRenderPlan,
+  documentRenderPlan,
   displayMathRenderPlan,
   fencedDivRenderPlan,
   footnoteDefinitionRenderPlan,
@@ -45,10 +46,6 @@ import {
   renderInlineBlockHeadingContainerHtml,
   renderBlockSummaryHtml as renderBlockSummarySurfaceHtml,
 } from "../core/block-heading-surface";
-import {
-  blankLineRangesBetweenBlocks,
-  trailingBlankLineRangesAfterLastBlock,
-} from "../core/parser/blank-lines";
 import { NODE } from "../core/constants/node-types";
 import { isSafeUrl } from "../core/lib/url-utils";
 import { escapeHtml } from "../core/lib/html-escape";
@@ -1369,15 +1366,15 @@ function renderListItem(
       const inner = renderInline(
         ctx,
         child,
-        plan.task.contentRange.from,
-        plan.task.contentRange.to,
+        plan.task.trimmedContentRange.from,
+        plan.task.trimmedContentRange.to,
       );
       blocks.push({
         html: renderParagraphHtml(
-          inner.html.replace(/^\s+/, "").replace(/\s+$/, ""),
-          blockSourceAttrs(ctx, plan.task.contentRange.from, plan.task.contentRange.to),
+          inner.html,
+          blockSourceAttrs(ctx, plan.task.trimmedContentRange.from, plan.task.trimmedContentRange.to),
         ),
-        text: inner.text.replace(/^\s+/, "").replace(/\s+$/, ""),
+        text: inner.text,
         hasMath: inner.hasMath,
       });
       continue;
@@ -1818,17 +1815,13 @@ function walkDocument(
       hasMath: renderedTitle.hasMath,
     });
   }
-  let child = root.firstChild;
   let topCount = blocks.length;
-  let previousRenderable: SyntaxNode | null = null;
   let used = 0;
   let truncated: TruncatedInfo | undefined;
+  const documentPlan = documentRenderPlan(source, root, { leadingBlockCount: blocks.length });
 
-  while (child) {
-    if (child.to <= frontmatterEnd) {
-      child = child.nextSibling;
-      continue;
-    }
+  for (const childPlan of documentPlan.children) {
+    const child = childPlan.node;
     if (budgetKind) {
       // Snapshot footnote state so we can roll back if we end up not emitting.
       const fnOrderLen = ctx.footnotesInOrder.length;
@@ -1867,38 +1860,24 @@ function walkDocument(
       }
       // Either used===0 (must emit at least this block, even if it busts
       // budget — atomic blocks) or budget still has room. Emit.
-      if (previousRenderable && child.from > previousRenderable.to) {
-        for (const [from, to] of blankLineRangesBetweenBlocks(ctx.source, previousRenderable.to, child.from)) {
-          blocks.push(renderBlankLine(ctx, from, to));
-        }
+      for (const range of childPlan.blankBeforeRanges) {
+        blocks.push(renderBlankLine(ctx, range.from, range.to));
       }
       blocks.push(rendered);
       used += cost;
       topCount++;
-      previousRenderable = child;
-      child = child.nextSibling;
       continue;
     }
     topCount++;
-    if (previousRenderable && child.from > previousRenderable.to) {
-      for (const [from, to] of blankLineRangesBetweenBlocks(ctx.source, previousRenderable.to, child.from)) {
-        blocks.push(renderBlankLine(ctx, from, to));
-      }
+    for (const range of childPlan.blankBeforeRanges) {
+      blocks.push(renderBlankLine(ctx, range.from, range.to));
     }
     blocks.push(renderBlock(ctx, child));
-    previousRenderable = child;
-    child = child.nextSibling;
   }
 
-  // Handle the case where the budget is exactly met: check if there's another
-  // block following the last emitted one — if so, mark truncated.
-  if (budgetKind && !truncated && child) {
-    truncated = { sourceFrom: child.from, sourceTo: source.length };
-  }
-
-  if (!truncated && previousRenderable && topCount > 1) {
-    for (const [from, to] of trailingBlankLineRangesAfterLastBlock(ctx.source, previousRenderable.to)) {
-      blocks.push(renderBlankLine(ctx, from, to));
+  if (!truncated) {
+    for (const range of documentPlan.trailingBlankRanges) {
+      blocks.push(renderBlankLine(ctx, range.from, range.to));
     }
   }
 
