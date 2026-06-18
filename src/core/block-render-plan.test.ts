@@ -9,6 +9,7 @@ import {
   dispatchBlockNodeRender,
   documentRenderPlan,
   displayMathRenderPlan,
+  emitBlockChildrenRenderPlan,
   emitDocumentRenderPlan,
   fencedDivRenderPlan,
   footnoteDefinitionRenderPlan,
@@ -90,6 +91,28 @@ describe("documentRenderPlan", () => {
       "child:7-13",
       "trailing:\n",
       "after",
+    ]);
+  });
+
+  it("emits nested block children and their blank ranges in one shared order", () => {
+    const source = "::: {.remark}\nFirst\n\nSecond\n:::\n";
+    const fencedDiv = firstBlock(source, "FencedDiv");
+    const plan = fencedDivRenderPlan(source, fencedDiv);
+    const events: string[] = [];
+
+    const emitted = emitBlockChildrenRenderPlan(plan.children, {
+      emitBlank: (range) => events.push(`blank:${source.slice(range.from, range.to)}`),
+      emitChild: (childPlan) => {
+        events.push(`child:${childPlan.node.from}-${childPlan.node.to}`);
+        return childPlan.node.name;
+      },
+    });
+
+    expect(emitted).toEqual(["Paragraph", "Paragraph"]);
+    expect(events).toEqual([
+      "child:13-19",
+      "blank:\n",
+      "child:21-27",
     ]);
   });
 });
@@ -445,8 +468,9 @@ describe("blockquoteRenderPlan", () => {
 
     expect(plan.kind).toBe("blockquote");
     expect(plan.sourceRange).toEqual({ from: 0, to: source.length });
-    expect(plan.children.map((child) => child.name)).toEqual(["Paragraph", "Paragraph"]);
-    expect(plan.children.map((child) => source.slice(child.from, child.to))).toEqual([
+    expect(plan.children.map((child) => child.node.name)).toEqual(["Paragraph", "Paragraph"]);
+    expect(plan.children.map((child) => child.blankBeforeRanges)).toEqual([[], []]);
+    expect(plan.children.map((child) => source.slice(child.node.from, child.node.to))).toEqual([
       "**quoted**",
       "second",
     ]);

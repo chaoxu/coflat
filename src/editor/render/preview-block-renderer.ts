@@ -74,6 +74,7 @@ import {
   dispatchBlockNodeRender,
   documentRenderPlan,
   displayMathRenderPlan,
+  emitBlockChildrenRenderPlan,
   emitDocumentRenderPlan,
   fencedDivRenderPlan,
   headingRenderPlan,
@@ -411,12 +412,10 @@ function renderFencedDiv(
 
   if (assembly.renderBody) {
     const body = document.createDocumentFragment();
-    for (const childPlan of plan.children) {
-      for (const range of childPlan.blankBeforeRanges) {
-        appendBlankLine(body, range.from, range.to);
-      }
-      renderNode(body, childPlan.node, context);
-    }
+    emitBlockChildrenRenderPlan(plan.children, {
+      emitBlank: (range) => appendBlankLine(body, range.from, range.to),
+      emitChild: (childPlan) => renderNode(body, childPlan.node, context),
+    });
 
     if (assembly.addQedToLastBodyBlock) {
       addClassToLastChildElement(body, CSS.blockQed);
@@ -544,9 +543,10 @@ function renderBlockquote(
 ): void {
   const plan = blockquoteRenderPlan(node);
   const blockquote = createBlockquoteElement(document);
-  for (const child of plan.children) {
-    renderNode(blockquote, child, context);
-  }
+  emitBlockChildrenRenderPlan(plan.children, {
+    emitBlank: () => undefined,
+    emitChild: (childPlan) => renderNode(blockquote, childPlan.node, context),
+  });
   parent.appendChild(blockquote);
 }
 

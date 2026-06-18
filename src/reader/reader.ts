@@ -27,6 +27,7 @@ import {
   dispatchBlockNodeRender,
   documentRenderPlan,
   displayMathRenderPlan,
+  emitBlockChildrenRenderPlan,
   emitDocumentRenderPlan,
   fencedDivNumberingInfo,
   fencedDivRenderPlan,
@@ -1426,10 +1427,10 @@ function renderListItem(
 
 function renderBlockquote(ctx: WalkContext, node: SyntaxNode): BlockResult {
   const plan = blockquoteRenderPlan(node);
-  const blocks: BlockResult[] = [];
-  for (const child of plan.children) {
-    blocks.push(renderBlock(ctx, child));
-  }
+  const blocks = emitBlockChildrenRenderPlan(plan.children, {
+    emitBlank: () => undefined,
+    emitChild: (childPlan) => renderBlock(ctx, childPlan.node),
+  });
   return {
     html: renderBlockquoteHtml(
       blocks.map((b) => b.html).join(""),
@@ -1503,12 +1504,14 @@ function renderFencedDiv(ctx: WalkContext, node: SyntaxNode): BlockResult {
   });
 
   const blocks: BlockResult[] = [];
-  for (const childPlan of plan.children) {
-    for (const range of childPlan.blankBeforeRanges) {
-      blocks.push(renderBlankLine(ctx, range.from, range.to));
-    }
-    blocks.push(renderBlock(ctx, childPlan.node));
-  }
+  emitBlockChildrenRenderPlan(plan.children, {
+    emitBlank: (range) => blocks.push(renderBlankLine(ctx, range.from, range.to)),
+    emitChild: (childPlan) => {
+      const block = renderBlock(ctx, childPlan.node);
+      blocks.push(block);
+      return block;
+    },
+  });
 
   const normalizedClassName = plan.primaryClassName;
   const assembly = fencedDivSurfaceAssemblyPlan(plan);

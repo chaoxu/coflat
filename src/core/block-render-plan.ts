@@ -89,7 +89,7 @@ export interface BlockquoteRenderPlan {
     readonly from: number;
     readonly to: number;
   };
-  readonly children: readonly SyntaxNode[];
+  readonly children: readonly BlockChildRenderPlan[];
 }
 
 export interface ListTaskRenderPlan {
@@ -202,13 +202,15 @@ export interface FootnoteDefinitionRenderPlan {
   readonly hasMath: boolean;
 }
 
-export interface FencedDivRenderChildPlan {
+export interface BlockChildRenderPlan {
   readonly node: SyntaxNode;
   readonly blankBeforeRanges: readonly {
     readonly from: number;
     readonly to: number;
   }[];
 }
+
+export type FencedDivRenderChildPlan = BlockChildRenderPlan;
 
 export interface FencedDivRenderPlanOptions {
   readonly displayTitleForBlockType?: (blockType: string) => string;
@@ -306,13 +308,7 @@ export interface BlockNodeRenderHandlers<T> {
   readonly fallback: (node: SyntaxNode) => T;
 }
 
-export interface DocumentRenderChildPlan {
-  readonly node: SyntaxNode;
-  readonly blankBeforeRanges: readonly {
-    readonly from: number;
-    readonly to: number;
-  }[];
-}
+export type DocumentRenderChildPlan = BlockChildRenderPlan;
 
 export interface DocumentRenderPlan {
   readonly kind: "document";
@@ -330,6 +326,11 @@ export interface EmitDocumentRenderPlanHandlers<T> {
   readonly emitChild: (childPlan: DocumentRenderChildPlan) => T;
   readonly emitTrailingBlank?: (range: { readonly from: number; readonly to: number }) => void;
   readonly afterDocument?: () => void;
+}
+
+export interface EmitBlockChildrenRenderPlanHandlers<T> {
+  readonly emitBlank: (range: { readonly from: number; readonly to: number }) => void;
+  readonly emitChild: (childPlan: BlockChildRenderPlan) => T;
 }
 
 export function blockNodeRenderKind(name: string): BlockNodeRenderKind {
@@ -404,18 +405,26 @@ export function emitDocumentRenderPlan<T>(
   plan: DocumentRenderPlan,
   handlers: EmitDocumentRenderPlanHandlers<T>,
 ): T[] {
-  const emitted: T[] = [];
-  for (const childPlan of plan.children) {
-    for (const range of childPlan.blankBeforeRanges) {
-      handlers.emitBlank(range);
-    }
-    emitted.push(handlers.emitChild(childPlan));
-  }
+  const emitted = emitBlockChildrenRenderPlan(plan.children, handlers);
   const emitTrailingBlank = handlers.emitTrailingBlank ?? handlers.emitBlank;
   for (const range of plan.trailingBlankRanges) {
     emitTrailingBlank(range);
   }
   handlers.afterDocument?.();
+  return emitted;
+}
+
+export function emitBlockChildrenRenderPlan<T>(
+  children: readonly BlockChildRenderPlan[],
+  handlers: EmitBlockChildrenRenderPlanHandlers<T>,
+): T[] {
+  const emitted: T[] = [];
+  for (const childPlan of children) {
+    for (const range of childPlan.blankBeforeRanges) {
+      handlers.emitBlank(range);
+    }
+    emitted.push(handlers.emitChild(childPlan));
+  }
   return emitted;
 }
 
@@ -445,7 +454,7 @@ export function blockLineCost(source: string, node: SyntaxNode): number {
       return 1 + plan.children.reduce((total, child) => total + blockLineCost(source, child.node), 0);
     }
     case "blockquote":
-      return blockquoteRenderPlan(node).children.reduce((total, child) => total + blockLineCost(source, child), 0);
+      return blockquoteRenderPlan(node).children.reduce((total, child) => total + blockLineCost(source, child.node), 0);
     case "document":
     case "footnote-definition":
     case "ignored":
@@ -603,10 +612,10 @@ function indentedCodeBlockRenderPlan(
 export function blockquoteRenderPlan(
   node: SyntaxNode,
 ): BlockquoteRenderPlan {
-  const children: SyntaxNode[] = [];
+  const children: BlockChildRenderPlan[] = [];
   let child = node.firstChild;
   while (child) {
-    if (child.name !== "QuoteMark") children.push(child);
+    if (child.name !== "QuoteMark") children.push({ node: child, blankBeforeRanges: [] });
     child = child.nextSibling;
   }
   return {
