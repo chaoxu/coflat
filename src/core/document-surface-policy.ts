@@ -1,7 +1,7 @@
 export type DocumentSurfaceName =
   | "reader"
   | "editor-preview"
-  | "inert-preview";
+  | "hover-preview";
 
 export type SemanticBlockDisclosurePolicy = "interactive" | "static";
 
@@ -22,7 +22,7 @@ export function documentSurfacePolicy(surface: DocumentSurfaceName): DocumentSur
     case "reader":
       return READER_DOCUMENT_POLICY;
     case "editor-preview":
-    case "inert-preview":
+    case "hover-preview":
       return STATIC_PREVIEW_DOCUMENT_POLICY;
   }
 }

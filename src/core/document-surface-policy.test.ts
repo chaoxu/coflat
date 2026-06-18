@@ -9,11 +9,11 @@ describe("documentSurfacePolicy", () => {
     });
   });
 
-  it("keeps editor and inert previews static", () => {
+  it("keeps editor and hover previews static", () => {
     expect(documentSurfacePolicy("editor-preview")).toEqual({
       semanticBlockDisclosures: "static",
     });
-    expect(documentSurfacePolicy("inert-preview")).toEqual(
+    expect(documentSurfacePolicy("hover-preview")).toEqual(
       documentSurfacePolicy("editor-preview"),
     );
   });

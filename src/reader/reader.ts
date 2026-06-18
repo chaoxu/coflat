@@ -1766,7 +1766,7 @@ function walkDocument(
     sourcePositions: !!opts.sourcePositions,
     mathSourcePositions: !!(opts.sourcePositions || opts.mathSourcePositions),
     semanticBlockDisclosures: opts.interactiveBlockDisclosures === false
-      ? documentSurfacePolicy("inert-preview").semanticBlockDisclosures
+      ? documentSurfacePolicy("hover-preview").semanticBlockDisclosures
       : documentSurfacePolicy("reader").semanticBlockDisclosures,
     collectOutline: !!opts.outline,
     outline: [],
