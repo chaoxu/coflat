@@ -5,9 +5,11 @@ import {
   headingReferenceTarget,
 } from "./reference-targets";
 import {
+  blockPreviewBodyInputFromFencedDiv,
   blockPreviewBodyInputFromSource,
   blockReferencePreviewEntry,
   fencedDivBodySource,
+  fencedDivPreviewBodyRange,
   fencedDivBodyRangeFromSource,
   equationReferencePreviewEntry,
   findEquationPreviewSource,
@@ -281,6 +283,55 @@ describe("reference preview source helpers", () => {
       from: source.indexOf("\n  Body"),
       to: source.indexOf("\n:::", blockFrom),
     })).toEqual(range);
+  });
+
+  it("plans fenced-div preview body input from either render-plan or editor semantic ranges", () => {
+    const source = [
+      '::: {.figure #fig:main title="Diagram"}',
+      "",
+      "![x](x.png)",
+      "",
+      ":::",
+    ].join("\n");
+    const fullRange = { from: 0, to: source.length };
+    const bodyRange = {
+      from: source.indexOf("![x]"),
+      to: source.indexOf("\n\n:::"),
+    };
+    const openFenceTo = source.indexOf("\n");
+    const closeFenceFrom = source.lastIndexOf(":::");
+
+    expect(fencedDivPreviewBodyRange(source, {
+      fullRange,
+      bodyRange,
+      openFenceTo,
+      closeFenceFrom,
+    })).toEqual(bodyRange);
+
+    expect(blockPreviewBodyInputFromFencedDiv(source, {
+      fullRange,
+      bodyRange,
+      openFenceTo,
+      closeFenceFrom,
+      useFullSource: false,
+    })).toEqual({
+      kind: "block",
+      fullSource: source,
+      bodySource: "![x](x.png)",
+      useFullSource: false,
+    });
+
+    expect(blockPreviewBodyInputFromFencedDiv(source, {
+      fullRange,
+      openFenceTo,
+      closeFenceFrom,
+      useFullSource: true,
+    })).toEqual({
+      kind: "block",
+      fullSource: source,
+      bodySource: "![x](x.png)",
+      useFullSource: true,
+    });
   });
 
   it("builds shared body inputs from indexed preview entries", () => {

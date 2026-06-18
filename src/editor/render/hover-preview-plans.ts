@@ -18,8 +18,7 @@ import {
 } from "./media-preview";
 import {
   referencePreviewBodyPlan,
-  blockPreviewBodyInputFromSource,
-  fencedDivBodyRangeFromSource,
+  blockPreviewBodyInputFromFencedDiv,
   type ReferencePreviewBodyPlan,
   referencePreviewContentPlan,
   unresolvedReferencePreviewLabel,
@@ -83,16 +82,14 @@ function blockPreviewBodyInput(
 ) {
   const source = view.state.doc.toString();
   const div = view.state.field(documentAnalysisField).fencedDivByFrom.get(block.from);
-  const bodyRange = div
-    ? fencedDivBodyRangeFromSource(source, {
-      blockRange: { from: block.from, to: block.to },
+  return blockPreviewBodyInputFromFencedDiv(source, {
+    fullRange: { from: block.from, to: block.to },
+    ...(div ? {
       openFenceTo: div.openFenceTo,
       closeFenceFrom: div.closeFenceFrom,
-    })
-    : { from: block.from, to: block.to };
-  return blockPreviewBodyInputFromSource(source, {
-    fullRange: { from: block.from, to: block.to },
-    bodyRange,
+    } : {
+      bodyRange: { from: block.from, to: block.to },
+    }),
     useFullSource,
   });
 }

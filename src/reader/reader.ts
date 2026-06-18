@@ -197,10 +197,10 @@ import {
 import {
   type ReferencePreviewEntry,
   type ReferencePreviewContentPlan,
+  fencedDivPreviewBodyRange,
   referencePreviewContentPlanFromEntry,
   referencePreviewContentPlanFromSource,
   referencePreviewEntryFromTarget,
-  trimReferencePreviewRange,
 } from "../core/reference-preview-source";
 import {
   mapDomRangeToSource,
@@ -1482,9 +1482,9 @@ function renderFencedDiv(ctx: WalkContext, node: SyntaxNode): BlockResult {
     })
     : null;
   if (ctx.buildReferencePreviews && plan.id && normalizedClassName && blockTarget) {
-    const bodyRange = trimReferencePreviewRange(ctx.source, plan.bodyRange ?? {
-      from: plan.sourceRange.from,
-      to: plan.sourceRange.from,
+    const bodyRange = fencedDivPreviewBodyRange(ctx.source, {
+      fullRange: plan.sourceRange,
+      bodyRange: plan.bodyRange,
     });
     const previewEntry = referencePreviewEntryFromTarget(blockTarget, {
       fallbackId: plan.id,

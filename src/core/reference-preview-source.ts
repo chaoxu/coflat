@@ -133,6 +133,14 @@ export interface FencedDivBodyRangeInput {
   readonly closeFenceFrom?: number;
 }
 
+export interface FencedDivPreviewBodyInput {
+  readonly fullRange: ReferencePreviewRange;
+  readonly bodyRange?: ReferencePreviewRange | null;
+  readonly openFenceTo?: number;
+  readonly closeFenceFrom?: number;
+  readonly useFullSource: boolean;
+}
+
 export function unresolvedReferencePreviewLabel(key: string): string {
   return `Unresolved: ${key}`;
 }
@@ -284,6 +292,20 @@ export function fencedDivBodyRangeFromSource(
   return trimSourceRange(source, contentFrom, contentTo);
 }
 
+export function fencedDivPreviewBodyRange(
+  source: string,
+  input: Omit<FencedDivPreviewBodyInput, "useFullSource">,
+): ReferencePreviewRange {
+  if (input.bodyRange) {
+    return trimReferencePreviewRange(source, input.bodyRange);
+  }
+  return fencedDivBodyRangeFromSource(source, {
+    blockRange: input.fullRange,
+    openFenceTo: input.openFenceTo,
+    closeFenceFrom: input.closeFenceFrom,
+  });
+}
+
 export function blockPreviewBodyInputFromSource(
   source: string,
   input: {
@@ -298,6 +320,17 @@ export function blockPreviewBodyInputFromSource(
     bodySource: source.slice(input.bodyRange.from, input.bodyRange.to),
     useFullSource: input.useFullSource,
   };
+}
+
+export function blockPreviewBodyInputFromFencedDiv(
+  source: string,
+  input: FencedDivPreviewBodyInput,
+): ReferencePreviewBodyInput {
+  return blockPreviewBodyInputFromSource(source, {
+    fullRange: input.fullRange,
+    bodyRange: fencedDivPreviewBodyRange(source, input),
+    useFullSource: input.useFullSource,
+  });
 }
 
 export function referencePreviewBodyInputFromEntry(
