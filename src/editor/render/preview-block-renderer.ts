@@ -25,6 +25,7 @@ import {
   type DocumentSurfaceName,
 } from "../../core/document-surface-policy";
 import type { InlineSurfaceName } from "../../core/inline-surface-policy";
+import type { InlineFragment } from "../../core/inline-fragments";
 import {
   EXCLUDED_FROM_FALLBACK,
   isCollapsibleBlockType,
@@ -435,13 +436,13 @@ function renderFencedDiv(
 
   const title = plan.title ?? "";
   const summary = plan.presentation
-    ? createBlockSummaryFragment(context, plan.presentation)
+    ? createBlockSummaryFragment(context, plan.presentation, plan.titleFragments)
     : undefined;
   const policy = context.surfacePolicy;
 
   if (title && plan.isSelfClosing) {
     const paragraph = createParagraphDom(document);
-    appendInlineText(paragraph, title, context, policy.bodyInlineSurface);
+    appendInlineFragments(paragraph, plan.titleFragments, context, policy.bodyInlineSurface);
     block.appendChild(paragraph);
   }
 
@@ -470,7 +471,7 @@ function renderFencedDiv(
     } else {
       if (title && !plan.presentation?.hasCaptionBelow && !plan.presentation?.hasInlineHeader) {
         const strong = createBlockLabelElement(document);
-        appendInlineText(strong, title, context, policy.labelInlineSurface);
+        appendInlineFragments(strong, plan.titleFragments, context, policy.labelInlineSurface);
         block.appendChild(strong);
       }
       block.appendChild(body);
@@ -481,7 +482,7 @@ function renderFencedDiv(
     const caption = createBlockCaptionElement(document);
     appendBlockCaptionLabel(caption, plan.presentation.label);
     const text = appendBlockCaptionText(caption);
-    appendInlineText(text, title, context, policy.labelInlineSurface);
+    appendInlineFragments(text, plan.titleFragments, context, policy.labelInlineSurface);
     block.appendChild(caption);
   }
 
@@ -491,13 +492,14 @@ function renderFencedDiv(
 function createBlockSummaryFragment(
   context: PreviewRenderContext,
   plan: BlockPresentationPlan,
+  titleFragments: readonly InlineFragment[] = [],
 ): DocumentFragment {
   return createBlockSummarySurfaceFragment(
     document,
     plan.label,
     plan.showTitleInHeader
       ? (renderedTitle) => {
-        appendInlineText(renderedTitle, plan.title ?? "", context, context.surfacePolicy.labelInlineSurface);
+        appendInlineFragments(renderedTitle, titleFragments, context, context.surfacePolicy.labelInlineSurface);
       }
       : undefined,
   );
@@ -598,13 +600,13 @@ function appendInlineNode(
   );
 }
 
-function appendInlineText(
+function appendInlineFragments(
   parent: HTMLElement,
-  text: string,
+  fragments: readonly InlineFragment[],
   context: PreviewRenderContext,
   surface: InlineSurfaceName,
 ): void {
-  renderInlineMarkdown(parent, text, context.macros, surface, {
+  renderInlineFragmentsToDom(parent, fragments, context.macros, surface, {
     ...context.referenceContext,
     imageUrlOverrides: context.imageUrlOverrides,
     footnoteNumbers: context.footnoteNumbers,

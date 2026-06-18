@@ -11,6 +11,7 @@ import {
 import {
   buildInlineFragments,
   inlineFragmentsPlainText,
+  parseInlineFragments,
   type InlineFragment,
 } from "./inline-fragments";
 import {
@@ -206,6 +207,9 @@ export interface FencedDivRenderPlan {
   readonly id: string | undefined;
   readonly keyValues: Readonly<Record<string, string>>;
   readonly title: string | undefined;
+  readonly titleFragments: readonly InlineFragment[];
+  readonly titleText: string;
+  readonly titleHasMath: boolean;
   readonly isSelfClosing: boolean;
   readonly bodyRange: {
     readonly from: number;
@@ -706,6 +710,7 @@ export function fencedDivRenderPlan(
       title,
     })
     : undefined;
+  const titleFragments = title ? parseInlineFragments(title) : [];
   const fenceRange = firstFence && lastFence
     ? source.slice(firstFence.from, lastFence.to)
     : "";
@@ -717,6 +722,9 @@ export function fencedDivRenderPlan(
     id,
     keyValues,
     title,
+    titleFragments,
+    titleText: inlineFragmentsPlainText(titleFragments),
+    titleHasMath: fragmentsContainMath(titleFragments),
     isSelfClosing: hasClosingFence && !fenceRange.includes("\n"),
     bodyRange: bodyFrom === null || bodyTo === null
       ? null

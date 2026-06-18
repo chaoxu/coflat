@@ -257,7 +257,41 @@ function renderInlineSnippet(ctx: WalkContext, source: string): BlockResult {
   };
 }
 
-function renderBlockSummary(ctx: WalkContext, type: string, title: string | undefined, number: number | undefined): BlockResult {
+function renderInlineSnippetFragments(
+  ctx: WalkContext,
+  source: string,
+  fragments: readonly InlineFragment[],
+): BlockResult {
+  const snippetCtx: WalkContext = {
+    ...ctx,
+    source,
+    lineOffsets: null,
+    sourcePositions: false,
+    mathSourcePositions: false,
+    collectOutline: false,
+    outline: [],
+    usedHeadingIds: new Set(),
+    headingCounters: [...ctx.headingCounters],
+    blockCounters: new Map(ctx.blockCounters),
+    blockNumbering: ctx.blockNumbering,
+    blockNumberingSpec: ctx.blockNumberingSpec,
+    blockTitles: ctx.blockTitles,
+    footnotesById: new Map(),
+    footnotesInOrder: [],
+    citedKeys: [],
+    catalog: ctx.catalog,
+    buildCatalog: ctx.buildCatalog,
+  };
+  return renderInlineFragmentsForReader(snippetCtx, fragments, 0, source.length);
+}
+
+function renderBlockSummary(
+  ctx: WalkContext,
+  type: string,
+  title: string | undefined,
+  titleFragments: readonly InlineFragment[],
+  number: number | undefined,
+): BlockResult {
   const plan = blockPresentationPlan({
     blockType: type,
     displayTitle: blockDisplayTitle(ctx, type),
@@ -271,7 +305,7 @@ function renderBlockSummary(ctx: WalkContext, type: string, title: string | unde
       hasMath: false,
     };
   }
-  const renderedTitle = renderInlineSnippet(ctx, plan.title ?? "");
+  const renderedTitle = renderInlineSnippetFragments(ctx, plan.title ?? "", titleFragments);
   return (
     {
       html: renderBlockSummarySurfaceHtml(plan.label, renderedTitle.html),
@@ -295,11 +329,12 @@ function renderBlockCaption(
   ctx: WalkContext,
   type: string,
   title: string,
+  titleFragments: readonly InlineFragment[],
   number: number | undefined,
   sourceFrom: number,
   sourceTo: number,
 ): BlockResult {
-  const renderedTitle = renderInlineSnippet(ctx, title);
+  const renderedTitle = renderInlineSnippetFragments(ctx, title, titleFragments);
   const label = formatBlockReferenceLabel(blockDisplayTitle(ctx, type), number);
   return {
     html: renderBlockCaptionHtml(label, renderedTitle.html, sourcePosAttrs(ctx, sourceFrom, sourceTo)),
@@ -1560,7 +1595,7 @@ function renderFencedDiv(ctx: WalkContext, node: SyntaxNode): BlockResult {
   const body = combineBlocks(blocks);
   const sourceAttrs = blockSourceAttrs(ctx, plan.sourceRange.from, plan.sourceRange.to);
   const caption = plan.presentation?.hasCaptionBelow && plan.title && normalizedClassName
-    ? renderBlockCaption(ctx, normalizedClassName, plan.title, plan.number, node.from, node.to)
+    ? renderBlockCaption(ctx, normalizedClassName, plan.title, plan.titleFragments, plan.number, node.from, node.to)
     : emptyBlock();
   const bodyHtml = body.html + caption.html;
   if (ctx.buildCatalog && plan.id && normalizedClassName) {
@@ -1590,7 +1625,7 @@ function renderFencedDiv(ctx: WalkContext, node: SyntaxNode): BlockResult {
     });
   }
   const summary = normalizedClassName
-    ? renderBlockSummary(ctx, normalizedClassName, plan.title, plan.number)
+    ? renderBlockSummary(ctx, normalizedClassName, plan.title, plan.titleFragments, plan.number)
     : emptyBlock();
   const summaryHtml = summary.html;
   const html = plan.presentation?.hasInlineHeader

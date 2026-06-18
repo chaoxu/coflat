@@ -387,6 +387,20 @@ describe("fencedDivRenderPlan", () => {
     expect(plan.title).toBe("Attr");
   });
 
+  it("plans fenced-div title inline fragments once for reader and editor emitters", () => {
+    const source = '::: {.theorem title="**Main** `case`"}\nBody\n:::';
+    const plan = fencedDivRenderPlan(source, firstBlock(source, "FencedDiv"));
+
+    expect(plan.title).toBe("**Main** `case`");
+    expect(plan.titleText).toBe("Main case");
+    expect(plan.titleHasMath).toBe(false);
+    expect(plan.titleFragments.map((fragment) => fragment.kind)).toEqual([
+      "strong",
+      "text",
+      "code",
+    ]);
+  });
+
   it("records blank-line ranges before renderable body children", () => {
     const source = "::: {.proof}\nfirst\n\nsecond\n:::";
     const plan = fencedDivRenderPlan(source, firstBlock(source, "FencedDiv"));

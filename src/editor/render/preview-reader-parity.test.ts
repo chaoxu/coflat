@@ -220,9 +220,25 @@ describe("reader / editor-preview emission parity", () => {
       ].join("\n"),
     },
     {
+      name: "numbered theorem block with inline title markup",
+      source: [
+        '::: {.theorem #thm:inline-title title="**Main** `case`"}',
+        "Body text.",
+        ":::",
+      ].join("\n"),
+    },
+    {
       name: "fenced block key-value attributes",
       source: [
         '::: {.theorem #thm:attrs title="Main" status="draft"}',
+        "Body text.",
+        ":::",
+      ].join("\n"),
+    },
+    {
+      name: "captioned figure block with inline title markup",
+      source: [
+        '::: {.figure #fig:inline title="**Figure** `case`"}',
         "Body text.",
         ":::",
       ].join("\n"),
