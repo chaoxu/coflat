@@ -127,6 +127,10 @@ import {
   renderHeadingSurfaceHtml,
 } from "../core/heading-surface";
 import {
+  documentOutlineEntry,
+  type DocumentOutlineEntry,
+} from "../core/outline-surface";
+import {
   renderReadOnlyTaskCheckboxHtml,
   renderListItemSurfaceHtml,
   renderListSurfaceHtml,
@@ -1032,21 +1036,7 @@ function emitReferenceCluster(
 
 type TruncateSpec = { lines: number } | { chars: number };
 
-/**
- * One heading in a document outline, in document order.
- *
- * `id` is the anchor that {@link renderToHtml} emits on the heading element
- * when `opts.outline` is set — an explicit Pandoc `{#id}` when present, else a
- * deduplicated slug of `text`. `number` is coflat's canonical section number
- * (e.g. `"2.1"`), absent for unnumbered headings.
- */
-export interface ReaderOutlineEntry {
-  readonly id: string;
-  readonly text: string;
-  readonly html: string;
-  readonly level: number;
-  readonly number?: string;
-}
+export type ReaderOutlineEntry = DocumentOutlineEntry;
 
 interface RenderOptions {
   /** If true, emit `data-source-line` on every block-level element. */
@@ -1277,11 +1267,14 @@ function renderHeading(ctx: WalkContext, node: SyntaxNode): BlockResult {
       { text: plan.text, id: headingId },
       ctx.usedHeadingIds,
     );
-    ctx.outline.push(
-      displayUnnumbered
-        ? { id: headingId, text: plan.text, html: inner.html, level: plan.level }
-        : { id: headingId, text: plan.text, html: inner.html, level: plan.level, number: headingNumber },
-    );
+    ctx.outline.push(documentOutlineEntry({
+      id: headingId,
+      text: plan.text,
+      html: inner.html,
+      level: plan.level,
+      number: headingNumber,
+      displayUnnumbered,
+    }));
   }
   return {
     html: renderHeadingSurfaceHtml(

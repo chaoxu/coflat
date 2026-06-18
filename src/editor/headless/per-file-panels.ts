@@ -2,6 +2,10 @@ import type { Extension, Text } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 
 import { documentSurfacePolicy } from "../../core/document-surface-policy";
+import {
+  documentOutlineEntry,
+  type DocumentOutlineEntry,
+} from "../../core/outline-surface";
 import { isFrontmatterDelimiterLine } from "../../core/parser/frontmatter";
 import { inlineFragmentsPlainText, parseInlineFragments } from "../inline-fragments";
 import { documentContextFacet } from "../document-context";
@@ -11,25 +15,15 @@ import { documentAnalysisField } from "../state/document-analysis";
 import type { DocumentAnalysis } from "../semantics/document";
 import { buildHeadingAnchorIds } from "../../core/semantics/heading-anchors";
 
-export interface OutlineEntry {
-  /** Heading level, 1 for `#`, 6 for `######`. */
-  readonly level: 1 | 2 | 3 | 4 | 5 | 6;
-  /** Heading text without Markdown markers or trailing attributes. */
-  readonly text: string;
+export interface OutlineEntry extends DocumentOutlineEntry {
   /** Heading inline Markdown without leading heading markers or trailing attributes. */
   readonly markdown: string;
-  /** Rendered inline heading HTML for chrome surfaces such as an outline. */
-  readonly html: string;
   /** 1-based line number for display and line-oriented navigation. */
   readonly line: number;
   /** 0-based CodeMirror document offset for exact editor navigation. */
   readonly from: number;
   /** Stable render key generated from the heading position and content. */
   readonly key: string;
-  /** Stable heading anchor id: explicit `{#id}` when present, else a generated slug. */
-  readonly id?: string;
-  /** Hierarchical section number, when the heading participates in numbering. */
-  readonly number?: string;
 }
 
 export interface Counts {
@@ -225,22 +219,31 @@ function computeOutline(view: EditorView): readonly OutlineEntry[] {
   return analysis.headings.map((heading) => {
     const line = view.state.doc.lineAt(heading.from);
     const markdown = view.state.doc.sliceString(heading.textFrom, heading.textTo);
+    const text = inlineFragmentsPlainText(parseInlineFragments(markdown));
+    const html = renderDocumentFragmentToHtml({
+      kind: "chrome-label",
+      text: markdown,
+      macros: mathMacros,
+      referenceContext,
+      surface: surfacePolicy.chromeLabelInlineSurface,
+    });
+    const id = headingAnchorIds.get(heading.from);
+    if (!id) {
+      throw new Error(`Missing heading outline id at ${heading.from}`);
+    }
     return {
-      level: heading.level as OutlineEntry["level"],
-      text: inlineFragmentsPlainText(parseInlineFragments(markdown)),
-      markdown,
-      html: renderDocumentFragmentToHtml({
-        kind: "chrome-label",
-        text: markdown,
-        macros: mathMacros,
-        referenceContext,
-        surface: surfacePolicy.chromeLabelInlineSurface,
+      ...documentOutlineEntry({
+        id,
+        level: heading.level,
+        text,
+        html,
+        number: heading.number,
+        displayUnnumbered: !heading.number,
       }),
+      markdown,
       line: line.number,
       from: heading.from,
       key: String(heading.from),
-      id: headingAnchorIds.get(heading.from),
-      number: heading.number || undefined,
     };
   });
 }
