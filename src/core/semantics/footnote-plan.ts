@@ -187,21 +187,3 @@ export function footnotePlanSectionEntries<
     include: include(entry),
   }));
 }
-
-export interface FootnoteRuntimeSectionEntry {
-  readonly id: string;
-  readonly number: number;
-  readonly include: boolean;
-}
-
-export function footnoteRuntimeSectionEntries(
-  orderedIds: readonly string[],
-  numberById: ReadonlyMap<string, number>,
-  include: (id: string) => boolean = () => true,
-): readonly FootnoteRuntimeSectionEntry[] {
-  return orderedIds.map((id) => ({
-    id,
-    number: numberById.get(id) ?? 0,
-    include: include(id),
-  }));
-}

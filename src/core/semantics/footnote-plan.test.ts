@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import {
   buildFootnotePlan,
   footnotePlanSectionEntries,
-  footnoteRuntimeSectionEntries,
 } from "./footnote-plan";
 
 interface TestRef {
@@ -91,14 +90,4 @@ describe("footnote plan", () => {
     ]);
   });
 
-  it("projects mutable reader footnote state into the same section entry shape", () => {
-    expect(footnoteRuntimeSectionEntries(
-      ["a", "orphan"],
-      new Map([["a", 1], ["orphan", 2]]),
-      (id) => id !== "orphan",
-    )).toEqual([
-      { id: "a", number: 1, include: true },
-      { id: "orphan", number: 2, include: false },
-    ]);
-  });
 });

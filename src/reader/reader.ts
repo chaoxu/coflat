@@ -97,8 +97,13 @@ import {
   reserveExplicitHeadingAnchorIds,
 } from "../core/semantics/heading-anchors";
 import {
-  footnoteRuntimeSectionEntries,
-} from "../core/semantics/footnote-plan";
+  createFootnoteEmissionState,
+  footnoteEmissionSectionEntries,
+  registerFootnoteDefinition,
+  registerFootnoteReference,
+  snapshotFootnoteEmissionState,
+  type MutableFootnoteEmissionState,
+} from "../core/semantics/footnote-emission-state";
 import {
   nextHeadingOutlineProjectionEntry,
 } from "../core/semantics/outline-plan";
@@ -154,11 +159,6 @@ import {
 } from "../core/list-surface";
 import { renderCodeBlockHtml } from "../core/code-block-surface";
 import { renderReaderFootnoteReferenceHtml } from "../core/footnote-reference-surface";
-import {
-  createFootnoteNumberingState,
-  ensureFootnoteNumber,
-  type MutableFootnoteNumberingState,
-} from "../core/footnote-ordering";
 import {
   footnoteSectionPlanFromOrderedEntries,
   renderFootnoteSectionHtml,
@@ -302,8 +302,7 @@ function renderInlineSnippet(ctx: WalkContext, source: string): BlockResult {
     blockNumbering: ctx.blockNumbering,
     blockNumberingSpec: ctx.blockNumberingSpec,
     blockTitles: ctx.blockTitles,
-    footnotesById: new Map(),
-    footnoteNumbering: createFootnoteNumberingState(),
+    footnotes: createFootnoteEmissionState(),
     // Snippet renders (e.g. a fenced-div title) use a throwaway citedKeys, so a
     // citation appearing only inside a block title is shown inline but not added
     // to the document's References list — consistent with extractReferences,
@@ -343,8 +342,7 @@ function renderInlineSnippetFragments(
     blockNumbering: ctx.blockNumbering,
     blockNumberingSpec: ctx.blockNumberingSpec,
     blockTitles: ctx.blockTitles,
-    footnotesById: new Map(),
-    footnoteNumbering: createFootnoteNumberingState(),
+    footnotes: createFootnoteEmissionState(),
     citedKeys: [],
     catalog: ctx.catalog,
     buildCatalog: ctx.buildCatalog,
@@ -629,15 +627,6 @@ interface Resolvers {
   documentPath?: string;
 }
 
-interface FootnoteEntry {
-  /** Source id (the part between `[^` and `]`). */
-  id: string;
-  /** Pre-rendered inner HTML of the definition body (from FootnoteDef). */
-  bodyHtml: string;
-  /** True once at least one ref to this id has been emitted. */
-  hasRef: boolean;
-}
-
 interface WalkContext {
   source: string;
   resolvers: Resolvers;
@@ -664,9 +653,8 @@ interface WalkContext {
   blockNumberingSpec: BlockNumberingSpecLookup;
   blockTitles: ReadonlyMap<string, string>;
   equationCounter: EquationNumberCounter;
-  // Footnote tracking
-  footnotesById: Map<string, FootnoteEntry>;
-  footnoteNumbering: MutableFootnoteNumberingState;
+  /** Render-time footnote state. Reader truncation snapshots and rolls this back. */
+  footnotes: MutableFootnoteEmissionState<string>;
   /** Bibliography keys cited (bracketed `[@key]` resolved as a citation), in
    *  first-appearance order; drives IEEE numbering + the References list. Only
    *  populated when the host supplies `citationKeys` + `citationFormatter`. */
@@ -888,18 +876,7 @@ function renderInlineFragmentsForReader(
           text += fragment.id;
           break;
         }
-        const number = ensureFootnoteNumber(ctx.footnoteNumbering, fragment.id);
-        let entry = ctx.footnotesById.get(fragment.id);
-        if (!entry) {
-          entry = {
-            id: fragment.id,
-            bodyHtml: "",
-            hasRef: true,
-          };
-          ctx.footnotesById.set(fragment.id, entry);
-        } else {
-          entry.hasRef = true;
-        }
+        const { number } = registerFootnoteReference(ctx.footnotes, fragment.id);
         html += renderReaderFootnoteReferenceHtml(number, fragment.id, sourceAttrsFor(fragment));
         text += `[${number}]`;
         break;
@@ -1569,20 +1546,9 @@ function renderFootnoteDef(ctx: WalkContext, node: SyntaxNode): BlockResult {
   );
   const { html, hasMath } = renderedBody;
 
-  // Register / update footnote entry. Forward-ref may have already
-  // assigned a number; preserve it.
-  let entry = ctx.footnotesById.get(plan.id);
-  if (!entry) {
-    ensureFootnoteNumber(ctx.footnoteNumbering, plan.id);
-    entry = {
-      id: plan.id,
-      bodyHtml: html,
-      hasRef: false,
-    };
-    ctx.footnotesById.set(plan.id, entry);
-  } else {
-    entry.bodyHtml = html;
-  }
+  // Register / update footnote entry. Forward-ref may have already assigned a
+  // number; the shared emitted-footnote state preserves it.
+  registerFootnoteDefinition(ctx.footnotes, plan.id, html);
 
   // FootnoteDef itself emits no inline output; the footnotes list is
   // appended at the end of the document. Propagate hasMath so math
@@ -1592,21 +1558,17 @@ function renderFootnoteDef(ctx: WalkContext, node: SyntaxNode): BlockResult {
 }
 
 function renderFootnotesList(ctx: WalkContext): string {
-  if (ctx.footnoteNumbering.orderedIds.length === 0) return "";
+  if (ctx.footnotes.numbering.orderedIds.length === 0) return "";
   const plannedEntries = footnoteSectionPlanFromOrderedEntries(
-    footnoteRuntimeSectionEntries(
-      ctx.footnoteNumbering.orderedIds,
-      ctx.footnoteNumbering.numberById,
-      (id) => {
-        const entry = ctx.footnotesById.get(id);
-        return Boolean(entry?.hasRef || entry?.bodyHtml);
-      },
+    footnoteEmissionSectionEntries(
+      ctx.footnotes,
+      (entry) => entry.hasRef || Boolean(entry.body),
     ),
   );
   return renderFootnoteSectionHtml(
     plannedEntries.map((entry) => ({
       ...entry,
-      html: ctx.footnotesById.get(entry.id)?.bodyHtml ?? "",
+      html: ctx.footnotes.entriesById.get(entry.id)?.body ?? "",
     })),
   );
 }
@@ -1671,8 +1633,7 @@ function walkDocument(
       blockNumbering,
     ),
     equationCounter: initialEquationNumberCounter(),
-    footnotesById: new Map(),
-    footnoteNumbering: createFootnoteNumberingState(),
+    footnotes: createFootnoteEmissionState(),
     citedKeys: [],
     catalog: new Map(),
     referencePreviewIndex: new Map(),
@@ -1728,11 +1689,7 @@ function walkDocument(
       const child = childPlan.node;
       if (budgetKind) {
         // Snapshot footnote state so we can roll back if we end up not emitting.
-        const fnIdSnapshot = new Map(ctx.footnotesById);
-        const footnoteNumberingSnapshot = {
-          numberById: new Map(ctx.footnoteNumbering.numberById),
-          orderedIds: [...ctx.footnoteNumbering.orderedIds],
-        };
+        const footnoteSnapshot = snapshotFootnoteEmissionState(ctx.footnotes);
         const headingCounterSnapshot = [...ctx.headingCounters];
         const outlineLen = ctx.outline.length;
         const usedHeadingIdsSnapshot = new Set(ctx.usedHeadingIds);
@@ -1750,8 +1707,7 @@ function walkDocument(
           : rendered.text.length;
         if (used > 0 && used + cost > budget) {
           // Roll back footnote side-effects, then stop before this block.
-          ctx.footnotesById = fnIdSnapshot;
-          ctx.footnoteNumbering = footnoteNumberingSnapshot;
+          ctx.footnotes = footnoteSnapshot;
           ctx.headingCounters = headingCounterSnapshot;
           ctx.outline.length = outlineLen;
           ctx.usedHeadingIds = usedHeadingIdsSnapshot;
