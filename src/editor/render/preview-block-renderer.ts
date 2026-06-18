@@ -68,8 +68,10 @@ import {
 import type { BlockPresentationPlan } from "../../core/block-presentation";
 import {
   blockquoteRenderPlan,
+  codeBlockRenderPlan,
   displayMathRenderPlan,
   fencedDivRenderPlan,
+  footnoteDefinitionRenderPlan,
   headingRenderPlan,
   horizontalRuleRenderPlan,
   listRenderPlan,
@@ -184,6 +186,9 @@ function renderNode(
       renderHeading(parent, node, context);
       return;
     case "FencedCode":
+      renderFencedCode(parent, node, context);
+      return;
+    case "CodeBlock":
       renderFencedCode(parent, node, context);
       return;
     case "BulletList":
@@ -330,15 +335,8 @@ function renderFencedCode(
   node: SyntaxNode,
   context: PreviewRenderContext,
 ): void {
-  const codeInfo = node.getChild("CodeInfo");
-  const language = codeInfo ? context.doc.slice(codeInfo.from, codeInfo.to).trim() : "";
-  const codeText = node.getChild("CodeText");
-  appendCodeBlockDom(
-    parent,
-    document,
-    language,
-    codeText ? context.doc.slice(codeText.from, codeText.to) : "",
-  );
+  const plan = codeBlockRenderPlan(context.doc, node);
+  appendCodeBlockDom(parent, document, plan.language, plan.code);
 }
 
 function renderList(
@@ -573,16 +571,26 @@ function renderFootnoteDef(
   node: SyntaxNode,
   context: PreviewRenderContext,
 ): void {
-  const footnote = context.semantics.footnotes.defByFrom.get(node.from);
-  if (!footnote) return;
+  const plan = footnoteDefinitionRenderPlan(context.doc, node);
+  if (!plan) return;
 
   parent.appendChild(
     createFootnoteEntryElement(document, {
-      num: context.footnoteNumbers.get(footnote.id) ?? 0,
-      id: footnote.id,
-      defFrom: footnote.from,
+      num: context.footnoteNumbers.get(plan.id) ?? 0,
+      id: plan.id,
+      defFrom: plan.sourceRange.from,
       appendContent: (content) => {
-        appendInlineText(content, footnote.content, context, "document-body");
+        renderInlineFragmentsToDom(
+          content,
+          plan.fragments,
+          context.macros,
+          "document-body",
+          {
+            ...context.referenceContext,
+            imageUrlOverrides: context.imageUrlOverrides,
+            footnoteNumbers: context.footnoteNumbers,
+          },
+        );
       },
     }),
   );

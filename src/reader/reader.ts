@@ -17,8 +17,10 @@ import {
 } from "../core/inline-fragments";
 import {
   blockquoteRenderPlan,
+  codeBlockRenderPlan,
   displayMathRenderPlan,
   fencedDivRenderPlan,
+  footnoteDefinitionRenderPlan,
   headingLevelFor,
   headingRenderPlan,
   horizontalRuleRenderPlan,
@@ -1402,34 +1404,27 @@ function renderBlockquote(ctx: WalkContext, node: SyntaxNode): BlockResult {
 }
 
 function renderFencedCode(ctx: WalkContext, node: SyntaxNode): BlockResult {
-  // Lang from CodeInfo child.
-  const info = node.getChild("CodeInfo");
-  const lang = info ? ctx.source.slice(info.from, info.to).trim() : "";
-
-  // Inner content: everything between opening and closing CodeMark fences.
-  let contentFrom = node.from;
-  let contentTo = node.to;
-  const marks = node.getChildren("CodeMark");
-  if (marks.length >= 1) contentFrom = (info ? info.to : marks[0].to);
-  if (marks.length >= 2) contentTo = marks[marks.length - 1].from;
-
-  // Trim a single leading newline (after the info line) and trailing newline.
-  while (contentFrom < contentTo && (ctx.source[contentFrom] === "\n")) contentFrom++;
-  while (contentTo > contentFrom && (ctx.source[contentTo - 1] === "\n")) contentTo--;
-
-  const code = ctx.source.slice(contentFrom, contentTo);
+  const plan = codeBlockRenderPlan(ctx.source, node);
   return {
-    html: renderCodeBlockHtml(lang, code, blockSourceAttrs(ctx, node.from, node.to)),
-    text: code,
+    html: renderCodeBlockHtml(
+      plan.language,
+      plan.code,
+      blockSourceAttrs(ctx, plan.sourceRange.from, plan.sourceRange.to),
+    ),
+    text: plan.code,
     hasMath: false,
   };
 }
 
 function renderIndentedCode(ctx: WalkContext, node: SyntaxNode): BlockResult {
-  const code = ctx.source.slice(node.from, node.to).replace(/^( {4}|\t)/gm, "");
+  const plan = codeBlockRenderPlan(ctx.source, node);
   return {
-    html: renderCodeBlockHtml("", code, blockSourceAttrs(ctx, node.from, node.to)),
-    text: code,
+    html: renderCodeBlockHtml(
+      plan.language,
+      plan.code,
+      blockSourceAttrs(ctx, plan.sourceRange.from, plan.sourceRange.to),
+    ),
+    text: plan.code,
     hasMath: false,
   };
 }
@@ -1576,37 +1571,34 @@ function renderFencedDiv(ctx: WalkContext, node: SyntaxNode): BlockResult {
 }
 
 function renderFootnoteDef(ctx: WalkContext, node: SyntaxNode): BlockResult {
-  // Label child carries the `[^id]:` source.
-  const labelNode = node.getChild("FootnoteDefLabel");
-  if (!labelNode) return emptyBlock();
-  const labelRaw = ctx.source.slice(labelNode.from, labelNode.to);
-  const m = labelRaw.match(/^\[\^([^\]]+)\]:/);
-  if (!m) return emptyBlock();
-  const id = m[1];
+  const plan = footnoteDefinitionRenderPlan(ctx.source, node, {
+    sourceRanges: ctx.sourcePositions || ctx.mathSourcePositions,
+  });
+  if (!plan) return emptyBlock();
 
-  const renderedBody = renderInline(ctx, node, labelNode.to, node.to);
-  let { html, text, hasMath } = renderedBody;
-
-  // Trim leading whitespace from body.
-  html = html.replace(/^\s+/, "");
-  text = text.replace(/^\s+/, "").replace(/\s+$/, "");
+  const renderedBody = renderInlineFragmentsForReader(
+    ctx,
+    plan.fragments,
+    plan.bodyRange.from,
+    plan.bodyRange.to,
+  );
+  const { html, hasMath } = renderedBody;
 
   // Register / update footnote entry. Forward-ref may have already
   // assigned a number; preserve it.
-  let entry = ctx.footnotesById.get(id);
+  let entry = ctx.footnotesById.get(plan.id);
   if (!entry) {
     entry = {
-      id,
+      id: plan.id,
       number: ctx.footnotesInOrder.length + 1,
       bodyHtml: html,
       hasRef: false,
     };
-    ctx.footnotesById.set(id, entry);
+    ctx.footnotesById.set(plan.id, entry);
     ctx.footnotesInOrder.push(entry);
   } else {
     entry.bodyHtml = html;
   }
-  void text;
 
   // FootnoteDef itself emits no inline output; the footnotes list is
   // appended at the end of the document. Propagate hasMath so math

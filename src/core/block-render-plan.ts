@@ -57,6 +57,20 @@ export interface DisplayMathRenderPlan {
   readonly equationId: string | null;
 }
 
+export interface CodeBlockRenderPlan {
+  readonly kind: "code-block";
+  readonly sourceRange: {
+    readonly from: number;
+    readonly to: number;
+  };
+  readonly contentRange: {
+    readonly from: number;
+    readonly to: number;
+  };
+  readonly language: string;
+  readonly code: string;
+}
+
 export interface BlockquoteRenderPlan {
   readonly kind: "blockquote";
   readonly sourceRange: {
@@ -127,6 +141,26 @@ export interface TableRenderPlan {
   readonly alignments: readonly (string | null)[];
   readonly header: TableRowRenderPlan | null;
   readonly rows: readonly TableRowRenderPlan[];
+}
+
+export interface FootnoteDefinitionRenderPlan {
+  readonly kind: "footnote-definition";
+  readonly sourceRange: {
+    readonly from: number;
+    readonly to: number;
+  };
+  readonly labelRange: {
+    readonly from: number;
+    readonly to: number;
+  };
+  readonly bodyRange: {
+    readonly from: number;
+    readonly to: number;
+  };
+  readonly id: string;
+  readonly fragments: readonly InlineFragment[];
+  readonly text: string;
+  readonly hasMath: boolean;
 }
 
 export interface FencedDivRenderChildPlan {
@@ -240,6 +274,59 @@ export function displayMathRenderPlan(
     equationId: equationLabel
       ? readBracedLabelId(source, equationLabel.from, equationLabel.to, "eq:")
       : null,
+  };
+}
+
+export function codeBlockRenderPlan(
+  source: string,
+  node: SyntaxNode,
+): CodeBlockRenderPlan {
+  switch (node.name) {
+    case NODE.FencedCode:
+      return fencedCodeBlockRenderPlan(source, node);
+    case NODE.CodeBlock:
+      return indentedCodeBlockRenderPlan(source, node);
+    default:
+      throw new Error(`expected code block node, got ${node.name}`);
+  }
+}
+
+function fencedCodeBlockRenderPlan(
+  source: string,
+  node: SyntaxNode,
+): CodeBlockRenderPlan {
+  const info = node.getChild(NODE.CodeInfo);
+  const codeText = node.getChild(NODE.CodeText);
+  let contentFrom = codeText?.from ?? node.from;
+  let contentTo = codeText?.to ?? node.to;
+
+  if (!codeText) {
+    const marks = node.getChildren(NODE.CodeMark);
+    if (marks.length >= 1) contentFrom = info ? info.to : marks[0].to;
+    if (marks.length >= 2) contentTo = marks[marks.length - 1].from;
+    while (contentFrom < contentTo && source[contentFrom] === "\n") contentFrom++;
+    while (contentTo > contentFrom && source[contentTo - 1] === "\n") contentTo--;
+  }
+
+  return {
+    kind: "code-block",
+    sourceRange: { from: node.from, to: node.to },
+    contentRange: { from: contentFrom, to: contentTo },
+    language: info ? source.slice(info.from, info.to).trim() : "",
+    code: source.slice(contentFrom, contentTo),
+  };
+}
+
+function indentedCodeBlockRenderPlan(
+  source: string,
+  node: SyntaxNode,
+): CodeBlockRenderPlan {
+  return {
+    kind: "code-block",
+    sourceRange: { from: node.from, to: node.to },
+    contentRange: { from: node.from, to: node.to },
+    language: "",
+    code: source.slice(node.from, node.to).replace(/^( {4}|\t)/gm, ""),
   };
 }
 
@@ -390,6 +477,40 @@ function tableAlignments(
     }
   }
   return [];
+}
+
+export function footnoteDefinitionRenderPlan(
+  source: string,
+  node: SyntaxNode,
+  options: BlockRenderPlanOptions = {},
+): FootnoteDefinitionRenderPlan | null {
+  if (node.name !== NODE.FootnoteDef) {
+    throw new Error(`expected footnote definition node, got ${node.name}`);
+  }
+
+  const labelNode = node.getChild(NODE.FootnoteDefLabel);
+  if (!labelNode) return null;
+
+  const id = source.slice(labelNode.from + 2, labelNode.to - 2);
+  const bodyRange = trimmedNodeRange(source, labelNode.to, node.to);
+  const fragments = buildInlineFragments(
+    node,
+    source,
+    bodyRange.from,
+    bodyRange.to,
+    { sourceRanges: options.sourceRanges },
+  );
+
+  return {
+    kind: "footnote-definition",
+    sourceRange: { from: node.from, to: node.to },
+    labelRange: { from: labelNode.from, to: labelNode.to },
+    bodyRange,
+    id,
+    fragments,
+    text: inlineFragmentsPlainText(fragments),
+    hasMath: fragmentsContainMath(fragments),
+  };
 }
 
 export function fencedDivRenderPlan(

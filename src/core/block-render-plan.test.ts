@@ -3,8 +3,10 @@ import { describe, expect, it } from "vitest";
 import { parseMarkdownSource } from "./parser";
 import {
   blockquoteRenderPlan,
+  codeBlockRenderPlan,
   displayMathRenderPlan,
   fencedDivRenderPlan,
+  footnoteDefinitionRenderPlan,
   headingRenderPlan,
   horizontalRuleRenderPlan,
   listRenderPlan,
@@ -88,6 +90,79 @@ describe("displayMathRenderPlan", () => {
       latex: "a+b",
       equationId: null,
     });
+  });
+});
+
+describe("codeBlockRenderPlan", () => {
+  it("captures fenced code language and code text", () => {
+    const source = "```ts\nconst x = 1;\n```";
+    const plan = codeBlockRenderPlan(source, firstBlock(source, "FencedCode"));
+
+    expect(plan).toEqual({
+      kind: "code-block",
+      sourceRange: { from: 0, to: source.length },
+      contentRange: { from: source.indexOf("const"), to: source.indexOf("\n```") },
+      language: "ts",
+      code: "const x = 1;",
+    });
+  });
+
+  it("handles tilde fences and trims only fence-adjacent newlines", () => {
+    const source = "~~~ haskell\n\nmain = putStrLn \"hi\"\n\n~~~";
+    const plan = codeBlockRenderPlan(source, firstBlock(source, "FencedCode"));
+
+    expect(plan.language).toBe("haskell");
+    expect(plan.code).toBe('\nmain = putStrLn "hi"\n');
+  });
+
+  it("keeps empty fenced code blocks empty", () => {
+    const source = "```txt\n```";
+    const plan = codeBlockRenderPlan(source, firstBlock(source, "FencedCode"));
+
+    expect(plan).toMatchObject({
+      language: "txt",
+      code: "",
+    });
+  });
+
+});
+
+describe("footnoteDefinitionRenderPlan", () => {
+  it("captures id, body range, shared inline fragments, and math state", () => {
+    const source = "[^note:1]: Footnote with **bold** and $x^2$.";
+    const plan = footnoteDefinitionRenderPlan(source, firstBlock(source, "FootnoteDef"), {
+      sourceRanges: true,
+    });
+
+    expect(plan).toMatchObject({
+      kind: "footnote-definition",
+      sourceRange: { from: 0, to: source.length },
+      labelRange: { from: 0, to: 10 },
+      bodyRange: { from: 11, to: source.length },
+      id: "note:1",
+      text: "Footnote with bold and $x^2$.",
+      hasMath: true,
+    });
+    expect(plan?.fragments).toEqual([
+      { kind: "text", text: "Footnote with ", sourceRange: { from: 11, to: 25 } },
+      {
+        kind: "strong",
+        children: [{ kind: "text", text: "bold", sourceRange: { from: 27, to: 31 } }],
+        sourceRange: { from: 25, to: 33 },
+      },
+      { kind: "text", text: " and ", sourceRange: { from: 33, to: 38 } },
+      { kind: "math", latex: "x^2", raw: "$x^2$", sourceRange: { from: 38, to: 43 } },
+      { kind: "text", text: ".", sourceRange: { from: 43, to: 44 } },
+    ]);
+  });
+
+  it("trims body whitespace without changing the block source range", () => {
+    const source = "[^a]:   body   ";
+    const plan = footnoteDefinitionRenderPlan(source, firstBlock(source, "FootnoteDef"));
+
+    expect(plan?.sourceRange).toEqual({ from: 0, to: source.length });
+    expect(plan?.bodyRange).toEqual({ from: 8, to: 12 });
+    expect(plan?.text).toBe("body");
   });
 });
 

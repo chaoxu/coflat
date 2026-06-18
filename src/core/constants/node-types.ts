@@ -24,9 +24,11 @@ export const NODE = {
 
   // Code
   FencedCode: "FencedCode",
+  CodeBlock: "CodeBlock",
   InlineCode: "InlineCode",
   CodeMark: "CodeMark",
   CodeInfo: "CodeInfo",
+  CodeText: "CodeText",
 
   // Math (custom extension)
   InlineMath: "InlineMath",
@@ -63,6 +65,7 @@ export const NODE = {
   // Footnotes (custom extension)
   FootnoteRef: "FootnoteRef",
   FootnoteDef: "FootnoteDef",
+  FootnoteDefLabel: "FootnoteDefLabel",
 
   // Equation labels (custom extension)
   EquationLabel: "EquationLabel",
