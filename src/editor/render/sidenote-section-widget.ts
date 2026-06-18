@@ -10,6 +10,7 @@ export interface FootnoteSectionEntry {
   readonly id: string;
   readonly content: string;
   readonly defFrom: number;
+  readonly backrefHref?: string;
 }
 
 /** Widget that renders a "Footnotes" section at the bottom when sidenotes are collapsed. */
@@ -32,6 +33,7 @@ export class FootnoteSectionWidget extends RenderWidget {
           num: entry.num,
           id: entry.id,
           defFrom: entry.defFrom,
+          backrefHref: entry.backrefHref,
           appendContent: (content) => {
             renderFootnoteEntryContent(content, entry.content, this.macros);
           },
@@ -64,7 +66,8 @@ export class FootnoteSectionWidget extends RenderWidget {
         e.id === other.entries[i].id &&
         e.content === other.entries[i].content &&
         e.num === other.entries[i].num &&
-        e.defFrom === other.entries[i].defFrom,
+        e.defFrom === other.entries[i].defFrom &&
+        e.backrefHref === other.entries[i].backrefHref,
     ) && this.macrosKey === other.macrosKey;
   }
 }

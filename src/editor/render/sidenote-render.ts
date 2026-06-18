@@ -350,6 +350,7 @@ class FootnoteSectionPlugin implements PluginValue {
       id: entry.id,
       content: entry.def.content,
       defFrom: entry.defFrom,
+      backrefHref: entry.backrefHref,
     }));
 
     const endPos = view.state.doc.length;

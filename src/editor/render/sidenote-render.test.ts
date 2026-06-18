@@ -693,6 +693,17 @@ describe("FootnoteSectionWidget", () => {
     expect(entry?.getAttribute("style")).toBeNull();
     expect(number?.getAttribute("style")).toBeNull();
   });
+
+  it("renders reader-compatible backrefs in collapsed footnote entries", () => {
+    const widget = new FootnoteSectionWidget(
+      [{ num: 1, id: "note-1", content: "Body", defFrom: 24, backrefHref: "#fnref-note-1" }],
+      {},
+    );
+
+    const backref = widget.createDOM().querySelector<HTMLAnchorElement>(`.${CSS.footnoteBackref}`);
+    expect(backref?.getAttribute("href")).toBe("#fnref-note-1");
+    expect(backref?.textContent).toBe("↩");
+  });
 });
 
 describe("tooltip inline rendering", () => {
