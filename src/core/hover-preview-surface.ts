@@ -4,6 +4,7 @@ import {
   createPreviewSurfaceContent,
   createPreviewSurfaceHeader,
 } from "./preview-surface";
+import { unresolvedReferencePreviewLabel } from "./reference-preview-source";
 
 export function createHoverPreviewContentElement(
   extraClass?: string | null,
@@ -33,7 +34,7 @@ export function createHoverPreviewCitationBodyElement(): HTMLElement {
 export function createUnresolvedHoverPreviewElement(key: string): HTMLElement {
   const container = createHoverPreviewContentElement();
   container.appendChild(
-    createHoverPreviewHeaderElement(`Unresolved: ${key}`, CSS.hoverPreviewUnresolved),
+    createHoverPreviewHeaderElement(unresolvedReferencePreviewLabel(key), CSS.hoverPreviewUnresolved),
   );
   return container;
 }

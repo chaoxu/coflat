@@ -162,6 +162,12 @@ import {
   createHoverPreviewContentElement,
   createHoverPreviewHeaderElement,
 } from "../core/hover-preview-surface";
+import {
+  findReferencePreviewSource,
+  referencePreviewHeaderText,
+  unresolvedReferencePreviewLabel,
+} from "../core/reference-preview-source";
+import { sourceRangeAttrs } from "../core/source-range-surface";
 import type {
   CitationFormatter,
   DocumentContext,
@@ -674,12 +680,12 @@ interface WalkContext {
 
 function sourcePosAttrs(ctx: WalkContext, from: number, to: number): string {
   if (!ctx.sourcePositions) return "";
-  return ` data-source-from="${from}" data-source-to="${to}"`;
+  return sourceRangeAttrs({ sourceRange: { from, to } });
 }
 
 function mathSourcePosAttrs(ctx: WalkContext, from: number, to: number): string {
   if (!ctx.mathSourcePositions) return "";
-  return ` data-source-from="${from}" data-source-to="${to}"`;
+  return sourceRangeAttrs({ sourceRange: { from, to } });
 }
 
 // ---------------------------------------------------------------------------
@@ -1227,20 +1233,21 @@ function combineBlocks(blocks: BlockResult[]): BlockResult {
   return { html: htmls.join(""), text: texts.join("\n\n"), hasMath };
 }
 
-function sourceLineAttr(ctx: WalkContext, pos: number): string {
-  if (!ctx.lineOffsets) return "";
-  return ` data-source-line="${lineAt(ctx.lineOffsets, pos)}"`;
-}
-
 /** Block-level convenience: emits both `data-source-line` (if
  *  `sourceLineAttribution`) and `data-source-from`/`data-source-to` (if
  *  `sourcePositions`). Pass the block node's `from`/`to`. */
 function blockSourceAttrs(ctx: WalkContext, from: number, to: number): string {
-  return sourceLineAttr(ctx, from) + sourcePosAttrs(ctx, from, to);
+  return sourceRangeAttrs({
+    sourceLine: ctx.lineOffsets ? lineAt(ctx.lineOffsets, from) : null,
+    sourceRange: ctx.sourcePositions ? { from, to } : null,
+  });
 }
 
 function blockMathSourceAttrs(ctx: WalkContext, from: number, to: number): string {
-  return sourceLineAttr(ctx, from) + mathSourcePosAttrs(ctx, from, to);
+  return sourceRangeAttrs({
+    sourceLine: ctx.lineOffsets ? lineAt(ctx.lineOffsets, from) : null,
+    sourceRange: ctx.mathSourcePositions ? { from, to } : null,
+  });
 }
 
 function renderBlock(ctx: WalkContext, node: SyntaxNode): BlockResult {
@@ -2646,7 +2653,7 @@ function createReaderHoverBody(): HTMLElement {
 
 function createReaderUnresolvedPreview(key: string): HTMLElement {
   const container = createReaderHoverContainer();
-  container.appendChild(createReaderHoverHeader(`Unresolved: ${key}`));
+  container.appendChild(createReaderHoverHeader(unresolvedReferencePreviewLabel(key)));
   return container;
 }
 
@@ -2697,17 +2704,6 @@ function renderReaderPreviewSource(
   return body;
 }
 
-function readerPreviewHeaderText(entry: ReaderReferencePreviewEntry, fallback: string): string {
-  if (
-    (entry.kind === "heading" || entry.kind === "block") &&
-    entry.title &&
-    entry.title !== entry.label
-  ) {
-    return `${entry.label} ${entry.title}`;
-  }
-  return entry.label || fallback;
-}
-
 function buildReaderIndexedPreview(
   entry: ReaderReferencePreviewEntry | undefined,
   source: string | undefined,
@@ -2717,7 +2713,7 @@ function buildReaderIndexedPreview(
 ): HTMLElement | null {
   if (!entry) return null;
   const container = createReaderHoverContainer();
-  container.appendChild(createReaderHoverHeader(readerPreviewHeaderText(entry, fallbackLabel)));
+  container.appendChild(createReaderHoverHeader(referencePreviewHeaderText(entry, fallbackLabel)));
 
   if (entry.kind === "heading") {
     return container;
@@ -2739,89 +2735,6 @@ function buildReaderIndexedPreview(
   return container;
 }
 
-function escapeRegExpLiteral(value: string): string {
-  return value.replace(/[\\^$.*+?()[\]{}|]/g, "\\$&");
-}
-
-function findReaderEquationPreviewSource(source: string, key: string): string | null {
-  const escapedKey = escapeRegExpLiteral(key);
-  const labelPattern = String.raw`\{\s*#${escapedKey}\s*\}`;
-  const labelMatch = new RegExp(labelPattern).exec(source);
-  if (!labelMatch) return null;
-
-  const beforeLabel = source.slice(0, labelMatch.index);
-  const beforeMath = beforeLabel.trimEnd();
-
-  const closeDollars = beforeMath.lastIndexOf("$$");
-  const closeBracket = beforeMath.lastIndexOf("\\]");
-  if (closeDollars > closeBracket) {
-    if (source.slice(closeDollars + 2, labelMatch.index).trim() !== "") return null;
-    const openDollars = beforeMath.lastIndexOf("$$", closeDollars - 1);
-    if (openDollars >= 0) {
-      return beforeMath.slice(openDollars, closeDollars + 2);
-    }
-  }
-
-  if (closeBracket >= 0) {
-    if (source.slice(closeBracket + 2, labelMatch.index).trim() !== "") return null;
-    const openBracket = beforeMath.lastIndexOf("\\[", closeBracket - 1);
-    if (openBracket >= 0) {
-      return beforeMath.slice(openBracket, closeBracket + 2);
-    }
-  }
-  return null;
-}
-
-function findReaderHeadingPreviewSource(source: string, key: string): string | null {
-  const escapedKey = escapeRegExpLiteral(key);
-  const pattern = new RegExp(String.raw`^#{1,6}\s+.*\{[^}\n]*#${escapedKey}[^}\n]*\}\s*$`, "m");
-  return pattern.exec(source)?.[0] ?? null;
-}
-
-function findReaderFencedDivPreviewSource(source: string, key: string): string | null {
-  const lines = source.split(/\r?\n/);
-  const idNeedle = `#${key}`;
-  for (let i = 0; i < lines.length; i += 1) {
-    const line = lines[i] ?? "";
-    const fence = /^(:{3,})\s+/.exec(line);
-    if (!fence || !line.includes(idNeedle)) continue;
-
-    const fenceMarker = fence[1];
-    const blockLines = [line];
-    for (let j = i + 1; j < lines.length; j += 1) {
-      const next = lines[j] ?? "";
-      blockLines.push(next);
-      if (next.trim() === fenceMarker) {
-        return blockLines.join("\n");
-      }
-    }
-    return blockLines.join("\n");
-  }
-  return null;
-}
-
-function stripBracedLabelId(source: string, key: string): string {
-  const escapedKey = escapeRegExpLiteral(key);
-  return source.replace(new RegExp(String.raw`\s*\{[^}\n]*#${escapedKey}[^}\n]*\}\s*$`), "");
-}
-
-function fencedDivBodySource(source: string): string {
-  const lines = source.split(/\r?\n/);
-  if (lines.length < 2) return source;
-  const openingFence = /^(:{3,})\s+/.exec(lines[0] ?? "");
-  if (!openingFence) return source;
-  let closingIndex = -1;
-  for (let index = lines.length - 1; index > 0; index -= 1) {
-    if ((lines[index] ?? "").trim() === openingFence[1]) {
-      closingIndex = index;
-      break;
-    }
-  }
-  const bodyLines = lines.slice(1, closingIndex > 0 ? closingIndex : undefined);
-  const body = bodyLines.join("\n").trim();
-  return body || source;
-}
-
 function buildReaderSourcePreview(
   key: string,
   source: string | undefined,
@@ -2830,34 +2743,18 @@ function buildReaderSourcePreview(
   label: string,
 ): HTMLElement | null {
   if (!source) return null;
+  const match = findReferencePreviewSource(source, key);
+  if (!match) return null;
 
-  const equationSource = findReaderEquationPreviewSource(source, key);
-  if (equationSource) {
-    const container = createReaderHoverContainer();
-    container.appendChild(createReaderHoverHeader(label || key));
-    container.appendChild(renderReaderPreviewSource(stripBracedLabelId(equationSource, key), context, mathMacros));
-    return container;
-  }
-
-  const fencedDivSource = findReaderFencedDivPreviewSource(source, key);
-  if (fencedDivSource) {
-    const container = createReaderHoverContainer();
-    container.appendChild(createReaderHoverHeader(label || key));
-    container.appendChild(renderReaderPreviewSource(fencedDivBodySource(fencedDivSource), context, mathMacros));
-    return container;
-  }
-
-  const headingSource = findReaderHeadingPreviewSource(source, key);
-  if (headingSource) {
-    const container = createReaderHoverContainer();
-    container.appendChild(createReaderHoverHeader(label || key));
-    container.appendChild(renderReaderPreviewSource(stripBracedLabelId(headingSource, key), context, mathMacros, {
-      sectionNumbering: false,
-    }));
-    return container;
-  }
-
-  return null;
+  const container = createReaderHoverContainer();
+  container.appendChild(createReaderHoverHeader(label || key));
+  container.appendChild(renderReaderPreviewSource(
+    match.previewSource,
+    context,
+    mathMacros,
+    match.kind === "heading" ? { sectionNumbering: false } : {},
+  ));
+  return container;
 }
 
 function buildReaderHoverPlan(

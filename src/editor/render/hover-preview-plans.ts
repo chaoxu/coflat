@@ -17,6 +17,10 @@ import {
   type LocalMediaDependencies,
 } from "./media-preview";
 import {
+  referencePreviewHeaderText,
+  unresolvedReferencePreviewLabel,
+} from "../../core/reference-preview-source";
+import {
   appendMediaFallback,
   buildBlockPreviewMediaState,
   normalizeWidePreviewContent,
@@ -191,10 +195,7 @@ function buildCrossrefTooltipPlan(
   const macros = view.state.field(mathMacrosField, false) ?? {};
 
   if (resolved.kind === "block") {
-    const headerText =
-      resolved.title && resolved.title !== resolved.label
-        ? `${resolved.label} ${resolved.title}`
-        : resolved.label;
+    const headerText = referencePreviewHeaderText(resolved, id);
 
     const counterState = view.state.field(blockCounterField, false);
     const block = counterState?.byId.get(id);
@@ -231,10 +232,7 @@ function buildCrossrefTooltipPlan(
   }
 
   if (resolved.kind === "heading") {
-    const headerText =
-      resolved.title && resolved.title !== resolved.label
-        ? `${resolved.label} ${resolved.title}`
-        : resolved.label;
+    const headerText = referencePreviewHeaderText(resolved, id);
 
     return {
       buildContent: () => {
@@ -289,7 +287,11 @@ function buildCrossrefTooltipPlan(
     buildContent: () => {
       const container = createCrossrefPreviewContainer(variant);
       container.appendChild(
-        createHoverPreviewHeader(`Unresolved: ${id}`, macros, CSS.hoverPreviewUnresolved),
+        createHoverPreviewHeader(
+          unresolvedReferencePreviewLabel(id),
+          macros,
+          CSS.hoverPreviewUnresolved,
+        ),
       );
       return container;
     },
@@ -363,7 +365,11 @@ function buildSingleItemTooltipPlan(
     buildContent: () => {
       const container = createHoverPreviewContent();
       container.appendChild(
-        createHoverPreviewHeader(`Unresolved: ${id}`, macros, CSS.hoverPreviewUnresolved),
+        createHoverPreviewHeader(
+          unresolvedReferencePreviewLabel(id),
+          macros,
+          CSS.hoverPreviewUnresolved,
+        ),
       );
       return container;
     },
