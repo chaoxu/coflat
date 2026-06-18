@@ -192,13 +192,11 @@ import {
   createUnresolvedHoverPreviewElement,
 } from "../core/hover-preview-surface";
 import {
-  blockReferencePreviewEntry,
   type ReferencePreviewEntry,
-  equationReferencePreviewEntry,
-  headingReferencePreviewEntry,
   type ReferencePreviewContentPlan,
   referencePreviewContentPlanFromEntry,
   referencePreviewContentPlanFromSource,
+  referencePreviewEntryFromTarget,
   trimReferencePreviewRange,
 } from "../core/reference-preview-source";
 import {
@@ -1146,14 +1144,12 @@ function renderBlock(ctx: WalkContext, node: SyntaxNode): BlockResult {
         : null;
       if (ctx.buildReferencePreviews && equationId && target && equationNumber !== undefined) {
         const range = displayMathLatexRange(ctx.source, node);
-        setPreferredReaderReferenceTarget(ctx, equationId, target, equationReferencePreviewEntry({
-          id: equationId,
-          label: target.displayLabel,
-          latex: plan.latex,
-          sourceRange: plan.sourceRange,
+        const previewEntry = referencePreviewEntryFromTarget(target, {
+          fallbackId: equationId,
           bodyRange: range,
-          number: equationNumber,
-        }));
+          sourceRange: plan.sourceRange,
+        });
+        setPreferredReaderReferenceTarget(ctx, equationId, target, previewEntry ?? undefined);
       } else if (ctx.buildCatalog && equationId && target) {
         setPreferredReaderReferenceTarget(ctx, equationId, target);
       }
@@ -1219,14 +1215,12 @@ function renderHeading(ctx: WalkContext, node: SyntaxNode): BlockResult {
     text: headingTitle,
   });
   if (ctx.buildReferencePreviews && plan.attributes?.id) {
-    setPreferredReaderReferenceTarget(ctx, plan.attributes.id, headingTarget, headingReferencePreviewEntry({
-      id: plan.attributes.id,
-      label: headingTarget.displayLabel,
-      title: headingTitle,
-      level: plan.level,
+    const previewEntry = referencePreviewEntryFromTarget(headingTarget, {
+      fallbackId: plan.attributes.id,
+      headingLevel: plan.level,
       sourceRange: plan.sourceRange,
-      ...(headingNumber ? { number: headingNumber } : {}),
-    }));
+    });
+    setPreferredReaderReferenceTarget(ctx, plan.attributes.id, headingTarget, previewEntry ?? undefined);
   } else if (ctx.buildCatalog && plan.attributes?.id) {
     setPreferredReaderReferenceTarget(ctx, plan.attributes.id, headingTarget);
   }
@@ -1492,15 +1486,12 @@ function renderFencedDiv(ctx: WalkContext, node: SyntaxNode): BlockResult {
       from: plan.sourceRange.from,
       to: plan.sourceRange.from,
     });
-    setPreferredReaderReferenceTarget(ctx, plan.id, blockTarget, blockReferencePreviewEntry({
-      id: plan.id,
-      label: blockTarget.displayLabel,
-      blockType: normalizedClassName,
-      ...(plan.title ? { title: plan.title } : {}),
-      sourceRange: plan.sourceRange,
+    const previewEntry = referencePreviewEntryFromTarget(blockTarget, {
+      fallbackId: plan.id,
       bodyRange,
-      ...(plan.number === undefined ? {} : { number: plan.number }),
-    }));
+      sourceRange: plan.sourceRange,
+    });
+    setPreferredReaderReferenceTarget(ctx, plan.id, blockTarget, previewEntry ?? undefined);
   } else if (ctx.buildCatalog && plan.id && blockTarget) {
     setPreferredReaderReferenceTarget(ctx, plan.id, blockTarget);
   }

@@ -1,4 +1,5 @@
 import { trimSourceRange } from "./math-source";
+import type { DocumentReferenceTarget } from "./reference-targets";
 
 export interface ReferencePreviewLabelInput {
   readonly kind: string;
@@ -318,6 +319,53 @@ export function referencePreviewBodyInputFromEntry(
     fullRange: { from: entry.from, to: entry.to },
     bodyRange: { from: entry.bodyFrom, to: entry.bodyTo },
     useFullSource: options.useFullSource ?? false,
+  });
+}
+
+export function referencePreviewEntryFromTarget(
+  target: DocumentReferenceTarget,
+  input: {
+    readonly bodyRange?: ReferencePreviewRange;
+    readonly fallbackId: string;
+    readonly headingLevel?: number;
+    readonly sourceRange?: ReferencePreviewRange;
+  },
+): ReferencePreviewEntry | null {
+  const id = target.id ?? input.fallbackId;
+  const sourceRange = input.sourceRange ?? { from: target.from, to: target.to };
+
+  if (target.kind === "heading") {
+    return headingReferencePreviewEntry({
+      id,
+      label: target.displayLabel,
+      title: target.title ?? target.text ?? "",
+      text: target.text,
+      level: input.headingLevel ?? 0,
+      sourceRange,
+      number: target.number,
+    });
+  }
+
+  if (target.kind === "equation") {
+    if (target.ordinal === undefined) return null;
+    return equationReferencePreviewEntry({
+      id,
+      label: target.displayLabel,
+      latex: target.text ?? "",
+      sourceRange,
+      bodyRange: input.bodyRange ?? sourceRange,
+      number: target.ordinal,
+    });
+  }
+
+  return blockReferencePreviewEntry({
+    id,
+    label: target.displayLabel,
+    blockType: target.blockType ?? "",
+    title: target.title,
+    sourceRange,
+    bodyRange: input.bodyRange ?? sourceRange,
+    number: target.ordinal,
   });
 }
 

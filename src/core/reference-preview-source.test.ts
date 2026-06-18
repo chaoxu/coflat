@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  blockReferenceTarget,
+  equationReferenceTarget,
+  headingReferenceTarget,
+} from "./reference-targets";
+import {
   blockPreviewBodyInputFromSource,
   blockReferencePreviewEntry,
   fencedDivBodySource,
@@ -14,6 +19,7 @@ import {
   referencePreviewBodyPlan,
   referencePreviewContentPlanFromEntry,
   referencePreviewContentPlanFromSource,
+  referencePreviewEntryFromTarget,
   referencePreviewHeaderText,
   stripBracedLabelId,
   trimReferencePreviewRange,
@@ -155,6 +161,77 @@ describe("reference preview source helpers", () => {
       sourceRange: { from: 50, to: 80 },
       bodyRange: { from: 60, to: 70 },
       number: 4,
+    })).toEqual({
+      kind: "block",
+      id: "thm:main",
+      label: "Theorem 4",
+      blockType: "theorem",
+      title: "Main",
+      from: 50,
+      to: 80,
+      bodyFrom: 60,
+      bodyTo: 70,
+      number: "4",
+      ordinal: 4,
+    });
+  });
+
+  it("builds shared reference preview entries from document targets", () => {
+    expect(referencePreviewEntryFromTarget(headingReferenceTarget({
+      from: 0,
+      to: 20,
+      id: "sec:intro",
+      number: "2",
+      text: "Intro",
+    }), {
+      fallbackId: "sec:intro",
+      headingLevel: 1,
+    })).toEqual({
+      kind: "heading",
+      id: "sec:intro",
+      label: "Section 2",
+      title: "Intro",
+      text: "Intro",
+      level: 1,
+      from: 0,
+      to: 20,
+      number: "2",
+    });
+
+    expect(referencePreviewEntryFromTarget(equationReferenceTarget({
+      from: 30,
+      to: 50,
+      id: "eq:main",
+      number: 3,
+      latex: "x^2",
+    }), {
+      fallbackId: "eq:main",
+      bodyRange: { from: 33, to: 36 },
+    })).toEqual({
+      kind: "equation",
+      id: "eq:main",
+      label: "Eq. (3)",
+      latex: "x^2",
+      text: "x^2",
+      from: 30,
+      to: 50,
+      bodyFrom: 33,
+      bodyTo: 36,
+      number: "3",
+      ordinal: 3,
+    });
+
+    expect(referencePreviewEntryFromTarget(blockReferenceTarget({
+      from: 50,
+      to: 80,
+      id: "thm:main",
+      blockType: "theorem",
+      displayTitle: "Theorem",
+      title: "Main",
+      number: 4,
+    }), {
+      fallbackId: "thm:main",
+      bodyRange: { from: 60, to: 70 },
     })).toEqual({
       kind: "block",
       id: "thm:main",
