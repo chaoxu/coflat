@@ -7,6 +7,7 @@ import {
   equationReferenceTarget,
   getPreferredDocumentReferenceTarget,
   headingReferenceTarget,
+  resolvedCrossrefFromReferenceTarget,
   sortDocumentReferenceTargets,
 } from "./reference-targets";
 
@@ -94,5 +95,46 @@ describe("reference target helpers", () => {
       .toBeGreaterThan(0);
     expect(compareDocumentReferenceTargetPreference({ kind: "heading" }, { kind: "heading" }))
       .toBe(0);
+  });
+
+  it("maps document targets into shared resolved crossref shapes", () => {
+    expect(resolvedCrossrefFromReferenceTarget(blockReferenceTarget({
+      from: 10,
+      to: 20,
+      id: "thm:main",
+      blockType: "theorem",
+      displayTitle: "Theorem",
+      title: "Main theorem",
+      number: 4,
+    }))).toEqual({
+      kind: "block",
+      label: "Theorem 4",
+      title: "Main theorem",
+      number: 4,
+    });
+
+    expect(resolvedCrossrefFromReferenceTarget(equationReferenceTarget({
+      from: 30,
+      to: 40,
+      id: "eq:main",
+      number: 2,
+      latex: "x^2",
+    }))).toEqual({
+      kind: "equation",
+      label: "Eq. (2)",
+      number: 2,
+    });
+
+    expect(resolvedCrossrefFromReferenceTarget(headingReferenceTarget({
+      from: 50,
+      to: 60,
+      id: "sec:intro",
+      number: "1.2",
+      text: "Intro",
+    }))).toEqual({
+      kind: "heading",
+      label: "Section 1.2",
+      title: "Intro",
+    });
   });
 });

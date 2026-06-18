@@ -3,6 +3,7 @@ import {
   formatEquationReferenceLabel,
   formatHeadingReferenceLabel,
 } from "./references/format";
+import type { ResolvedCrossref } from "./references/presentation";
 
 export type DocumentReferenceTargetKind = "block" | "equation" | "heading";
 
@@ -170,4 +171,32 @@ export function getPreferredDocumentReferenceTarget(
       ? target
       : preferred,
   undefined);
+}
+
+export function resolvedCrossrefFromReferenceTarget(
+  target: DocumentReferenceTarget,
+): ResolvedCrossref | null {
+  if (target.kind === "block") {
+    return {
+      kind: "block",
+      label: target.displayLabel,
+      title: target.title,
+      number: target.ordinal,
+    };
+  }
+
+  if (target.kind === "equation") {
+    if (target.ordinal === undefined) return null;
+    return {
+      kind: "equation",
+      label: formatEquationReferenceLabel(target.ordinal),
+      number: target.ordinal,
+    };
+  }
+
+  return {
+    kind: "heading",
+    label: target.displayLabel,
+    title: target.title,
+  };
 }

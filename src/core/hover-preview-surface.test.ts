@@ -4,7 +4,10 @@ import {
   createHoverPreviewBodyElement,
   createHoverPreviewCitationBodyElement,
   createHoverPreviewContentElement,
+  createHoverPreviewElementWithBody,
+  createHoverPreviewElementWithChild,
   createHoverPreviewHeaderElement,
+  createHoverPreviewTextElement,
   createUnresolvedHoverPreviewElement,
 } from "./hover-preview-surface";
 
@@ -30,5 +33,19 @@ describe("hover preview surface", () => {
     const header = unresolved.querySelector(`.${CSS.hoverPreviewHeader}`);
     expect(header?.classList.contains(CSS.hoverPreviewUnresolved)).toBe(true);
     expect(header?.textContent).toBe("Unresolved: thm:missing");
+  });
+
+  it("wraps common hover preview body variants", () => {
+    const textPreview = createHoverPreviewTextElement("Citation text");
+    expect(textPreview.classList.contains(CSS.hoverPreview)).toBe(true);
+    expect(textPreview.querySelector(`.${CSS.hoverPreviewCitation}`)?.textContent)
+      .toBe("Citation text");
+
+    const body = createHoverPreviewBodyElement();
+    body.textContent = "Body";
+    expect(createHoverPreviewElementWithBody(body).firstElementChild).toBe(body);
+
+    const child = document.createElement("section");
+    expect(createHoverPreviewElementWithChild(child).firstElementChild).toBe(child);
   });
 });

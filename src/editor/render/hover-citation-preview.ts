@@ -2,6 +2,7 @@ import type { EditorView } from "@codemirror/view";
 import { buildCitationPreviewContent } from "../citations/citation-preview";
 import { CSS } from "../../core/constants";
 import { createPreviewSurfaceBody } from "../../core/preview-surface";
+import { createHoverPreviewElementWithBody } from "../../core/hover-preview-surface";
 import { getReferencePresentationModel } from "../references/presentation";
 import type { BibStore } from "../state/bib-data";
 import { mathMacrosField } from "../state/math-macros";
@@ -87,9 +88,7 @@ export function buildCitationItemTooltipPlan(
   if (preview) {
     return {
       buildContent: () => {
-        const container = createHoverPreviewContent();
-        container.appendChild(createCitationPreviewBody(preview));
-        return container;
+        return createHoverPreviewElementWithBody(createCitationPreviewBody(preview));
       },
       cacheScope: store,
       dependsOnBibliography: true,

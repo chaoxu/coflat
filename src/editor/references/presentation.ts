@@ -32,6 +32,7 @@ import {
   getPreferredDocumentReferenceTarget,
   type DocumentReferenceCatalog,
 } from "../semantics/reference-catalog";
+import { resolvedCrossrefFromReferenceTarget } from "../../core/reference-targets";
 import { type BibStore, bibDataField } from "../state/bib-data";
 import {
   classifyReferenceTarget as coreClassifyReferenceTarget,
@@ -166,12 +167,7 @@ export function resolveCatalogCrossref(
   const target = getPreferredDocumentReferenceTarget(catalog, id);
 
   if (target?.kind === "block") {
-    return {
-      kind: "block",
-      label: target.displayLabel,
-      title: target.title,
-      number: target.ordinal,
-    };
+    return resolvedCrossrefFromReferenceTarget(target);
   }
 
   const eqEntry = equationLabels?.get(id)
@@ -187,11 +183,7 @@ export function resolveCatalogCrossref(
   }
 
   if (target?.kind === "heading") {
-    return {
-      kind: "heading",
-      label: target.displayLabel,
-      title: target.title,
-    };
+    return resolvedCrossrefFromReferenceTarget(target);
   }
 
   return null;

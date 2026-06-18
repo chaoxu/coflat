@@ -140,6 +140,7 @@ import {
   compareDocumentReferenceTargetPreference,
   equationReferenceTarget,
   headingReferenceTarget,
+  resolvedCrossrefFromReferenceTarget,
   type DocumentReferenceTarget,
 } from "../core/reference-targets";
 import {
@@ -181,14 +182,15 @@ import {
 import {
   createHoverPreviewBodyElement,
   createHoverPreviewCitationBodyElement,
-  createHoverPreviewContentElement,
+  createHoverPreviewElementWithChild,
   createHoverPreviewHeaderElement,
+  createHoverPreviewTextElement,
+  createUnresolvedHoverPreviewElement,
 } from "../core/hover-preview-surface";
 import {
   findReferencePreviewSource,
   referencePreviewBodyPlan,
   referencePreviewHeaderText,
-  unresolvedReferencePreviewLabel,
 } from "../core/reference-preview-source";
 import { sourceRangeAttrs } from "../core/source-range-surface";
 import type {
@@ -957,11 +959,7 @@ function renderInline(
 
 function readerCatalogCrossref(ctx: WalkContext, id: string): ResolvedCrossref | null {
   const catalogTarget = ctx.resolvers.referenceCatalog?.get(id);
-  if (!catalogTarget) return null;
-  return {
-    kind: catalogTarget.kind,
-    label: catalogTarget.displayLabel,
-  };
+  return catalogTarget ? resolvedCrossrefFromReferenceTarget(catalogTarget) : null;
 }
 
 function readerReferencePresentationContext(ctx: WalkContext): ReferencePresentationContext {
@@ -2586,36 +2584,12 @@ type HoverTooltipModule = typeof import("../core/hover-tooltip");
 
 const readerHoverCacheScope = {};
 
-function createReaderHoverContainer(): HTMLElement {
-  return createHoverPreviewContentElement();
-}
-
 function createReaderHoverHeader(text: string): HTMLElement {
   return createHoverPreviewHeaderElement(text);
 }
 
 function createReaderHoverBody(): HTMLElement {
   return createHoverPreviewBodyElement();
-}
-
-function createReaderUnresolvedPreview(key: string): HTMLElement {
-  const container = createReaderHoverContainer();
-  container.appendChild(createReaderHoverHeader(unresolvedReferencePreviewLabel(key)));
-  return container;
-}
-
-function createReaderTextPreview(preview: string): HTMLElement {
-  const container = createReaderHoverContainer();
-  const body = createHoverPreviewCitationBodyElement();
-  body.textContent = preview;
-  container.appendChild(body);
-  return container;
-}
-
-function createReaderElementPreview(preview: HTMLElement): HTMLElement {
-  const container = createReaderHoverContainer();
-  container.appendChild(preview);
-  return container;
 }
 
 // Native hover preview for a paper citation: the formatted bibliography entry,
@@ -2629,11 +2603,9 @@ function buildReaderCitationPreview(
   if (!context?.citationFormatter || !coreIsCitationKey(context.citationKeys, key)) return null;
   const entry = coreBibliographyEntryFor(context.citationFormatter, key);
   if (!entry) return null;
-  const container = createReaderHoverContainer();
   const body = createHoverPreviewCitationBodyElement();
   body.innerHTML = sanitize(entry.html);
-  container.appendChild(body);
-  return container;
+  return createHoverPreviewElementWithChild(body);
 }
 
 function renderReaderPreviewSource(
@@ -2659,8 +2631,9 @@ function buildReaderIndexedPreview(
   fallbackLabel: string,
 ): HTMLElement | null {
   if (!entry) return null;
-  const container = createReaderHoverContainer();
-  container.appendChild(createReaderHoverHeader(referencePreviewHeaderText(entry, fallbackLabel)));
+  const container = createHoverPreviewElementWithChild(createReaderHoverHeader(
+    referencePreviewHeaderText(entry, fallbackLabel),
+  ));
 
   const bodyPlan = referencePreviewBodyPlan(
     entry.kind === "heading"
@@ -2692,8 +2665,7 @@ function buildReaderSourcePreview(
   const match = findReferencePreviewSource(source, key);
   if (!match) return null;
 
-  const container = createReaderHoverContainer();
-  container.appendChild(createReaderHoverHeader(label || key));
+  const container = createHoverPreviewElementWithChild(createReaderHoverHeader(label || key));
   container.appendChild(renderReaderPreviewSource(
     match.previewSource,
     context,
@@ -2725,10 +2697,10 @@ function buildReaderHoverPlan(
         source: options.source,
       });
       if (customPreview instanceof HTMLElement) {
-        return createReaderElementPreview(customPreview);
+        return createHoverPreviewElementWithChild(customPreview);
       }
       if (typeof customPreview === "string" && customPreview.trim() !== "") {
-        return createReaderTextPreview(customPreview);
+        return createHoverPreviewTextElement(customPreview);
       }
 
       const indexedPreview = buildReaderIndexedPreview(
@@ -2746,7 +2718,7 @@ function buildReaderHoverPlan(
         options.context,
         options.mathMacros,
         label,
-      ) ?? createReaderUnresolvedPreview(key);
+      ) ?? createUnresolvedHoverPreviewElement(key);
     },
     cacheScope: readerHoverCacheScope,
     dependsOnBibliography: false,
