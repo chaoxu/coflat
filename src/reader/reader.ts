@@ -1226,6 +1226,15 @@ function emitReferenceCluster(
         continue;
       }
     }
+    if (!ctx.sourcePositions && !id.includes(":")) {
+      parts.push({
+        className: "",
+        id,
+        innerHtml: escapeHtml(ids.length === 1 ? raw : `@${id}`),
+      });
+      textParts.push(ids.length === 1 ? raw : `@${id}`);
+      continue;
+    }
     const display = ids.length === 1 ? raw : `@${id}`;
     parts.push({
       className: CSS.crossrefUnresolved,
@@ -1236,6 +1245,13 @@ function emitReferenceCluster(
   }
 
   const sourceAttrs = ctx.sourcePositions ? sourcePosAttrs(ctx, from, to) : "";
+  if (parts.length === 1 && parts[0].className === "") {
+    return {
+      html: parts[0].innerHtml,
+      text: textParts[0] ?? raw,
+      hasMath: false,
+    };
+  }
   const inner = parts.length === 1
     ? renderReferenceSurfaceHtml(parts[0].innerHtml, {
       className: parts[0].className,

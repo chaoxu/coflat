@@ -646,6 +646,17 @@ describe("renderToHtml — block-level rendering ()", () => {
     expect(r.html).not.toContain('data-ref-key="knuth1984"');
   });
 
+  it("keeps citation-shaped [@key] inert when a workspace resolver misses", () => {
+    const r = renderToHtml("As shown in [@knuth1984], …", {
+      refResolver: {
+        resolve: () => null,
+      },
+    });
+    expect(r.html).toContain("As shown in [@knuth1984],");
+    expect(r.html).not.toContain('cf-crossref-unresolved');
+    expect(r.html).not.toContain('data-ref-key="knuth1984"');
+  });
+
   it("does not derive crossref classes from id prefixes", () => {
     const r = renderToHtml("see [@eq:euler]");
     expect(r.html).toContain('cf-crossref');
