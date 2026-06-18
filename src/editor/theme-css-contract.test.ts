@@ -134,7 +134,8 @@ describe("theme CSS contract", () => {
     expect(cssRuleBody(css, ".cm-line.cf-doc-list-item")).toContain("margin: 0;");
     expect(cssRuleBody(css, ".cf-reader .cf-doc-list-item--check input[type=\"checkbox\"]")).toContain("pointer-events: none;");
     expect(cssRuleBody(css, ".cf-reader .cf-doc-code-block")).toContain("margin: 0;");
-    expect(cssRuleBody(css, ".cf-reader .cf-doc-code-block")).toContain("overflow: visible;");
+    expect(cssRuleBody(css, ".cf-reader .cf-doc-code-block")).toContain("overflow-x: auto;");
+    expect(cssRuleBody(css, ".cf-reader .cf-doc-code-block")).toContain("overflow-y: hidden;");
     expect(cssRuleBody(css, ".cf-reader .cf-doc-code-block")).toContain("padding: 0;");
     expect(cssRuleBody(css, ".cf-reader .cf-doc-code-block")).toContain("border: 0;");
     expect(cssRuleBody(css, ".cf-reader .cf-doc-code-block")).toContain('font-family: var(--cf-code-font, Monaco, "DejaVu Sans Mono", Consolas, monospace);');

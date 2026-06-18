@@ -600,7 +600,8 @@
 
 .cf-reader .cf-doc-code-block {
   margin: 0;
-  overflow: visible;
+  overflow-x: auto;
+  overflow-y: hidden;
   background: transparent;
   border: 0;
   border-radius: 0;
