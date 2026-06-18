@@ -5,6 +5,11 @@ import {
   inlineFragmentsPlainText,
   type InlineFragment,
 } from "./inline-fragments";
+import {
+  isLooseListNode,
+  orderedListStartNumber,
+} from "./parser/list-shape";
+import { taskMarkerChecked } from "./list-surface";
 
 export interface ParagraphRenderPlan {
   readonly kind: "paragraph";
@@ -36,6 +41,43 @@ export interface BlockquoteRenderPlan {
     readonly to: number;
   };
   readonly children: readonly SyntaxNode[];
+}
+
+export interface ListTaskRenderPlan {
+  readonly checked: boolean;
+  readonly markerRange: {
+    readonly from: number;
+    readonly to: number;
+  };
+  readonly contentRange: {
+    readonly from: number;
+    readonly to: number;
+  };
+}
+
+export interface ListItemRenderPlan {
+  readonly kind: "list-item";
+  readonly sourceRange: {
+    readonly from: number;
+    readonly to: number;
+  };
+  readonly markerNumber: number;
+  readonly inlineOnly: boolean;
+  readonly task: ListTaskRenderPlan | null;
+  readonly children: readonly SyntaxNode[];
+}
+
+export interface ListRenderPlan {
+  readonly kind: "list";
+  readonly sourceRange: {
+    readonly from: number;
+    readonly to: number;
+  };
+  readonly ordered: boolean;
+  readonly loose: boolean;
+  readonly start: number;
+  readonly task: boolean;
+  readonly items: readonly ListItemRenderPlan[];
 }
 
 export interface HeadingAttributePlan {
@@ -113,6 +155,84 @@ export function blockquoteRenderPlan(
   return {
     kind: "blockquote",
     sourceRange: { from: node.from, to: node.to },
+    children,
+  };
+}
+
+export function listRenderPlan(
+  source: string,
+  node: SyntaxNode,
+): ListRenderPlan {
+  const ordered = node.name === NODE.OrderedList;
+  if (!ordered && node.name !== NODE.BulletList) {
+    throw new Error(`expected list node, got ${node.name}`);
+  }
+  const start = ordered ? orderedListStartNumber(node, source) : 1;
+  const items: ListItemRenderPlan[] = [];
+  let child = node.firstChild;
+  let itemIndex = 0;
+  while (child) {
+    if (child.name === NODE.ListItem) {
+      items.push(listItemRenderPlan(source, child, start + itemIndex));
+      itemIndex += 1;
+    }
+    child = child.nextSibling;
+  }
+  return {
+    kind: "list",
+    sourceRange: { from: node.from, to: node.to },
+    ordered,
+    loose: isLooseListNode(node, source),
+    start,
+    task: items.some((item) => item.task !== null),
+    items,
+  };
+}
+
+export function listItemRenderPlan(
+  source: string,
+  node: SyntaxNode,
+  markerNumber: number,
+): ListItemRenderPlan {
+  const children: SyntaxNode[] = [];
+  let task: ListTaskRenderPlan | null = null;
+  let blockCount = 0;
+  let onlyInlineBlock = true;
+
+  let child = node.firstChild;
+  while (child) {
+    if (child.name === NODE.ListMark) {
+      child = child.nextSibling;
+      continue;
+    }
+
+    children.push(child);
+    blockCount += 1;
+    if (child.name !== NODE.Paragraph && child.name !== NODE.Task) {
+      onlyInlineBlock = false;
+    }
+
+    if (child.name === NODE.Task && task === null) {
+      const taskMarker = child.getChild(NODE.TaskMarker);
+      if (taskMarker) {
+        const contentFrom = Math.min(taskMarker.to + 1, child.to);
+        task = {
+          checked: taskMarkerChecked(source.slice(taskMarker.from, taskMarker.to)),
+          markerRange: { from: taskMarker.from, to: taskMarker.to },
+          contentRange: { from: contentFrom, to: child.to },
+        };
+      }
+    }
+
+    child = child.nextSibling;
+  }
+
+  return {
+    kind: "list-item",
+    sourceRange: { from: node.from, to: node.to },
+    markerNumber,
+    inlineOnly: blockCount === 1 && onlyInlineBlock,
+    task,
     children,
   };
 }

@@ -43,7 +43,6 @@ import {
   appendReadOnlyTaskCheckbox,
   createListItemSurfaceElement,
   createListSurfaceElement,
-  taskMarkerChecked,
 } from "../../core/list-surface";
 import { appendParagraphDom, createParagraphDom } from "../../core/paragraph-surface";
 import type { BlockCounterEntry } from "../../core/lib/file-system-types";
@@ -58,10 +57,6 @@ import {
   trailingBlankLineRangesAfterLastBlock,
 } from "../../core/parser/blank-lines";
 import { readBracedLabelId } from "../../core/parser/label-utils";
-import {
-  isLooseListNode,
-  orderedListStartNumber,
-} from "../../core/parser/list-shape";
 import {
   analyzeDocumentSemantics,
   numberFootnotes,
@@ -79,6 +74,8 @@ import {
   blockquoteRenderPlan,
   headingRenderPlan,
   horizontalRuleRenderPlan,
+  listRenderPlan,
+  type ListItemRenderPlan,
   paragraphRenderPlan,
 } from "../../core/block-render-plan";
 import type { BibStore } from "../state/bib-data";
@@ -192,10 +189,10 @@ function renderNode(
       renderFencedCode(parent, node, context);
       return;
     case "BulletList":
-      renderList(parent, node, context, "ul");
+      renderList(parent, node, context);
       return;
     case "OrderedList":
-      renderList(parent, node, context, "ol");
+      renderList(parent, node, context);
       return;
     case "HorizontalRule": {
       renderHorizontalRule(parent, node);
@@ -350,43 +347,24 @@ function renderList(
   parent: HTMLElement | DocumentFragment,
   node: SyntaxNode,
   context: PreviewRenderContext,
-  tag: "ul" | "ol",
 ): void {
-  const ordered = tag === "ol";
-  const start = ordered ? orderedListStartNumber(node, context.doc) : 1;
-  const loose = isLooseListNode(node, context.doc);
-  let isTaskList = false;
-  const renderedItems: HTMLLIElement[] = [];
-  let child = node.firstChild;
-  let itemIndex = 0;
-
-  while (child) {
-    if (child.name === "ListItem") {
-      const markerNumber = start + itemIndex;
-      itemIndex += 1;
-      const taskMarker = child.getChild("Task")?.getChild("TaskMarker") ?? null;
-      const isTask = taskMarker !== null;
-      const checked = taskMarker
-        ? taskMarkerChecked(context.doc.slice(taskMarker.from, taskMarker.to))
-        : undefined;
-      isTaskList ||= isTask;
-      const item = createListItemSurfaceElement(document, {
-        ordered,
-        task: isTask,
-        checked,
-      });
-      appendListMarker(item, ordered, markerNumber);
-      renderListItem(item, child, context);
-      renderedItems.push(item);
-    }
-    child = child.nextSibling;
-  }
+  const plan = listRenderPlan(context.doc, node);
+  const renderedItems = plan.items.map((itemPlan) => {
+    const item = createListItemSurfaceElement(document, {
+      ordered: plan.ordered,
+      task: itemPlan.task !== null,
+      checked: itemPlan.task?.checked,
+    });
+    appendListMarker(item, plan.ordered, itemPlan.markerNumber);
+    renderListItem(item, itemPlan, context);
+    return item;
+  });
 
   const list = createListSurfaceElement(document, {
-    ordered,
-    task: isTaskList,
-    loose,
-    start,
+    ordered: plan.ordered,
+    task: plan.task,
+    loose: plan.loose,
+    start: plan.start,
   });
   list.append(...renderedItems);
   parent.appendChild(list);
@@ -421,67 +399,38 @@ function appendBlankLine(
   parent.appendChild(createBlankLineElement(document));
 }
 
-// Matches the reader's unwrap rule: an item whose content is exactly one
-// paragraph renders it inline; anything else keeps block wrappers.
-function isSingleParagraphItem(node: SyntaxNode): boolean {
-  let blockCount = 0;
-  let onlyParagraph = true;
-  let child = node.firstChild;
-  while (child) {
-    if (child.name !== "ListMark") {
-      blockCount += 1;
-      if (child.name !== "Paragraph" && child.name !== "Task") onlyParagraph = false;
-    }
-    child = child.nextSibling;
-  }
-  return blockCount === 1 && onlyParagraph;
-}
-
 function renderListItem(
   parent: HTMLElement,
-  node: SyntaxNode,
+  plan: ListItemRenderPlan,
   context: PreviewRenderContext,
 ): void {
-  const inlineOnly = isSingleParagraphItem(node);
-  let child = node.firstChild;
-
-  while (child) {
-    if (child.name === "ListMark") {
-      child = child.nextSibling;
-      continue;
-    }
-
+  for (const child of plan.children) {
     if (child.name === "Task") {
-      renderTaskListItem(parent, child, context, !inlineOnly);
-      child = child.nextSibling;
+      renderTaskListItem(parent, child, plan, context, !plan.inlineOnly);
       continue;
     }
 
-    if (child.name === "Paragraph" && inlineOnly) {
+    if (child.name === "Paragraph" && plan.inlineOnly) {
       appendInlineNode(parent, child, context);
-      child = child.nextSibling;
       continue;
     }
 
     renderNode(parent, child, context);
-    child = child.nextSibling;
   }
 }
 
 function renderTaskListItem(
   parent: HTMLElement,
   node: SyntaxNode,
+  plan: ListItemRenderPlan,
   context: PreviewRenderContext,
   wrap: boolean,
 ): void {
   const target = wrap ? createParagraphDom(document) : parent;
-  const taskMarker = node.getChild("TaskMarker");
-  if (taskMarker) {
-    const markerText = context.doc.slice(taskMarker.from, taskMarker.to);
-    appendReadOnlyTaskCheckbox(parent, taskMarkerChecked(markerText));
+  if (plan.task) {
+    appendReadOnlyTaskCheckbox(parent, plan.task.checked);
 
-    const contentStart = Math.min(taskMarker.to + 1, node.to);
-    const content = context.doc.slice(contentStart, node.to).trim();
+    const content = context.doc.slice(plan.task.contentRange.from, plan.task.contentRange.to).trim();
     if (content) {
       renderInlineMarkdown(
         target,

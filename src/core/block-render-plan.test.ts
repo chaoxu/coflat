@@ -5,6 +5,7 @@ import {
   blockquoteRenderPlan,
   headingRenderPlan,
   horizontalRuleRenderPlan,
+  listRenderPlan,
   paragraphRenderPlan,
 } from "./block-render-plan";
 
@@ -128,6 +129,63 @@ describe("blockquoteRenderPlan", () => {
     expect(plan.children.map((child) => source.slice(child.from, child.to))).toEqual([
       "**quoted**",
       "second",
+    ]);
+  });
+});
+
+describe("listRenderPlan", () => {
+  it("captures ordered start, looseness, and item marker numbers", () => {
+    const source = "3. first\n\n4. second";
+    const plan = listRenderPlan(source, firstBlock(source, "OrderedList"));
+
+    expect(plan).toMatchObject({
+      kind: "list",
+      sourceRange: { from: 0, to: source.length },
+      ordered: true,
+      loose: true,
+      start: 3,
+      task: false,
+    });
+    expect(plan.items.map((item) => item.markerNumber)).toEqual([3, 4]);
+    expect(plan.items.map((item) => item.inlineOnly)).toEqual([true, true]);
+    expect(plan.items.map((item) => item.children.map((child) => child.name))).toEqual([
+      ["Paragraph"],
+      ["Paragraph"],
+    ]);
+  });
+
+  it("captures task marker state and task content range", () => {
+    const source = "- [x] done **now**";
+    const plan = listRenderPlan(source, firstBlock(source, "BulletList"));
+    const item = plan.items[0];
+
+    expect(plan).toMatchObject({
+      ordered: false,
+      loose: false,
+      start: 1,
+      task: true,
+    });
+    expect(item).toMatchObject({
+      markerNumber: 1,
+      inlineOnly: true,
+      task: { checked: true },
+    });
+    expect(item.children.map((child) => child.name)).toEqual(["Task"]);
+    expect(item.task).not.toBeNull();
+    expect(source.slice(item.task?.markerRange.from, item.task?.markerRange.to)).toBe("[x]");
+    expect(source.slice(item.task?.contentRange.from, item.task?.contentRange.to).trim()).toBe(
+      "done **now**",
+    );
+  });
+
+  it("keeps nested list children for the emitters", () => {
+    const source = "- parent\n  - child";
+    const plan = listRenderPlan(source, firstBlock(source, "BulletList"));
+
+    expect(plan.items[0].inlineOnly).toBe(false);
+    expect(plan.items[0].children.map((child) => child.name)).toEqual([
+      "Paragraph",
+      "BulletList",
     ]);
   });
 });

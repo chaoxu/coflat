@@ -37,6 +37,7 @@ export const NODE = {
   ListItem: "ListItem",
   ListMark: "ListMark",
   Task: "Task",
+  TaskMarker: "TaskMarker",
 
   // Block elements
   Paragraph: "Paragraph",

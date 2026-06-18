@@ -20,6 +20,8 @@ import {
   headingLevelFor,
   headingRenderPlan,
   horizontalRuleRenderPlan,
+  listRenderPlan,
+  type ListItemRenderPlan,
   paragraphRenderPlan,
 } from "../core/block-render-plan";
 import { parseFrontmatter, parseMarkdownSource } from "../core/parser";
@@ -95,7 +97,6 @@ import {
   renderReadOnlyTaskCheckboxHtml,
   renderListItemSurfaceHtml,
   renderListSurfaceHtml,
-  taskMarkerChecked,
 } from "../core/list-surface";
 import { renderCodeBlockHtml } from "../core/code-block-surface";
 import { renderReaderFootnoteReferenceHtml } from "../core/footnote-reference-surface";
@@ -132,10 +133,6 @@ import {
   createHoverPreviewHeaderElement,
 } from "../core/hover-preview-surface";
 import { extractDivClass } from "../core/parser/fenced-div-attrs";
-import {
-  isLooseListNode,
-  orderedListStartNumber,
-} from "../core/parser/list-shape";
 import { parseTableDelimiterAlignments } from "../core/parser/table";
 import type {
   CitationFormatter,
@@ -1124,9 +1121,9 @@ function renderBlock(ctx: WalkContext, node: SyntaxNode): BlockResult {
     case NODE.Paragraph:
       return renderParagraph(ctx, node);
     case NODE.BulletList:
-      return renderList(ctx, node, /*ordered*/ false);
+      return renderList(ctx, node);
     case NODE.OrderedList:
-      return renderList(ctx, node, /*ordered*/ true);
+      return renderList(ctx, node);
     case NODE.Blockquote:
       return renderBlockquote(ctx, node);
     case NODE.FencedCode:
@@ -1320,29 +1317,15 @@ function renderHorizontalRule(ctx: WalkContext, node: SyntaxNode): BlockResult {
   };
 }
 
-function renderList(ctx: WalkContext, node: SyntaxNode, ordered: boolean): BlockResult {
-  const items: BlockResult[] = [];
-  let isTaskList = false;
-  const isLoose = isLooseListNode(node, ctx.source);
-  const startNumber = ordered ? orderedListStartNumber(node, ctx.source) : 1;
-  let itemIndex = 0;
-
-  let child = node.firstChild;
-  while (child) {
-    if (child.name === NODE.ListItem) {
-      const item = renderListItem(ctx, child, ordered, startNumber + itemIndex);
-      itemIndex++;
-      if (item.html.includes(DOCUMENT_SURFACE_CLASS.listItemCheck)) isTaskList = true;
-      items.push(item);
-    }
-    child = child.nextSibling;
-  }
+function renderList(ctx: WalkContext, node: SyntaxNode): BlockResult {
+  const plan = listRenderPlan(ctx.source, node);
+  const items = plan.items.map((item) => renderListItem(ctx, plan.ordered, item));
 
   return {
     html: renderListSurfaceHtml(
-      { ordered, task: isTaskList, loose: isLoose, start: startNumber },
+      { ordered: plan.ordered, task: plan.task, loose: plan.loose, start: plan.start },
       items.map((b) => b.html).join(""),
-      blockSourceAttrs(ctx, node.from, node.to),
+      blockSourceAttrs(ctx, plan.sourceRange.from, plan.sourceRange.to),
     ),
     text: items.map((b) => b.text).join("\n"),
     hasMath: items.some((b) => b.hasMath),
@@ -1351,67 +1334,41 @@ function renderList(ctx: WalkContext, node: SyntaxNode, ordered: boolean): Block
 
 function renderListItem(
   ctx: WalkContext,
-  node: SyntaxNode,
   ordered: boolean,
-  number: number,
+  plan: ListItemRenderPlan,
 ): BlockResult {
-  // Task marker: TaskMarker is the first child of a Task wrapper (which
-  // wraps the rest of the item content). Detect by walking one level deep.
-  let task: { checked: boolean } | null = null;
-  let scan = node.firstChild;
-  while (scan) {
-    if (scan.name === "Task") {
-      const tm = scan.firstChild;
-      if (tm && tm.name === "TaskMarker") {
-        const raw = ctx.source.slice(tm.from, tm.to);
-        task = { checked: taskMarkerChecked(raw) };
-      }
-      break;
-    }
-    scan = scan.nextSibling;
-  }
-
-  // Render child blocks (Paragraphs, nested lists, …). Skip ListMark.
-  // A Task wrapper is treated transparently — its content is the item content
-  // and its TaskMarker child is skipped.
   const blocks: BlockResult[] = [];
-  const visit = (parent: SyntaxNode): void => {
-    let child = parent.firstChild;
-    while (child) {
-      const n = child.name;
-      if (n === "ListMark" || n === "TaskMarker") {
-        child = child.nextSibling;
-        continue;
-      }
-      if (n === "Task") {
-        // Task is an inline-content wrapper; treat its content as paragraph text.
-        const inner = renderInline(ctx, child, child.from, child.to);
-        blocks.push({
-          html: renderParagraphHtml(
-            inner.html.replace(/^\s+/, "").replace(/\s+$/, ""),
-            blockSourceAttrs(ctx, child.from, child.to),
-          ),
-          text: inner.text.replace(/^\s+/, "").replace(/\s+$/, ""),
-          hasMath: inner.hasMath,
-        });
-        child = child.nextSibling;
-        continue;
-      }
-      if (n === NODE.Paragraph) {
-        blocks.push(renderParagraph(ctx, child));
-      } else {
-        blocks.push(renderBlock(ctx, child));
-      }
-      child = child.nextSibling;
+  for (const child of plan.children) {
+    const n = child.name;
+    if (n === NODE.Task && plan.task) {
+      const inner = renderInline(
+        ctx,
+        child,
+        plan.task.contentRange.from,
+        plan.task.contentRange.to,
+      );
+      blocks.push({
+        html: renderParagraphHtml(
+          inner.html.replace(/^\s+/, "").replace(/\s+$/, ""),
+          blockSourceAttrs(ctx, plan.task.contentRange.from, plan.task.contentRange.to),
+        ),
+        text: inner.text.replace(/^\s+/, "").replace(/\s+$/, ""),
+        hasMath: inner.hasMath,
+      });
+      continue;
     }
-  };
-  visit(node);
+    if (n === NODE.Paragraph) {
+      blocks.push(renderParagraph(ctx, child));
+    } else {
+      blocks.push(renderBlock(ctx, child));
+    }
+  }
 
   // If the only block is a paragraph, unwrap it to bare inline (tight item).
   let inner: string;
   let text: string;
   const hasMath = blocks.some((b) => b.hasMath);
-  if (blocks.length === 1 && blocks[0].html.startsWith(`<p class="${paragraphClasses}"`)) {
+  if (plan.inlineOnly && blocks.length === 1 && blocks[0].html.startsWith(`<p class="${paragraphClasses}"`)) {
     // Strip outer <p>…</p>.
     inner = blocks[0].html.replace(new RegExp(`^<p class="${paragraphClasses}"[^>]*>`), "").replace(/<\/p>$/, "");
     text = blocks[0].text;
@@ -1420,17 +1377,17 @@ function renderListItem(
     text = blocks.map((b) => b.text).join("\n");
   }
 
-  if (task) {
-    const cb = `${renderReadOnlyTaskCheckboxHtml(task.checked)} `;
+  if (plan.task) {
+    const cb = `${renderReadOnlyTaskCheckboxHtml(plan.task.checked)} `;
     inner = cb + inner;
-    text = (task.checked ? "[x] " : "[ ] ") + text;
+    text = (plan.task.checked ? "[x] " : "[ ] ") + text;
   }
   return {
     html: renderListItemSurfaceHtml(
-      { ordered, task: task !== null, checked: task?.checked },
-      number,
+      { ordered, task: plan.task !== null, checked: plan.task?.checked },
+      plan.markerNumber,
       inner,
-      blockSourceAttrs(ctx, node.from, node.to),
+      blockSourceAttrs(ctx, plan.sourceRange.from, plan.sourceRange.to),
     ),
     text,
     hasMath,
