@@ -25,6 +25,8 @@ import {
   listRenderPlan,
   type ListItemRenderPlan,
   paragraphRenderPlan,
+  tableRenderPlan,
+  type TableRowRenderPlan,
 } from "../core/block-render-plan";
 import { parseFrontmatter, parseMarkdownSource } from "../core/parser";
 import {
@@ -128,7 +130,6 @@ import {
   createHoverPreviewContentElement,
   createHoverPreviewHeaderElement,
 } from "../core/hover-preview-surface";
-import { parseTableDelimiterAlignments } from "../core/parser/table";
 import type {
   CitationFormatter,
   DocumentContext,
@@ -1434,24 +1435,21 @@ function renderIndentedCode(ctx: WalkContext, node: SyntaxNode): BlockResult {
 }
 
 function renderTable(ctx: WalkContext, node: SyntaxNode): BlockResult {
-  const aligns = inferTableAlign(ctx, node);
+  const plan = tableRenderPlan(ctx.source, node);
 
   const headerRowsHtml: string[] = [];
   const bodyRowsHtml: string[] = [];
   const textRows: string[] = [];
   let hasMath = false;
 
-  const header = node.getChild("TableHeader");
-  if (header) {
-    const { rowHtml, rowText, hasMath: rowHasMath } = renderTableRow(ctx, header, /*head*/ true, aligns);
+  if (plan.header) {
+    const { rowHtml, rowText, hasMath: rowHasMath } = renderTableRow(ctx, plan.header);
     headerRowsHtml.push(rowHtml);
     textRows.push(rowText);
     if (rowHasMath) hasMath = true;
   }
-  // Each TableRow → tbody.
-  const rows = node.getChildren("TableRow");
-  for (const row of rows) {
-    const { rowHtml, rowText, hasMath: rowHasMath } = renderTableRow(ctx, row, /*head*/ false, aligns);
+  for (const row of plan.rows) {
+    const { rowHtml, rowText, hasMath: rowHasMath } = renderTableRow(ctx, row);
     bodyRowsHtml.push(rowHtml);
     textRows.push(rowText);
     if (rowHasMath) hasMath = true;
@@ -1461,45 +1459,31 @@ function renderTable(ctx: WalkContext, node: SyntaxNode): BlockResult {
   if (headerRowsHtml.length) inner += `<thead>${headerRowsHtml.join("")}</thead>`;
   if (bodyRowsHtml.length) inner += `<tbody>${bodyRowsHtml.join("")}</tbody>`;
   return {
-    html: renderTableSurfaceHtml(inner, blockSourceAttrs(ctx, node.from, node.to)),
+    html: renderTableSurfaceHtml(inner, blockSourceAttrs(ctx, plan.sourceRange.from, plan.sourceRange.to)),
     text: textRows.join("\n"),
     hasMath,
   };
 }
 
-function inferTableAlign(ctx: WalkContext, node: SyntaxNode): (string | null)[] {
-  // Find a TableDelimiter that is a *child* of the table itself (the
-  // delimiter row separating header from body). Its source slice contains
-  // `:?-+:?` cells separated by `|`.
-  const delims = node.getChildren("TableDelimiter");
-  // The first such child whose text contains '-' is the delimiter row.
-  for (const d of delims) {
-    const raw = ctx.source.slice(d.from, d.to);
-    if (!raw.includes("-")) continue;
-    return parseTableDelimiterAlignments(raw);
-  }
-  return [];
-}
-
 function renderTableRow(
   ctx: WalkContext,
-  row: SyntaxNode,
-  isHeader: boolean,
-  aligns: (string | null)[],
+  row: TableRowRenderPlan,
 ): { rowHtml: string; rowText: string; hasMath: boolean } {
   const cellHtmls: string[] = [];
   const cellTexts: string[] = [];
   let hasMath = false;
-  const cells = row.getChildren("TableCell");
-  cells.forEach((cell, idx) => {
-    const inner = renderInline(ctx, cell, cell.from, cell.to);
-    const tag = isHeader ? "th" : "td";
-    cellHtmls.push(renderTableCellHtml(tag, inner.html, aligns[idx]));
+  row.cells.forEach((cell) => {
+    const inner = renderInline(ctx, cell.node, cell.node.from, cell.node.to);
+    const tag = row.header ? "th" : "td";
+    cellHtmls.push(renderTableCellHtml(tag, inner.html, cell.align));
     cellTexts.push(inner.text);
     if (inner.hasMath) hasMath = true;
   });
   return {
-    rowHtml: renderTableRowHtml(cellHtmls.join(""), blockSourceAttrs(ctx, row.from, row.to)),
+    rowHtml: renderTableRowHtml(
+      cellHtmls.join(""),
+      blockSourceAttrs(ctx, row.sourceRange.from, row.sourceRange.to),
+    ),
     rowText: cellTexts.join("\t"),
     hasMath,
   };

@@ -1,5 +1,5 @@
 import type { SyntaxNode } from "@lezer/common";
-import { parseTableDelimiterAlignments } from "../../core/parser/table";
+import { tableRenderPlan, type TableRowRenderPlan } from "../../core/block-render-plan";
 import {
   createTableCellElement,
   createTableRowSurfaceElement,
@@ -13,29 +13,22 @@ export function renderPreviewTable(
   node: SyntaxNode,
   context: PreviewRenderContext,
 ): void {
-  const delimiterNode = node.getChild("TableDelimiter");
-  if (!delimiterNode) return;
-
-  const alignments = parseTableDelimiterAlignments(
-    context.doc.slice(delimiterNode.from, delimiterNode.to),
-  );
-  const headerNode = node.getChild("TableHeader");
-  const headerCells = headerNode?.getChildren("TableCell") ?? [];
+  const plan = tableRenderPlan(context.doc, node);
   const table = createTableSurfaceElement(document);
   const thead = document.createElement("thead");
   const tbody = document.createElement("tbody");
 
-  thead.appendChild(renderTableRow(headerCells, "th", alignments, context));
-
-  let child = node.firstChild;
-  while (child) {
-    if (child.name === "TableRow") {
-      tbody.appendChild(renderTableRow(child.getChildren("TableCell"), "td", alignments, context));
-    }
-    child = child.nextSibling;
+  if (plan.header) {
+    thead.appendChild(renderTableRow(plan.header, context));
   }
 
-  table.appendChild(thead);
+  for (const row of plan.rows) {
+    tbody.appendChild(renderTableRow(row, context));
+  }
+
+  if (thead.children.length > 0) {
+    table.appendChild(thead);
+  }
   if (tbody.children.length > 0) {
     table.appendChild(tbody);
   }
@@ -43,18 +36,16 @@ export function renderPreviewTable(
 }
 
 function renderTableRow(
-  cells: readonly SyntaxNode[],
-  tag: "th" | "td",
-  alignments: readonly (string | null)[],
+  rowPlan: TableRowRenderPlan,
   context: PreviewRenderContext,
 ): HTMLTableRowElement {
   const row = createTableRowSurfaceElement(document);
-  for (let index = 0; index < cells.length; index += 1) {
-    const cell = createTableCellElement(document, tag, alignments[index]);
-    const cellNode = cells[index];
+  const tag = rowPlan.header ? "th" : "td";
+  for (const cellPlan of rowPlan.cells) {
+    const cell = createTableCellElement(document, tag, cellPlan.align);
     renderInlineSyntaxNodeToDom(
       cell,
-      cellNode,
+      cellPlan.node,
       context.doc,
       context.macros,
       "document-body",

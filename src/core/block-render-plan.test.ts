@@ -9,6 +9,7 @@ import {
   horizontalRuleRenderPlan,
   listRenderPlan,
   paragraphRenderPlan,
+  tableRenderPlan,
 } from "./block-render-plan";
 
 function firstParagraph(source: string) {
@@ -279,5 +280,59 @@ describe("fencedDivRenderPlan", () => {
     expect(plan.isSelfClosing).toBe(false);
     expect(plan.children).toEqual([]);
     expect(plan.bodyRange).toBeNull();
+  });
+});
+
+describe("tableRenderPlan", () => {
+  it("captures header, body rows, cells, and alignments", () => {
+    const source = [
+      "| Left | Center | Right |",
+      "| :--- | :----: | ----: |",
+      "| $x$  | text   | `z`   |",
+    ].join("\n");
+    const plan = tableRenderPlan(source, firstBlock(source, "Table"));
+
+    expect(plan).toMatchObject({
+      kind: "table",
+      sourceRange: { from: 0, to: source.length },
+      alignments: ["left", "center", "right"],
+      header: {
+        kind: "table-row",
+        header: true,
+      },
+      rows: [{ kind: "table-row", header: false }],
+    });
+    expect(plan.header?.cells.map((cell) => source.slice(cell.node.from, cell.node.to))).toEqual([
+      "Left",
+      "Center",
+      "Right",
+    ]);
+    expect(plan.rows[0].cells.map((cell) => cell.align)).toEqual(["left", "center", "right"]);
+    expect(plan.rows[0].cells.map((cell) => source.slice(cell.node.from, cell.node.to))).toEqual([
+      "$x$",
+      "text",
+      "`z`",
+    ]);
+  });
+
+  it("keeps header-only tables without inventing body rows", () => {
+    const source = "| A | B |\n|---|---|";
+    const plan = tableRenderPlan(source, firstBlock(source, "Table"));
+
+    expect(plan.header?.cells).toHaveLength(2);
+    expect(plan.rows).toEqual([]);
+  });
+
+  it("keeps ragged row cell counts as parsed", () => {
+    const source = [
+      "| A | B |",
+      "|---|---|",
+      "| 1 | 2 | 3 |",
+      "| 4 |",
+    ].join("\n");
+    const plan = tableRenderPlan(source, firstBlock(source, "Table"));
+
+    expect(plan.header?.cells).toHaveLength(2);
+    expect(plan.rows.map((row) => row.cells.length)).toEqual([3, 1]);
   });
 });

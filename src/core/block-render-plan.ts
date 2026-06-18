@@ -22,6 +22,7 @@ import { extractDivClass } from "./parser/fenced-div-attrs";
 import { taskMarkerChecked } from "./list-surface";
 import { displayMathLatex } from "./math-source";
 import { readBracedLabelId } from "./parser/label-utils";
+import { parseTableDelimiterAlignments } from "./parser/table";
 
 export interface ParagraphRenderPlan {
   readonly kind: "paragraph";
@@ -100,6 +101,32 @@ export interface ListRenderPlan {
   readonly start: number;
   readonly task: boolean;
   readonly items: readonly ListItemRenderPlan[];
+}
+
+export interface TableCellRenderPlan {
+  readonly node: SyntaxNode;
+  readonly align: string | null;
+}
+
+export interface TableRowRenderPlan {
+  readonly kind: "table-row";
+  readonly sourceRange: {
+    readonly from: number;
+    readonly to: number;
+  };
+  readonly header: boolean;
+  readonly cells: readonly TableCellRenderPlan[];
+}
+
+export interface TableRenderPlan {
+  readonly kind: "table";
+  readonly sourceRange: {
+    readonly from: number;
+    readonly to: number;
+  };
+  readonly alignments: readonly (string | null)[];
+  readonly header: TableRowRenderPlan | null;
+  readonly rows: readonly TableRowRenderPlan[];
 }
 
 export interface FencedDivRenderChildPlan {
@@ -308,6 +335,61 @@ export function listItemRenderPlan(
     task,
     children,
   };
+}
+
+export function tableRenderPlan(
+  source: string,
+  node: SyntaxNode,
+): TableRenderPlan {
+  if (node.name !== NODE.Table) {
+    throw new Error(`expected table node, got ${node.name}`);
+  }
+  const alignments = tableAlignments(source, node);
+  const headerNode = node.getChild(NODE.TableHeader);
+  const rows: TableRowRenderPlan[] = [];
+  let child = node.firstChild;
+  while (child) {
+    if (child.name === NODE.TableRow) {
+      rows.push(tableRowRenderPlan(child, false, alignments));
+    }
+    child = child.nextSibling;
+  }
+  return {
+    kind: "table",
+    sourceRange: { from: node.from, to: node.to },
+    alignments,
+    header: headerNode ? tableRowRenderPlan(headerNode, true, alignments) : null,
+    rows,
+  };
+}
+
+function tableRowRenderPlan(
+  node: SyntaxNode,
+  header: boolean,
+  alignments: readonly (string | null)[],
+): TableRowRenderPlan {
+  return {
+    kind: "table-row",
+    sourceRange: { from: node.from, to: node.to },
+    header,
+    cells: node.getChildren(NODE.TableCell).map((cell, index) => ({
+      node: cell,
+      align: alignments[index] ?? null,
+    })),
+  };
+}
+
+function tableAlignments(
+  source: string,
+  node: SyntaxNode,
+): readonly (string | null)[] {
+  for (const delimiter of node.getChildren(NODE.TableDelimiter)) {
+    const raw = source.slice(delimiter.from, delimiter.to);
+    if (raw.includes("-")) {
+      return parseTableDelimiterAlignments(raw);
+    }
+  }
+  return [];
 }
 
 export function fencedDivRenderPlan(

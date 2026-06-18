@@ -69,7 +69,10 @@ export const NODE = {
 
   // Tables
   Table: "Table",
+  TableHeader: "TableHeader",
   TableRow: "TableRow",
+  TableCell: "TableCell",
+  TableDelimiter: "TableDelimiter",
 
   // Frontmatter
   Frontmatter: "Frontmatter",
