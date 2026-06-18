@@ -12,6 +12,7 @@ import {
 } from "../merge-utils";
 import type { DirtyWindow, SemanticDelta } from "../types";
 import type { StructuralWindowExtraction } from "../window-extractor";
+import { footnoteNumberingState } from "../../../../core/footnote-ordering";
 
 export interface FootnoteSlice extends FootnoteSemantics {
   readonly definitions: readonly FootnoteDefinition[];
@@ -228,61 +229,21 @@ function removeDirtyOldRanges<T extends RangeLike>(
   return next;
 }
 
-function findFirstReferenceChangeIndex(
-  previous: readonly FootnoteReference[],
-  next: readonly FootnoteReference[],
-): number {
-  const limit = Math.min(previous.length, next.length);
-  for (let index = 0; index < limit; index++) {
-    if (previous[index].id !== next[index].id) {
-      return index;
-    }
-  }
-  return previous.length === next.length ? -1 : limit;
-}
-
 function buildNumberById(
   refs: readonly FootnoteReference[],
   definitions: readonly FootnoteDefinition[],
   previous?: FootnoteSlice,
-  firstRefChangeIndex: number = 0,
 ): ReadonlyMap<string, number> {
   if (
     previous
-    && firstRefChangeIndex === -1
+    && refs === previous.refs
     && definitions.length === previous.definitions.length
     && definitions.every((def, index) => sameFootnoteDefinition(def, previous.definitions[index]))
   ) {
     return previous.numberById;
   }
 
-  const numbers = new Map<string, number>();
-  const seen = new Set<string>();
-
-  if (previous && firstRefChangeIndex > 0) {
-    for (let index = 0; index < firstRefChangeIndex; index++) {
-      const id = refs[index].id;
-      if (seen.has(id)) continue;
-      seen.add(id);
-      const number = previous.numberById.get(id) ?? numbers.size + 1;
-      numbers.set(id, number);
-    }
-  }
-
-  let nextNumber = numbers.size + 1;
-  const startIndex = Math.max(0, firstRefChangeIndex);
-  for (let index = startIndex; index < refs.length; index++) {
-    const id = refs[index].id;
-    if (seen.has(id)) continue;
-    seen.add(id);
-    numbers.set(id, nextNumber++);
-  }
-
-  for (const def of definitions) {
-    if (seen.has(def.id)) continue;
-    seen.add(def.id);
-    numbers.set(def.id, nextNumber++);
-  }
+  const numbers = footnoteNumberingState(refs, definitions).numberById;
 
   if (
     previous
@@ -308,17 +269,13 @@ function buildOrderedEntries(
     ? new Map(previous.orderedEntries.map((entry) => [entry.id, entry]))
     : null;
   const entries: OrderedFootnoteEntry[] = [];
-  const seen = new Set<string>();
 
-  for (const ref of refs) {
-    if (seen.has(ref.id)) continue;
-    seen.add(ref.id);
-
-    const def = defs.get(ref.id);
+  for (const id of footnoteNumberingState(refs, definitions).orderedIds) {
+    const def = defs.get(id);
     if (!def) continue;
 
-    const number = numberById.get(ref.id) ?? 0;
-    const previousEntry = previousEntries?.get(ref.id);
+    const number = numberById.get(id) ?? 0;
+    const previousEntry = previousEntries?.get(id);
     if (
       previousEntry
       && previousEntry.number === number
@@ -329,29 +286,7 @@ function buildOrderedEntries(
     }
 
     entries.push({
-      id: ref.id,
-      number,
-      def,
-    });
-  }
-
-  for (const def of definitions) {
-    if (seen.has(def.id)) continue;
-    seen.add(def.id);
-
-    const number = numberById.get(def.id) ?? 0;
-    const previousEntry = previousEntries?.get(def.id);
-    if (
-      previousEntry
-      && previousEntry.number === number
-      && previousEntry.def === def
-    ) {
-      entries.push(previousEntry);
-      continue;
-    }
-
-    entries.push({
-      id: def.id,
+      id,
       number,
       def,
     });
@@ -372,9 +307,6 @@ export function createFootnoteSlice(
   refs: readonly FootnoteReference[],
   definitions: readonly FootnoteDefinition[],
   previous?: FootnoteSlice,
-  firstRefChangeIndex: number = previous
-    ? findFirstReferenceChangeIndex(previous.refs, refs)
-    : 0,
 ): FootnoteSlice {
   const footnoteDefs = new Map<string, FootnoteDefinition>();
   const footnoteRefByFrom = new Map<number, FootnoteReference>();
@@ -389,7 +321,7 @@ export function createFootnoteSlice(
     footnoteDefByFrom.set(def.from, def);
   }
 
-  const numberById = buildNumberById(refs, definitions, previous, firstRefChangeIndex);
+  const numberById = buildNumberById(refs, definitions, previous);
   const orderedEntries = buildOrderedEntries(refs, definitions, footnoteDefs, numberById, previous);
 
   return {

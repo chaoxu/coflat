@@ -18,6 +18,10 @@ import {
   hasUnnumberedHeadingAttributes,
   type TrailingHeadingAttributes,
 } from "./heading-attributes";
+import {
+  footnoteNumberById,
+  footnoteNumberingState,
+} from "../../core/footnote-ordering";
 import type {
   DocumentSemantics,
   EquationSemantics,
@@ -82,19 +86,7 @@ export function numberFootnotes(
     return footnotes.numberById;
   }
 
-  const numbers = new Map<string, number>();
-  let nextNumber = 1;
-  for (const ref of footnotes.refs) {
-    if (!numbers.has(ref.id)) {
-      numbers.set(ref.id, nextNumber++);
-    }
-  }
-  for (const [id] of footnotes.defs) {
-    if (!numbers.has(id)) {
-      numbers.set(id, nextNumber++);
-    }
-  }
-  return numbers;
+  return footnoteNumberById(footnotes.refs, footnotes.defs.values());
 }
 
 export function orderedFootnoteEntries(
@@ -104,24 +96,13 @@ export function orderedFootnoteEntries(
     return [...footnotes.orderedEntries];
   }
 
-  const numbers = numberFootnotes(footnotes);
-  const seen = new Set<string>();
+  const numbering = footnoteNumberingState(footnotes.refs, footnotes.defs.values());
+  const numbers = numbering.numberById;
   const entries: OrderedFootnoteEntry[] = [];
 
-  for (const ref of footnotes.refs) {
-    const def = footnotes.defs.get(ref.id);
-    if (!def || seen.has(ref.id)) continue;
-    seen.add(ref.id);
-    entries.push({
-      id: ref.id,
-      number: numbers.get(ref.id) ?? 0,
-      def,
-    });
-  }
-
-  for (const [id, def] of footnotes.defs) {
-    if (seen.has(id)) continue;
-    seen.add(id);
+  for (const id of numbering.orderedIds) {
+    const def = footnotes.defs.get(id);
+    if (!def) continue;
     entries.push({
       id,
       number: numbers.get(id) ?? 0,
