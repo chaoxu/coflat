@@ -56,6 +56,7 @@ export interface InlineReferenceRenderContext extends ReferencePresentationConte
   readonly linkResolver?: LinkResolver;
   readonly documentPath?: string;
   readonly imageUrlOverrides?: ReadonlyMap<string, string>;
+  readonly footnoteNumbers?: ReadonlyMap<string, number>;
   readonly surface?: string;
 }
 
@@ -328,7 +329,8 @@ function renderFragment(
         sup.textContent = fragment.id;
         container.appendChild(sup);
       } else {
-        container.appendChild(createReaderFootnoteReferenceElement(document, fragment.id, fragment.id));
+        const label = String(referenceContext?.footnoteNumbers?.get(fragment.id) ?? fragment.id);
+        container.appendChild(createReaderFootnoteReferenceElement(document, label, fragment.id));
       }
       return;
     }

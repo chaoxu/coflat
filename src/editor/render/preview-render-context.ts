@@ -17,5 +17,6 @@ export interface PreviewRenderContext {
   readonly blockTitleOverrides: ReadonlyMap<string, string>;
   readonly documentPath?: string;
   readonly imageUrlOverrides?: ReadonlyMap<string, string>;
+  readonly footnoteNumbers: ReadonlyMap<string, number>;
   readonly referenceContext: InlineReferenceRenderContext;
 }

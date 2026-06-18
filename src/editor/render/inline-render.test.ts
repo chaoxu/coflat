@@ -394,6 +394,16 @@ describe("renderInlineMarkdown — surface policies", () => {
     );
   });
 
+  it("uses document footnote numbers when provided", () => {
+    const html = renderWithReferenceContext("Title[^note:1]", {
+      ...inlineReferenceContext,
+      footnoteNumbers: new Map([["note:1", 3]]),
+    });
+    expect(html).toBe(
+      'Title<sup class="cf-footnote-ref"><a href="#fn-note%3A1" id="fnref-note%3A1">3</a></sup>',
+    );
+  });
+
   it("renders cross references as inert text in ui-chrome-inline", () => {
     const html = render("See [@thm-evt]", {}, "ui-chrome-inline");
     expect(html).toBe("See @thm-evt");

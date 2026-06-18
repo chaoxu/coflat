@@ -126,6 +126,7 @@ export function renderPreviewBlockContentToDom(
     config.numbering ?? "grouped",
   );
   const referenceSemantics = options.referenceSemantics ?? semantics;
+  const footnoteNumbers = numberFootnotes(semantics.footnotes);
   const referenceController = createPreviewReferencePresentationController({
     bibliography: options.bibliography,
     blockCounters: options.blockCounters,
@@ -150,6 +151,7 @@ export function renderPreviewBlockContentToDom(
     blockTitleOverrides: blockTitleOverridesFromConfig(config.blocks),
     documentPath: options.documentPath,
     imageUrlOverrides: options.imageUrlOverrides,
+    footnoteNumbers,
     referenceContext: referenceController,
   };
 
@@ -632,10 +634,9 @@ function renderFootnoteDef(
   const footnote = context.semantics.footnotes.defByFrom.get(node.from);
   if (!footnote) return;
 
-  const numbers = numberFootnotes(context.semantics.footnotes);
   parent.appendChild(
     createFootnoteEntryElement(document, {
-      num: numbers.get(footnote.id) ?? 0,
+      num: context.footnoteNumbers.get(footnote.id) ?? 0,
       id: footnote.id,
       defFrom: footnote.from,
       appendContent: (content) => {
@@ -669,6 +670,7 @@ function appendInlineNode(
     {
       ...context.referenceContext,
       imageUrlOverrides: context.imageUrlOverrides,
+      footnoteNumbers: context.footnoteNumbers,
     },
   );
 }
@@ -682,5 +684,6 @@ function appendInlineText(
   renderInlineMarkdown(parent, text, context.macros, surface, {
     ...context.referenceContext,
     imageUrlOverrides: context.imageUrlOverrides,
+    footnoteNumbers: context.footnoteNumbers,
   });
 }

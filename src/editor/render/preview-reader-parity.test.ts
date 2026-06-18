@@ -331,4 +331,23 @@ describe("reader / editor-preview emission parity", () => {
     expect(entry?.querySelector(".cf-doc-inline-math.cf-math-inline")?.getAttribute("aria-label")).toBe("x^2");
     expect(host.querySelector(".footnote")).toBeNull();
   });
+
+  it("preview footnote references use the same numbering as the reader", () => {
+    const source = "Intro[^note:1] and again[^note:1].\n\n[^note:1]: Body.";
+    const readerHost = document.createElement("div");
+    readerHost.innerHTML = renderToHtml(source).html;
+    const previewHost = document.createElement("div");
+    renderPreviewBlockContentToDom(previewHost, source);
+
+    const readerRefs = [...readerHost.querySelectorAll(".cf-footnote-ref a")]
+      .map((el) => `${el.textContent}|${el.getAttribute("href")}|${el.id}`);
+    const previewRefs = [...previewHost.querySelectorAll(".cf-footnote-ref a")]
+      .map((el) => `${el.textContent}|${el.getAttribute("href")}|${el.id}`);
+
+    expect(previewRefs).toEqual(readerRefs);
+    expect(previewRefs).toEqual([
+      "1|#fn-note%3A1|fnref-note%3A1",
+      "1|#fn-note%3A1|fnref-note%3A1",
+    ]);
+  });
 });

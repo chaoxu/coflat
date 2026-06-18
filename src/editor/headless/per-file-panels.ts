@@ -3,6 +3,9 @@ import { EditorView } from "@codemirror/view";
 
 import { isFrontmatterDelimiterLine } from "../../core/parser/frontmatter";
 import { inlineFragmentsPlainText, parseInlineFragments } from "../inline-fragments";
+import { documentContextFacet } from "../document-context";
+import { renderDocumentFragmentToHtml } from "../document-surfaces";
+import { createEditorReferencePresentationController } from "../references/presentation";
 import { documentAnalysisField } from "../state/document-analysis";
 import type { DocumentAnalysis } from "../semantics/document";
 
@@ -13,6 +16,8 @@ export interface OutlineEntry {
   readonly text: string;
   /** Heading inline Markdown without leading heading markers or trailing attributes. */
   readonly markdown: string;
+  /** Rendered inline heading HTML for chrome surfaces such as an outline. */
+  readonly html: string;
   /** 1-based line number for display and line-oriented navigation. */
   readonly line: number;
   /** 0-based CodeMirror document offset for exact editor navigation. */
@@ -129,6 +134,7 @@ function sameOutlineEntries(
       return entry.level === next?.level
         && entry.text === next.text
         && entry.markdown === next.markdown
+        && entry.html === next.html
         && entry.line === next.line
         && entry.from === next.from
         && entry.key === next.key
@@ -207,6 +213,11 @@ function computeOutline(view: EditorView): readonly OutlineEntry[] {
     return [];
   }
 
+  const referenceContext = createEditorReferencePresentationController(view.state, {
+    surface: "editor-widget",
+  });
+  const mathMacros = view.state.facet(documentContextFacet).mathMacros;
+
   return analysis.headings.map((heading) => {
     const line = view.state.doc.lineAt(heading.from);
     const markdown = view.state.doc.sliceString(heading.textFrom, heading.textTo);
@@ -214,6 +225,13 @@ function computeOutline(view: EditorView): readonly OutlineEntry[] {
       level: heading.level as OutlineEntry["level"],
       text: inlineFragmentsPlainText(parseInlineFragments(markdown)),
       markdown,
+      html: renderDocumentFragmentToHtml({
+        kind: "chrome-label",
+        text: markdown,
+        macros: mathMacros,
+        referenceContext,
+        surface: "document-inline",
+      }),
       line: line.number,
       from: heading.from,
       key: String(heading.from),
@@ -304,9 +322,12 @@ export function createPerFilePanelApi(): PerFilePanelApi {
 
   const extension = EditorView.updateListener.of((update) => {
     view = update.view;
+    const documentContextChanged =
+      update.startState.facet(documentContextFacet) !== update.state.facet(documentContextFacet);
     updatePanelStores(update.view, outline, counts, cursorContext, {
       docChanged: update.docChanged,
       selectionSet: update.selectionSet,
+      force: documentContextChanged,
     });
   });
 
