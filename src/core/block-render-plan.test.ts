@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import { parseMarkdownSource } from "./parser";
 import {
+  blockLineCost,
   blockNodeRenderKind,
   blockquoteRenderPlan,
   codeBlockRenderPlan,
+  dispatchBlockNodeRender,
   documentRenderPlan,
   displayMathRenderPlan,
   fencedDivRenderPlan,
@@ -85,6 +87,115 @@ describe("blockNodeRenderKind", () => {
     expect(blockNodeRenderKind("CommentBlock")).toBe("ignored");
     expect(blockNodeRenderKind("Frontmatter")).toBe("ignored");
     expect(blockNodeRenderKind("CustomContainer")).toBe("fallback");
+  });
+
+  it("dispatches through the shared reader/editor block handler table", () => {
+    const source = [
+      "# Title",
+      "",
+      "Paragraph",
+      "",
+      "- item",
+      "",
+      "> quote",
+      "",
+      "```ts",
+      "const x = 1;",
+      "```",
+      "",
+      "---",
+      "",
+      "$$",
+      "x",
+      "$$",
+      "",
+      "| a |",
+      "| - |",
+      "| b |",
+      "",
+      "::: {.theorem #thm}",
+      "body",
+      ":::",
+      "",
+      "[^a]: footnote",
+      "",
+      "<div>ignored</div>",
+    ].join("\n");
+    const seen: string[] = [];
+    const handlers = {
+      document: () => seen.push("document"),
+      paragraph: () => seen.push("paragraph"),
+      heading: () => seen.push("heading"),
+      horizontalRule: () => seen.push("horizontal-rule"),
+      displayMath: () => seen.push("display-math"),
+      codeBlock: () => seen.push("code-block"),
+      blockquote: () => seen.push("blockquote"),
+      list: () => seen.push("list"),
+      table: () => seen.push("table"),
+      fencedDiv: () => seen.push("fenced-div"),
+      footnoteDefinition: () => seen.push("footnote-definition"),
+      ignored: () => seen.push("ignored"),
+      fallback: () => seen.push("fallback"),
+    };
+    const root = documentNode(source);
+    dispatchBlockNodeRender(root, handlers);
+    let child = root.firstChild;
+    while (child) {
+      dispatchBlockNodeRender(child, handlers);
+      child = child.nextSibling;
+    }
+
+    expect(seen).toEqual([
+      "document",
+      "heading",
+      "paragraph",
+      "list",
+      "blockquote",
+      "code-block",
+      "horizontal-rule",
+      "display-math",
+      "table",
+      "fenced-div",
+      "footnote-definition",
+      "ignored",
+    ]);
+  });
+});
+
+describe("blockLineCost", () => {
+  it("counts simple atomic block costs for shared truncation planning", () => {
+    expect(blockLineCost("Paragraph", firstBlock("Paragraph", "Paragraph"))).toBe(1);
+    expect(blockLineCost("# Heading", firstHeading("# Heading"))).toBe(1);
+    expect(blockLineCost("---", firstBlock("---", "HorizontalRule"))).toBe(1);
+    expect(blockLineCost("$$\nx\n$$", firstBlock("$$\nx\n$$", "DisplayMath"))).toBe(1);
+  });
+
+  it("counts fenced code lines from the shared code block plan", () => {
+    const source = "```ts\none\ntwo\nthree\n```";
+
+    expect(blockLineCost(source, firstBlock(source, "FencedCode"))).toBe(3);
+  });
+
+  it("keeps empty fenced code blocks free for truncation budgets", () => {
+    const source = "```ts\n```";
+
+    expect(blockLineCost(source, firstBlock(source, "FencedCode"))).toBe(0);
+  });
+
+  it("counts list items and table rows from their shared render plans", () => {
+    const list = "- one\n- two\n- three";
+    const table = "| A | B |\n| - | - |\n| 1 | 2 |\n| 3 | 4 |";
+
+    expect(blockLineCost(list, firstBlock(list, "BulletList"))).toBe(3);
+    expect(blockLineCost(table, firstBlock(table, "Table"))).toBe(3);
+  });
+
+  it("recurses through blockquotes and fenced div children", () => {
+    const quote = "> # Heading\n>\n> paragraph";
+    const div = "::: {.proof}\n# Heading\n\nparagraph\n:::\n";
+
+    expect(blockLineCost(quote, firstBlock(quote, "Blockquote"))).toBe(2);
+    expect(blockLineCost(div, firstBlock(div, "FencedDiv"))).toBe(3);
   });
 });
 

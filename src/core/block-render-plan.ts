@@ -269,6 +269,22 @@ export type BlockNodeRenderKind =
   | "ignored"
   | "fallback";
 
+export interface BlockNodeRenderHandlers<T> {
+  readonly document: (node: SyntaxNode) => T;
+  readonly paragraph: (node: SyntaxNode) => T;
+  readonly heading: (node: SyntaxNode) => T;
+  readonly horizontalRule: (node: SyntaxNode) => T;
+  readonly displayMath: (node: SyntaxNode) => T;
+  readonly codeBlock: (node: SyntaxNode) => T;
+  readonly blockquote: (node: SyntaxNode) => T;
+  readonly list: (node: SyntaxNode) => T;
+  readonly table: (node: SyntaxNode) => T;
+  readonly fencedDiv: (node: SyntaxNode) => T;
+  readonly footnoteDefinition: (node: SyntaxNode) => T;
+  readonly ignored: (node: SyntaxNode) => T;
+  readonly fallback: (node: SyntaxNode) => T;
+}
+
 export interface DocumentRenderChildPlan {
   readonly node: SyntaxNode;
   readonly blankBeforeRanges: readonly {
@@ -319,6 +335,75 @@ export function blockNodeRenderKind(name: string): BlockNodeRenderKind {
       return "ignored";
     default:
       return "fallback";
+  }
+}
+
+export function dispatchBlockNodeRender<T>(
+  node: SyntaxNode,
+  handlers: BlockNodeRenderHandlers<T>,
+): T {
+  switch (blockNodeRenderKind(node.name)) {
+    case "document":
+      return handlers.document(node);
+    case "paragraph":
+      return handlers.paragraph(node);
+    case "heading":
+      return handlers.heading(node);
+    case "horizontal-rule":
+      return handlers.horizontalRule(node);
+    case "display-math":
+      return handlers.displayMath(node);
+    case "code-block":
+      return handlers.codeBlock(node);
+    case "blockquote":
+      return handlers.blockquote(node);
+    case "list":
+      return handlers.list(node);
+    case "table":
+      return handlers.table(node);
+    case "fenced-div":
+      return handlers.fencedDiv(node);
+    case "footnote-definition":
+      return handlers.footnoteDefinition(node);
+    case "ignored":
+      return handlers.ignored(node);
+    case "fallback":
+      return handlers.fallback(node);
+  }
+}
+
+// Shared line-cost model for block-boundary truncation. The reader currently
+// applies the truncation marker, but the syntax interpretation belongs with the
+// block render plan so future reader/editor preview surfaces do not drift.
+export function blockLineCost(source: string, node: SyntaxNode): number {
+  switch (blockNodeRenderKind(node.name)) {
+    case "heading":
+    case "paragraph":
+    case "horizontal-rule":
+    case "display-math":
+      return 1;
+    case "list":
+      return listRenderPlan(source, node).items.length;
+    case "code-block": {
+      const code = codeBlockRenderPlan(source, node).code;
+      if (code.length === 0) return 0;
+      return code.split("\n").length;
+    }
+    case "table": {
+      const plan = tableRenderPlan(source, node);
+      return (plan.header ? 1 : 0) + plan.rows.length;
+    }
+    case "fenced-div": {
+      const plan = fencedDivRenderPlan(source, node);
+      return 1 + plan.children.reduce((total, child) => total + blockLineCost(source, child.node), 0);
+    }
+    case "blockquote":
+      return blockquoteRenderPlan(node).children.reduce((total, child) => total + blockLineCost(source, child), 0);
+    case "document":
+    case "footnote-definition":
+    case "ignored":
+    case "fallback":
+      return 0;
   }
 }
 

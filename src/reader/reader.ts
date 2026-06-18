@@ -21,9 +21,10 @@ import {
 } from "../core/document-surface-policy";
 import { inlineSurfacePolicy } from "../core/inline-surface-policy";
 import {
-  blockNodeRenderKind,
+  blockLineCost,
   blockquoteRenderPlan,
   codeBlockRenderPlan,
+  dispatchBlockNodeRender,
   documentRenderPlan,
   displayMathRenderPlan,
   fencedDivRenderPlan,
@@ -1165,26 +1166,18 @@ function blockMathSourceAttrs(ctx: WalkContext, from: number, to: number): strin
 }
 
 function renderBlock(ctx: WalkContext, node: SyntaxNode): BlockResult {
-  switch (blockNodeRenderKind(node.name)) {
-    case "heading":
-      return renderHeading(ctx, node);
-    case "paragraph":
-      return renderParagraph(ctx, node);
-    case "list":
-      return renderList(ctx, node);
-    case "blockquote":
-      return renderBlockquote(ctx, node);
-    case "code-block":
-      return renderFencedCode(ctx, node);
-    case "horizontal-rule":
-      return renderHorizontalRule(ctx, node);
-    case "table":
-      return renderTable(ctx, node);
-    case "fenced-div":
-      return renderFencedDiv(ctx, node);
-    case "footnote-definition":
-      return renderFootnoteDef(ctx, node);
-    case "display-math": {
+  return dispatchBlockNodeRender(node, {
+    document: () => renderParagraph(ctx, node),
+    heading: () => renderHeading(ctx, node),
+    paragraph: () => renderParagraph(ctx, node),
+    list: () => renderList(ctx, node),
+    blockquote: () => renderBlockquote(ctx, node),
+    codeBlock: () => renderFencedCode(ctx, node),
+    horizontalRule: () => renderHorizontalRule(ctx, node),
+    table: () => renderTable(ctx, node),
+    fencedDiv: () => renderFencedDiv(ctx, node),
+    footnoteDefinition: () => renderFootnoteDef(ctx, node),
+    displayMath: () => {
       const plan = displayMathRenderPlan(ctx.source, node);
       const raw = ctx.source.slice(plan.sourceRange.from, plan.sourceRange.to);
       const equationId = plan.equationId;
@@ -1221,18 +1214,13 @@ function renderBlock(ctx: WalkContext, node: SyntaxNode): BlockResult {
         text: raw,
         hasMath: true,
       };
-    }
-    case "ignored":
+    },
+    ignored: () =>
       // Drop frontmatter / HTML blocks from rendered output. Sanitizer
       // would strip raw HTML anyway; explicit drop avoids re-injection.
-      return emptyBlock();
-    case "document":
-    case "fallback":
-      break;
-  }
-
-  // Unknown block — emit its inline content as a paragraph fallback.
-  return renderParagraph(ctx, node);
+      emptyBlock(),
+    fallback: () => renderParagraph(ctx, node),
+  });
 }
 
 /** Canonical heading slug: fold diacritics, lowercase, non-alphanumeric runs →
@@ -1657,81 +1645,6 @@ function renderReferencesList(ctx: WalkContext): string {
 // ---------------------------------------------------------------------------
 // Top-level walk.
 // ---------------------------------------------------------------------------
-
-// Count the "line cost" of a block per the truncation spec:
-//   heading=1, paragraph=1, list=item count, code fence=code line count,
-//   table=row count, math display=1, fenced div=1+nested cost, hr=1,
-//   blockquote=recurse, other=0.
-function blockLineCost(source: string, node: SyntaxNode): number {
-  switch (blockNodeRenderKind(node.name)) {
-    case "heading":
-    case "paragraph":
-    case "horizontal-rule":
-    case "display-math":
-      return 1;
-    case "list": {
-      let count = 0;
-      let c = node.firstChild;
-      while (c) {
-        if (c.name === NODE.ListItem) count++;
-        c = c.nextSibling;
-      }
-      return count;
-    }
-    case "code-block": {
-      // Count newlines in the fenced content region.
-      const marks = node.getChildren(NODE.CodeMark);
-      const info = node.getChild(NODE.CodeInfo);
-      let from = node.from;
-      let to = node.to;
-      if (marks.length >= 1) from = info ? info.to : marks[0].to;
-      if (marks.length >= 2) to = marks[marks.length - 1].from;
-      const content = source.slice(from, to).replace(/^\n/, "").replace(/\n$/, "");
-      if (content.length === 0) return 0;
-      return content.split("\n").length;
-    }
-    case "table": {
-      let count = 0;
-      let c = node.firstChild;
-      while (c) {
-        if (c.name === NODE.TableHeader || c.name === NODE.TableRow) count++;
-        c = c.nextSibling;
-      }
-      return count;
-    }
-    case "fenced-div": {
-      let nested = 0;
-      let c = node.firstChild;
-      while (c) {
-        if (
-          c.name !== NODE.FencedDivFence &&
-          c.name !== NODE.FencedDivAttributes &&
-          c.name !== NODE.FencedDivTitle
-        ) {
-          nested += blockLineCost(source, c);
-        }
-        c = c.nextSibling;
-      }
-      return 1 + nested;
-    }
-    case "blockquote": {
-      let nested = 0;
-      let c = node.firstChild;
-      while (c) {
-        if (c.name !== "QuoteMark") nested += blockLineCost(source, c);
-        c = c.nextSibling;
-      }
-      return nested;
-    }
-    case "document":
-    case "footnote-definition":
-    case "ignored":
-    case "fallback":
-      return 0;
-    default:
-      return 0;
-  }
-}
 
 function walkDocument(
   source: string,

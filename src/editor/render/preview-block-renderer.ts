@@ -68,9 +68,9 @@ import {
 } from "../../core/semantics/block-numbering";
 import type { BlockPresentationPlan } from "../../core/block-presentation";
 import {
-  blockNodeRenderKind,
   blockquoteRenderPlan,
   codeBlockRenderPlan,
+  dispatchBlockNodeRender,
   documentRenderPlan,
   displayMathRenderPlan,
   fencedDivRenderPlan,
@@ -174,47 +174,21 @@ function renderNode(
   node: SyntaxNode,
   context: PreviewRenderContext,
 ): void {
-  switch (blockNodeRenderKind(node.name)) {
-    case "document":
-      renderDocument(parent, node, context);
-      return;
-    case "paragraph":
-      renderParagraph(parent, node, context);
-      return;
-    case "heading":
-      renderHeading(parent, node, context);
-      return;
-    case "code-block":
-      renderFencedCode(parent, node, context);
-      return;
-    case "list":
-      renderList(parent, node, context);
-      return;
-    case "horizontal-rule": {
-      renderHorizontalRule(parent, node);
-      return;
-    }
-    case "fenced-div":
-      renderFencedDiv(parent, node, context);
-      return;
-    case "display-math":
-      renderDisplayMath(parent, node, context);
-      return;
-    case "footnote-definition":
-      renderFootnoteDef(parent, node, context);
-      return;
-    case "table":
-      renderPreviewTable(parent, node, context);
-      return;
-    case "blockquote":
-      renderBlockquote(parent, node, context);
-      return;
-    case "ignored":
-      return;
-    case "fallback":
-      renderChildNodes(parent, node, context);
-      return;
-  }
+  dispatchBlockNodeRender(node, {
+    document: () => renderDocument(parent, node, context),
+    paragraph: () => renderParagraph(parent, node, context),
+    heading: () => renderHeading(parent, node, context),
+    codeBlock: () => renderFencedCode(parent, node, context),
+    list: () => renderList(parent, node, context),
+    horizontalRule: () => renderHorizontalRule(parent, node),
+    fencedDiv: () => renderFencedDiv(parent, node, context),
+    displayMath: () => renderDisplayMath(parent, node, context),
+    footnoteDefinition: () => renderFootnoteDef(parent, node, context),
+    table: () => renderPreviewTable(parent, node, context),
+    blockquote: () => renderBlockquote(parent, node, context),
+    ignored: () => undefined,
+    fallback: () => renderChildNodes(parent, node, context),
+  });
 }
 
 function renderDocument(
