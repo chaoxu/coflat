@@ -7,6 +7,10 @@
 
 import type { SyntaxNode } from "@lezer/common";
 import type { InlineRenderSurface } from "../inline-surface";
+import {
+  inlineSurfacePolicy,
+  type InlineSurfacePolicy,
+} from "../../core/inline-surface-policy";
 import { CSS } from "../../core/constants/css-classes";
 import { createReaderFootnoteReferenceElement } from "../../core/footnote-reference-surface";
 import { createInlineMarkElement } from "../../core/inline-mark-surface";
@@ -67,18 +71,19 @@ function renderFragments(
   surface: DomInlineSurface,
   referenceContext?: InlineReferenceRenderContext,
 ): void {
+  const policy = inlineSurfacePolicy(surface);
   for (const fragment of fragments) {
-    renderFragment(container, fragment, macros, surface, referenceContext);
+    renderFragment(container, fragment, macros, surface, policy, referenceContext);
   }
 }
 
 function renderReference(
   container: HTMLElement | DocumentFragment,
   fragment: Extract<InlineFragment, { kind: "reference" }>,
-  surface: DomInlineSurface,
+  policy: InlineSurfacePolicy,
   referenceContext?: InlineReferenceRenderContext,
 ): void {
-  if (surface === "ui-chrome-inline") {
+  if (policy.references === "inert") {
     container.appendChild(document.createTextNode(fragment.rawText));
     return;
   }
@@ -181,6 +186,7 @@ function renderFragment(
   fragment: InlineFragment,
   macros: Record<string, string>,
   surface: DomInlineSurface,
+  policy: InlineSurfacePolicy,
   referenceContext?: InlineReferenceRenderContext,
 ): void {
   switch (fragment.kind) {
@@ -252,7 +258,7 @@ function renderFragment(
     }
 
     case "link": {
-      if (surface === "ui-chrome-inline") {
+      if (policy.links === "inert") {
         renderFragments(container, fragment.children, macros, surface, referenceContext);
         return;
       }
@@ -296,12 +302,12 @@ function renderFragment(
     }
 
     case "reference":
-      renderReference(container, fragment, surface, referenceContext);
+      renderReference(container, fragment, policy, referenceContext);
       return;
 
     case "image": {
       const src = fragment.src?.trim();
-      if (surface === "document-body" && src && isSafeUrl(src)) {
+      if (policy.images === "rendered" && src && isSafeUrl(src)) {
         let renderedSrc = src;
         if (isUnresolvedLocalMediaUrl(src)) {
           const resolvedPath = resolveMarkdownReferencePathFromDocument(
@@ -324,7 +330,7 @@ function renderFragment(
     }
 
     case "footnote-ref": {
-      if (surface === "ui-chrome-inline") {
+      if (policy.footnotes === "raw-superscript") {
         const sup = document.createElement("sup");
         sup.textContent = fragment.id;
         container.appendChild(sup);
@@ -337,7 +343,7 @@ function renderFragment(
 
     case "hard-break":
       container.appendChild(
-        surface === "document-body" ? document.createElement("br") : document.createTextNode(" "),
+        policy.hardBreaks === "line-break" ? document.createElement("br") : document.createTextNode(" "),
       );
       return;
   }
@@ -367,7 +373,13 @@ export function splitByInlineMath(text: string): InlineSegment[] {
     }
 
     const scratch = document.createElement("div");
-    renderFragment(scratch, fragment, {}, "document-inline");
+    renderFragment(
+      scratch,
+      fragment,
+      {},
+      "document-inline",
+      inlineSurfacePolicy("document-inline"),
+    );
     currentText += scratch.textContent ?? "";
   }
 

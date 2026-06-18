@@ -15,6 +15,7 @@ import {
   inlineFragmentsPlainText,
   type InlineFragment,
 } from "../core/inline-fragments";
+import { inlineSurfacePolicy } from "../core/inline-surface-policy";
 import {
   blockquoteRenderPlan,
   codeBlockRenderPlan,
@@ -634,6 +635,7 @@ function renderInlineFragmentsForReader(
   let html = "";
   let text = "";
   let hasMath = false;
+  const policy = inlineSurfacePolicy("document-body");
 
   const renderChildren = (children: readonly InlineFragment[]) =>
     renderInlineFragmentsForReader(ctx, children, from, to);
@@ -695,6 +697,12 @@ function renderInlineFragmentsForReader(
       case "link": {
         const label = renderChildren(fragment.children);
         const href = fragment.href?.trim() ?? "";
+        if (policy.links === "inert") {
+          html += label.html;
+          text += label.text;
+          hasMath ||= label.hasMath;
+          break;
+        }
         let resolvedHref = href;
         let className: string | undefined;
         let title: string | undefined;
@@ -728,6 +736,11 @@ function renderInlineFragmentsForReader(
         break;
       }
       case "reference": {
+        if (policy.references === "inert") {
+          html += escapeHtml(fragment.rawText);
+          text += fragment.rawText;
+          break;
+        }
         const hasResolverContext = ctx.resolvers.refResolver
           || ctx.resolvers.referenceCatalog
           || (ctx.resolvers.citationFormatter && ctx.resolvers.citationKeys);
@@ -766,6 +779,13 @@ function renderInlineFragmentsForReader(
       case "image": {
         let src = fragment.src?.trim() ?? "";
         const alt = inlineFragmentsPlainText(fragment.alt);
+        if (policy.images === "alt-text") {
+          html += ctx.sourcePositions
+            ? `<span class="${CSS.text}"${sourceAttrsFor(fragment)}>${escapeHtml(alt)}</span>`
+            : escapeHtml(alt);
+          text += alt;
+          break;
+        }
         if (ctx.resolvers.resolveAssetUrl) {
           try {
             const resolved = ctx.resolvers.resolveAssetUrl(src);
@@ -787,6 +807,11 @@ function renderInlineFragmentsForReader(
         break;
       }
       case "footnote-ref": {
+        if (policy.footnotes === "raw-superscript") {
+          html += `<sup${sourceAttrsFor(fragment)}>${escapeHtml(fragment.id)}</sup>`;
+          text += fragment.id;
+          break;
+        }
         let entry = ctx.footnotesById.get(fragment.id);
         if (!entry) {
           entry = {
@@ -805,7 +830,9 @@ function renderInlineFragmentsForReader(
         break;
       }
       case "hard-break":
-        html += `<br${sourceAttrsFor(fragment)}>`;
+        html += policy.hardBreaks === "line-break"
+          ? `<br${sourceAttrsFor(fragment)}>`
+          : " ";
         text += " ";
         break;
     }
