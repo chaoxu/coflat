@@ -16,6 +16,14 @@ export interface FootnotePlanOrderedEntry<TDefinition extends FootnotePlanDefini
   readonly def: TDefinition;
 }
 
+export interface FootnotePlanSectionEntry<TDefinition extends FootnotePlanDefinition> {
+  readonly id: string;
+  readonly number: number;
+  readonly def: TDefinition;
+  readonly defFrom: number;
+  readonly include: boolean;
+}
+
 export interface FootnotePlan<
   TReference extends FootnotePlanReference,
   TDefinition extends FootnotePlanDefinition,
@@ -163,4 +171,37 @@ export function buildFootnotePlan<
     orderedIds: numbering.orderedIds,
     orderedEntries,
   };
+}
+
+export function footnotePlanSectionEntries<
+  TDefinition extends FootnotePlanDefinition,
+>(
+  orderedEntries: readonly FootnotePlanOrderedEntry<TDefinition>[],
+  include: (entry: FootnotePlanOrderedEntry<TDefinition>) => boolean = () => true,
+): readonly FootnotePlanSectionEntry<TDefinition>[] {
+  return orderedEntries.map((entry) => ({
+    id: entry.id,
+    number: entry.number,
+    def: entry.def,
+    defFrom: entry.def.from,
+    include: include(entry),
+  }));
+}
+
+export interface FootnoteRuntimeSectionEntry {
+  readonly id: string;
+  readonly number: number;
+  readonly include: boolean;
+}
+
+export function footnoteRuntimeSectionEntries(
+  orderedIds: readonly string[],
+  numberById: ReadonlyMap<string, number>,
+  include: (id: string) => boolean = () => true,
+): readonly FootnoteRuntimeSectionEntry[] {
+  return orderedIds.map((id) => ({
+    id,
+    number: numberById.get(id) ?? 0,
+    include: include(id),
+  }));
 }

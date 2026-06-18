@@ -1,6 +1,5 @@
 import type { SyntaxNode, SyntaxNodeRef } from "@lezer/common";
 import {
-  footnoteDefinitionSemanticPlan,
   headingSemanticPlan,
 } from "../../../core/block-render-plan";
 import { NODE } from "../../../core/constants/node-types";
@@ -11,6 +10,10 @@ import {
 } from "../../lib/syntax-tree-helpers";
 import { extractDivClass } from "../../../core/parser/fenced-div-attrs";
 import { readBracedLabelId } from "../../../core/parser/label-utils";
+import {
+  extractFootnoteDefinition,
+  extractFootnoteReference,
+} from "../../../core/semantics/footnote-extraction";
 import type {
   EquationSemantics,
   FencedDivSemantics,
@@ -86,11 +89,7 @@ export function collectFootnoteRef(
   node: SyntaxNodeRef,
   result: StructuralWindowExtraction,
 ): void {
-  result.footnoteRefs.push({
-    id: doc.slice(node.from + 2, node.to - 1),
-    from: node.from,
-    to: node.to,
-  });
+  result.footnoteRefs.push(extractFootnoteReference(doc, node));
 }
 
 export function collectFootnoteDef(
@@ -98,19 +97,8 @@ export function collectFootnoteDef(
   node: SyntaxNodeRef,
   result: StructuralWindowExtraction,
 ): void {
-  const plan = footnoteDefinitionSemanticPlan(source, node.node);
-  if (!plan) return;
-
-  result.footnoteDefs.push({
-    id: plan.id,
-    from: plan.sourceRange.from,
-    to: plan.sourceRange.to,
-    content: source.slice(plan.bodyRange.from, plan.bodyRange.to),
-    bodyFrom: plan.bodyRange.from,
-    bodyTo: plan.bodyRange.to,
-    labelFrom: plan.labelRange.from,
-    labelTo: plan.labelRange.to,
-  });
+  const footnote = extractFootnoteDefinition(source, node.node);
+  if (footnote) result.footnoteDefs.push(footnote);
 }
 
 interface NodeSpan {

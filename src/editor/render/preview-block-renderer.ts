@@ -34,6 +34,9 @@ import {
   footnoteSectionPlanFromOrderedEntries,
 } from "../../core/footnote-section-surface";
 import {
+  footnotePlanSectionEntries,
+} from "../../core/semantics/footnote-plan";
+import {
   createDisplayMathContentElement,
   createDisplayMathSurfaceElement,
   replaceDisplayMathContent,
@@ -506,11 +509,9 @@ function appendFootnoteSection(
   if (orderedEntries.length === 0) return;
 
   const definitionsById = new Map(orderedEntries.map((entry) => [entry.id, entry.def]));
-  const plannedEntries = footnoteSectionPlanFromOrderedEntries(orderedEntries.map((entry) => ({
-    number: entry.number,
-    id: entry.id,
-    defFrom: entry.def.from,
-  })));
+  const plannedEntries = footnoteSectionPlanFromOrderedEntries(
+    footnotePlanSectionEntries(orderedEntries),
+  );
   if (plannedEntries.length === 0) return;
 
   parent.appendChild(createFootnoteSectionElement(

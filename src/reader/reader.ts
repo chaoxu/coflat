@@ -95,8 +95,13 @@ import {
 } from "../core/semantics/equation-numbering";
 import {
   reserveExplicitHeadingAnchorIds,
-  uniqueHeadingAnchorId,
 } from "../core/semantics/heading-anchors";
+import {
+  footnoteRuntimeSectionEntries,
+} from "../core/semantics/footnote-plan";
+import {
+  nextHeadingOutlineProjectionEntry,
+} from "../core/semantics/outline-plan";
 import { blockPresentationPlan } from "../core/block-presentation";
 import {
   appendCitedKeysFromReferenceIds as coreAppendCitedKeysFromReferenceIds,
@@ -132,7 +137,6 @@ import {
   renderHeadingSurfaceHtml,
 } from "../core/heading-surface";
 import {
-  headingOutlineEntry,
   type DocumentOutlineEntry,
 } from "../core/outline-surface";
 import {
@@ -1255,18 +1259,25 @@ function renderHeading(ctx: WalkContext, node: SyntaxNode): BlockResult {
   // (explicit `{#id}` or a deduplicated slug) and contributes an outline entry.
   let headingId = plan.attributes?.id;
   if (ctx.collectOutline) {
-    headingId = uniqueHeadingAnchorId(
-      { text: plan.text, id: headingId },
-      ctx.usedHeadingIds,
-    );
-    ctx.outline.push(headingOutlineEntry({
+    const outlineEntry = nextHeadingOutlineProjectionEntry({
+      from: plan.sourceRange.from,
+      text: plan.text,
       id: headingId,
-      markdown: ctx.source.slice(plan.contentRange.from, plan.contentRange.to),
-      html: inner.html,
       level: plan.level,
       number: headingNumber,
-      displayUnnumbered,
-    }));
+    }, ctx.usedHeadingIds, {
+      markdown: () => ctx.source.slice(plan.contentRange.from, plan.contentRange.to),
+      html: () => inner.html,
+      displayUnnumbered: () => displayUnnumbered,
+    });
+    headingId = outlineEntry.id;
+    ctx.outline.push({
+      id: outlineEntry.id,
+      text: outlineEntry.text,
+      html: outlineEntry.html,
+      level: outlineEntry.level,
+      ...(outlineEntry.number ? { number: outlineEntry.number } : {}),
+    });
   }
   return {
     html: renderHeadingSurfaceHtml(
@@ -1582,14 +1593,16 @@ function renderFootnoteDef(ctx: WalkContext, node: SyntaxNode): BlockResult {
 
 function renderFootnotesList(ctx: WalkContext): string {
   if (ctx.footnoteNumbering.orderedIds.length === 0) return "";
-  const plannedEntries = footnoteSectionPlanFromOrderedEntries(ctx.footnoteNumbering.orderedIds.map((id) => {
-    const entry = ctx.footnotesById.get(id);
-    return {
-      number: ctx.footnoteNumbering.numberById.get(id) ?? 0,
-      id,
-      include: Boolean(entry?.hasRef || entry?.bodyHtml),
-    };
-  }));
+  const plannedEntries = footnoteSectionPlanFromOrderedEntries(
+    footnoteRuntimeSectionEntries(
+      ctx.footnoteNumbering.orderedIds,
+      ctx.footnoteNumbering.numberById,
+      (id) => {
+        const entry = ctx.footnotesById.get(id);
+        return Boolean(entry?.hasRef || entry?.bodyHtml);
+      },
+    ),
+  );
   return renderFootnoteSectionHtml(
     plannedEntries.map((entry) => ({
       ...entry,

@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { buildFootnotePlan } from "./footnote-plan";
+import {
+  buildFootnotePlan,
+  footnotePlanSectionEntries,
+  footnoteRuntimeSectionEntries,
+} from "./footnote-plan";
 
 interface TestRef {
   readonly id: string;
@@ -63,5 +67,38 @@ describe("footnote plan", () => {
 
     expect(next.numberById).toBe(previous.numberById);
     expect(next.orderedEntries).toBe(previous.orderedEntries);
+  });
+
+  it("projects ordered entries into shared footnote section entries", () => {
+    const refs: TestRef[] = [{ id: "a", from: 1 }];
+    const definitions: TestDef[] = [
+      { id: "a", from: 10, body: "body" },
+      { id: "orphan", from: 20, body: "orphan" },
+    ];
+    const plan = buildFootnotePlan(refs, definitions);
+
+    expect(footnotePlanSectionEntries(
+      plan.orderedEntries,
+      (entry) => entry.id !== "orphan",
+    ).map((entry) => ({
+      id: entry.id,
+      number: entry.number,
+      defFrom: entry.defFrom,
+      include: entry.include,
+    }))).toEqual([
+      { id: "a", number: 1, defFrom: 10, include: true },
+      { id: "orphan", number: 2, defFrom: 20, include: false },
+    ]);
+  });
+
+  it("projects mutable reader footnote state into the same section entry shape", () => {
+    expect(footnoteRuntimeSectionEntries(
+      ["a", "orphan"],
+      new Map([["a", 1], ["orphan", 2]]),
+      (id) => id !== "orphan",
+    )).toEqual([
+      { id: "a", number: 1, include: true },
+      { id: "orphan", number: 2, include: false },
+    ]);
   });
 });

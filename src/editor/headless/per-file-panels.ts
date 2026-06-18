@@ -3,7 +3,6 @@ import { EditorView } from "@codemirror/view";
 
 import { documentSurfacePolicy } from "../../core/document-surface-policy";
 import {
-  headingOutlineEntry,
   type DocumentOutlineEntry,
 } from "../../core/outline-surface";
 import { isFrontmatterDelimiterLine } from "../../core/parser/frontmatter";
@@ -12,7 +11,7 @@ import { renderDocumentFragmentToHtml } from "../document-surfaces";
 import { createEditorReferencePresentationController } from "../references/presentation";
 import { documentAnalysisField } from "../state/document-analysis";
 import type { DocumentAnalysis } from "../semantics/document";
-import { buildHeadingAnchorIds } from "../../core/semantics/heading-anchors";
+import { buildHeadingOutlineProjection } from "../../core/semantics/outline-plan";
 
 export interface OutlineEntry extends DocumentOutlineEntry {
   /** Heading inline Markdown without leading heading markers or trailing attributes. */
@@ -213,35 +212,22 @@ function computeOutline(view: EditorView): readonly OutlineEntry[] {
     surface: surfacePolicy.referenceHostSurface,
   });
   const mathMacros = view.state.facet(documentContextFacet).mathMacros;
-  const headingAnchorIds = buildHeadingAnchorIds(analysis.headings);
-
-  return analysis.headings.map((heading) => {
-    const line = view.state.doc.lineAt(heading.from);
-    const markdown = view.state.doc.sliceString(heading.textFrom, heading.textTo);
-    const html = renderDocumentFragmentToHtml({
+  return buildHeadingOutlineProjection(analysis.headings, {
+    markdown: (heading) => view.state.doc.sliceString(heading.textFrom, heading.textTo),
+    html: (_heading, markdown) => renderDocumentFragmentToHtml({
       kind: "chrome-label",
       text: markdown,
       macros: mathMacros,
       referenceContext,
       surface: surfacePolicy.chromeLabelInlineSurface,
-    });
-    const id = headingAnchorIds.get(heading.from);
-    if (!id) {
-      throw new Error(`Missing heading outline id at ${heading.from}`);
-    }
+    }),
+    displayUnnumbered: (heading) => !heading.number,
+  }).map((entry) => {
+    const line = view.state.doc.lineAt(entry.from);
     return {
-      ...headingOutlineEntry({
-        id,
-        level: heading.level,
-        markdown,
-        html,
-        number: heading.number,
-        displayUnnumbered: !heading.number,
-      }),
-      markdown,
+      ...entry,
       line: line.number,
-      from: heading.from,
-      key: String(heading.from),
+      key: String(entry.from),
     };
   });
 }

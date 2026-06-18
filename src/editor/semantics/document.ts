@@ -19,9 +19,8 @@ import {
   type TrailingHeadingAttributes,
 } from "./heading-attributes";
 import {
-  footnoteNumberById,
-  footnoteNumberingState,
-} from "../../core/footnote-ordering";
+  buildFootnotePlan,
+} from "../../core/semantics/footnote-plan";
 import type {
   DocumentSemantics,
   EquationSemantics,
@@ -86,7 +85,7 @@ export function numberFootnotes(
     return footnotes.numberById;
   }
 
-  return footnoteNumberById(footnotes.refs, footnotes.defs.values());
+  return buildFootnotePlan(footnotes.refs, [...footnotes.defs.values()]).numberById;
 }
 
 export function orderedFootnoteEntries(
@@ -96,21 +95,7 @@ export function orderedFootnoteEntries(
     return [...footnotes.orderedEntries];
   }
 
-  const numbering = footnoteNumberingState(footnotes.refs, footnotes.defs.values());
-  const numbers = numbering.numberById;
-  const entries: OrderedFootnoteEntry[] = [];
-
-  for (const id of numbering.orderedIds) {
-    const def = footnotes.defs.get(id);
-    if (!def) continue;
-    entries.push({
-      id,
-      number: numbers.get(id) ?? 0,
-      def,
-    });
-  }
-
-  return entries;
+  return [...buildFootnotePlan(footnotes.refs, [...footnotes.defs.values()]).orderedEntries];
 }
 
 export function analyzeFencedDivs(doc: TextSource, tree: Tree): FencedDivSemantics[] {
