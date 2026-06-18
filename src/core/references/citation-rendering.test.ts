@@ -1,9 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { CitationFormatter } from "../document-context-types";
 import {
+  appendCitedKeysFromReferenceIds,
   bibliographyEntries,
   bibliographyEntryFor,
   citeInline,
+  collectCitationMatches,
+  collectCitedIdsFromReferences,
+  getCitationRegistrationKey,
   isCitationKey,
 } from "./citation-rendering";
 
@@ -60,5 +64,61 @@ describe("bibliographyEntries", () => {
     expect(bibliographyEntries(fmt, ["a", "a", "zzz"]).map((e) => e.id)).toEqual(["a"]);
     expect(bibliographyEntries(undefined, ["a"])).toEqual([]);
     expect(bibliographyEntries(fmt, [])).toEqual([]);
+  });
+});
+
+describe("citation collection policy", () => {
+  const store = {
+    has: (id: string) => id === "alpha" || id === "beta" || id === "local",
+  };
+
+  it("filters local targets while preserving cluster and locator order", () => {
+    const matches = collectCitationMatches([
+      {
+        ids: ["local", "alpha", "missing", "beta"],
+        locators: [undefined, "p. 3", undefined, "sec. 2"],
+      },
+      {
+        ids: ["alpha"],
+        locators: [undefined],
+      },
+    ], store, {
+      isLocalTarget: (id) => id === "local",
+    });
+
+    expect(matches).toEqual([
+      { ids: ["alpha", "beta"], locators: ["p. 3", "sec. 2"] },
+      { ids: ["alpha"], locators: [undefined] },
+    ]);
+    expect(getCitationRegistrationKey(matches)).toBe(
+      "alpha\0p. 3\u0001beta\0sec. 2\u0002alpha\0",
+    );
+  });
+
+  it("collects first-citation bibliography order through one policy", () => {
+    expect(collectCitedIdsFromReferences([
+      {
+        ids: ["beta", "local", "alpha"],
+        locators: [],
+      },
+      {
+        ids: ["alpha", "beta"],
+        locators: [],
+      },
+    ], store, {
+      isLocalTarget: (id) => id === "local",
+    })).toEqual(["beta", "alpha"]);
+  });
+
+  it("appends cited keys without duplicating existing registrations", () => {
+    const citedIds = ["alpha"];
+    appendCitedKeysFromReferenceIds(
+      citedIds,
+      ["local", "beta", "alpha"],
+      new Set(["alpha", "beta", "local"]),
+      { isLocalTarget: (id) => id === "local" },
+    );
+
+    expect(citedIds).toEqual(["alpha", "beta"]);
   });
 });

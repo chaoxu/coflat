@@ -12,9 +12,114 @@ export interface BibliographyEntryHtml {
   readonly html: string;
 }
 
+export interface CitationCluster {
+  readonly ids: readonly string[];
+  readonly locators?: readonly (string | undefined)[];
+}
+
+/** Shape of a reference with parallel id/locator arrays. */
+export interface CitationReferenceCluster {
+  readonly from?: number;
+  readonly to?: number;
+  readonly ids: readonly string[];
+  readonly locators: readonly (string | undefined)[];
+}
+
+/** Minimal interface for a store that can check whether a citation id exists. */
+export interface CitationIdLookup {
+  has(id: string): boolean;
+}
+
+export interface CitationCollectionOptions {
+  readonly isLocalTarget?: (id: string) => boolean;
+}
+
+function serializeKeyPart(value: string | undefined): string {
+  return value ?? "";
+}
+
 /** Whether `id` is a paper citation key (vs. an in-document crossref / host ref). */
 export function isCitationKey(citationKeys: ReadonlySet<string> | undefined, id: string): boolean {
   return citationKeys?.has(id) ?? false;
+}
+
+export function isCitationId(
+  id: string,
+  store: CitationIdLookup,
+  options?: CitationCollectionOptions,
+): boolean {
+  return store.has(id) && !options?.isLocalTarget?.(id);
+}
+
+export function getCitationRegistrationKey(
+  clusters: readonly CitationCluster[],
+): string {
+  return clusters
+    .map((cluster) => cluster.ids.map((id, index) =>
+      `${id}\0${serializeKeyPart(cluster.locators?.[index])}`).join("\u0001"))
+    .join("\u0002");
+}
+
+export function collectCitationMatches(
+  references: readonly CitationReferenceCluster[],
+  store: CitationIdLookup,
+  options?: CitationCollectionOptions,
+): CitationCluster[] {
+  return references
+    .filter((ref) => ref.ids.some((id) => isCitationId(id, store, options)))
+    .map((ref) => {
+      const ids: string[] = [];
+      const locators: Array<string | undefined> = [];
+      ref.ids.forEach((id, index) => {
+        if (!isCitationId(id, store, options)) return;
+        ids.push(id);
+        locators.push(ref.locators[index]);
+      });
+      return { ids, locators };
+    });
+}
+
+export function collectCitedIdsFromClusters(
+  clusters: readonly CitationCluster[],
+): string[] {
+  const seen = new Set<string>();
+  const citedIds: string[] = [];
+
+  for (const cluster of clusters) {
+    for (const id of cluster.ids) {
+      if (seen.has(id)) {
+        continue;
+      }
+      seen.add(id);
+      citedIds.push(id);
+    }
+  }
+
+  return citedIds;
+}
+
+export function collectCitedIdsFromReferences(
+  references: readonly CitationReferenceCluster[],
+  store: CitationIdLookup,
+  options?: CitationCollectionOptions,
+): string[] {
+  return collectCitedIdsFromClusters(collectCitationMatches(references, store, options));
+}
+
+export function appendCitedKeysFromReferenceIds(
+  citedIds: string[],
+  ids: readonly string[],
+  citationKeys: ReadonlySet<string> | undefined,
+  options?: CitationCollectionOptions,
+): void {
+  const store: CitationIdLookup = {
+    has: (id) => isCitationKey(citationKeys, id),
+  };
+  for (const id of collectCitedIdsFromReferences([{ ids, locators: [] }], store, options)) {
+    if (!citedIds.includes(id)) {
+      citedIds.push(id);
+    }
+  }
 }
 
 /**

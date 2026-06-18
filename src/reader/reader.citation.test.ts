@@ -81,4 +81,21 @@ describe("reader citations", () => {
     expect(html).toContain("Eq. 1");
     expect(html).not.toContain("cf-bibliography"); // no citation cited
   });
+
+  it("prefers local reference targets over colliding citation keys for the bibliography", () => {
+    const src = [
+      "$$",
+      "x^2",
+      "$$ {#eq:gaussian}",
+      "",
+      "See [@eq:gaussian].",
+    ].join("\n");
+    const { html } = renderToHtml(src, ctxWith(["eq:gaussian"]), {
+      resolveReferences: true,
+    });
+
+    expect(html).toContain("(1)");
+    expect(html).not.toContain("cf-bibliography");
+    expect(html).not.toContain("<i>eq:gaussian</i>");
+  });
 });

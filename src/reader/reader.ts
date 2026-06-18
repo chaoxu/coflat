@@ -99,6 +99,7 @@ import {
 } from "../core/semantics/heading-anchors";
 import { blockPresentationPlan } from "../core/block-presentation";
 import {
+  appendCitedKeysFromReferenceIds as coreAppendCitedKeysFromReferenceIds,
   bibliographyEntries as coreBibliographyEntries,
   bibliographyEntryFor as coreBibliographyEntryFor,
   citeInline as coreCiteInline,
@@ -1043,11 +1044,9 @@ function emitReferenceCluster(
       hasMath: false,
     };
   }
-  for (const id of ids) {
-    if (coreIsCitationKey(ctx.resolvers.citationKeys, id) && !ctx.citedKeys.includes(id)) {
-      ctx.citedKeys.push(id);
-    }
-  }
+  coreAppendCitedKeysFromReferenceIds(ctx.citedKeys, ids, ctx.resolvers.citationKeys, {
+    isLocalTarget: (id) => readerCatalogCrossref(ctx, id) !== null,
+  });
   return {
     html: renderReaderReferenceRouteHtml(ctx, input, route, sourceAttrs),
     text: referencePresentationRouteText(route),

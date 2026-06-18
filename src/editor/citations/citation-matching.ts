@@ -1,13 +1,26 @@
 import type { ReferenceIndexModel } from "../../core/references/model";
+import {
+  collectCitationMatches as coreCollectCitationMatches,
+  collectCitedIdsFromClusters as coreCollectCitedIdsFromClusters,
+  collectCitedIdsFromReferences as coreCollectCitedIdsFromReferences,
+  getCitationRegistrationKey as coreGetCitationRegistrationKey,
+  isCitationId as coreIsCitationId,
+  type CitationCluster,
+  type CitationCollectionOptions,
+  type CitationIdLookup,
+  type CitationReferenceCluster,
+} from "../../core/references/citation-rendering";
 import type {
   DocumentAnalysis,
   ReferenceSemantics,
 } from "../semantics/document";
 
-export interface CitationCluster {
-  readonly ids: readonly string[];
-  readonly locators?: readonly (string | undefined)[];
-}
+export type {
+  CitationCluster,
+  CitationCollectionOptions,
+  CitationIdLookup,
+  CitationReferenceCluster,
+} from "../../core/references/citation-rendering";
 
 export interface CitationBacklink {
   readonly occurrence: number;
@@ -19,14 +32,6 @@ export interface CitationBacklinkIndex {
   readonly backlinks: ReadonlyMap<string, readonly CitationBacklink[]>;
 }
 
-/** Shape of a reference with parallel id/locator arrays. */
-export interface CitationReferenceCluster {
-  readonly from?: number;
-  readonly to?: number;
-  readonly ids: readonly string[];
-  readonly locators: readonly (string | undefined)[];
-}
-
 /** Shape of parsed markdown reference tokens grouped by cluster positions. */
 export interface CitationReferenceToken {
   readonly id: string;
@@ -36,32 +41,16 @@ export interface CitationReferenceToken {
   readonly locator?: string;
 }
 
-/** Minimal interface for a store that can check whether a citation id exists. */
-export interface CitationIdLookup {
-  has(id: string): boolean;
-}
-
-export interface CitationCollectionOptions {
-  readonly isLocalTarget?: (id: string) => boolean;
-}
-
 export interface CitationLocalTargetSnapshot {
   readonly headings: readonly { readonly id?: string }[];
   readonly blocks: readonly { readonly id?: string }[];
   readonly equations: readonly { readonly id?: string }[];
 }
 
-function serializeKeyPart(value: string | undefined): string {
-  return value ?? "";
-}
-
 export function getCitationRegistrationKey(
   clusters: readonly CitationCluster[],
 ): string {
-  return clusters
-    .map((cluster) => cluster.ids.map((id, index) =>
-      `${id}\0${serializeKeyPart(cluster.locators?.[index])}`).join("\u0001"))
-    .join("\u0002");
+  return coreGetCitationRegistrationKey(clusters);
 }
 
 export function isCitationId(
@@ -69,7 +58,7 @@ export function isCitationId(
   store: CitationIdLookup,
   options?: CitationCollectionOptions,
 ): boolean {
-  return store.has(id) && !options?.isLocalTarget?.(id);
+  return coreIsCitationId(id, store, options);
 }
 
 export function isLocalReferenceIndexTarget(
@@ -103,18 +92,7 @@ export function collectCitationMatches(
   store: CitationIdLookup,
   options?: CitationCollectionOptions,
 ): CitationCluster[] {
-  return references
-    .filter((ref) => ref.ids.some((id) => isCitationId(id, store, options)))
-    .map((ref) => {
-      const ids: string[] = [];
-      const locators: Array<string | undefined> = [];
-      ref.ids.forEach((id, index) => {
-        if (!isCitationId(id, store, options)) return;
-        ids.push(id);
-        locators.push(ref.locators[index]);
-      });
-      return { ids, locators };
-    });
+  return coreCollectCitationMatches(references, store, options);
 }
 
 export function collectCitationMatchesFromAnalysis(
@@ -131,17 +109,7 @@ export function collectCitedIdsFromReferences(
   store: CitationIdLookup,
   options?: CitationCollectionOptions,
 ): string[] {
-  const seen = new Set<string>();
-  const citedIds: string[] = [];
-  for (const match of collectCitationMatches(references, store, options)) {
-    for (const id of match.ids) {
-      if (!seen.has(id)) {
-        seen.add(id);
-        citedIds.push(id);
-      }
-    }
-  }
-  return citedIds;
+  return coreCollectCitedIdsFromReferences(references, store, options);
 }
 
 export function collectCitedIdsFromReferenceIndex(
@@ -255,20 +223,7 @@ export function collectCitationClusters(
 export function collectCitedIdsFromClusters(
   clusters: readonly CitationCluster[],
 ): string[] {
-  const seen = new Set<string>();
-  const citedIds: string[] = [];
-
-  for (const cluster of clusters) {
-    for (const id of cluster.ids) {
-      if (seen.has(id)) {
-        continue;
-      }
-      seen.add(id);
-      citedIds.push(id);
-    }
-  }
-
-  return citedIds;
+  return coreCollectCitedIdsFromClusters(clusters);
 }
 
 export function collectCitationBacklinksFromTokens(
