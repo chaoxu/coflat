@@ -1,4 +1,11 @@
 import { escapeHtml } from "./lib/html-escape";
+import { isSafeUrl } from "./lib/url-utils";
+import { renderLinkSurfaceHtml } from "./link-surface";
+import { CSS, hostReferenceClassNames } from "./constants/css-classes";
+import type {
+  ReferencePresentationInput,
+  ReferencePresentationRoute,
+} from "./references/presentation";
 
 export type ReferenceMode = "bracketed" | "narrative";
 
@@ -6,6 +13,7 @@ export interface ReferenceSurfaceSpec {
   readonly className: string;
   readonly refKey?: string;
   readonly refMode?: ReferenceMode;
+  readonly refResolver?: boolean;
   readonly sourceAttrs?: string;
 }
 
@@ -25,6 +33,191 @@ export interface ReferenceListSurfaceSpec extends ReferenceSurfaceSpec {
   readonly suffixText?: string;
 }
 
+export type ReferenceRouteSurfacePlan =
+  | {
+    readonly kind: "text";
+    readonly html: string;
+    readonly text: string;
+  }
+  | {
+    readonly kind: "single";
+    readonly innerHtml: string;
+    readonly spec: ReferenceSurfaceSpec;
+    readonly text: string;
+  }
+  | {
+    readonly kind: "list";
+    readonly spec: ReferenceListSurfaceSpec;
+    readonly text: string;
+  };
+
+export interface ReferenceRouteSurfaceOptions {
+  readonly hasCrossrefTarget?: (id: string) => boolean;
+  readonly sourceAttrs?: string;
+}
+
+export function referencePresentationRouteText(route: ReferencePresentationRoute): string {
+  switch (route.kind) {
+    case "citation":
+      return route.rendered;
+    case "mixed-cluster":
+      return route.parts.map((part) => part.text).join("; ");
+    case "crossref":
+      return route.resolved.label;
+    case "clustered-crossref":
+      return route.parts.map((part) => part.text).join("; ");
+    case "unresolved":
+      return route.raw;
+    case "host-ref":
+      return route.parts.length > 0
+        ? route.parts.map((part) => part.text).join("; ")
+        : route.html.replace(/<[^>]*>/g, "");
+  }
+}
+
+function crossrefInnerHtml(
+  id: string,
+  label: string,
+  hasCrossrefTarget: ((id: string) => boolean) | undefined,
+): string {
+  return hasCrossrefTarget?.(id)
+    ? `<a href="#${escapeHtml(encodeURIComponent(id))}">${escapeHtml(label)}</a>`
+    : escapeHtml(label);
+}
+
+export function referencePresentationRouteSurfacePlan(
+  input: ReferencePresentationInput,
+  route: ReferencePresentationRoute,
+  options: ReferenceRouteSurfaceOptions = {},
+): ReferenceRouteSurfacePlan {
+  const mode = input.bracketed ? "bracketed" : "narrative";
+  switch (route.kind) {
+    case "citation":
+      if (!route.rendered) {
+        return {
+          kind: "text",
+          html: escapeHtml(input.raw),
+          text: input.raw,
+        };
+      }
+      if (!input.ids.length) {
+        return {
+          kind: "text",
+          html: escapeHtml(route.rendered),
+          text: route.rendered,
+        };
+      }
+      return {
+        kind: "single",
+        innerHtml: escapeHtml(route.rendered),
+        spec: {
+          className: route.narrative ? CSS.citationNarrative : CSS.citation,
+          refKey: input.ids.join(";"),
+          refMode: mode,
+          sourceAttrs: options.sourceAttrs,
+        },
+        text: route.rendered,
+      };
+    case "mixed-cluster":
+      return {
+        kind: "list",
+        spec: {
+          className: CSS.citation,
+          refMode: mode,
+          items: route.parts.map((part) => ({
+            id: part.id,
+            text: part.text,
+            refMode: mode,
+          })),
+          prefixText: "(",
+          separatorText: "; ",
+          suffixText: ")",
+          sourceAttrs: options.sourceAttrs,
+        },
+        text: referencePresentationRouteText(route),
+      };
+    case "crossref": {
+      const id = input.ids[0] ?? "";
+      return {
+        kind: "single",
+        innerHtml: crossrefInnerHtml(id, route.resolved.label, options.hasCrossrefTarget),
+        spec: {
+          className: CSS.crossref,
+          refKey: id,
+          refMode: mode,
+          sourceAttrs: options.sourceAttrs,
+        },
+        text: route.resolved.label,
+      };
+    }
+    case "clustered-crossref":
+      return {
+        kind: "list",
+        spec: {
+          className: CSS.citationCluster,
+          refMode: mode,
+          items: route.parts.map((part) => ({
+            className: part.unresolved ? CSS.crossrefUnresolved : CSS.crossref,
+            id: part.id,
+            innerHtml: part.unresolved
+              ? escapeHtml(part.text)
+              : crossrefInnerHtml(part.id, part.text, options.hasCrossrefTarget),
+            refMode: mode,
+          })),
+          separatorText: "; ",
+          sourceAttrs: options.sourceAttrs,
+        },
+        text: referencePresentationRouteText(route),
+      };
+    case "unresolved":
+      return {
+        kind: "single",
+        innerHtml: escapeHtml(route.raw),
+        spec: {
+          className: CSS.crossrefUnresolved,
+          refKey: input.ids[0],
+          refMode: mode,
+          sourceAttrs: options.sourceAttrs,
+        },
+        text: route.raw,
+      };
+    case "host-ref": {
+      if (route.parts.length > 1) {
+        return {
+          kind: "list",
+          spec: {
+            className: CSS.citationCluster,
+            refMode: route.mode,
+            items: route.parts.map((part) => ({
+              className: hostReferenceClassNames(part.className),
+              id: part.id,
+              innerHtml: part.html,
+              refMode: route.mode,
+            })),
+            separatorText: "; ",
+            sourceAttrs: options.sourceAttrs,
+          },
+          text: referencePresentationRouteText(route),
+        };
+      }
+      return {
+        kind: "single",
+        innerHtml: route.href && isSafeUrl(route.href)
+          ? renderLinkSurfaceHtml(route.href, route.html)
+          : route.html,
+        spec: {
+          className: hostReferenceClassNames(route.className),
+          refKey: route.key,
+          refMode: route.mode,
+          refResolver: route.hasOnClick,
+          sourceAttrs: options.sourceAttrs,
+        },
+        text: referencePresentationRouteText(route),
+      };
+    }
+  }
+}
+
 export function renderReferenceSurfaceHtml(
   innerHtml: string,
   spec: ReferenceSurfaceSpec,
@@ -35,6 +228,9 @@ export function renderReferenceSurfaceHtml(
   }
   if (spec.refMode !== undefined) {
     attrs += ` data-ref-mode="${escapeHtml(spec.refMode)}"`;
+  }
+  if (spec.refResolver) {
+    attrs += ' data-ref-resolver="1"';
   }
   if (spec.sourceAttrs) attrs += spec.sourceAttrs;
   return `<span${attrs}>${innerHtml}</span>`;
@@ -70,6 +266,17 @@ export function renderReferenceListSurfaceHtml(
   return renderReferenceSurfaceHtml(pieces.join(""), spec);
 }
 
+export function renderReferenceRouteSurfaceHtml(plan: ReferenceRouteSurfacePlan): string {
+  switch (plan.kind) {
+    case "text":
+      return plan.html;
+    case "single":
+      return renderReferenceSurfaceHtml(plan.innerHtml, plan.spec);
+    case "list":
+      return renderReferenceListSurfaceHtml(plan.spec);
+  }
+}
+
 export function applyReferenceSurface(
   el: HTMLElement,
   spec: ReferenceSurfaceSpec,
@@ -85,6 +292,23 @@ export function applyReferenceSurface(
   } else {
     delete el.dataset.refMode;
   }
+  if (spec.refResolver) {
+    el.dataset.refResolver = "1";
+  } else {
+    delete el.dataset.refResolver;
+  }
+}
+
+export function createReferenceSurfaceDom(
+  ownerDocument: Document,
+  innerHtml: string,
+  spec: ReferenceSurfaceSpec,
+): HTMLElement {
+  const el = ownerDocument.createElement("span");
+  applyReferenceSurface(el, spec);
+  el.dataset.referenceWidget = "true";
+  el.innerHTML = innerHtml;
+  return el;
 }
 
 export function appendReferenceListSurfaceDom(
@@ -114,5 +338,34 @@ export function appendReferenceListSurfaceDom(
   }
   if (spec.suffixText) {
     container.appendChild(ownerDocument.createTextNode(spec.suffixText));
+  }
+}
+
+export function createReferenceListSurfaceDom(
+  ownerDocument: Document,
+  spec: ReferenceListSurfaceSpec,
+): HTMLElement {
+  const container = ownerDocument.createElement("span");
+  applyReferenceSurface(container, spec);
+  container.dataset.referenceWidget = "true";
+  appendReferenceListSurfaceDom(container, spec);
+  return container;
+}
+
+export function appendReferenceRouteSurfaceDom(
+  container: HTMLElement | DocumentFragment,
+  plan: ReferenceRouteSurfacePlan,
+): void {
+  const ownerDocument = container.ownerDocument;
+  switch (plan.kind) {
+    case "text":
+      container.appendChild(ownerDocument.createTextNode(plan.text));
+      return;
+    case "single":
+      container.appendChild(createReferenceSurfaceDom(ownerDocument, plan.innerHtml, plan.spec));
+      return;
+    case "list":
+      container.appendChild(createReferenceListSurfaceDom(ownerDocument, plan.spec));
+      return;
   }
 }

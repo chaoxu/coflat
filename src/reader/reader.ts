@@ -150,8 +150,9 @@ import {
 } from "../core/media-surface";
 import { renderParagraphHtml } from "../core/paragraph-surface";
 import {
-  renderReferenceListSurfaceHtml,
-  renderReferenceSurfaceHtml,
+  referencePresentationRouteSurfacePlan,
+  referencePresentationRouteText,
+  renderReferenceRouteSurfaceHtml,
 } from "../core/reference-surface";
 import {
   renderTablePlanHtml,
@@ -975,120 +976,20 @@ function readerReferenceInput(
   };
 }
 
-function routeReferenceText(route: ReferencePresentationRoute): string {
-  switch (route.kind) {
-    case "citation":
-      return route.rendered;
-    case "mixed-cluster":
-      return route.parts.map((part) => part.text).join("; ");
-    case "crossref":
-      return route.resolved.label;
-    case "clustered-crossref":
-      return route.parts.map((part) => part.text).join("; ");
-    case "unresolved":
-      return route.raw;
-    case "host-ref":
-      return route.parts.length > 0
-        ? route.parts.map((part) => part.text).join("; ")
-        : stripTags(route.html);
-  }
-}
-
 function renderReaderReferenceRouteHtml(
   ctx: WalkContext,
   input: ReferencePresentationInput,
   route: ReferencePresentationRoute,
   sourceAttrs: string,
 ): string {
-  const mode = input.bracketed ? "bracketed" : "narrative";
-  switch (route.kind) {
-    case "citation":
-      if (!route.rendered) return escapeHtml(input.raw);
-      if (!input.ids.length) return escapeHtml(route.rendered);
-      return renderReferenceSurfaceHtml(escapeHtml(route.rendered), {
-        className: route.narrative ? CSS.citationNarrative : CSS.citation,
-        refKey: input.ids.join(";"),
-        refMode: mode,
-        sourceAttrs,
-      });
-    case "mixed-cluster":
-      return renderReferenceListSurfaceHtml({
-        className: CSS.citation,
-        refMode: mode,
-        items: route.parts.map((part) => ({
-          id: part.id,
-          text: part.text,
-          refMode: mode,
-        })),
-        prefixText: "(",
-        separatorText: "; ",
-        suffixText: ")",
-        sourceAttrs,
-      });
-    case "crossref": {
-      const id = input.ids[0] ?? "";
-      const catalogTarget = id ? ctx.resolvers.referenceCatalog?.get(id) : undefined;
-      const innerHtml = catalogTarget
-        ? `<a href="#${escapeHtml(encodeURIComponent(id))}">${escapeHtml(route.resolved.label)}</a>`
-        : escapeHtml(route.resolved.label);
-      return renderReferenceSurfaceHtml(innerHtml, {
-        className: CSS.crossref,
-        refKey: id,
-        refMode: mode,
-        sourceAttrs,
-      });
-    }
-    case "clustered-crossref":
-      return renderReferenceListSurfaceHtml({
-        className: CSS.citationCluster,
-        refMode: mode,
-        items: route.parts.map((part) => ({
-          className: part.unresolved ? CSS.crossrefUnresolved : CSS.crossref,
-          id: part.id,
-          innerHtml: part.unresolved
-            ? escapeHtml(part.text)
-            : ctx.resolvers.referenceCatalog?.has(part.id)
-              ? `<a href="#${escapeHtml(encodeURIComponent(part.id))}">${escapeHtml(part.text)}</a>`
-              : escapeHtml(part.text),
-          refMode: mode,
-        })),
-        separatorText: "; ",
-        sourceAttrs,
-      });
-    case "unresolved":
-      return renderReferenceSurfaceHtml(escapeHtml(route.raw), {
-        className: CSS.crossrefUnresolved,
-        refKey: input.ids[0],
-        refMode: mode,
-        sourceAttrs,
-      });
-    case "host-ref": {
-      const className = hostReferenceClassNames(route.className);
-      if (route.parts.length > 1) {
-        return renderReferenceListSurfaceHtml({
-          className: CSS.citationCluster,
-          refMode: route.mode,
-          items: route.parts.map((part) => ({
-            className: hostReferenceClassNames(part.className),
-            id: part.id,
-            innerHtml: part.html,
-            refMode: route.mode,
-          })),
-          separatorText: "; ",
-          sourceAttrs,
-        });
-      }
-      const innerHtml = route.href && isSafeUrl(route.href)
-        ? renderLinkSurfaceHtml(route.href, route.html)
-        : route.html;
-      return renderReferenceSurfaceHtml(innerHtml, {
-        className,
-        refKey: route.key,
-        refMode: route.mode,
-        sourceAttrs,
-      });
-    }
-  }
+  return renderReferenceRouteSurfaceHtml(referencePresentationRouteSurfacePlan(
+    input,
+    route,
+    {
+      hasCrossrefTarget: (id) => ctx.resolvers.referenceCatalog?.has(id) ?? false,
+      sourceAttrs,
+    },
+  ));
 }
 
 function emitReferenceCluster(
@@ -1120,13 +1021,9 @@ function emitReferenceCluster(
   }
   return {
     html: renderReaderReferenceRouteHtml(ctx, input, route, sourceAttrs),
-    text: routeReferenceText(route),
+    text: referencePresentationRouteText(route),
     hasMath: false,
   };
-}
-
-function stripTags(html: string): string {
-  return html.replace(/<[^>]*>/g, "");
 }
 
 // ---------------------------------------------------------------------------

@@ -276,8 +276,11 @@ describe("collectReferenceRanges (clusters)", () => {
 
     const preview = document.createElement("div");
     renderPreviewBlockContentToDom(preview, doc);
+    const previewReference = preview.querySelector<HTMLElement>("[data-reference-widget]");
 
-    expect(preview.querySelector(`.${CSS.crossref}`)?.textContent).toBe(widgetText);
+    expect(previewReference?.textContent).toBe(widgetText);
+    expect(previewReference?.dataset.refMode).toBe("bracketed");
+    expect(previewReference?.querySelectorAll("[data-ref-id]")).toHaveLength(2);
   });
 
   it("pure unresolved cluster routes to ClusteredCrossrefWidget", () => {

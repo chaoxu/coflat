@@ -25,13 +25,6 @@ import {
   renderMediaLoadingInto,
 } from "../../core/media-surface";
 import {
-  ClusteredCrossrefWidget,
-  CrossrefWidget,
-  MixedClusterWidget,
-  UnresolvedRefWidget,
-} from "./crossref-render";
-import { CitationWidget } from "./citation-widget";
-import {
   buildInlineFragments,
   inlineFragmentsPlainText,
   type InlineFragment,
@@ -44,10 +37,12 @@ import { resolveMarkdownReferencePathFromDocument } from "../lib/markdown-refere
 import {
   planReferencePresentation,
   type ReferencePresentationContext,
-  type ReferencePresentationRoute,
 } from "../references/presentation";
 import { renderKatexToHtml } from "./inline-shared";
-import { HostRefWidget } from "./citation-widget";
+import {
+  appendReferenceRouteSurfaceDom,
+  referencePresentationRouteSurfacePlan,
+} from "../../core/reference-surface";
 
 interface InlineSegment {
   isMath: boolean;
@@ -141,44 +136,15 @@ function renderReference(
     return;
   }
 
-  renderPresentationRoute(container, route);
-}
-
-function renderPresentationRoute(
-  container: HTMLElement | DocumentFragment,
-  route: ReferencePresentationRoute,
-): void {
-  switch (route.kind) {
-    case "citation":
-      container.appendChild(
-        new CitationWidget(route.rendered, route.ids, route.narrative).createDOM(),
-      );
-      return;
-    case "mixed-cluster":
-      container.appendChild(new MixedClusterWidget(route.parts, route.raw).createDOM());
-      return;
-    case "crossref":
-      container.appendChild(new CrossrefWidget(route.resolved, route.raw).createDOM());
-      return;
-    case "clustered-crossref":
-      container.appendChild(new ClusteredCrossrefWidget(route.parts, route.raw).createDOM());
-      return;
-    case "unresolved":
-      container.appendChild(new UnresolvedRefWidget(route.raw).createDOM());
-      return;
-    case "host-ref":
-      container.appendChild(
-        new HostRefWidget(
-          route.html,
-          route.key,
-          route.mode,
-          route.href,
-          route.className,
-          route.hasOnClick,
-        ).createDOM(),
-      );
-      return;
-  }
+  appendReferenceRouteSurfaceDom(
+    container,
+    referencePresentationRouteSurfacePlan({
+      bracketed: fragment.parenthetical,
+      ids: fragment.ids,
+      locators: fragment.locators,
+      raw,
+    }, route),
+  );
 }
 
 function renderFragment(

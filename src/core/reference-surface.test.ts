@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  appendReferenceRouteSurfaceDom,
   appendReferenceListSurfaceDom,
   applyReferenceSurface,
+  referencePresentationRouteSurfacePlan,
+  referencePresentationRouteText,
+  renderReferenceRouteSurfaceHtml,
   renderReferenceListSurfaceHtml,
   renderReferenceSurfaceHtml,
 } from "./reference-surface";
@@ -78,5 +82,101 @@ describe("reference surface", () => {
     expect(items).toHaveLength(2);
     expect(items[0].getAttribute("data-ref-key")).toBe("thm:a");
     expect(items[1].className).toBe("cf-crossref-unresolved");
+  });
+
+  it("plans resolved crossref routes into one shared surface spec", () => {
+    const plan = referencePresentationRouteSurfacePlan(
+      {
+        bracketed: true,
+        ids: ["thm:main"],
+        locators: [],
+        raw: "[@thm:main]",
+      },
+      {
+        kind: "crossref",
+        raw: "[@thm:main]",
+        resolved: {
+          kind: "block",
+          label: "Theorem 4",
+        },
+      },
+      {
+        hasCrossrefTarget: (id) => id === "thm:main",
+        sourceAttrs: ' data-source-from="1"',
+      },
+    );
+
+    expect(referencePresentationRouteText({
+      kind: "crossref",
+      raw: "[@thm:main]",
+      resolved: {
+        kind: "block",
+        label: "Theorem 4",
+      },
+    })).toBe("Theorem 4");
+    expect(renderReferenceRouteSurfaceHtml(plan)).toBe(
+      '<span class="cf-crossref" data-ref-key="thm:main" data-ref-mode="bracketed" data-source-from="1"><a href="#thm%3Amain">Theorem 4</a></span>',
+    );
+  });
+
+  it("plans clustered crossrefs with per-item metadata", () => {
+    const plan = referencePresentationRouteSurfacePlan(
+      {
+        bracketed: true,
+        ids: ["thm:a", "missing"],
+        locators: [],
+        raw: "[@thm:a; @missing]",
+      },
+      {
+        kind: "clustered-crossref",
+        raw: "[@thm:a; @missing]",
+        parts: [
+          { id: "thm:a", text: "Theorem 1" },
+          { id: "missing", text: "@missing", unresolved: true },
+        ],
+      },
+      {
+        hasCrossrefTarget: (id) => id === "thm:a",
+      },
+    );
+
+    expect(renderReferenceRouteSurfaceHtml(plan)).toBe(
+      '<span class="cf-citation-cluster" data-ref-mode="bracketed"><span data-ref-id="thm:a" data-ref-key="thm:a" data-ref-mode="bracketed" class="cf-crossref"><a href="#thm%3Aa">Theorem 1</a></span>; <span data-ref-id="missing" data-ref-key="missing" data-ref-mode="bracketed" class="cf-crossref cf-crossref-unresolved">@missing</span></span>',
+    );
+  });
+
+  it("plans host references with link and resolver metadata", () => {
+    const plan = referencePresentationRouteSurfacePlan(
+      {
+        bracketed: true,
+        ids: ["chapter"],
+        locators: [],
+        raw: "[@chapter]",
+      },
+      {
+        kind: "host-ref",
+        key: "chapter",
+        mode: "bracketed",
+        html: "Chapter",
+        parts: [{ id: "chapter", html: "Chapter", text: "Chapter" }],
+        href: "chapter.md",
+        className: "host-ref",
+        hasOnClick: true,
+        raw: "[@chapter]",
+        ids: ["chapter"],
+        locators: [],
+      },
+    );
+
+    expect(renderReferenceRouteSurfaceHtml(plan)).toBe(
+      '<span class="cf-crossref host-ref" data-ref-key="chapter" data-ref-mode="bracketed" data-ref-resolver="1"><a class="cf-doc-link cf-link-rendered" href="chapter.md" data-cf-link-layout="atomic">Chapter</a></span>',
+    );
+
+    const container = document.createDocumentFragment();
+    appendReferenceRouteSurfaceDom(container, plan);
+    const el = container.firstElementChild as HTMLElement;
+    expect(el.dataset.referenceWidget).toBe("true");
+    expect(el.dataset.refResolver).toBe("1");
+    expect(el.querySelector("a")?.getAttribute("data-cf-link-layout")).toBe("atomic");
   });
 });
