@@ -110,8 +110,6 @@ import {
 import { renderBibliographySectionHtml } from "../core/bibliography-surface";
 import {
   formatBlockReferenceLabel,
-  formatEquationReferenceLabel,
-  formatHeadingReferenceLabel,
 } from "../core/references/format";
 import {
   DOCUMENT_SURFACE_CLASS,
@@ -130,6 +128,12 @@ import {
   documentOutlineEntry,
   type DocumentOutlineEntry,
 } from "../core/outline-surface";
+import {
+  blockReferenceTarget,
+  equationReferenceTarget,
+  headingReferenceTarget,
+  type DocumentReferenceTarget,
+} from "../core/reference-targets";
 import {
   renderReadOnlyTaskCheckboxHtml,
   renderListItemSurfaceHtml,
@@ -559,13 +563,7 @@ function fastRenderInline(source: string): FastInlineResult {
 // Walker types.
 // ---------------------------------------------------------------------------
 
-// One in-document reference target (heading/equation/block with an explicit
-// id), with its rendered crossref label, built by the reader's own numbering.
-interface ReaderReferenceTarget {
-  readonly kind: "heading" | "equation" | "block";
-  readonly label: string;
-}
-type ReaderReferenceCatalog = ReadonlyMap<string, ReaderReferenceTarget>;
+type ReaderReferenceCatalog = ReadonlyMap<string, DocumentReferenceTarget>;
 
 export type ReaderReferencePreviewEntry =
   | {
@@ -669,7 +667,7 @@ interface WalkContext {
   /** In-document crossref targets (id → label) recorded as the walk numbers
    *  each heading/equation/block, so a second walk can resolve `[@id]` to the
    *  same number the target carries. Built only when `buildCatalog`. */
-  catalog: Map<string, ReaderReferenceTarget>;
+  catalog: Map<string, DocumentReferenceTarget>;
   /** In-document targets with source ranges for reader hover previews. */
   referencePreviewIndex: ReaderReferencePreviewCatalog;
   /** When true, record into {@link catalog} during numbering (first walk of a
@@ -934,7 +932,7 @@ function readerCatalogCrossref(ctx: WalkContext, id: string): ResolvedCrossref |
   if (!catalogTarget) return null;
   return {
     kind: catalogTarget.kind,
-    label: catalogTarget.label,
+    label: catalogTarget.displayLabel,
   };
 }
 
@@ -1159,19 +1157,24 @@ function renderBlock(ctx: WalkContext, node: SyntaxNode): BlockResult {
         ctx.equationCounter = result.counter;
         equationNumber = result.number;
       }
-      if (ctx.buildCatalog && equationId && equationNumber !== undefined) {
-        ctx.catalog.set(equationId, {
-          kind: "equation",
-          label: formatEquationReferenceLabel(equationNumber),
-        });
+      const target = equationId && equationNumber !== undefined
+        ? equationReferenceTarget({
+          from: plan.sourceRange.from,
+          to: plan.sourceRange.to,
+          id: equationId,
+          number: equationNumber,
+          latex: plan.latex,
+        })
+        : null;
+      if (ctx.buildCatalog && equationId && target) {
+        ctx.catalog.set(equationId, target);
       }
-      if (ctx.buildReferencePreviews && equationId && equationNumber !== undefined) {
+      if (ctx.buildReferencePreviews && equationId && target && equationNumber !== undefined) {
         const range = displayMathLatexRange(ctx.source, node);
-        const label = formatEquationReferenceLabel(equationNumber);
         ctx.referencePreviewIndex.set(equationId, {
           kind: "equation",
           id: equationId,
-          label,
+          label: target.displayLabel,
           latex: plan.latex,
           text: plan.latex,
           from: plan.sourceRange.from,
@@ -1236,18 +1239,21 @@ function renderHeading(ctx: WalkContext, node: SyntaxNode): BlockResult {
   ctx.headingCounters = headingNumberResult.counters;
   const headingNumber = headingNumberResult.number;
   const headingTitle = plan.text.trim();
-  const headingLabel = formatHeadingReferenceLabel({ number: headingNumber, text: headingTitle });
+  const headingTarget = headingReferenceTarget({
+    from: plan.sourceRange.from,
+    to: plan.sourceRange.to,
+    id: plan.attributes?.id,
+    number: headingNumber,
+    text: headingTitle,
+  });
   if (ctx.buildCatalog && plan.attributes?.id) {
-    ctx.catalog.set(plan.attributes.id, {
-      kind: "heading",
-      label: headingLabel,
-    });
+    ctx.catalog.set(plan.attributes.id, headingTarget);
   }
   if (ctx.buildReferencePreviews && plan.attributes?.id) {
     ctx.referencePreviewIndex.set(plan.attributes.id, {
       kind: "heading",
       id: plan.attributes.id,
-      label: headingLabel,
+      label: headingTarget.displayLabel,
       title: headingTitle,
       text: headingTitle,
       level: plan.level,
@@ -1497,14 +1503,21 @@ function renderFencedDiv(ctx: WalkContext, node: SyntaxNode): BlockResult {
   const caption = plan.emission.showCaptionBelow && plan.title && normalizedClassName
     ? renderBlockCaption(ctx, normalizedClassName, plan.title, plan.titleFragments, plan.number, node.from, node.to)
     : emptyBlock();
-  if (ctx.buildCatalog && plan.id && normalizedClassName) {
-    ctx.catalog.set(plan.id, {
-      kind: "block",
-      label: formatBlockReferenceLabel(plan.displayTitle ?? blockDisplayTitle(ctx, normalizedClassName), plan.number),
-    });
+  const blockTarget = plan.id && normalizedClassName
+    ? blockReferenceTarget({
+      from: plan.sourceRange.from,
+      to: plan.sourceRange.to,
+      id: plan.id,
+      blockType: normalizedClassName,
+      displayTitle: plan.displayTitle ?? blockDisplayTitle(ctx, normalizedClassName),
+      title: plan.title,
+      number: plan.number,
+    })
+    : null;
+  if (ctx.buildCatalog && plan.id && blockTarget) {
+    ctx.catalog.set(plan.id, blockTarget);
   }
-  if (ctx.buildReferencePreviews && plan.id && normalizedClassName) {
-    const label = formatBlockReferenceLabel(plan.displayTitle ?? blockDisplayTitle(ctx, normalizedClassName), plan.number);
+  if (ctx.buildReferencePreviews && plan.id && normalizedClassName && blockTarget) {
     const bodyRange = trimSourceRange(
       ctx.source,
       plan.bodyRange?.from ?? plan.sourceRange.from,
@@ -1513,7 +1526,7 @@ function renderFencedDiv(ctx: WalkContext, node: SyntaxNode): BlockResult {
     ctx.referencePreviewIndex.set(plan.id, {
       kind: "block",
       id: plan.id,
-      label,
+      label: blockTarget.displayLabel,
       blockType: normalizedClassName,
       ...(plan.title ? { title: plan.title } : {}),
       from: plan.sourceRange.from,
@@ -1622,7 +1635,7 @@ function walkDocument(
 ): BlockResult & {
   truncated?: TruncatedInfo;
   outline: ReaderOutlineEntry[];
-  catalog: Map<string, ReaderReferenceTarget>;
+  catalog: Map<string, DocumentReferenceTarget>;
   referencePreviewIndex: ReaderReferencePreviewCatalog;
   mathMacros?: Record<string, string>;
 } {

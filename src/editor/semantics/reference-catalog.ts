@@ -5,41 +5,31 @@ import type {
   ReferenceSemantics,
 } from "./document";
 import {
-  formatBlockReferenceLabel,
-  formatEquationReferenceLabel,
-  formatHeadingReferenceLabel,
-} from "../../core/references/format";
+  blockReferenceTarget,
+  buildReferenceTargetIndexes,
+  equationReferenceTarget,
+  getPreferredDocumentReferenceTarget as getPreferredTarget,
+  headingReferenceTarget,
+  sortDocumentReferenceTargets,
+  type BlockReferenceTargetInput,
+  type DocumentReferenceTarget,
+} from "../../core/reference-targets";
 
+export {
+  blockReferenceTarget,
+  equationReferenceTarget,
+  headingReferenceTarget,
+} from "../../core/reference-targets";
 export {
   formatBlockReferenceLabel,
   formatEquationReferenceLabel,
   formatHeadingReferenceLabel,
-};
-
-export type DocumentReferenceTargetKind = "block" | "equation" | "heading";
-
-export interface BlockReferenceTargetInput {
-  readonly from: number;
-  readonly to: number;
-  readonly id?: string;
-  readonly blockType: string;
-  readonly title?: string;
-  readonly displayTitle?: string;
-  readonly number?: number;
-}
-
-export interface DocumentReferenceTarget {
-  readonly id?: string;
-  readonly kind: DocumentReferenceTargetKind;
-  readonly from: number;
-  readonly to: number;
-  readonly displayLabel: string;
-  readonly number?: string;
-  readonly ordinal?: number;
-  readonly title?: string;
-  readonly text?: string;
-  readonly blockType?: string;
-}
+} from "../../core/references/format";
+export type {
+  BlockReferenceTargetInput,
+  DocumentReferenceTarget,
+  DocumentReferenceTargetKind,
+} from "../../core/reference-targets";
 
 export interface DocumentReferenceCatalog {
   readonly targets: readonly DocumentReferenceTarget[];
@@ -83,35 +73,13 @@ function getHeadingReferenceEntry(
 function buildBlockTargets(
   blocks: readonly BlockReferenceTargetInput[],
 ): DocumentReferenceTarget[] {
-  return blocks.map((block) => ({
-    id: block.id,
-    kind: "block",
-    from: block.from,
-    to: block.to,
-    displayLabel: formatBlockReferenceLabel(
-      block.displayTitle ?? block.blockType,
-      block.number,
-    ),
-    number: block.number === undefined ? undefined : String(block.number),
-    ordinal: block.number,
-    title: block.title,
-    blockType: block.blockType,
-  }));
+  return blocks.map(blockReferenceTarget);
 }
 
 function buildEquationTargets(
   analysis: DocumentAnalysis,
 ): DocumentReferenceTarget[] {
-  return analysis.equations.map((equation) => ({
-    id: equation.id,
-    kind: "equation" as const,
-    from: equation.from,
-    to: equation.to,
-    displayLabel: formatEquationReferenceLabel(equation.number),
-    number: String(equation.number),
-    ordinal: equation.number,
-    text: equation.latex,
-  }));
+  return analysis.equations.map(equationReferenceTarget);
 }
 
 function buildHeadingTargets(
@@ -119,66 +87,27 @@ function buildHeadingTargets(
 ): DocumentReferenceTarget[] {
   return analysis.headings.map((heading) => {
     const entry = heading.id ? getHeadingReferenceEntry(analysis, heading.id) : undefined;
+    const target = headingReferenceTarget(heading);
+    if (!entry) return target;
     return {
-      id: heading.id,
-      kind: "heading" as const,
-      from: heading.from,
-      to: heading.to,
-      displayLabel: entry?.display ?? formatHeadingReferenceLabel(heading),
-      number: entry?.number ?? (heading.number || undefined),
-      title: entry?.title ?? heading.text,
-      text: entry?.text ?? heading.text,
+      ...target,
+      displayLabel: entry.display,
+      number: entry.number ?? target.number,
+      title: entry.title ?? target.title,
+      text: entry.text ?? target.text,
     };
   });
-}
-
-interface DocumentReferenceTargetIndexes {
-  readonly targetsById: ReadonlyMap<string, readonly DocumentReferenceTarget[]>;
-  readonly uniqueTargetById: ReadonlyMap<string, DocumentReferenceTarget>;
-  readonly duplicatesById: ReadonlyMap<string, readonly DocumentReferenceTarget[]>;
-}
-
-function buildReferenceTargetIndexes(
-  targets: readonly DocumentReferenceTarget[],
-): DocumentReferenceTargetIndexes {
-  const targetsById = new Map<string, DocumentReferenceTarget[]>();
-  const uniqueTargetById = new Map<string, DocumentReferenceTarget>();
-  const duplicatesById = new Map<string, readonly DocumentReferenceTarget[]>();
-
-  for (const target of targets) {
-    if (!target.id) continue;
-    const bucket = targetsById.get(target.id);
-    if (!bucket) {
-      targetsById.set(target.id, [target]);
-      uniqueTargetById.set(target.id, target);
-      continue;
-    }
-
-    if (bucket.length === 1) {
-      uniqueTargetById.delete(target.id);
-      duplicatesById.set(target.id, bucket);
-    }
-
-    bucket.push(target);
-  }
-
-  return {
-    targetsById,
-    uniqueTargetById,
-    duplicatesById,
-  };
 }
 
 export function buildDocumentReferenceCatalog(
   analysis: DocumentAnalysis,
   options: DocumentReferenceCatalogOptions = {},
 ): DocumentReferenceCatalog {
-  const targets = [
+  const targets = sortDocumentReferenceTargets([
     ...buildBlockTargets(options.blocks ?? buildDefaultBlockReferenceTargetInputs(analysis)),
     ...buildEquationTargets(analysis),
     ...buildHeadingTargets(analysis),
-  ];
-  targets.sort((left, right) => (left.from - right.from) || (left.to - right.to));
+  ]);
 
   const {
     targetsById,
@@ -264,9 +193,5 @@ export function getPreferredDocumentReferenceTarget(
   catalog: DocumentReferenceCatalog,
   id: string,
 ): DocumentReferenceTarget | undefined {
-  const targets = catalog.targetsById.get(id);
-  if (!targets) return undefined;
-  return targets.find((target) => target.kind === "block")
-    ?? targets.find((target) => target.kind === "equation")
-    ?? targets.find((target) => target.kind === "heading");
+  return getPreferredTarget(catalog.targetsById, id);
 }

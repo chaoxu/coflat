@@ -1,0 +1,155 @@
+import {
+  formatBlockReferenceLabel,
+  formatEquationReferenceLabel,
+  formatHeadingReferenceLabel,
+} from "./references/format";
+
+export type DocumentReferenceTargetKind = "block" | "equation" | "heading";
+
+export interface BlockReferenceTargetInput {
+  readonly from: number;
+  readonly to: number;
+  readonly id?: string;
+  readonly blockType: string;
+  readonly title?: string;
+  readonly displayTitle?: string;
+  readonly number?: number;
+  readonly line?: number;
+}
+
+export interface EquationReferenceTargetInput {
+  readonly from: number;
+  readonly to: number;
+  readonly id: string;
+  readonly number: number;
+  readonly latex: string;
+  readonly line?: number;
+}
+
+export interface HeadingReferenceTargetInput {
+  readonly from: number;
+  readonly to: number;
+  readonly id?: string;
+  readonly number: string;
+  readonly text: string;
+  readonly line?: number;
+}
+
+export interface DocumentReferenceTarget {
+  readonly id?: string;
+  readonly kind: DocumentReferenceTargetKind;
+  readonly from: number;
+  readonly to: number;
+  readonly line?: number;
+  readonly displayLabel: string;
+  readonly number?: string;
+  readonly ordinal?: number;
+  readonly title?: string;
+  readonly text?: string;
+  readonly blockType?: string;
+}
+
+export interface DocumentReferenceTargetIndexes {
+  readonly targetsById: ReadonlyMap<string, readonly DocumentReferenceTarget[]>;
+  readonly uniqueTargetById: ReadonlyMap<string, DocumentReferenceTarget>;
+  readonly duplicatesById: ReadonlyMap<string, readonly DocumentReferenceTarget[]>;
+}
+
+function lineField(line: number | undefined): { line?: number } {
+  return line === undefined ? {} : { line };
+}
+
+export function blockReferenceTarget(input: BlockReferenceTargetInput): DocumentReferenceTarget {
+  return {
+    id: input.id,
+    kind: "block",
+    from: input.from,
+    to: input.to,
+    ...lineField(input.line),
+    displayLabel: formatBlockReferenceLabel(
+      input.displayTitle ?? input.blockType,
+      input.number,
+    ),
+    number: input.number === undefined ? undefined : String(input.number),
+    ordinal: input.number,
+    title: input.title,
+    blockType: input.blockType,
+  };
+}
+
+export function equationReferenceTarget(input: EquationReferenceTargetInput): DocumentReferenceTarget {
+  return {
+    id: input.id,
+    kind: "equation",
+    from: input.from,
+    to: input.to,
+    ...lineField(input.line),
+    displayLabel: formatEquationReferenceLabel(input.number),
+    number: String(input.number),
+    ordinal: input.number,
+    text: input.latex,
+  };
+}
+
+export function headingReferenceTarget(input: HeadingReferenceTargetInput): DocumentReferenceTarget {
+  return {
+    id: input.id,
+    kind: "heading",
+    from: input.from,
+    to: input.to,
+    ...lineField(input.line),
+    displayLabel: formatHeadingReferenceLabel(input),
+    number: input.number || undefined,
+    title: input.text,
+    text: input.text,
+  };
+}
+
+export function sortDocumentReferenceTargets(
+  targets: readonly DocumentReferenceTarget[],
+): DocumentReferenceTarget[] {
+  return [...targets].sort((left, right) => (left.from - right.from) || (left.to - right.to));
+}
+
+export function buildReferenceTargetIndexes(
+  targets: readonly DocumentReferenceTarget[],
+): DocumentReferenceTargetIndexes {
+  const targetsById = new Map<string, DocumentReferenceTarget[]>();
+  const uniqueTargetById = new Map<string, DocumentReferenceTarget>();
+  const duplicatesById = new Map<string, readonly DocumentReferenceTarget[]>();
+
+  for (const target of targets) {
+    if (!target.id) continue;
+    const bucket = targetsById.get(target.id);
+    if (!bucket) {
+      targetsById.set(target.id, [target]);
+      uniqueTargetById.set(target.id, target);
+      continue;
+    }
+
+    if (bucket.length === 1) {
+      uniqueTargetById.delete(target.id);
+      duplicatesById.set(target.id, bucket);
+    }
+
+    bucket.push(target);
+  }
+
+  return {
+    targetsById,
+    uniqueTargetById,
+    duplicatesById,
+  };
+}
+
+export function getPreferredDocumentReferenceTarget(
+  targetsById: ReadonlyMap<string, readonly DocumentReferenceTarget[]>,
+  id: string,
+): DocumentReferenceTarget | undefined {
+  const targets = targetsById.get(id);
+  if (!targets) return undefined;
+  return targets.find((target) => target.kind === "block")
+    ?? targets.find((target) => target.kind === "equation")
+    ?? targets.find((target) => target.kind === "heading");
+}
+

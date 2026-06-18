@@ -15,16 +15,19 @@ import { extractRawFrontmatter, parseMarkdownSource } from "./src/core/parser";
 import { parseFrontmatter as parseCoflatFrontmatter } from "./src/core/parser/frontmatter";
 import { NODE } from "./src/core/constants/node-types";
 import {
-  formatBlockReferenceLabel,
-  formatEquationReferenceLabel,
-  formatHeadingReferenceLabel,
-} from "./src/core/references/format";
-import {
   BRACKETED_REFERENCE_EXACT_RE,
   NARRATIVE_REFERENCE_GLOBAL_RE,
   parseReferenceClusterBody,
 } from "./src/core/lib/reference-grammar";
 import { buildLineOffsets, lineAt } from "./src/core/lib/line-offsets";
+import {
+  blockReferenceTarget,
+  buildReferenceTargetIndexes,
+  equationReferenceTarget,
+  headingReferenceTarget,
+  sortDocumentReferenceTargets,
+} from "./src/core/reference-targets";
+import type { DocumentReferenceTarget } from "./src/core/reference-targets";
 import {
   analyzeDocumentSemantics,
   stringTextSource,
@@ -244,23 +247,13 @@ export function extractReferences(source: string): ExtractedReference[] {
 
 export type ReferenceCatalogTargetKind = "block" | "equation" | "heading";
 
-export interface ReferenceCatalogTarget {
-  readonly id?: string;
-  readonly kind: ReferenceCatalogTargetKind;
-  readonly from: number;
-  readonly to: number;
+export interface ReferenceCatalogTarget extends DocumentReferenceTarget {
   /**
    * 1-based line number of `from`, counted over the full source (frontmatter
    * included). Convenience for line-based hosts (indexers, link tables) that
    * would otherwise recompute it from the offsets.
    */
   readonly line: number;
-  readonly displayLabel: string;
-  readonly number?: string;
-  readonly ordinal?: number;
-  readonly title?: string;
-  readonly text?: string;
-  readonly blockType?: string;
 }
 
 export interface ReferenceCatalogReference {
@@ -286,27 +279,11 @@ export interface ReferenceCatalogOptions {
   readonly includeUnnumberedBlockOrdinals?: boolean;
 }
 
-function indexTargets(targets: readonly ReferenceCatalogTarget[]) {
-  const targetsById = new Map<string, ReferenceCatalogTarget[]>();
-  const uniqueTargetById = new Map<string, ReferenceCatalogTarget>();
-  const duplicatesById = new Map<string, readonly ReferenceCatalogTarget[]>();
-
-  for (const target of targets) {
-    if (!target.id) continue;
-    const bucket = targetsById.get(target.id);
-    if (!bucket) {
-      targetsById.set(target.id, [target]);
-      uniqueTargetById.set(target.id, target);
-      continue;
-    }
-    if (bucket.length === 1) {
-      uniqueTargetById.delete(target.id);
-      duplicatesById.set(target.id, bucket);
-    }
-    bucket.push(target);
+function requireLineTarget(target: DocumentReferenceTarget): ReferenceCatalogTarget {
+  if (target.line === undefined) {
+    throw new Error(`Expected reference target line for ${target.kind} at ${target.from}`);
   }
-
-  return { targetsById, uniqueTargetById, duplicatesById };
+  return target as ReferenceCatalogTarget;
 }
 
 /**
@@ -329,61 +306,47 @@ export function buildReferenceCatalog(
     frontmatter.config.numbering ?? "grouped",
   );
   const blockTitles = blockTitleOverridesFromConfig(frontmatter.config.blocks);
-  const targets: ReferenceCatalogTarget[] = [];
+  const targets: DocumentReferenceTarget[] = [];
 
   for (const block of analysis.fencedDivs) {
     if (!block.primaryClass) continue;
     const numbered = blockNumbers.byPosition.get(block.from);
     const ordinal = numbered?.number;
     const title = displayTitleForBlockType(block.primaryClass, blockTitles);
-    targets.push({
+    targets.push(blockReferenceTarget({
       id: block.id,
-      kind: "block",
       from: block.from,
       to: block.to,
-      line: lineAt(lineOffsets, block.from),
-      displayLabel: formatBlockReferenceLabel(title, ordinal),
-      number: ordinal === undefined ? undefined : String(ordinal),
-      ordinal,
-      title: block.title,
       blockType: block.primaryClass,
-    });
+      title: block.title,
+      displayTitle: title,
+      number: ordinal,
+      line: lineAt(lineOffsets, block.from),
+    }));
   }
 
   for (const equation of analysis.equations) {
-    targets.push({
-      id: equation.id,
-      kind: "equation",
-      from: equation.from,
-      to: equation.to,
+    targets.push(equationReferenceTarget({
+      ...equation,
       line: lineAt(lineOffsets, equation.from),
-      displayLabel: formatEquationReferenceLabel(equation.number),
-      number: String(equation.number),
-      ordinal: equation.number,
-      text: equation.latex,
-    });
+    }));
   }
 
   for (const heading of analysis.headings) {
-    targets.push({
-      id: heading.id,
-      kind: "heading",
-      from: heading.from,
-      to: heading.to,
+    targets.push(headingReferenceTarget({
+      ...heading,
       line: lineAt(lineOffsets, heading.from),
-      displayLabel: formatHeadingReferenceLabel(heading),
-      number: heading.number || undefined,
-      title: heading.text,
-      text: heading.text,
-    });
+    }));
   }
 
-  targets.sort((left, right) => left.from - right.from || left.to - right.to);
-  const indexes = indexTargets(targets);
+  const sortedTargets = sortDocumentReferenceTargets(targets).map(requireLineTarget);
+  const indexes = buildReferenceTargetIndexes(sortedTargets);
 
   return {
-    targets,
-    ...indexes,
+    targets: sortedTargets,
+    targetsById: indexes.targetsById as ReadonlyMap<string, readonly ReferenceCatalogTarget[]>,
+    uniqueTargetById: indexes.uniqueTargetById as ReadonlyMap<string, ReferenceCatalogTarget>,
+    duplicatesById: indexes.duplicatesById as ReadonlyMap<string, readonly ReferenceCatalogTarget[]>,
     references: analysis.references.map((reference) => ({
       from: reference.from,
       to: reference.to,
