@@ -2,6 +2,7 @@ import { type EditorView } from "@codemirror/view";
 import { CSS } from "../../core/constants/css-classes";
 import { createFootnoteSectionElement } from "../../core/footnote-section-surface";
 import { renderDocumentFragmentToDom } from "../document-surfaces";
+import type { InlineReferenceRenderContext } from "./inline-render";
 import { sidenotesCollapsedEffect } from "./sidenote-state";
 import { RenderWidget, serializeMacros } from "./source-widget";
 
@@ -20,6 +21,8 @@ export class FootnoteSectionWidget extends RenderWidget {
   constructor(
     private readonly entries: ReadonlyArray<FootnoteSectionEntry>,
     private readonly macros: Record<string, string>,
+    private readonly referenceContext: InlineReferenceRenderContext | undefined,
+    private readonly referenceKey: string,
   ) {
     super();
     this.macrosKey = serializeMacros(macros);
@@ -35,7 +38,7 @@ export class FootnoteSectionWidget extends RenderWidget {
           defFrom: entry.defFrom,
           backrefHref: entry.backrefHref,
           appendContent: (content) => {
-            renderFootnoteEntryContent(content, entry.content, this.macros);
+            renderFootnoteEntryContent(content, entry.content, this.macros, this.referenceContext);
           },
         })),
       );
@@ -68,7 +71,7 @@ export class FootnoteSectionWidget extends RenderWidget {
         e.num === other.entries[i].num &&
         e.defFrom === other.entries[i].defFrom &&
         e.backrefHref === other.entries[i].backrefHref,
-    ) && this.macrosKey === other.macrosKey;
+    ) && this.macrosKey === other.macrosKey && this.referenceKey === other.referenceKey;
   }
 }
 
@@ -76,10 +79,12 @@ function renderFootnoteEntryContent(
   target: HTMLElement,
   content: string,
   macros: Record<string, string>,
+  referenceContext?: InlineReferenceRenderContext,
 ): void {
   renderDocumentFragmentToDom(target, {
     kind: "footnote",
     text: content,
     macros,
+    referenceContext,
   });
 }

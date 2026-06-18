@@ -49,6 +49,7 @@ import {
   orderedFootnoteEntries,
 } from "../semantics/document";
 import { createChangeChecker } from "../state/change-detection";
+import { createEditorReferencePresentationController } from "../references/presentation";
 import {
   getActiveStructureEditTarget,
   isFootnoteLabelStructureEditActive,
@@ -58,6 +59,10 @@ import {
   getDocumentAnalysisSliceRevision,
 } from "../state/document-analysis";
 import { mathMacrosField } from "../state/math-macros";
+import {
+  getReferenceRenderDependencySignature,
+  referenceRenderDependenciesChanged,
+} from "../state/reference-render-state";
 import {
   addMarkerReplacement,
   buildDecorations,
@@ -200,6 +205,7 @@ function footnoteSectionShouldUpdate(update: ViewUpdate): boolean {
   return (
     footnoteSliceChanged(update.startState, update.state)
     || mathMacrosChanged(update.startState, update.state)
+    || referenceRenderDependenciesChanged(update.startState, update.state)
   );
 }
 
@@ -355,7 +361,16 @@ class FootnoteSectionPlugin implements PluginValue {
 
     const endPos = view.state.doc.length;
     const macros = view.state.field(mathMacrosField);
-    const widget = new FootnoteSectionWidget(entries, macros);
+    const referenceContext = createEditorReferencePresentationController(view.state, {
+      surface: "editor-preview",
+    });
+    const footnoteNumbers = numberFootnotes(footnotes);
+    const widget = new FootnoteSectionWidget(
+      entries,
+      macros,
+      { ...referenceContext, footnoteNumbers },
+      getReferenceRenderDependencySignature(view.state),
+    );
     return buildDecorations([
       Decoration.widget({ widget, side: 1 }).range(endPos),
     ]);

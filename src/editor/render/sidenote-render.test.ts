@@ -648,8 +648,8 @@ describe("footnote section invalidation", () => {
 describe("FootnoteSectionWidget", () => {
   it("eq returns false when macros change", () => {
     const entries = [{ num: 1, id: "note-1", content: "$\\R$", defFrom: 10 }];
-    const a = new FootnoteSectionWidget(entries, { "\\R": "\\mathbb{R}" });
-    const b = new FootnoteSectionWidget(entries, { "\\R": "\\mathbf{R}" });
+    const a = new FootnoteSectionWidget(entries, { "\\R": "\\mathbb{R}" }, undefined, "refs");
+    const b = new FootnoteSectionWidget(entries, { "\\R": "\\mathbf{R}" }, undefined, "refs");
 
     expect(a.eq(b)).toBe(false);
   });
@@ -661,6 +661,8 @@ describe("FootnoteSectionWidget", () => {
     const widget = new FootnoteSectionWidget(
       [{ num: 1, id: "note-1", content: "Body", defFrom: 24 }],
       {},
+      undefined,
+      "refs",
     );
 
     widget.toDOM(view);
@@ -680,6 +682,8 @@ describe("FootnoteSectionWidget", () => {
     const widget = new FootnoteSectionWidget(
       [{ num: 1, id: "note-1", content: "Body", defFrom: 24 }],
       {},
+      undefined,
+      "refs",
     );
 
     const dom = widget.createDOM();
@@ -698,6 +702,8 @@ describe("FootnoteSectionWidget", () => {
     const widget = new FootnoteSectionWidget(
       [{ num: 1, id: "note-1", content: "Body", defFrom: 24, backrefHref: "#fnref-note-1" }],
       {},
+      undefined,
+      "refs",
     );
 
     const backref = widget.createDOM().querySelector<HTMLAnchorElement>(`.${CSS.footnoteBackref}`);
