@@ -202,6 +202,7 @@ import {
   trimReferencePreviewRange,
 } from "../core/reference-preview-source";
 import {
+  mapDomRangeToSource,
   sourceRangeAttrs,
   sourceRangeFromElement,
 } from "../core/source-range-surface";
@@ -220,6 +221,7 @@ export {
   blueprintBookThemeManifest,
 } from "../core/theme-manifest";
 export type { CoflatThemeManifest, CoflatThemeTarget } from "../core/theme-manifest";
+export { mapDomRangeToSource };
 import { noteLezerInvocation } from "./reader-internal";
 
 export type {
@@ -2028,160 +2030,6 @@ function buildResolvers(
     resolveAssetUrl,
     documentPath,
   };
-}
-
-// ---------------------------------------------------------------------------
-// DOM Range → source position mapping.
-// ---------------------------------------------------------------------------
-
-/**
- * Map a live DOM {@link Range} back to a source byte interval, using the
- * `data-source-from`/`data-source-to` attributes emitted by
- * {@link renderToHtml} with `sourcePositions: true`.
- *
- * Walks each endpoint up to the nearest ancestor carrying source-position
- * attrs. Plain text inside a `<span class="cf-text">`, inline marks
- * (`<strong>`, `<em>`, `<del>`, `<code>`, `<a>`, `<sup>`, `<mark>`) and
- * block elements all qualify. For these the text-to-source mapping is 1:1
- * by character count (HTML escapes are atomic in source), so the offset
- * inside the text node is added to the ancestor's `data-source-from`.
- *
- * Limitation — math: after {@link hydrateMath} runs, a `<span data-math>`
- * contains KaTeX-rendered MathML/HTML whose character offsets do NOT
- * correspond to LaTeX source. Selections inside a hydrated math node
- * collapse to the math span's full `[from, to)` range (block-granularity).
- * The same is true for the un-hydrated placeholder (its rendered text is
- * the raw source which IS 1:1, but we still return the span's full range
- * for consistency).
- *
- * If neither endpoint has a `data-source-from` ancestor (e.g., the range
- * is rooted on `container` itself before any walk, or sits inside a
- * synthetic backref glyph), returns `null` rather than fabricating
- * offsets. Requires `renderToHtml({ sourcePositions: true })`; if no
- * attrs are present anywhere, also returns `null`.
- *
- * Pure function over the live DOM — no global state.
- *
- * @param range DOM Range produced by, e.g., `window.getSelection()`.
- * @param container Reader root that bounds the search (walks stop here).
- * @returns `{ from, to }` byte offsets into the original source, or `null`.
- */
-export function mapDomRangeToSource(
-  range: Range,
-  container: HTMLElement,
-): { from: number; to: number } | null {
-  const start = resolveEndpoint(range.startContainer, range.startOffset, container, /* atEnd */ false);
-  if (start === null) return null;
-  const end = resolveEndpoint(range.endContainer, range.endOffset, container, /* atEnd */ true);
-  if (end === null) return null;
-
-  let from = start;
-  let to = end;
-  if (from > to) {
-    const t = from;
-    from = to;
-    to = t;
-  }
-  return { from, to };
-}
-
-function resolveEndpoint(
-  node: Node,
-  offset: number,
-  container: HTMLElement,
-  atEnd: boolean,
-): number | null {
-  // Find the nearest ancestor element carrying data-source-from/to.
-  let el: Element | null =
-    node.nodeType === 1 /* ELEMENT_NODE */
-      ? (node as Element)
-      : node.parentElement;
-
-  // If endpoint is a text node, the offset is meaningful for character-level
-  // mapping. For element endpoints (e.g., before/after a child element), we
-  // treat `offset` as a child index and fall back to block-granularity.
-  const isText = node.nodeType === 3 /* TEXT_NODE */;
-
-  while (el && el !== container && !el.hasAttribute("data-source-from")) {
-    el = el.parentElement;
-  }
-  if (!el || el === container || !el.hasAttribute("data-source-from")) {
-    return null;
-  }
-
-  const fromStr = el.getAttribute("data-source-from");
-  const toStr = el.getAttribute("data-source-to");
-  if (fromStr === null || toStr === null) return null;
-  const elFrom = Number(fromStr);
-  const elTo = Number(toStr);
-  if (!Number.isFinite(elFrom) || !Number.isFinite(elTo)) return null;
-
-  // Math: hydrated subtrees do not character-map; collapse to block bounds.
-  // Detect by walking from the endpoint up to `el` and looking for data-math.
-  let probe: Element | null = node.nodeType === 1 ? (node as Element) : node.parentElement;
-  while (probe && probe !== el) {
-    if (probe.hasAttribute("data-math")) {
-      return atEnd ? elTo : elFrom;
-    }
-    probe = probe.parentElement;
-  }
-  if (el.hasAttribute("data-math")) {
-    return atEnd ? elTo : elFrom;
-  }
-
-  if (!isText) {
-    // Element endpoint: collapse to span bounds.
-    return atEnd ? elTo : elFrom;
-  }
-
-  // Text-node endpoint: 1:1 character → source mapping within `el`.
-  // The text node may be nested (e.g., text inside <a> inside <p>); the
-  // offset within `el`'s rendered text is the sum of all preceding text
-  // characters under `el`, minus those before our text node.
-  const charsBefore = countTextCharsBefore(el, node);
-  if (charsBefore < 0) {
-    // node not under el (shouldn't happen if walk succeeded).
-    return atEnd ? elTo : elFrom;
-  }
-  const candidate = elFrom + charsBefore + offset;
-  // Clamp to span bounds.
-  if (candidate < elFrom) return elFrom;
-  if (candidate > elTo) return elTo;
-  return candidate;
-}
-
-/**
- * Count the number of text characters under `root` that precede `target`
- * in document order. Returns -1 if `target` is not a descendant of `root`.
- */
-function countTextCharsBefore(root: Element, target: Node): number {
-  let count = 0;
-  let found = false;
-
-  function walk(n: Node): boolean {
-    if (n === target) {
-      found = true;
-      return true;
-    }
-    if (n.nodeType === 3 /* TEXT_NODE */) {
-      count += (n as Text).data.length;
-      return false;
-    }
-    if (n.nodeType !== 1 /* ELEMENT_NODE */) return false;
-    let child = n.firstChild;
-    while (child) {
-      if (walk(child)) return true;
-      child = child.nextSibling;
-    }
-    return false;
-  }
-
-  let child = root.firstChild;
-  while (child) {
-    if (walk(child)) break;
-    child = child.nextSibling;
-  }
-  return found ? count : -1;
 }
 
 // ---------------------------------------------------------------------------

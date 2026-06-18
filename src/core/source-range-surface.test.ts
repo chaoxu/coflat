@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   applySourceRangeAttrs,
+  closestMathSourceCarrier,
+  closestSourceRangeCarrier,
+  mapDomRangeToSource,
   parseSourceOffset,
   sourceRangeAttrs,
   sourceRangeFromDataset,
@@ -62,5 +65,55 @@ describe("source range surface", () => {
     expect(sourceRangeFromElement(outer)).toEqual({ from: 5, to: 15 });
     expect(sourceRangeFromElement(inner)).toBeNull();
     expect(sourceRangeFromElement(inner, { closest: true })).toEqual({ from: 5, to: 15 });
+  });
+
+  it("finds source carriers while honoring ignored surface classes", () => {
+    const line = document.createElement("div");
+    line.className = "cm-line";
+    line.dataset.sourceFrom = "0";
+    line.dataset.sourceTo = "10";
+    const widget = document.createElement("span");
+    widget.dataset.sourceFrom = "3";
+    widget.dataset.sourceTo = "8";
+    const child = document.createElement("span");
+    widget.append(child);
+    line.append(widget);
+
+    expect(closestSourceRangeCarrier(child)).toBe(widget);
+    expect(closestSourceRangeCarrier(line, { ignoredClassNames: ["cm-line"] })).toBeNull();
+  });
+
+  it("finds math source carriers by semantic data attribute", () => {
+    const math = document.createElement("span");
+    math.className = "cf-math-inline";
+    math.dataset.math = "x^2";
+    const child = document.createElement("span");
+    math.append(child);
+
+    expect(closestMathSourceCarrier(child)).toBe(math);
+  });
+
+  it("maps DOM ranges to source offsets from shared source carriers", () => {
+    const container = document.createElement("div");
+    container.innerHTML = '<p data-source-from="10" data-source-to="15">hello</p>';
+    const text = container.querySelector("p")?.firstChild;
+    if (!(text instanceof Text)) throw new Error("expected text node");
+    const range = document.createRange();
+    range.setStart(text, 1);
+    range.setEnd(text, 4);
+
+    expect(mapDomRangeToSource(range, container)).toEqual({ from: 11, to: 14 });
+  });
+
+  it("collapses DOM ranges inside math carriers to the full source range", () => {
+    const container = document.createElement("div");
+    container.innerHTML = '<span data-math="x^2" data-source-from="4" data-source-to="9"><span>x</span><sup>2</sup></span>';
+    const text = container.querySelector("sup")?.firstChild;
+    if (!(text instanceof Text)) throw new Error("expected text node");
+    const range = document.createRange();
+    range.setStart(text, 0);
+    range.setEnd(text, 1);
+
+    expect(mapDomRangeToSource(range, container)).toEqual({ from: 4, to: 9 });
   });
 });

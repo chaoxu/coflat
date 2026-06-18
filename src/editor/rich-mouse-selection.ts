@@ -17,6 +17,10 @@ import {
   isPlainPrimaryMouseEvent,
   type PointerSelectionTarget,
 } from "./state/mouse-selection";
+import {
+  closestMathSourceCarrier,
+  closestSourceRangeCarrier,
+} from "../core/source-range-surface";
 
 function isRichLikeMode(view: EditorView): boolean {
   return !view.dom.classList.contains(CSS.sourceMode);
@@ -144,12 +148,12 @@ function startsOnRenderedMath(
   target: EventTarget | null,
 ): boolean {
   const direct = target instanceof HTMLElement
-    ? target.closest<HTMLElement>(`.${CSS.mathInline}`)
+    ? closestMathSourceCarrier(target)
     : null;
   if (direct) return true;
   const fromPoint = editorElementFromPoint(view, { x, y });
   return fromPoint instanceof HTMLElement
-    ? Boolean(fromPoint.closest(`.${CSS.mathInline}`))
+    ? Boolean(closestMathSourceCarrier(fromPoint))
     : false;
 }
 
@@ -160,12 +164,12 @@ function startsOnWidgetOwnedSurface(
   target: EventTarget | null,
 ): boolean {
   const direct = target instanceof HTMLElement
-    ? target.closest<HTMLElement>("[data-source-from]")
+    ? closestSourceRangeCarrier(target, { ignoredClassNames: ["cm-line"] })
     : null;
-  if (direct && !direct.classList.contains("cm-line")) return true;
+  if (direct) return true;
   const fromPoint = editorElementFromPoint(view, { x, y });
   return fromPoint instanceof HTMLElement
-    ? Boolean(fromPoint.closest("[data-source-from]:not(.cm-line)"))
+    ? Boolean(closestSourceRangeCarrier(fromPoint, { ignoredClassNames: ["cm-line"] }))
     : false;
 }
 

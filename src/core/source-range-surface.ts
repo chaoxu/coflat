@@ -17,6 +17,13 @@ export interface ElementSourceRangeOptions extends ParseSourceRangeOptions {
   readonly closest?: boolean;
 }
 
+export interface SourceRangeCarrierOptions {
+  readonly ignoredClassNames?: readonly string[];
+}
+
+const SOURCE_RANGE_CARRIER_SELECTOR = "[data-source-from][data-source-to]";
+const MATH_SOURCE_CARRIER_SELECTOR = "[data-math]";
+
 export function parseSourceOffset(value: string | null | undefined): number | null {
   if (!value) return null;
   const parsed = Number.parseInt(value, 10);
@@ -49,10 +56,10 @@ export function sourceRangeFromElement(
   element: Element,
   options: ElementSourceRangeOptions = {},
 ): SourceRange | null {
-  const carrier = element.hasAttribute("data-source-from")
+  const carrier = isSourceRangeCarrier(element)
     ? element
     : options.closest
-    ? element.closest("[data-source-from][data-source-to]")
+    ? closestSourceRangeCarrier(element)
     : null;
   if (!carrier) return null;
   return sourceRangeFromValues(
@@ -60,6 +67,125 @@ export function sourceRangeFromElement(
     carrier.getAttribute("data-source-to"),
     options,
   );
+}
+
+export function isSourceRangeCarrier(element: Element): boolean {
+  return element.hasAttribute("data-source-from") && element.hasAttribute("data-source-to");
+}
+
+export function closestSourceRangeCarrier(
+  element: Element | null,
+  options: SourceRangeCarrierOptions = {},
+): Element | null {
+  const carrier = element?.closest(SOURCE_RANGE_CARRIER_SELECTOR) ?? null;
+  if (!carrier) return null;
+  return options.ignoredClassNames?.some((className) => carrier.classList.contains(className))
+    ? null
+    : carrier;
+}
+
+export function closestMathSourceCarrier(element: Element | null): Element | null {
+  return element?.closest(MATH_SOURCE_CARRIER_SELECTOR) ?? null;
+}
+
+/**
+ * Map a live DOM {@link Range} back to a source byte interval, using
+ * `data-source-from`/`data-source-to` attributes emitted on source carriers.
+ *
+ * Text endpoints map by character offset within the nearest source carrier.
+ * Element endpoints collapse to the carrier's full range. Endpoints inside
+ * math carriers (`data-math`) also collapse to the math carrier range because
+ * hydrated math DOM does not have a character-to-source mapping.
+ */
+export function mapDomRangeToSource(
+  range: Range,
+  container: HTMLElement,
+): SourceRange | null {
+  const start = resolveDomRangeEndpoint(range.startContainer, range.startOffset, container, false);
+  if (start === null) return null;
+  const end = resolveDomRangeEndpoint(range.endContainer, range.endOffset, container, true);
+  if (end === null) return null;
+
+  return start <= end ? { from: start, to: end } : { from: end, to: start };
+}
+
+function resolveDomRangeEndpoint(
+  node: Node,
+  offset: number,
+  container: HTMLElement,
+  atEnd: boolean,
+): number | null {
+  let el: Element | null =
+    node.nodeType === Node.ELEMENT_NODE
+      ? (node as Element)
+      : node.parentElement;
+
+  const isText = node.nodeType === Node.TEXT_NODE;
+
+  while (el && el !== container && !isSourceRangeCarrier(el)) {
+    el = el.parentElement;
+  }
+  if (!el || el === container || !isSourceRangeCarrier(el)) {
+    return null;
+  }
+
+  const range = sourceRangeFromElement(el);
+  if (!range) return null;
+
+  let probe: Element | null =
+    node.nodeType === Node.ELEMENT_NODE ? (node as Element) : node.parentElement;
+  while (probe && probe !== el) {
+    if (closestMathSourceCarrier(probe) === probe) {
+      return atEnd ? range.to : range.from;
+    }
+    probe = probe.parentElement;
+  }
+  if (closestMathSourceCarrier(el) === el) {
+    return atEnd ? range.to : range.from;
+  }
+
+  if (!isText) {
+    return atEnd ? range.to : range.from;
+  }
+
+  const charsBefore = countTextCharsBefore(el, node);
+  if (charsBefore < 0) {
+    return atEnd ? range.to : range.from;
+  }
+  const candidate = range.from + charsBefore + offset;
+  if (candidate < range.from) return range.from;
+  if (candidate > range.to) return range.to;
+  return candidate;
+}
+
+function countTextCharsBefore(root: Element, target: Node): number {
+  let count = 0;
+  let found = false;
+
+  function walk(node: Node): boolean {
+    if (node === target) {
+      found = true;
+      return true;
+    }
+    if (node.nodeType === Node.TEXT_NODE) {
+      count += (node as Text).data.length;
+      return false;
+    }
+    if (node.nodeType !== Node.ELEMENT_NODE) return false;
+    let child = node.firstChild;
+    while (child) {
+      if (walk(child)) return true;
+      child = child.nextSibling;
+    }
+    return false;
+  }
+
+  let child = root.firstChild;
+  while (child) {
+    if (walk(child)) break;
+    child = child.nextSibling;
+  }
+  return found ? count : -1;
 }
 
 export function sourceRangeAttrs({
