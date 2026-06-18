@@ -20,7 +20,8 @@ import {
   referencePreviewBodyPlan,
   blockPreviewBodyInputFromSource,
   fencedDivBodyRangeFromSource,
-  referencePreviewHeaderText,
+  type ReferencePreviewBodyPlan,
+  referencePreviewContentPlan,
   unresolvedReferencePreviewLabel,
 } from "../../core/reference-preview-source";
 import {
@@ -122,8 +123,10 @@ function buildBlockPreviewPlan(
   block: NumberedBlock,
   useFullBlockSource: boolean,
   macros: Record<string, string>,
+  preplannedBody?: ReferencePreviewBodyPlan,
 ): BlockPreviewPlan {
-  const bodyPlan = referencePreviewBodyPlan(blockPreviewBodyInput(view, block, useFullBlockSource));
+  const bodyPlan = preplannedBody
+    ?? referencePreviewBodyPlan(blockPreviewBodyInput(view, block, useFullBlockSource));
   if (bodyPlan.kind !== "markdown") {
     return {
       buildBody: () => null,
@@ -184,14 +187,26 @@ function buildCrossrefTooltipPlan(
   const macros = view.state.field(mathMacrosField, false) ?? {};
 
   if (resolved.kind === "block") {
-    const headerText = referencePreviewHeaderText(resolved, id);
-
     const counterState = view.state.field(blockCounterField, false);
     const block = counterState?.byId.get(id);
     const registry = view.state.field(pluginRegistryField, false);
     const plugin = block && registry ? getPlugin(registry, block.type) : undefined;
+    const bodyInput = block
+      ? blockPreviewBodyInput(view, block, plugin?.captionPosition === "below")
+      : undefined;
+    const previewPlan = referencePreviewContentPlan({
+      target: resolved,
+      fallbackLabel: id,
+      bodyInput,
+    });
     const bodyPlan = block
-      ? buildBlockPreviewPlan(view, block, plugin?.captionPosition === "below", macros)
+      ? buildBlockPreviewPlan(
+        view,
+        block,
+        plugin?.captionPosition === "below",
+        macros,
+        previewPlan.bodyPlan,
+      )
       : null;
 
     return {
@@ -201,12 +216,12 @@ function buildCrossrefTooltipPlan(
         if (variant === "completion" && body) {
           container.appendChild(body);
           container.appendChild(
-            createHoverPreviewHeader(headerText, macros, CSS.referenceCompletionMeta),
+            createHoverPreviewHeader(previewPlan.headerText, macros, CSS.referenceCompletionMeta),
           );
           return container;
         }
 
-        container.appendChild(createHoverPreviewHeader(headerText, macros));
+        container.appendChild(createHoverPreviewHeader(previewPlan.headerText, macros));
         if (body) {
           container.appendChild(body);
         }
@@ -215,53 +230,60 @@ function buildCrossrefTooltipPlan(
       cacheScope: view.state,
       dependsOnBibliography: true,
       dependsOnMacros: true,
-      key: `crossref:block\0${variant}\0${id}\0${headerText}\0${bodyPlan?.key ?? "missing"}`,
+      key: `crossref:block\0${variant}\0${id}\0${previewPlan.key}\0${bodyPlan?.key ?? "missing"}`,
       mediaDependencies: bodyPlan?.mediaDependencies ?? EMPTY_LOCAL_MEDIA_DEPENDENCIES,
     };
   }
 
   if (resolved.kind === "heading") {
-    const headerText = referencePreviewHeaderText(resolved, id);
+    const previewPlan = referencePreviewContentPlan({
+      target: resolved,
+      fallbackLabel: id,
+    });
 
     return {
       buildContent: () => {
         const container = createCrossrefPreviewContainer(variant);
-        container.appendChild(createHoverPreviewHeader(headerText, macros));
+        container.appendChild(createHoverPreviewHeader(previewPlan.headerText, macros));
         return container;
       },
       cacheScope: view.state,
       dependsOnBibliography: false,
       dependsOnMacros: true,
-      key: `crossref:heading\0${variant}\0${id}\0${headerText}`,
+      key: `crossref:heading\0${variant}\0${id}\0${previewPlan.key}`,
       mediaDependencies: EMPTY_LOCAL_MEDIA_DEPENDENCIES,
     };
   }
 
   if (resolved.kind === "equation") {
-    const equationPlan = referencePreviewBodyPlan({
-      kind: "equation",
-      latex: findEquationSource(view, id) ?? "",
+    const previewPlan = referencePreviewContentPlan({
+      target: resolved,
+      fallbackLabel: id,
+      bodyInput: {
+        kind: "equation",
+        latex: findEquationSource(view, id) ?? "",
+      },
     });
     return {
       buildContent: () => {
         const container = createCrossrefPreviewContainer(variant);
-        const body = equationPlan.kind === "display-math"
+        const body = previewPlan.bodyPlan.kind === "display-math"
           ? createPreviewSurfaceBody(CSS.hoverPreviewBody)
           : null;
 
-        if (body && equationPlan.kind === "display-math") {
-          renderKatex(body, equationPlan.latex, true, macros);
+        if (body && previewPlan.bodyPlan.kind === "display-math") {
+          renderKatex(body, previewPlan.bodyPlan.latex, true, macros);
         }
 
         if (variant === "completion" && body) {
           container.appendChild(body);
           container.appendChild(
-            createHoverPreviewHeader(resolved.label, macros, CSS.referenceCompletionMeta),
+            createHoverPreviewHeader(previewPlan.headerText, macros, CSS.referenceCompletionMeta),
           );
           return container;
         }
 
-        container.appendChild(createHoverPreviewHeader(resolved.label, macros));
+        container.appendChild(createHoverPreviewHeader(previewPlan.headerText, macros));
         if (body) {
           container.appendChild(body);
         }
@@ -270,7 +292,7 @@ function buildCrossrefTooltipPlan(
       cacheScope: view.state,
       dependsOnBibliography: false,
       dependsOnMacros: true,
-      key: `crossref:equation\0${variant}\0${id}\0${resolved.label}\0${equationPlan.key}`,
+      key: `crossref:equation\0${variant}\0${id}\0${previewPlan.key}`,
       mediaDependencies: EMPTY_LOCAL_MEDIA_DEPENDENCIES,
     };
   }

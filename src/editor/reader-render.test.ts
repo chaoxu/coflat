@@ -608,20 +608,33 @@ describe("renderToHtml — block-level rendering ()", () => {
       referencePreviews: true,
       resolveReferences: true,
     });
-    expect(r.referencePreviewIndex?.["sec:intro"]).toMatchObject({
+    const heading = r.referencePreviewIndex?.["sec:intro"];
+    expect(heading).toMatchObject({
       kind: "heading",
       label: "Section 1",
       title: "Intro",
       level: 1,
       number: "1",
     });
-    expect(r.referencePreviewIndex?.["eq:square"]).toMatchObject({
+    expect(heading?.kind).toBe("heading");
+    if (heading?.kind === "heading") {
+      expect(source.slice(heading.from, heading.to)).toBe("# Intro {#sec:intro}");
+    }
+
+    const equation = r.referencePreviewIndex?.["eq:square"];
+    expect(equation).toMatchObject({
       kind: "equation",
       label: "Eq. (1)",
       latex: "x^2",
       number: "1",
       ordinal: 1,
     });
+    expect(equation?.kind).toBe("equation");
+    if (equation?.kind === "equation") {
+      expect(source.slice(equation.from, equation.to)).toBe("$$\nx^2\n$$ {#eq:square}");
+      expect(source.slice(equation.bodyFrom, equation.bodyTo)).toBe("x^2");
+    }
+
     expect(r.referencePreviewIndex?.["thm:main"]).toMatchObject({
       kind: "block",
       label: "Theorem 1",
@@ -633,6 +646,9 @@ describe("renderToHtml — block-level rendering ()", () => {
     const theorem = r.referencePreviewIndex?.["thm:main"];
     expect(theorem?.kind).toBe("block");
     if (theorem?.kind === "block") {
+      expect(source.slice(theorem.from, theorem.to)).toContain(
+        '::: {.theorem #thm:main title="Main"}',
+      );
       expect(source.slice(theorem.bodyFrom, theorem.bodyTo)).toBe("body");
     }
   });

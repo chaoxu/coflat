@@ -12,6 +12,8 @@ import {
   headingReferencePreviewEntry,
   referencePreviewBodyInputFromEntry,
   referencePreviewBodyPlan,
+  referencePreviewContentPlanFromEntry,
+  referencePreviewContentPlanFromSource,
   referencePreviewHeaderText,
   stripBracedLabelId,
   trimReferencePreviewRange,
@@ -67,6 +69,40 @@ describe("reference preview source helpers", () => {
       kind: "markdown",
       markdownSource: "::: {.figure #f}\n![x](x.png)\n:::",
       key: "full\0::: {.figure #f}\n![x](x.png)\n:::",
+    });
+  });
+
+  it("plans shared hover preview content from indexed entries", () => {
+    const source = "::: {.theorem #thm:main title=\"Main\"}\nBody\n:::";
+    const entry = blockReferencePreviewEntry({
+      id: "thm:main",
+      label: "Theorem 1",
+      blockType: "theorem",
+      title: "Main",
+      sourceRange: { from: 0, to: source.length },
+      bodyRange: { from: source.indexOf("Body"), to: source.indexOf("\n:::") },
+      number: 1,
+    });
+
+    expect(referencePreviewContentPlanFromEntry(entry, source, "thm:main")).toMatchObject({
+      headerText: "Theorem 1 Main",
+      bodyPlan: {
+        kind: "markdown",
+        markdownSource: "Body",
+      },
+      suppressGeneratedSectionNumbers: false,
+    });
+
+    const heading = headingReferencePreviewEntry({
+      id: "sec:intro",
+      label: "Section 2",
+      title: "Intro",
+      level: 1,
+      sourceRange: { from: 0, to: 20 },
+    });
+    expect(referencePreviewContentPlanFromEntry(heading, source, "sec:intro")).toMatchObject({
+      headerText: "Section 2 Intro",
+      bodyPlan: { kind: "none" },
     });
   });
 
@@ -241,5 +277,40 @@ describe("reference preview source helpers", () => {
       .toMatchObject({ kind: "equation", previewSource: "$$\na=b\n$$" });
     expect(findReferencePreviewSource("## Result {#sec:result}", "sec:result"))
       .toMatchObject({ kind: "heading", previewSource: "## Result" });
+    expect(findReferencePreviewSource(
+      "::: {.theorem #thm:main title=\"Main\"}\nStatement.\n:::",
+      "thm:main",
+    )).toMatchObject({
+      kind: "fenced-div",
+      previewSource: "Statement.",
+    });
+  });
+
+  it("plans reader fallback source previews without surface-local interpretation", () => {
+    expect(referencePreviewContentPlanFromSource(
+      "$$\na=b\n$$ {#eq:one}",
+      "eq:one",
+      "Eq. (1)",
+    )).toMatchObject({
+      headerText: "Eq. (1)",
+      bodyPlan: {
+        kind: "markdown",
+        markdownSource: "$$\na=b\n$$",
+      },
+      suppressGeneratedSectionNumbers: false,
+    });
+
+    expect(referencePreviewContentPlanFromSource(
+      "## Result {#sec:result}",
+      "sec:result",
+      "Section 2",
+    )).toMatchObject({
+      headerText: "Section 2",
+      bodyPlan: {
+        kind: "markdown",
+        markdownSource: "## Result",
+      },
+      suppressGeneratedSectionNumbers: true,
+    });
   });
 });

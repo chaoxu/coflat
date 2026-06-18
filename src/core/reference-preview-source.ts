@@ -75,6 +75,13 @@ export type ReferencePreviewBodyPlan =
       readonly key: string;
     };
 
+export interface ReferencePreviewContentPlan {
+  readonly bodyPlan: ReferencePreviewBodyPlan;
+  readonly headerText: string;
+  readonly key: string;
+  readonly suppressGeneratedSectionNumbers: boolean;
+}
+
 export type ReferencePreviewBodyInput =
   | {
       readonly kind: "heading";
@@ -167,6 +174,24 @@ export function referencePreviewBodyPlan(
     kind: "markdown",
     markdownSource,
     key: `${input.useFullSource ? "full" : "body"}\0${markdownSource}`,
+  };
+}
+
+export function referencePreviewContentPlan(input: {
+  readonly target: ReferencePreviewLabelInput;
+  readonly fallbackLabel: string;
+  readonly bodyInput?: ReferencePreviewBodyInput;
+  readonly suppressGeneratedSectionNumbers?: boolean;
+}): ReferencePreviewContentPlan {
+  const headerText = referencePreviewHeaderText(input.target, input.fallbackLabel);
+  const bodyPlan: ReferencePreviewBodyPlan = input.bodyInput
+    ? referencePreviewBodyPlan(input.bodyInput)
+    : { kind: "none", key: "none" };
+  return {
+    bodyPlan,
+    headerText,
+    key: `${headerText}\0${bodyPlan.key}\0${input.suppressGeneratedSectionNumbers ? "no-section-numbers" : "section-numbers"}`,
+    suppressGeneratedSectionNumbers: input.suppressGeneratedSectionNumbers ?? false,
   };
 }
 
@@ -411,4 +436,40 @@ export function findReferencePreviewSource(
   }
 
   return null;
+}
+
+export function referencePreviewContentPlanFromEntry(
+  entry: ReferencePreviewEntry,
+  source: string | undefined,
+  fallbackLabel: string,
+  options: {
+    readonly useFullSource?: boolean;
+  } = {},
+): ReferencePreviewContentPlan {
+  return referencePreviewContentPlan({
+    target: entry,
+    fallbackLabel,
+    bodyInput: referencePreviewBodyInputFromEntry(entry, source, options),
+  });
+}
+
+export function referencePreviewContentPlanFromSource(
+  source: string,
+  key: string,
+  fallbackLabel: string,
+): ReferencePreviewContentPlan | null {
+  const match = findReferencePreviewSource(source, key);
+  if (!match) return null;
+
+  return referencePreviewContentPlan({
+    target: { kind: match.kind, label: fallbackLabel || key },
+    fallbackLabel: key,
+    bodyInput: {
+      kind: "block",
+      fullSource: match.previewSource,
+      bodySource: match.previewSource,
+      useFullSource: true,
+    },
+    suppressGeneratedSectionNumbers: match.kind === "heading",
+  });
 }

@@ -195,11 +195,10 @@ import {
   blockReferencePreviewEntry,
   type ReferencePreviewEntry,
   equationReferencePreviewEntry,
-  findReferencePreviewSource,
   headingReferencePreviewEntry,
-  referencePreviewBodyInputFromEntry,
-  referencePreviewBodyPlan,
-  referencePreviewHeaderText,
+  type ReferencePreviewContentPlan,
+  referencePreviewContentPlanFromEntry,
+  referencePreviewContentPlanFromSource,
   trimReferencePreviewRange,
 } from "../core/reference-preview-source";
 import {
@@ -2542,6 +2541,22 @@ function renderReaderPreviewSource(
   return body;
 }
 
+function renderReaderPreviewBody(
+  plan: ReferencePreviewContentPlan,
+  context: DocumentContext | undefined,
+  mathMacros: Record<string, string> | undefined,
+): HTMLElement | null {
+  if (plan.bodyPlan.kind !== "display-math" && plan.bodyPlan.kind !== "markdown") {
+    return null;
+  }
+  return renderReaderPreviewSource(
+    plan.bodyPlan.markdownSource,
+    context,
+    mathMacros,
+    plan.suppressGeneratedSectionNumbers ? { sectionNumbering: false } : {},
+  );
+}
+
 function buildReaderIndexedPreview(
   entry: ReaderReferencePreviewEntry | undefined,
   source: string | undefined,
@@ -2550,14 +2565,11 @@ function buildReaderIndexedPreview(
   fallbackLabel: string,
 ): HTMLElement | null {
   if (!entry) return null;
-  const container = createHoverPreviewElementWithChild(createReaderHoverHeader(
-    referencePreviewHeaderText(entry, fallbackLabel),
-  ));
-
-  const bodyPlan = referencePreviewBodyPlan(referencePreviewBodyInputFromEntry(entry, source));
-
-  if (bodyPlan.kind === "display-math" || bodyPlan.kind === "markdown") {
-    container.appendChild(renderReaderPreviewSource(bodyPlan.markdownSource, context, mathMacros));
+  const plan = referencePreviewContentPlanFromEntry(entry, source, fallbackLabel);
+  const container = createHoverPreviewElementWithChild(createReaderHoverHeader(plan.headerText));
+  const body = renderReaderPreviewBody(plan, context, mathMacros);
+  if (body) {
+    container.appendChild(body);
   }
   return container;
 }
@@ -2570,16 +2582,14 @@ function buildReaderSourcePreview(
   label: string,
 ): HTMLElement | null {
   if (!source) return null;
-  const match = findReferencePreviewSource(source, key);
-  if (!match) return null;
+  const plan = referencePreviewContentPlanFromSource(source, key, label);
+  if (!plan) return null;
 
-  const container = createHoverPreviewElementWithChild(createReaderHoverHeader(label || key));
-  container.appendChild(renderReaderPreviewSource(
-    match.previewSource,
-    context,
-    mathMacros,
-    match.kind === "heading" ? { sectionNumbering: false } : {},
-  ));
+  const container = createHoverPreviewElementWithChild(createReaderHoverHeader(plan.headerText));
+  const body = renderReaderPreviewBody(plan, context, mathMacros);
+  if (body) {
+    container.appendChild(body);
+  }
   return container;
 }
 
