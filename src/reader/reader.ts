@@ -47,7 +47,7 @@ import {
 } from "../core/list-emission-plan";
 import {
   fencedDivContainerOptions,
-  fencedDivSurfaceAssemblyPlan,
+  fencedDivSurfaceChromePlan,
 } from "../core/fenced-div-surface";
 import { parseFrontmatter, parseMarkdownSource } from "../core/parser";
 import {
@@ -1460,14 +1460,14 @@ function renderFencedDiv(ctx: WalkContext, node: SyntaxNode): BlockResult {
   });
 
   const normalizedClassName = plan.primaryClassName;
-  const assembly = fencedDivSurfaceAssemblyPlan(plan);
-  if (assembly.addQedToLastBodyBlock) {
+  const chrome = fencedDivSurfaceChromePlan(plan);
+  if (chrome.decorateLastBodyBlockWithQed) {
     addClassToLastHtmlBlock(blocks, CSS.blockQed);
   }
   const attrs = blockContainerSurfaceAttrs(fencedDivContainerOptions(plan));
   const body = combineBlocks(blocks);
   const sourceAttrs = blockSourceAttrs(ctx, plan.sourceRange.from, plan.sourceRange.to);
-  const caption = assembly.renderCaptionBelow && plan.title && normalizedClassName
+  const caption = chrome.captionSlot === "below" && plan.title && normalizedClassName
     ? renderBlockCaption(ctx, normalizedClassName, plan.title, plan.titleFragments, plan.number, node.from, node.to)
     : emptyBlock();
   const blockTarget = plan.id && normalizedClassName
@@ -1499,10 +1499,10 @@ function renderFencedDiv(ctx: WalkContext, node: SyntaxNode): BlockResult {
     ? renderBlockSummary(ctx, normalizedClassName, plan.title, plan.titleFragments, plan.number)
     : emptyBlock();
   const summaryHtml = summary.html;
-  const selfClosingTitle = assembly.renderSelfClosingTitleParagraph
+  const selfClosingTitle = chrome.titleSlot === "self-closing-paragraph"
     ? renderInlineFragmentsForReader(ctx, plan.titleFragments, node.from, node.to)
     : emptyBlock();
-  const standaloneTitle = assembly.renderStandaloneTitle
+  const standaloneTitle = chrome.titleSlot === "standalone-label"
     ? renderInlineFragmentsForReader(ctx, plan.titleFragments, node.from, node.to)
     : emptyBlock();
   const blockBodyHtml = selfClosingTitle.html
@@ -1511,10 +1511,10 @@ function renderFencedDiv(ctx: WalkContext, node: SyntaxNode): BlockResult {
   const bodyHtml = standaloneTitle.html
     ? renderBlockLabelContentHtml(standaloneTitle.html) + body.html + caption.html
     : blockBodyHtml + caption.html;
-  const html = assembly.prependInlineHeading
+  const html = chrome.bodySlot === "inline-heading"
     ? renderInlineBlockHeadingContainerHtml(attrs, sourceAttrs, summaryHtml, bodyHtml)
-    : assembly.renderDisclosure
-    ? `<div${attrs}${sourceAttrs}${assembly.setInitialOpenState ? ' data-cf-block-open="true"' : ""}>${renderBlockHeader(summaryHtml, bodyHtml)}</div>`
+    : chrome.bodySlot === "disclosure"
+    ? `<div${attrs}${sourceAttrs}${chrome.setInitialOpenState ? ' data-cf-block-open="true"' : ""}>${renderBlockHeader(summaryHtml, bodyHtml)}</div>`
     : `<div${attrs}${sourceAttrs}>${bodyHtml}</div>`;
 
   return {

@@ -14,6 +14,29 @@ export interface FencedDivSurfaceAssemblyPlan {
   readonly setInitialOpenState: boolean;
 }
 
+export type FencedDivTitleSlot =
+  | "none"
+  | "self-closing-paragraph"
+  | "standalone-label";
+
+export type FencedDivBodySlot =
+  | "none"
+  | "plain"
+  | "inline-heading"
+  | "disclosure";
+
+export type FencedDivCaptionSlot =
+  | "none"
+  | "below";
+
+export interface FencedDivSurfaceChromePlan {
+  readonly titleSlot: FencedDivTitleSlot;
+  readonly bodySlot: FencedDivBodySlot;
+  readonly captionSlot: FencedDivCaptionSlot;
+  readonly decorateLastBodyBlockWithQed: boolean;
+  readonly setInitialOpenState: boolean;
+}
+
 export function fencedDivContainerOptions(
   plan: FencedDivRenderPlan,
 ): BlockContainerSurfaceOptions {
@@ -42,5 +65,34 @@ export function fencedDivSurfaceAssemblyPlan(
     renderCaptionBelow: plan.emission.showCaptionBelow && !!plan.title && hasSummary,
     appendPlainBody: renderBody && !disclosure,
     setInitialOpenState: renderBody && disclosure && plan.emission.interactiveBlock,
+  };
+}
+
+export function fencedDivSurfaceChromePlan(
+  plan: FencedDivRenderPlan,
+): FencedDivSurfaceChromePlan {
+  const assembly = fencedDivSurfaceAssemblyPlan(plan);
+  let titleSlot: FencedDivTitleSlot = "none";
+  if (assembly.renderSelfClosingTitleParagraph) {
+    titleSlot = "self-closing-paragraph";
+  } else if (assembly.renderStandaloneTitle) {
+    titleSlot = "standalone-label";
+  }
+
+  let bodySlot: FencedDivBodySlot = "none";
+  if (assembly.prependInlineHeading) {
+    bodySlot = "inline-heading";
+  } else if (assembly.renderDisclosure) {
+    bodySlot = "disclosure";
+  } else if (assembly.appendPlainBody) {
+    bodySlot = "plain";
+  }
+
+  return {
+    titleSlot,
+    bodySlot,
+    captionSlot: assembly.renderCaptionBelow ? "below" : "none",
+    decorateLastBodyBlockWithQed: assembly.addQedToLastBodyBlock,
+    setInitialOpenState: assembly.setInitialOpenState,
   };
 }

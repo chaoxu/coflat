@@ -92,7 +92,7 @@ import {
 } from "../../core/list-emission-plan";
 import {
   fencedDivContainerOptions,
-  fencedDivSurfaceAssemblyPlan,
+  fencedDivSurfaceChromePlan,
 } from "../../core/fenced-div-surface";
 import type { BibStore } from "../state/bib-data";
 import {
@@ -396,7 +396,7 @@ function renderFencedDiv(
     return;
   }
 
-  const assembly = fencedDivSurfaceAssemblyPlan(plan);
+  const chrome = fencedDivSurfaceChromePlan(plan);
   const block = createBlockContainerElement(document, fencedDivContainerOptions(plan));
 
   const summary = plan.presentation
@@ -404,41 +404,41 @@ function renderFencedDiv(
     : undefined;
   const policy = context.surfacePolicy;
 
-  if (assembly.renderSelfClosingTitleParagraph) {
+  if (chrome.titleSlot === "self-closing-paragraph") {
     const paragraph = createParagraphDom(document);
     appendInlineFragments(paragraph, plan.titleFragments, context, policy.bodyInlineSurface);
     block.appendChild(paragraph);
   }
 
-  if (assembly.renderBody) {
+  if (chrome.bodySlot !== "none") {
     const body = document.createDocumentFragment();
     emitBlockChildrenRenderPlan(plan.children, {
       emitBlank: (range) => appendBlankLine(body, range.from, range.to),
       emitChild: (childPlan) => renderNode(body, childPlan.node, context),
     });
 
-    if (assembly.addQedToLastBodyBlock) {
+    if (chrome.decorateLastBodyBlockWithQed) {
       addClassToLastChildElement(body, CSS.blockQed);
     }
-    if (assembly.prependInlineHeading && summary) {
+    if (chrome.bodySlot === "inline-heading" && summary) {
       prependInlineBlockHeading(body, summary);
     }
 
-    if (assembly.renderDisclosure && summary) {
+    if (chrome.bodySlot === "disclosure" && summary) {
       appendBlockHeader(block, summary, body);
     } else {
-      if (assembly.renderStandaloneTitle) {
+      if (chrome.titleSlot === "standalone-label") {
         const strong = createBlockLabelElement(document);
         appendInlineFragments(strong, plan.titleFragments, context, policy.labelInlineSurface);
         block.appendChild(strong);
       }
-      if (assembly.appendPlainBody) {
+      if (chrome.bodySlot === "plain" || chrome.bodySlot === "inline-heading") {
         block.appendChild(body);
       }
     }
   }
 
-  if (assembly.renderCaptionBelow && plan.presentation) {
+  if (chrome.captionSlot === "below" && plan.presentation) {
     const caption = createBlockCaptionElement(document);
     appendBlockCaptionLabel(caption, plan.presentation.label);
     const text = appendBlockCaptionText(caption);

@@ -4,6 +4,7 @@ import { fencedDivRenderPlan } from "./block-render-plan";
 import {
   fencedDivContainerOptions,
   fencedDivSurfaceAssemblyPlan,
+  fencedDivSurfaceChromePlan,
 } from "./fenced-div-surface";
 import { parseMarkdownSource } from "./parser";
 
@@ -39,6 +40,13 @@ describe("fenced div surface assembly", () => {
       appendPlainBody: false,
       setInitialOpenState: true,
     });
+    expect(fencedDivSurfaceChromePlan(plan)).toEqual({
+      titleSlot: "none",
+      bodySlot: "disclosure",
+      captionSlot: "none",
+      decorateLastBodyBlockWithQed: false,
+      setInitialOpenState: true,
+    });
   });
 
   it("plans inline proof heading and QED placement", () => {
@@ -54,6 +62,12 @@ describe("fenced div surface assembly", () => {
       renderDisclosure: false,
       appendPlainBody: true,
     });
+    expect(fencedDivSurfaceChromePlan(plan)).toMatchObject({
+      titleSlot: "none",
+      bodySlot: "inline-heading",
+      captionSlot: "none",
+      decorateLastBodyBlockWithQed: true,
+    });
   });
 
   it("plans below-caption figures", () => {
@@ -67,6 +81,10 @@ describe("fenced div surface assembly", () => {
       renderCaptionBelow: true,
       appendPlainBody: true,
       renderStandaloneTitle: false,
+    });
+    expect(fencedDivSurfaceChromePlan(plan)).toMatchObject({
+      bodySlot: "plain",
+      captionSlot: "below",
     });
   });
 
@@ -91,6 +109,11 @@ describe("fenced div surface assembly", () => {
       renderBody: false,
       renderCaptionBelow: false,
       appendPlainBody: false,
+    });
+    expect(fencedDivSurfaceChromePlan(selfClosingPlan)).toMatchObject({
+      titleSlot: "self-closing-paragraph",
+      bodySlot: "none",
+      captionSlot: "none",
     });
   });
 });
