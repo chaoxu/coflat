@@ -38,6 +38,9 @@ import {
 } from "@codemirror/view";
 import { CSS } from "../../core/constants/css-classes";
 import {
+  footnoteSectionPlanFromNumberedEntries,
+} from "../../core/footnote-section-surface";
+import {
   footnotePlanSectionEntries,
 } from "../../core/semantics/footnote-plan";
 import {
@@ -340,12 +343,12 @@ class FootnoteSectionPlugin implements PluginValue {
     const footnotes = collectFootnotes(view.state);
     if (footnotes.defs.size === 0) return Decoration.none;
 
-    const orderedEntries = orderedFootnoteEntries(footnotes);
-    const definitionsById = new Map(orderedEntries.map((entry) => [entry.id, entry.def]));
-    const entries = footnotePlanSectionEntries(orderedEntries).map((entry) => ({
-      num: entry.number,
+    const entries = footnoteSectionPlanFromNumberedEntries(
+      footnotePlanSectionEntries(orderedFootnoteEntries(footnotes)),
+    ).map((entry) => ({
+      num: entry.num,
       id: entry.id,
-      content: definitionsById.get(entry.id)?.content ?? "",
+      content: entry.def.content,
       defFrom: entry.defFrom,
     }));
 

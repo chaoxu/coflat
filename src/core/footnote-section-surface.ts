@@ -38,6 +38,9 @@ export interface FootnoteSectionOrderedEntryInput {
   readonly include?: boolean;
 }
 
+export type FootnoteSectionProjectedEntry<TEntry extends FootnoteSectionOrderedEntryInput> =
+  Omit<TEntry, "include"> & FootnoteSectionPlanEntry;
+
 export function footnoteEntryId(id: string): string {
   return `fn-${encodeURIComponent(id)}`;
 }
@@ -74,6 +77,23 @@ export function footnoteSectionPlanFromOrderedEntries(
     })),
     options,
   );
+}
+
+export function footnoteSectionPlanFromNumberedEntries<
+  TEntry extends FootnoteSectionOrderedEntryInput,
+>(
+  entries: readonly TEntry[],
+  options: { readonly backrefs?: boolean } = {},
+): readonly FootnoteSectionProjectedEntry<TEntry>[] {
+  const backrefs = options.backrefs ?? true;
+  return entries
+    .filter((entry) => entry.include !== false)
+    .map((entry) => ({
+      ...entry,
+      num: entry.number,
+      defFrom: entry.defFrom,
+      backrefHref: backrefs ? footnoteBackrefHref(entry.id) : undefined,
+    }));
 }
 
 export function renderFootnoteSectionHtml(entries: readonly FootnoteSectionHtmlEntry[]): string {

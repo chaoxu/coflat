@@ -4,6 +4,7 @@ import {
   createFootnoteSectionElement,
   footnoteEntryId,
   footnoteSectionPlan,
+  footnoteSectionPlanFromNumberedEntries,
   footnoteSectionPlanFromOrderedEntries,
   renderFootnoteSectionHtml,
 } from "./footnote-section-surface";
@@ -33,6 +34,24 @@ describe("footnote section surface", () => {
     ], { backrefs: false })).toEqual([
       { num: 1, id: "a", defFrom: 12, backrefHref: undefined },
       { num: 3, id: "orphan", defFrom: 40, backrefHref: undefined },
+    ]);
+  });
+
+  it("preserves source entries while projecting shared section fields", () => {
+    const def = { from: 12, content: "Body" };
+
+    expect(footnoteSectionPlanFromNumberedEntries([
+      { number: 1, id: "a", defFrom: 12, def },
+      { number: 2, id: "missing", include: false, def: { from: 20, content: "" } },
+    ])).toEqual([
+      {
+        number: 1,
+        num: 1,
+        id: "a",
+        defFrom: 12,
+        def,
+        backrefHref: "#fnref-a",
+      },
     ]);
   });
 

@@ -35,13 +35,16 @@ import {
   headingLevelFor,
   headingRenderPlan,
   horizontalRuleRenderPlan,
-  listItemEmissionPlan,
   listRenderPlan,
   type ListItemRenderPlan,
   paragraphRenderPlan,
   tableRenderPlan,
   type TableRowRenderPlan,
 } from "../core/block-render-plan";
+import {
+  listSurfaceEmissionPlan,
+  type ListItemSurfaceEmissionPlan,
+} from "../core/list-emission-plan";
 import {
   fencedDivContainerOptions,
   fencedDivSurfaceAssemblyPlan,
@@ -160,7 +163,7 @@ import {
 import { renderCodeBlockHtml } from "../core/code-block-surface";
 import { renderReaderFootnoteReferenceHtml } from "../core/footnote-reference-surface";
 import {
-  footnoteSectionPlanFromOrderedEntries,
+  footnoteSectionPlanFromNumberedEntries,
   renderFootnoteSectionHtml,
 } from "../core/footnote-section-surface";
 import {
@@ -1291,11 +1294,12 @@ function renderHorizontalRule(ctx: WalkContext, node: SyntaxNode): BlockResult {
 
 function renderList(ctx: WalkContext, node: SyntaxNode): BlockResult {
   const plan = listRenderPlan(ctx.source, node);
-  const items = plan.items.map((item) => renderListItem(ctx, plan.ordered, item));
+  const surfacePlan = listSurfaceEmissionPlan(plan);
+  const items = plan.items.map((item, index) => renderListItem(ctx, item, surfacePlan.items[index]));
 
   return {
     html: renderListSurfaceHtml(
-      { ordered: plan.ordered, task: plan.task, loose: plan.loose, start: plan.start },
+      surfacePlan.options,
       items.map((b) => b.html).join(""),
       blockSourceAttrs(ctx, plan.sourceRange.from, plan.sourceRange.to),
     ),
@@ -1306,11 +1310,11 @@ function renderList(ctx: WalkContext, node: SyntaxNode): BlockResult {
 
 function renderListItem(
   ctx: WalkContext,
-  ordered: boolean,
   plan: ListItemRenderPlan,
+  surfacePlan: ListItemSurfaceEmissionPlan,
 ): BlockResult {
   const blocks: BlockResult[] = [];
-  for (const childPlan of listItemEmissionPlan(plan)) {
+  for (const childPlan of surfacePlan.childPlans) {
     switch (childPlan.kind) {
       case "task": {
         if (!plan.task) break;
@@ -1357,8 +1361,8 @@ function renderListItem(
   }
   return {
     html: renderListItemSurfaceHtml(
-      { ordered, task: plan.task !== null, checked: plan.task?.checked },
-      plan.markerNumber,
+      surfacePlan.options,
+      surfacePlan.markerNumber,
       inner,
       blockSourceAttrs(ctx, plan.sourceRange.from, plan.sourceRange.to),
     ),
@@ -1547,7 +1551,7 @@ function renderFootnoteDef(ctx: WalkContext, node: SyntaxNode): BlockResult {
 
 function renderFootnotesList(ctx: WalkContext): string {
   if (ctx.footnotes.numbering.orderedIds.length === 0) return "";
-  const plannedEntries = footnoteSectionPlanFromOrderedEntries(
+  const plannedEntries = footnoteSectionPlanFromNumberedEntries(
     footnoteEmissionSectionEntries(
       ctx.footnotes,
       (entry) => entry.hasRef || Boolean(entry.body),
@@ -1556,7 +1560,7 @@ function renderFootnotesList(ctx: WalkContext): string {
   return renderFootnoteSectionHtml(
     plannedEntries.map((entry) => ({
       ...entry,
-      html: ctx.footnotes.entriesById.get(entry.id)?.body ?? "",
+      html: entry.body ?? "",
     })),
   );
 }

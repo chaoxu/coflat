@@ -31,7 +31,7 @@ import { CSS } from "../../core/constants/css-classes";
 import { appendCodeBlockDom } from "../../core/code-block-surface";
 import {
   createFootnoteSectionElement,
-  footnoteSectionPlanFromOrderedEntries,
+  footnoteSectionPlanFromNumberedEntries,
 } from "../../core/footnote-section-surface";
 import {
   footnotePlanSectionEntries,
@@ -82,11 +82,14 @@ import {
   fencedDivRenderPlan,
   headingRenderPlan,
   horizontalRuleRenderPlan,
-  listItemEmissionPlan,
   listRenderPlan,
   type ListItemRenderPlan,
   paragraphRenderPlan,
 } from "../../core/block-render-plan";
+import {
+  listSurfaceEmissionPlan,
+  type ListItemSurfaceEmissionPlan,
+} from "../../core/list-emission-plan";
 import {
   fencedDivContainerOptions,
   fencedDivSurfaceAssemblyPlan,
@@ -303,23 +306,16 @@ function renderList(
   context: PreviewRenderContext,
 ): void {
   const plan = listRenderPlan(context.doc, node);
-  const renderedItems = plan.items.map((itemPlan) => {
-    const item = createListItemSurfaceElement(document, {
-      ordered: plan.ordered,
-      task: itemPlan.task !== null,
-      checked: itemPlan.task?.checked,
-    });
-    appendListMarker(item, plan.ordered, itemPlan.markerNumber);
-    renderListItem(item, itemPlan, context);
+  const surfacePlan = listSurfaceEmissionPlan(plan);
+  const renderedItems = plan.items.map((itemPlan, index) => {
+    const itemSurfacePlan = surfacePlan.items[index];
+    const item = createListItemSurfaceElement(document, itemSurfacePlan.options);
+    appendListMarker(item, itemSurfacePlan.options.ordered, itemSurfacePlan.markerNumber);
+    renderListItem(item, itemPlan, itemSurfacePlan, context);
     return item;
   });
 
-  const list = createListSurfaceElement(document, {
-    ordered: plan.ordered,
-    task: plan.task,
-    loose: plan.loose,
-    start: plan.start,
-  });
+  const list = createListSurfaceElement(document, surfacePlan.options);
   list.append(...renderedItems);
   parent.appendChild(list);
 }
@@ -335,9 +331,10 @@ function appendBlankLine(
 function renderListItem(
   parent: HTMLElement,
   plan: ListItemRenderPlan,
+  surfacePlan: ListItemSurfaceEmissionPlan,
   context: PreviewRenderContext,
 ): void {
-  for (const childPlan of listItemEmissionPlan(plan)) {
+  for (const childPlan of surfacePlan.childPlans) {
     switch (childPlan.kind) {
       case "task":
         renderTaskListItem(parent, childPlan.node, plan, context, childPlan.wrapTaskContent);
@@ -508,8 +505,7 @@ function appendFootnoteSection(
   const orderedEntries = orderedFootnoteEntries(context.semantics.footnotes);
   if (orderedEntries.length === 0) return;
 
-  const definitionsById = new Map(orderedEntries.map((entry) => [entry.id, entry.def]));
-  const plannedEntries = footnoteSectionPlanFromOrderedEntries(
+  const plannedEntries = footnoteSectionPlanFromNumberedEntries(
     footnotePlanSectionEntries(orderedEntries),
   );
   if (plannedEntries.length === 0) return;
@@ -519,11 +515,9 @@ function appendFootnoteSection(
     plannedEntries.map((entry) => ({
       ...entry,
       appendContent: (content) => {
-        const def = definitionsById.get(entry.id);
-        if (!def) return;
         renderInlineMarkdown(
           content,
-          def.content,
+          entry.def.content,
           context.macros,
           context.surfacePolicy.bodyInlineSurface,
           {
