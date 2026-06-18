@@ -1,13 +1,27 @@
 import { describe, expect, it } from "vitest";
 import {
+  footnoteBackrefHref,
   createFootnoteSectionElement,
   footnoteEntryId,
+  footnoteSectionPlan,
   renderFootnoteSectionHtml,
 } from "./footnote-section-surface";
 
 describe("footnote section surface", () => {
   it("shares encoded footnote entry ids", () => {
     expect(footnoteEntryId("note:1")).toBe("fn-note%3A1");
+    expect(footnoteBackrefHref("note:1")).toBe("#fnref-note%3A1");
+  });
+
+  it("plans section entries and filters entries without content", () => {
+    expect(footnoteSectionPlan([
+      { num: 1, id: "a", defFrom: 12 },
+      { num: 2, id: "missing", include: false },
+      { num: 3, id: "orphan", defFrom: 40 },
+    ])).toEqual([
+      { num: 1, id: "a", defFrom: 12, backrefHref: "#fnref-a" },
+      { num: 3, id: "orphan", defFrom: 40, backrefHref: "#fnref-orphan" },
+    ]);
   });
 
   it("renders reader footnote section HTML with canonical chrome", () => {

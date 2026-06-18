@@ -21,11 +21,8 @@ function nodeNames(source: string, mode: "semantic" | "html-render"): string[] {
 describe("Coflat parser profiles", () => {
   it("derives render and semantic profiles from one shared extension list", () => {
     expect(htmlRenderExtensions).toBe(coflatSharedMarkdownExtensions);
-    expect(markdownExtensions).toEqual([
-      coflatSharedMarkdownExtensions[0],
-      ...semanticOnlyMarkdownExtensions,
-      ...coflatSharedMarkdownExtensions.slice(1),
-    ]);
+    expect(markdownExtensions).toBe(coflatSharedMarkdownExtensions);
+    expect(semanticOnlyMarkdownExtensions).toEqual([]);
   });
 
   it("shares FORMAT.md syntax across semantic and HTML-render parser modes", () => {
@@ -51,16 +48,16 @@ describe("Coflat parser profiles", () => {
     }
   });
 
-  it("keeps ordinary blockquote parsing as the only intentional profile delta", () => {
+  it("parses ordinary blockquotes in both semantic and HTML-render modes", () => {
     const source = "> authored Markdown quote";
 
-    expect(nodeNames(source, "semantic")).not.toContain("Blockquote");
+    expect(nodeNames(source, "semantic")).toContain("Blockquote");
     expect(nodeNames(source, "html-render")).toContain("Blockquote");
   });
 
   it("reuses the configured parser instance for each mode", () => {
     expect(getMarkdownParser("semantic")).toBe(getMarkdownParser("semantic"));
     expect(getMarkdownParser("html-render")).toBe(getMarkdownParser("html-render"));
-    expect(getMarkdownParser("semantic")).not.toBe(getMarkdownParser("html-render"));
+    expect(getMarkdownParser("semantic")).toBe(getMarkdownParser("html-render"));
   });
 });

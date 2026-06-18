@@ -25,7 +25,6 @@ import { fencedDiv } from "./fenced-div";
 import { footnoteExtension } from "./footnote";
 import { highlightExtension } from "./highlight";
 import { mathExtension } from "./math-backslash";
-import { removeBlockquote } from "./remove-blockquote";
 import { removeIndentedCode } from "./remove-indented-code";
 import { strikethroughExtension } from "./strikethrough";
 import { tableExtension } from "./table";
@@ -51,48 +50,33 @@ export const coflatSharedMarkdownExtensions = [
 ];
 
 /**
- * Semantic-only parser extensions.
- *
- * Editor/source semantics strip ordinary `>` blockquotes because Coflat
- * blockquotes are modeled as fenced divs. HTML render surfaces intentionally
- * omit this extension so authored Markdown blockquotes can still be displayed.
+ * Deprecated compatibility export for callers that used to inspect parser
+ * profile deltas. Reader and editor now intentionally share the same parser.
  */
-export const semanticOnlyMarkdownExtensions = [
-  removeBlockquote,
-];
+export const semanticOnlyMarkdownExtensions = [];
 
 /**
  * Semantic parser extensions used by the editor state and Node parse helpers.
  * This is the default Coflat syntax model.
  */
-export const markdownExtensions = [
-  removeIndentedCode,
-  ...semanticOnlyMarkdownExtensions,
-  ...coflatSharedMarkdownExtensions.slice(1),
-];
+export const markdownExtensions = coflatSharedMarkdownExtensions;
 
 /**
  * Parser extensions for in-app HTML renderers.
  *
- * This is the semantic parser plus one intentional surface distinction:
- * standard `>` blockquotes stay as Blockquote nodes so read/preview surfaces
- * can render authored Markdown as HTML. All parser construction goes through
- * getMarkdownParser/parseMarkdownSource so this distinction stays explicit.
+ * Kept as an alias so older call sites can keep naming their surface, while
+ * both reader and editor use the exact same Coflat parser profile.
  */
 export const htmlRenderExtensions = coflatSharedMarkdownExtensions;
 
 export type MarkdownParserMode = "semantic" | "html-render";
 
-let markdownSemanticParser: ReturnType<typeof baseMarkdownParser.configure> | null = null;
-let markdownHtmlRenderParser: ReturnType<typeof baseMarkdownParser.configure> | null = null;
+let markdownParser: ReturnType<typeof baseMarkdownParser.configure> | null = null;
 
 export function getMarkdownParser(mode: MarkdownParserMode = "semantic"): ReturnType<typeof baseMarkdownParser.configure> {
-  if (mode === "html-render") {
-    markdownHtmlRenderParser ??= baseMarkdownParser.configure(htmlRenderExtensions);
-    return markdownHtmlRenderParser;
-  }
-  markdownSemanticParser ??= baseMarkdownParser.configure(markdownExtensions);
-  return markdownSemanticParser;
+  void mode;
+  markdownParser ??= baseMarkdownParser.configure(coflatSharedMarkdownExtensions);
+  return markdownParser;
 }
 
 export function parseMarkdownSource(source: string, mode: MarkdownParserMode = "semantic"): Tree {

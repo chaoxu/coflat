@@ -574,18 +574,17 @@ describe("FORMAT.md coverage: Lists", () => {
   });
 });
 
-describe("FORMAT.md coverage: Blockquotes (fenced div form)", () => {
+describe("FORMAT.md coverage: Blockquotes", () => {
   it("parses blockquote as a FencedDiv with .blockquote class", () => {
     const semantics = masterState.field(documentAnalysisField);
     const bq = semantics.fencedDivs.find((d) => d.primaryClass === "blockquote");
     expect(bq).toBeDefined();
   });
 
-  it("standard > blockquotes are disabled", () => {
+  it("parses standard > blockquotes", () => {
     const doc = "> This is a standard blockquote.\n\nParagraph after.";
     const state = createTestState(doc);
-    // removeBlockquote extension disables standard blockquote parsing
-    expect(getNodeNames(state)).not.toContain("Blockquote");
+    expect(getNodeNames(state)).toContain("Blockquote");
   });
 });
 
@@ -722,10 +721,10 @@ describe("FORMAT.md coverage: Removed Features", () => {
     expect(names.filter((n) => n === "FencedCode")).toHaveLength(0);
   });
 
-  it("standard > blockquotes are disabled", () => {
+  it("standard > blockquotes are supported", () => {
     const doc = "> Quoted text.\n>\n> More quoted.";
     const state = createTestState(doc);
-    expect(getNodeNames(state)).not.toContain("Blockquote");
+    expect(getNodeNames(state)).toContain("Blockquote");
   });
 
   it("Pandoc definition lists are not canonical", () => {

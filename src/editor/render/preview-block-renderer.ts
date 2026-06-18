@@ -32,7 +32,10 @@ import {
 } from "../../core/constants/block-manifest";
 import { CSS } from "../../core/constants/css-classes";
 import { appendCodeBlockDom } from "../../core/code-block-surface";
-import { createFootnoteEntryElement } from "../../core/footnote-section-surface";
+import {
+  createFootnoteSectionElement,
+  footnoteSectionPlan,
+} from "../../core/footnote-section-surface";
 import {
   createDisplayMathContentElement,
   createDisplayMathSurfaceElement,
@@ -57,6 +60,7 @@ import {
 import {
   analyzeDocumentSemantics,
   numberFootnotes,
+  orderedFootnoteEntries,
   stringTextSource,
   type DocumentSemantics,
 } from "../semantics/document";
@@ -74,7 +78,6 @@ import {
   documentRenderPlan,
   displayMathRenderPlan,
   fencedDivRenderPlan,
-  footnoteDefinitionRenderPlan,
   headingRenderPlan,
   horizontalRuleRenderPlan,
   listRenderPlan,
@@ -183,7 +186,7 @@ function renderNode(
     horizontalRule: () => renderHorizontalRule(parent, node),
     fencedDiv: () => renderFencedDiv(parent, node, context),
     displayMath: () => renderDisplayMath(parent, node, context),
-    footnoteDefinition: () => renderFootnoteDef(parent, node, context),
+    footnoteDefinition: () => undefined,
     table: () => renderPreviewTable(parent, node, context),
     blockquote: () => renderBlockquote(parent, node, context),
     ignored: () => undefined,
@@ -206,6 +209,7 @@ function renderDocument(
   for (const range of plan.trailingBlankRanges) {
     appendBlankLine(parent, range.from, range.to);
   }
+  appendFootnoteSection(parent, context);
 }
 
 function renderChildNodes(
@@ -502,23 +506,31 @@ function renderDisplayMath(
   parent.appendChild(wrapper);
 }
 
-function renderFootnoteDef(
+function appendFootnoteSection(
   parent: HTMLElement | DocumentFragment,
-  node: SyntaxNode,
   context: PreviewRenderContext,
 ): void {
-  const plan = footnoteDefinitionRenderPlan(context.doc, node);
-  if (!plan) return;
+  const orderedEntries = orderedFootnoteEntries(context.semantics.footnotes);
+  if (orderedEntries.length === 0) return;
 
-  parent.appendChild(
-    createFootnoteEntryElement(document, {
-      num: context.footnoteNumbers.get(plan.id) ?? 0,
-      id: plan.id,
-      defFrom: plan.sourceRange.from,
+  const definitionsById = new Map(orderedEntries.map((entry) => [entry.id, entry.def]));
+  const plannedEntries = footnoteSectionPlan(orderedEntries.map((entry) => ({
+    num: entry.number,
+    id: entry.id,
+    defFrom: entry.def.from,
+  })));
+  if (plannedEntries.length === 0) return;
+
+  parent.appendChild(createFootnoteSectionElement(
+    document,
+    plannedEntries.map((entry) => ({
+      ...entry,
       appendContent: (content) => {
-        renderInlineFragmentsToDom(
+        const def = definitionsById.get(entry.id);
+        if (!def) return;
+        renderInlineMarkdown(
           content,
-          plan.fragments,
+          def.content,
           context.macros,
           context.surfacePolicy.bodyInlineSurface,
           {
@@ -528,8 +540,8 @@ function renderFootnoteDef(
           },
         );
       },
-    }),
-  );
+    })),
+  ));
 }
 
 function renderBlockquote(

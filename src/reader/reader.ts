@@ -125,7 +125,10 @@ import {
 } from "../core/list-surface";
 import { renderCodeBlockHtml } from "../core/code-block-surface";
 import { renderReaderFootnoteReferenceHtml } from "../core/footnote-reference-surface";
-import { renderFootnoteSectionHtml } from "../core/footnote-section-surface";
+import {
+  footnoteSectionPlan,
+  renderFootnoteSectionHtml,
+} from "../core/footnote-section-surface";
 import {
   replaceDisplayMathContent,
   renderDisplayMathPlaceholderHtml,
@@ -186,10 +189,8 @@ export type {
 // ---------------------------------------------------------------------------
 // Parser (lazy: only constructed when the fast path can't handle the input).
 //
-// We use `htmlRenderExtensions` rather than `markdownExtensions` because
-// the reader wants `>` blockquotes to parse as `<blockquote>`; the editor
-// uses fenced divs for blockquotes and strips standard syntax, but a
-// preview/diff host renders authored content as written.
+// The mode name is a compatibility label for older reader/preview callers.
+// Reader and editor now share one configured Coflat parser profile.
 // ---------------------------------------------------------------------------
 
 function parseSource(source: string): Tree {
@@ -1625,14 +1626,14 @@ function renderFootnoteDef(ctx: WalkContext, node: SyntaxNode): BlockResult {
 function renderFootnotesList(ctx: WalkContext): string {
   if (ctx.footnotesInOrder.length === 0) return "";
   return renderFootnoteSectionHtml(
-    ctx.footnotesInOrder
-      .filter((fn) => fn.hasRef || fn.bodyHtml)
-      .map((fn) => ({
-        num: fn.number,
-        id: fn.id,
-        html: fn.bodyHtml,
-        backrefHref: `#fnref-${encodeURIComponent(fn.id)}`,
-      })),
+    footnoteSectionPlan(ctx.footnotesInOrder.map((fn) => ({
+      num: fn.number,
+      id: fn.id,
+      include: fn.hasRef || Boolean(fn.bodyHtml),
+    }))).map((entry) => ({
+      ...entry,
+      html: ctx.footnotesById.get(entry.id)?.bodyHtml ?? "",
+    })),
   );
 }
 

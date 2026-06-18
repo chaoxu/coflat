@@ -210,6 +210,15 @@ describe("reader / editor-preview emission parity", () => {
       source: "before\n\n---\n\nafter",
     },
     {
+      name: "footnotes use one trailing section in reader and preview",
+      source: [
+        "Intro[^note:1] and again[^note:1].",
+        "",
+        "[^note:1]: Footnote with **bold** and `code`.",
+        "[^orphan]: Orphan definition.",
+      ].join("\n"),
+    },
+    {
       name: "numbered theorem block with title",
       source: [
         '::: {.theorem #thm:a title="Main"}',
@@ -357,12 +366,14 @@ describe("reader / editor-preview emission parity", () => {
     );
 
     const entry = host.querySelector<HTMLElement>('[id="fn-note%3A1"]');
+    expect(host.lastElementChild?.className).toBe("cf-footnote-section");
     expect(entry?.className).toBe("cf-bibliography-entry");
     expect(entry?.dataset.defFrom).toBe("17");
     expect(entry?.querySelector("sup")?.className).toBe("cf-bibliography-entry-number");
     expect(entry?.querySelector("sup")?.textContent).toBe("1");
     expect(entry?.querySelector("strong")?.className).toBe("cf-bold");
     expect(entry?.querySelector(".cf-doc-inline-math.cf-math-inline")?.getAttribute("aria-label")).toBe("x^2");
+    expect(entry?.querySelector(".cf-footnote-backref")?.getAttribute("href")).toBe("#fnref-note%3A1");
     expect(host.querySelector(".footnote")).toBeNull();
   });
 

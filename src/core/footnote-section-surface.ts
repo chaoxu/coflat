@@ -17,8 +17,41 @@ export interface FootnoteSectionDomEntry {
   readonly appendContent: (content: HTMLSpanElement) => void;
 }
 
+export interface FootnoteSectionPlanInput {
+  readonly num: number;
+  readonly id: string;
+  readonly defFrom?: number;
+  readonly include?: boolean;
+}
+
+export interface FootnoteSectionPlanEntry {
+  readonly num: number;
+  readonly id: string;
+  readonly defFrom?: number;
+  readonly backrefHref?: string;
+}
+
 export function footnoteEntryId(id: string): string {
   return `fn-${encodeURIComponent(id)}`;
+}
+
+export function footnoteBackrefHref(id: string): string {
+  return `#fnref-${encodeURIComponent(id)}`;
+}
+
+export function footnoteSectionPlan(
+  entries: readonly FootnoteSectionPlanInput[],
+  options: { readonly backrefs?: boolean } = {},
+): readonly FootnoteSectionPlanEntry[] {
+  const backrefs = options.backrefs ?? true;
+  return entries
+    .filter((entry) => entry.include !== false)
+    .map((entry) => ({
+      num: entry.num,
+      id: entry.id,
+      defFrom: entry.defFrom,
+      backrefHref: backrefs ? footnoteBackrefHref(entry.id) : undefined,
+    }));
 }
 
 export function renderFootnoteSectionHtml(entries: readonly FootnoteSectionHtmlEntry[]): string {
