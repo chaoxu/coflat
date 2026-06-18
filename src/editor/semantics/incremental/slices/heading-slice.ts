@@ -11,6 +11,11 @@ import type {
   HeadingStructure,
   StructuralWindowExtraction,
 } from "../window-extractor";
+import {
+  initialHeadingNumberCounters,
+  nextHeadingNumber,
+  type HeadingNumberCounters,
+} from "../../../../core/semantics/heading-numbering";
 
 export interface HeadingSlice {
   readonly headings: readonly HeadingSemantics[];
@@ -32,22 +37,6 @@ function isFinalizedHeading(
   heading: HeadingStructure,
 ): heading is HeadingSemantics {
   return "number" in heading;
-}
-
-function nextHeadingNumber(
-  heading: Pick<HeadingStructure, "level" | "unnumbered">,
-  counters: number[],
-): string {
-  if (heading.unnumbered) {
-    return "";
-  }
-
-  counters[heading.level]++;
-  for (let level = heading.level + 1; level <= 6; level++) {
-    counters[level] = 0;
-  }
-
-  return counters.slice(1, heading.level + 1).join(".");
 }
 
 function finalizeHeading(
@@ -154,19 +143,23 @@ function finalizeHeadingTail(
   headings: readonly HeadingStructure[],
   startIndex: number,
 ): readonly HeadingSemantics[] {
-  const counters = [0, 0, 0, 0, 0, 0, 0];
+  let counters: HeadingNumberCounters = initialHeadingNumberCounters();
   const prefix: HeadingSemantics[] = [];
 
   for (let index = 0; index < startIndex; index++) {
     const heading = headings[index];
-    prefix.push(finalizeHeading(heading, nextHeadingNumber(heading, counters)));
+    const result = nextHeadingNumber(heading, counters);
+    counters = result.counters;
+    prefix.push(finalizeHeading(heading, result.number));
   }
 
   const tail: HeadingSemantics[] = [];
 
   for (let index = startIndex; index < headings.length; index++) {
     const heading = headings[index];
-    tail.push(finalizeHeading(heading, nextHeadingNumber(heading, counters)));
+    const result = nextHeadingNumber(heading, counters);
+    counters = result.counters;
+    tail.push(finalizeHeading(heading, result.number));
   }
 
   if (startIndex === 0) {

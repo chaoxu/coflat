@@ -75,6 +75,11 @@ import {
   displayTitleForBlockType,
   type BlockNumberingSpecLookup,
 } from "../core/semantics/block-numbering";
+import {
+  initialHeadingNumberCounters,
+  nextHeadingNumber,
+  type HeadingNumberCounters,
+} from "../core/semantics/heading-numbering";
 import { blockPresentationPlan } from "../core/block-presentation";
 import {
   bibliographyEntries as coreBibliographyEntries,
@@ -208,15 +213,6 @@ function nextBlockNumber(ctx: WalkContext, type: string): number | undefined {
   const next = (ctx.blockCounters.get(counterGroup) ?? 0) + 1;
   ctx.blockCounters.set(counterGroup, next);
   return next;
-}
-
-function nextHeadingNumber(ctx: WalkContext, level: number, unnumbered: boolean): string {
-  if (unnumbered) return "";
-  ctx.headingCounters[level]++;
-  for (let nextLevel = level + 1; nextLevel <= 6; nextLevel++) {
-    ctx.headingCounters[nextLevel] = 0;
-  }
-  return ctx.headingCounters.slice(1, level + 1).join(".");
 }
 
 function renderInlineSnippet(ctx: WalkContext, source: string): BlockResult {
@@ -619,7 +615,7 @@ interface WalkContext {
   outline: ReaderOutlineEntry[];
   /** Heading ids already emitted, for slug de-duplication. */
   usedHeadingIds: Set<string>;
-  headingCounters: number[];
+  headingCounters: HeadingNumberCounters;
   blockCounters: Map<string, number>;
   blockNumbering: NumberingScheme;
   blockNumberingSpec: BlockNumberingSpecLookup;
@@ -1273,7 +1269,12 @@ function renderHeading(ctx: WalkContext, node: SyntaxNode): BlockResult {
   // The numbering walk always advances (and records the catalog), so crossrefs
   // resolve even when numbers aren't shown; `displayUnnumbered` only hides the
   // number — when sectionNumbering is off, every heading renders unnumbered.
-  const headingNumber = nextHeadingNumber(ctx, plan.level, !!plan.attributes?.unnumbered);
+  const headingNumberResult = nextHeadingNumber(
+    { level: plan.level, unnumbered: !!plan.attributes?.unnumbered },
+    ctx.headingCounters,
+  );
+  ctx.headingCounters = headingNumberResult.counters;
+  const headingNumber = headingNumberResult.number;
   const headingTitle = plan.text.trim();
   const headingLabel = formatHeadingReferenceLabel({ number: headingNumber, text: headingTitle });
   if (ctx.buildCatalog && plan.attributes?.id) {
@@ -1676,7 +1677,7 @@ function walkDocument(
     collectOutline: !!opts.outline,
     outline: [],
     usedHeadingIds: new Set(),
-    headingCounters: [0, 0, 0, 0, 0, 0, 0],
+    headingCounters: initialHeadingNumberCounters(),
     blockCounters: new Map(),
     blockNumbering: frontmatter.config.numbering ?? "grouped",
     blockNumberingSpec: createConfiguredBlockNumberingSpecLookup(blockConfig),
