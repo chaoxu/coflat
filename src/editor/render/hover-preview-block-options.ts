@@ -1,4 +1,5 @@
 import type { EditorView } from "@codemirror/view";
+import type { DocumentSurfaceName } from "../../core/document-surface-policy";
 import type { BlockCounterEntry } from "../../core/lib/file-system-types";
 import { documentContextFacet } from "../document-context";
 import { documentPathFacet } from "../lib/types";
@@ -14,6 +15,7 @@ export function buildPreviewBlockOptions(
   view: EditorView,
   macros: Record<string, string>,
   imageUrlOverrides?: ReadonlyMap<string, string>,
+  documentSurface: DocumentSurfaceName = "editor-preview",
 ): PreviewBlockRenderOptions {
   const bibData = view.state.field(bibDataField, false);
   const store = bibData?.store ?? new Map();
@@ -51,5 +53,6 @@ export function buildPreviewBlockOptions(
     documentContext: view.state.facet(documentContextFacet),
     documentPath: view.state.facet(documentPathFacet),
     imageUrlOverrides,
+    documentSurface,
   };
 }

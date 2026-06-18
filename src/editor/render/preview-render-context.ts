@@ -1,4 +1,5 @@
 import type { CitationFormatter } from "../../core/document-context-types";
+import type { DocumentSurfacePolicy } from "../../core/document-surface-policy";
 import type { BlockCounterEntry } from "../../core/lib/file-system-types";
 import type { NumberedBlock } from "../../core/semantics/block-numbering";
 import type { DocumentSemantics } from "../semantics/document";
@@ -19,4 +20,5 @@ export interface PreviewRenderContext {
   readonly imageUrlOverrides?: ReadonlyMap<string, string>;
   readonly footnoteNumbers: ReadonlyMap<string, number>;
   readonly referenceContext: InlineReferenceRenderContext;
+  readonly surfacePolicy: DocumentSurfacePolicy;
 }

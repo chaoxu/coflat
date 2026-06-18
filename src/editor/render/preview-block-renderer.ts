@@ -20,7 +20,11 @@ import {
   createBlockquoteElement,
   createHorizontalRuleElement,
 } from "../../core/block-surface";
-import { documentSurfacePolicy } from "../../core/document-surface-policy";
+import {
+  documentSurfacePolicy,
+  type DocumentSurfaceName,
+} from "../../core/document-surface-policy";
+import type { InlineSurfaceName } from "../../core/inline-surface-policy";
 import {
   EXCLUDED_FROM_FALLBACK,
   isCollapsibleBlockType,
@@ -103,6 +107,7 @@ export interface PreviewBlockRenderOptions {
   readonly documentPath?: string;
   readonly imageUrlOverrides?: ReadonlyMap<string, string>;
   readonly referenceSemantics?: DocumentSemantics;
+  readonly documentSurface?: DocumentSurfaceName;
 }
 
 /**
@@ -132,6 +137,7 @@ export function renderPreviewBlockContentToDom(
   );
   const referenceSemantics = options.referenceSemantics ?? semantics;
   const footnoteNumbers = numberFootnotes(semantics.footnotes);
+  const surfacePolicy = documentSurfacePolicy(options.documentSurface ?? "editor-preview");
   const referenceController = createPreviewReferencePresentationController({
     bibliography: options.bibliography,
     blockCounters: options.blockCounters,
@@ -139,7 +145,7 @@ export function renderPreviewBlockContentToDom(
     documentPath: options.documentPath,
     formatter: options.formatter,
     referenceSemantics,
-    surface: "editor-widget",
+    surface: surfacePolicy.referenceHostSurface,
   });
 
   referenceController.registerCitations(semantics.references);
@@ -158,6 +164,7 @@ export function renderPreviewBlockContentToDom(
     imageUrlOverrides: options.imageUrlOverrides,
     footnoteNumbers,
     referenceContext: referenceController,
+    surfacePolicy,
   };
 
   renderNode(container, tree.topNode, context);
@@ -280,7 +287,7 @@ function renderParagraph(
       paragraph,
       plan.fragments,
       context.macros,
-      "document-body",
+      context.surfacePolicy.bodyInlineSurface,
       {
         ...context.referenceContext,
         imageUrlOverrides: context.imageUrlOverrides,
@@ -320,7 +327,7 @@ function renderHeading(
         target,
         plan.fragments,
         context.macros,
-        "document-body",
+        context.surfacePolicy.bodyInlineSurface,
         {
           ...context.referenceContext,
           imageUrlOverrides: context.imageUrlOverrides,
@@ -433,7 +440,7 @@ function renderTaskListItem(
         target,
         content,
         context.macros,
-        "document-body",
+        context.surfacePolicy.bodyInlineSurface,
         {
           ...context.referenceContext,
           imageUrlOverrides: context.imageUrlOverrides,
@@ -473,11 +480,11 @@ function renderFencedDiv(
   const summary = plan.presentation
     ? createBlockSummaryFragment(context, plan.presentation)
     : undefined;
-  const policy = documentSurfacePolicy("editor-preview");
+  const policy = context.surfacePolicy;
 
   if (title && plan.isSelfClosing) {
     const paragraph = createParagraphDom(document);
-    appendInlineText(paragraph, title, context, "document-body");
+    appendInlineText(paragraph, title, context, policy.bodyInlineSurface);
     block.appendChild(paragraph);
   }
 
@@ -506,7 +513,7 @@ function renderFencedDiv(
     } else {
       if (title && !plan.presentation?.hasCaptionBelow && !plan.presentation?.hasInlineHeader) {
         const strong = createBlockLabelElement(document);
-        appendInlineText(strong, title, context, "document-body");
+        appendInlineText(strong, title, context, policy.labelInlineSurface);
         block.appendChild(strong);
       }
       block.appendChild(body);
@@ -517,7 +524,7 @@ function renderFencedDiv(
     const caption = createBlockCaptionElement(document);
     appendBlockCaptionLabel(caption, plan.presentation.label);
     const text = appendBlockCaptionText(caption);
-    appendInlineText(text, title, context, "document-body");
+    appendInlineText(text, title, context, policy.labelInlineSurface);
     block.appendChild(caption);
   }
 
@@ -533,7 +540,7 @@ function createBlockSummaryFragment(
     plan.label,
     plan.showTitleInHeader
       ? (renderedTitle) => {
-        appendInlineText(renderedTitle, plan.title ?? "", context, "document-body");
+        appendInlineText(renderedTitle, plan.title ?? "", context, context.surfacePolicy.labelInlineSurface);
       }
       : undefined,
   );
@@ -590,7 +597,7 @@ function renderFootnoteDef(
           content,
           plan.fragments,
           context.macros,
-          "document-body",
+          context.surfacePolicy.bodyInlineSurface,
           {
             ...context.referenceContext,
             imageUrlOverrides: context.imageUrlOverrides,
@@ -625,7 +632,7 @@ function appendInlineNode(
     node,
     context.doc,
     context.macros,
-    "document-body",
+    context.surfacePolicy.bodyInlineSurface,
     {
       ...context.referenceContext,
       imageUrlOverrides: context.imageUrlOverrides,
@@ -638,7 +645,7 @@ function appendInlineText(
   parent: HTMLElement,
   text: string,
   context: PreviewRenderContext,
-  surface: "document-body" | "document-inline",
+  surface: InlineSurfaceName,
 ): void {
   renderInlineMarkdown(parent, text, context.macros, surface, {
     ...context.referenceContext,

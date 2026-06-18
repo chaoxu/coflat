@@ -15,6 +15,36 @@ describe("document surfaces", () => {
     ).toBe("docs");
   });
 
+  it("resolves references in chrome labels without making links active", () => {
+    const html = renderDocumentFragmentToHtml({
+      kind: "chrome-label",
+      text: "[docs](https://example.com) for [@thm:main]",
+      referenceContext: {
+        classify(id) {
+          if (id !== "thm:main") return { kind: "unresolved", id };
+          return {
+            kind: "crossref",
+            resolved: {
+              kind: "block",
+              label: "Theorem 2",
+              number: 2,
+            },
+          };
+        },
+        cite(ids) {
+          return `[${ids.join(", ")}]`;
+        },
+        citeNarrative(id) {
+          return id;
+        },
+      },
+    });
+
+    expect(html).toContain("docs for");
+    expect(html).toContain("Theorem 2");
+    expect(html).not.toContain("https://example.com");
+  });
+
   it("keeps document-inline richness for titles", () => {
     expect(
       renderDocumentFragmentToHtml({

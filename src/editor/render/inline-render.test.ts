@@ -365,6 +365,11 @@ describe("renderInlineMarkdown — surface policies", () => {
     expect(html).toBe("text");
   });
 
+  it("degrades links to inert text in outline-label-inline", () => {
+    const html = render("[text](https://example.com)", {}, "outline-label-inline");
+    expect(html).toBe("text");
+  });
+
   it("degrades images to alt text in document-inline", () => {
     const html = render("![alt text](image.png)", {}, "document-inline");
     expect(html).toBe("alt text");
@@ -407,6 +412,19 @@ describe("renderInlineMarkdown — surface policies", () => {
   it("renders cross references as inert text in ui-chrome-inline", () => {
     const html = render("See [@thm-evt]", {}, "ui-chrome-inline");
     expect(html).toBe("See @thm-evt");
+  });
+
+  it("resolves cross references in outline-label-inline", () => {
+    const html = renderWithReferenceContext(
+      "Proof of [@thm:fundamental]",
+      inlineReferenceContext,
+      "outline-label-inline",
+    );
+    const container = document.createElement("div");
+    container.innerHTML = html;
+    expect(html).toContain("Proof of ");
+    expect(html).toContain("Theorem 3");
+    expect(container.textContent).not.toContain("@thm:fundamental");
   });
 
   it("keeps narrative references inert in document-inline without bibliography context", () => {

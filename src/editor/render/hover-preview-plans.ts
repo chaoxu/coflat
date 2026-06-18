@@ -1,4 +1,5 @@
 import { type EditorView } from "@codemirror/view";
+import { documentSurfacePolicy } from "../../core/document-surface-policy";
 import { CSS } from "../../core/constants";
 import {
   createEditorReferencePresentationController,
@@ -146,7 +147,7 @@ function buildBlockPreviewPlan(
       renderPreviewBlockContentToDom(
         body,
         text,
-        buildPreviewBlockOptions(view, macros, mediaState.imageUrlOverrides),
+        buildPreviewBlockOptions(view, macros, mediaState.imageUrlOverrides, "hover-preview"),
       );
       replacePdfPreviewImages(body, mediaState.readyPdfPreviews);
       normalizeWidePreviewContent(body);
@@ -307,6 +308,7 @@ export function buildCrossrefPreviewContent(
   const equationLabels = view.state.field(documentAnalysisField, false)?.equationById;
   const presentation = createEditorReferencePresentationController(view.state, {
     equationLabels,
+    surface: documentSurfacePolicy("hover-preview").referenceHostSurface,
   });
   const classification = presentation.classify(id, false);
   return buildCrossrefTooltipPlan(
@@ -326,6 +328,7 @@ export function buildCrossrefCompletionPreviewContent(
   const equationLabels = view.state.field(documentAnalysisField, false)?.equationById;
   const presentation = createEditorReferencePresentationController(view.state, {
     equationLabels,
+    surface: documentSurfacePolicy("completion-preview").referenceHostSurface,
   });
   const classification = presentation.classify(id, false);
   return buildCrossrefTooltipPlan(
@@ -427,6 +430,7 @@ export function buildTooltipPlanForElement(
     store,
     formatter: bibData.formatter,
     equationLabels,
+    surface: documentSurfacePolicy("hover-preview").referenceHostSurface,
   });
   const classifications = ref.ids.map((id) =>
     presentation.classify(id, ref.bracketed),

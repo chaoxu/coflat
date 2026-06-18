@@ -1,6 +1,7 @@
 import type { Extension, Text } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 
+import { documentSurfacePolicy } from "../../core/document-surface-policy";
 import { isFrontmatterDelimiterLine } from "../../core/parser/frontmatter";
 import { inlineFragmentsPlainText, parseInlineFragments } from "../inline-fragments";
 import { documentContextFacet } from "../document-context";
@@ -213,8 +214,9 @@ function computeOutline(view: EditorView): readonly OutlineEntry[] {
     return [];
   }
 
+  const surfacePolicy = documentSurfacePolicy("outline-label");
   const referenceContext = createEditorReferencePresentationController(view.state, {
-    surface: "editor-widget",
+    surface: surfacePolicy.referenceHostSurface,
   });
   const mathMacros = view.state.facet(documentContextFacet).mathMacros;
 
@@ -230,7 +232,7 @@ function computeOutline(view: EditorView): readonly OutlineEntry[] {
         text: markdown,
         macros: mathMacros,
         referenceContext,
-        surface: "document-inline",
+        surface: surfacePolicy.chromeLabelInlineSurface,
       }),
       line: line.number,
       from: heading.from,

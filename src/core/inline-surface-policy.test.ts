@@ -35,4 +35,14 @@ describe("inlineSurfacePolicy", () => {
       hardBreaks: "space",
     });
   });
+
+  it("keeps outline labels chrome-safe while resolving references", () => {
+    expect(inlineSurfacePolicy("outline-label-inline")).toEqual({
+      links: "inert",
+      references: "resolved",
+      images: "alt-text",
+      footnotes: "raw-superscript",
+      hardBreaks: "space",
+    });
+  });
 });

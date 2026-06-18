@@ -15,7 +15,10 @@ import {
   inlineFragmentsPlainText,
   type InlineFragment,
 } from "../core/inline-fragments";
-import { documentSurfacePolicy } from "../core/document-surface-policy";
+import {
+  documentSurfacePolicy,
+  type DocumentSurfacePolicy,
+} from "../core/document-surface-policy";
 import { inlineSurfacePolicy } from "../core/inline-surface-policy";
 import {
   blockquoteRenderPlan,
@@ -576,6 +579,8 @@ interface WalkContext {
   mathSourcePositions: boolean;
   /** Semantic block disclosure policy for this document surface. */
   semanticBlockDisclosures: "interactive" | "static";
+  /** Shared document-surface policy for inline and reference presentation choices. */
+  surfacePolicy: DocumentSurfacePolicy;
   /** When true, emit ids on all headings and accumulate {@link outline}. */
   collectOutline: boolean;
   /** Headings in document order; populated only when {@link collectOutline}. */
@@ -635,7 +640,7 @@ function renderInlineFragmentsForReader(
   let html = "";
   let text = "";
   let hasMath = false;
-  const policy = inlineSurfacePolicy("document-body");
+  const policy = inlineSurfacePolicy(ctx.surfacePolicy.bodyInlineSurface);
 
   const renderChildren = (children: readonly InlineFragment[]) =>
     renderInlineFragmentsForReader(ctx, children, from, to);
@@ -715,7 +720,7 @@ function renderInlineFragmentsForReader(
               documentPath: ctx.resolvers.documentPath,
               raw: "",
               sourceRange: rangeFor(fragment),
-              surface: "reader",
+              surface: ctx.surfacePolicy.referenceHostSurface,
             },
           );
           if (resolved) {
@@ -878,7 +883,7 @@ function buildReaderRefResolverEnv(
       raw,
     },
     documentPath: ctx.resolvers.documentPath,
-    surface: "reader",
+    surface: ctx.surfacePolicy.referenceHostSurface,
   };
 }
 
@@ -1759,15 +1764,17 @@ function walkDocument(
   const frontmatterEnd = frontmatter.end;
   const blockConfig = frontmatter.config.blocks;
   const buildCatalog = !!(opts.resolveReferences || opts.referencePreviews);
+  const surfacePolicy = opts.interactiveBlockDisclosures === false
+    ? documentSurfacePolicy("hover-preview")
+    : documentSurfacePolicy("reader");
   const ctx: WalkContext = {
     source,
     resolvers,
     lineOffsets: opts.sourceLineAttribution ? buildLineOffsets(source) : null,
     sourcePositions: !!opts.sourcePositions,
     mathSourcePositions: !!(opts.sourcePositions || opts.mathSourcePositions),
-    semanticBlockDisclosures: opts.interactiveBlockDisclosures === false
-      ? documentSurfacePolicy("hover-preview").semanticBlockDisclosures
-      : documentSurfacePolicy("reader").semanticBlockDisclosures,
+    semanticBlockDisclosures: surfacePolicy.semanticBlockDisclosures,
+    surfacePolicy,
     collectOutline: !!opts.outline,
     outline: [],
     usedHeadingIds: new Set(),

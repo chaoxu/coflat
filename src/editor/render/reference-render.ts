@@ -17,6 +17,7 @@ import {
 } from "@codemirror/view";
 import { type ChangeSet, type EditorState, type Extension, type Range, type Transaction } from "@codemirror/state";
 import { CSS } from "../../core/constants/css-classes";
+import { documentSurfacePolicy } from "../../core/document-surface-policy";
 import { escapeHtml } from "../../core/lib/html-escape";
 import { forEachOverlappingOrderedRange } from "../lib/range-helpers";
 import type { CitationFormatter } from "../../core/document-context-types";
@@ -174,6 +175,7 @@ export function planReferenceRendering(
   const controller = createEditorReferencePresentationController(state, {
     store,
     formatter,
+    surface: documentSurfacePolicy("editor-preview").referenceHostSurface,
   });
   const items: ReferenceRenderItem[] = [];
   const activeRef = getRevealedReferenceTarget(state, focused);

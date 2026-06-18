@@ -2,6 +2,7 @@ export type InlineSurfaceName =
   | "document-body"
   | "document-inline"
   | "table-preview-inline"
+  | "outline-label-inline"
   | "ui-chrome-inline";
 
 export type LinkSurfacePolicy = "active" | "inert";
@@ -42,6 +43,14 @@ const UI_CHROME_INLINE_POLICY: InlineSurfacePolicy = {
   hardBreaks: "space",
 };
 
+const OUTLINE_LABEL_INLINE_POLICY: InlineSurfacePolicy = {
+  links: "inert",
+  references: "resolved",
+  images: "alt-text",
+  footnotes: "raw-superscript",
+  hardBreaks: "space",
+};
+
 export function inlineSurfacePolicy(surface: InlineSurfaceName): InlineSurfacePolicy {
   switch (surface) {
     case "document-body":
@@ -49,6 +58,8 @@ export function inlineSurfacePolicy(surface: InlineSurfaceName): InlineSurfacePo
     case "document-inline":
     case "table-preview-inline":
       return DOCUMENT_INLINE_POLICY;
+    case "outline-label-inline":
+      return OUTLINE_LABEL_INLINE_POLICY;
     case "ui-chrome-inline":
       return UI_CHROME_INLINE_POLICY;
   }

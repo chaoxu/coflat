@@ -3,6 +3,7 @@ import {
   DOCUMENT_SURFACE_CLASS,
   documentSurfaceClassNames,
 } from "../../core/document-surface-classes";
+import { documentSurfacePolicy } from "../../core/document-surface-policy";
 import { CSS } from "../../core/constants/css-classes";
 import type { InlineReferenceRenderContext } from "./inline-render";
 import type { TableRange } from "./table-discovery";
@@ -136,7 +137,7 @@ export class TableWidget extends ShellWidget implements
     return createEditorReferencePresentationController(rootView.state, {
       store,
       formatter,
-      surface: "editor-widget",
+      surface: documentSurfacePolicy("editor-preview").referenceHostSurface,
     });
   }
 

@@ -15,6 +15,7 @@ export type InlineMarkSurface =
   | "document-body"
   | "document-inline"
   | "table-preview-inline"
+  | "outline-label-inline"
   | "ui-chrome-inline";
 
 export interface InlineMarkSurfaceOptions {

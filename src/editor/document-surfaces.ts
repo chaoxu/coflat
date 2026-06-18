@@ -1,3 +1,4 @@
+import { documentSurfacePolicy } from "../core/document-surface-policy";
 import type { InlineRenderSurface } from "./inline-surface";
 import { renderInlineMarkdown, type InlineReferenceRenderContext } from "./render/inline-render";
 
@@ -18,16 +19,21 @@ export interface DocumentSurfaceFragment {
   surface?: DocumentSurfaceMode;
 }
 
-const DEFAULT_SURFACE_BY_KIND: Record<DocumentFragmentKind, DocumentSurfaceMode> = {
-  title: "document-inline",
-  "block-title": "document-inline",
-  footnote: "document-body",
-  hover: "document-body",
-  "chrome-label": "ui-chrome-inline",
-};
-
 function resolveSurface(fragment: DocumentSurfaceFragment): DocumentSurfaceMode {
-  return fragment.surface ?? DEFAULT_SURFACE_BY_KIND[fragment.kind];
+  if (fragment.surface) {
+    return fragment.surface;
+  }
+  switch (fragment.kind) {
+    case "title":
+    case "block-title":
+      return documentSurfacePolicy("outline-label").labelInlineSurface;
+    case "footnote":
+      return documentSurfacePolicy("editor-preview").bodyInlineSurface;
+    case "hover":
+      return documentSurfacePolicy("hover-preview").bodyInlineSurface;
+    case "chrome-label":
+      return documentSurfacePolicy("outline-label").chromeLabelInlineSurface;
+  }
 }
 
 export function renderDocumentFragmentToDom(
