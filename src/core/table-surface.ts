@@ -110,16 +110,21 @@ export function createTablePlanElement(
     cellPlan: TableCellRenderPlan,
     rowPlan: TableRowRenderPlan,
   ) => void,
+  options: {
+    readonly applyTableAttrs?: (table: HTMLTableElement, plan: TableRenderPlan) => void;
+    readonly applyRowAttrs?: (row: HTMLTableRowElement, rowPlan: TableRowRenderPlan) => void;
+  } = {},
 ): HTMLTableElement {
   const table = createTableSurfaceElement(ownerDocument);
+  options.applyTableAttrs?.(table, plan);
   const thead = ownerDocument.createElement("thead");
   const tbody = ownerDocument.createElement("tbody");
 
   if (plan.header) {
-    thead.appendChild(createTablePlanRowElement(ownerDocument, plan.header, renderCellContent));
+    thead.appendChild(createTablePlanRowElement(ownerDocument, plan.header, renderCellContent, options));
   }
   for (const row of plan.rows) {
-    tbody.appendChild(createTablePlanRowElement(ownerDocument, row, renderCellContent));
+    tbody.appendChild(createTablePlanRowElement(ownerDocument, row, renderCellContent, options));
   }
 
   if (thead.children.length > 0) table.appendChild(thead);
@@ -135,8 +140,12 @@ function createTablePlanRowElement(
     cellPlan: TableCellRenderPlan,
     rowPlan: TableRowRenderPlan,
   ) => void,
+  options: {
+    readonly applyRowAttrs?: (row: HTMLTableRowElement, rowPlan: TableRowRenderPlan) => void;
+  },
 ): HTMLTableRowElement {
   const row = createTableRowSurfaceElement(ownerDocument);
+  options.applyRowAttrs?.(row, rowPlan);
   const tag = rowPlan.header ? "th" : "td";
   for (const cellPlan of rowPlan.cells) {
     const cell = createTableCellElement(ownerDocument, tag, cellPlan.align);

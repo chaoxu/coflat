@@ -108,10 +108,17 @@ describe("table surface", () => {
     const plan = tableRenderPlan(source, firstTable(source));
     const table = createTablePlanElement(document, plan, (cell, cellPlan) => {
       cell.textContent = source.slice(cellPlan.sourceRange.from, cellPlan.sourceRange.to);
+    }, {
+      applyTableAttrs: (tableEl, tablePlan) => {
+        tableEl.dataset.sourceFrom = String(tablePlan.sourceRange.from);
+      },
+      applyRowAttrs: (row, rowPlan) => {
+        row.dataset.rowFrom = String(rowPlan.sourceRange.from);
+      },
     });
 
     expect(table.outerHTML).toBe(
-      '<table class="cf-doc-table-block"><thead><tr class="cf-doc-table-row">'
+      '<table class="cf-doc-table-block" data-source-from="0"><thead><tr class="cf-doc-table-row" data-row-from="0">'
       + '<th class="cf-doc-table-cell cf-doc-table-header">A</th>'
       + "</tr></thead></table>",
     );
