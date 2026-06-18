@@ -471,6 +471,17 @@ describe("markdownRenderPlugin (Decoration.mark approach)", () => {
       expect(hasDecorationClass(view, CSS.italic)).toBe(false);
     });
 
+    it("does not treat underscores inside citation keys as active emphasis delimiters", () => {
+      const doc = [
+        "For graph $k$-cut, Karger's tree-packing minimum-cut analysis",
+        "[@karger_minimum_2000] and the extension of Chekuri et al.",
+        "[@chekuri_lp_2020] use integrality.",
+      ].join(" ");
+      view = createView(doc, doc.indexOf(" and the extension") + " and".length);
+
+      expect(hasDecorationClass(view, CSS.italic)).toBe(false);
+    });
+
     it("does not treat stars inside inline code as active emphasis delimiters", () => {
       const doc = "Use `F^*` and `G^*` as literal code.";
       view = createView(doc, doc.indexOf("F^*") + "F^*".length);

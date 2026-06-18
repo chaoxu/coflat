@@ -14,6 +14,7 @@ import {
 } from "./decoration-core";
 import { documentContextFacet } from "../document-context";
 import { documentPathFacet } from "../lib/types";
+import { isReferenceTokenSource } from "../lib/reference-tokens";
 import {
   buildResolvedLinkDecoration,
   getLinkDecoration,
@@ -127,6 +128,11 @@ const ACTIVE_LINE_DELIMITER_EXCLUSION_NODES = new Set([
   "URL",
 ]);
 
+function isActiveLineDelimiterExclusionNode(state: EditorState, node: SyntaxNodeRef): boolean {
+  return ACTIVE_LINE_DELIMITER_EXCLUSION_NODES.has(node.name)
+    || (node.name === "Link" && isReferenceTokenSource(state.sliceDoc(node.from, node.to)));
+}
+
 class HorizontalRuleWidget extends WidgetType {
   override toDOM(): HTMLElement {
     const hr = document.createElement("hr");
@@ -187,7 +193,7 @@ function collectActiveLineDelimiterExclusions(
     from: line.from,
     to: line.to,
     enter(node) {
-      if (!ACTIVE_LINE_DELIMITER_EXCLUSION_NODES.has(node.name)) return undefined;
+      if (!isActiveLineDelimiterExclusionNode(state, node)) return undefined;
       ranges.push({ from: node.from, to: node.to });
       return false;
     },
