@@ -20,6 +20,7 @@ export const NODE = {
   FencedDiv: "FencedDiv",
   FencedDivFence: "FencedDivFence",
   FencedDivAttributes: "FencedDivAttributes",
+  FencedDivTitle: "FencedDivTitle",
 
   // Code
   FencedCode: "FencedCode",

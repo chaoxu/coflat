@@ -17,6 +17,8 @@ import {
 } from "../core/inline-fragments";
 import {
   blockquoteRenderPlan,
+  displayMathRenderPlan,
+  fencedDivRenderPlan,
   headingLevelFor,
   headingRenderPlan,
   horizontalRuleRenderPlan,
@@ -43,7 +45,6 @@ import { isSafeUrl } from "../core/lib/url-utils";
 import { escapeHtml } from "../core/lib/html-escape";
 import { buildLineOffsets, lineAt } from "../core/lib/line-offsets";
 import {
-  getBlockManifestEntry,
   isCollapsibleBlockType,
 } from "../core/constants/block-manifest";
 import {
@@ -58,7 +59,6 @@ import {
   type DisclosureToggleLabels,
 } from "../core/disclosure-toggle";
 import { applyLinkSurface, renderLinkSurfaceHtml } from "../core/link-surface";
-import { readBracedLabelId } from "../core/parser/label-utils";
 import type { NumberingScheme } from "../core/parser/frontmatter";
 import {
   blockTitleOverridesFromConfig,
@@ -106,11 +106,7 @@ import {
   renderDisplayMathPlaceholderHtml,
 } from "../core/math-display-surface";
 import { renderInlineMathPlaceholderHtml } from "../core/math-inline-surface";
-import {
-  displayMathLatex,
-  displayMathLatexRange,
-  trimSourceRange,
-} from "../core/math-source";
+import { displayMathLatexRange, trimSourceRange } from "../core/math-source";
 import {
   isUnresolvedLocalMediaUrl,
   renderImageSurfaceHtml,
@@ -132,7 +128,6 @@ import {
   createHoverPreviewContentElement,
   createHoverPreviewHeaderElement,
 } from "../core/hover-preview-surface";
-import { extractDivClass } from "../core/parser/fenced-div-attrs";
 import { parseTableDelimiterAlignments } from "../core/parser/table";
 import type {
   CitationFormatter,
@@ -833,11 +828,6 @@ function renderInline(
   );
 }
 
-function equationLabelId(ctx: WalkContext, node: SyntaxNode): string | null {
-  const label = node.getChild(NODE.EquationLabel);
-  return label ? readBracedLabelId(ctx.source, label.from, label.to, "eq:") : null;
-}
-
 function buildReaderRefResolverEnv(
   ctx: WalkContext,
   raw: string,
@@ -1139,9 +1129,9 @@ function renderBlock(ctx: WalkContext, node: SyntaxNode): BlockResult {
     case "FootnoteDef":
       return renderFootnoteDef(ctx, node);
     case NODE.DisplayMath: {
-      const raw = ctx.source.slice(node.from, node.to);
-      const inner = displayMathLatex(ctx.source, node);
-      const equationId = equationLabelId(ctx, node);
+      const plan = displayMathRenderPlan(ctx.source, node);
+      const raw = ctx.source.slice(plan.sourceRange.from, plan.sourceRange.to);
+      const equationId = plan.equationId;
       const equationNumber = equationId ? ++ctx.equationCounter : undefined;
       if (ctx.buildCatalog && equationId && equationNumber !== undefined) {
         ctx.catalog.set(equationId, {
@@ -1156,10 +1146,10 @@ function renderBlock(ctx: WalkContext, node: SyntaxNode): BlockResult {
           kind: "equation",
           id: equationId,
           label,
-          latex: inner,
-          text: inner,
-          from: node.from,
-          to: node.to,
+          latex: plan.latex,
+          text: plan.latex,
+          from: plan.sourceRange.from,
+          to: plan.sourceRange.to,
           bodyFrom: range.from,
           bodyTo: range.to,
           number: String(equationNumber),
@@ -1167,10 +1157,10 @@ function renderBlock(ctx: WalkContext, node: SyntaxNode): BlockResult {
         });
       }
       return {
-        html: renderDisplayMathPlaceholderHtml(inner, raw, {
+        html: renderDisplayMathPlaceholderHtml(plan.latex, raw, {
           equationNumber,
           id: equationId ?? undefined,
-          sourceAttrs: blockMathSourceAttrs(ctx, node.from, node.to),
+          sourceAttrs: blockMathSourceAttrs(ctx, plan.sourceRange.from, plan.sourceRange.to),
         }),
         text: raw,
         hasMath: true,
@@ -1524,64 +1514,21 @@ function renderBlankLine(ctx: WalkContext, from: number, to: number): BlockResul
 }
 
 function renderFencedDiv(ctx: WalkContext, node: SyntaxNode): BlockResult {
-  // Read attribute text from FencedDivAttributes child.
-  const attrsNode = node.getChild(NODE.FencedDivAttributes);
-  let className = "";
-  let id: string | undefined;
-  let kvs: Record<string, string> = {};
-  if (attrsNode) {
-    const raw = ctx.source.slice(attrsNode.from, attrsNode.to).trim();
-    const parsed = extractDivClass(raw);
-    if (parsed) {
-      className = parsed.classes[0] ?? "";
-      id = parsed.id;
-      kvs = { ...parsed.keyValues };
-    }
-  }
+  const plan = fencedDivRenderPlan(ctx.source, node, {
+    displayTitleForBlockType: (blockType) => blockDisplayTitle(ctx, blockType),
+    numberForBlockType: (blockType) => nextBlockNumber(ctx, blockType),
+  });
 
-  // Render children (skipping the fence + attrs nodes).
   const blocks: BlockResult[] = [];
-  let previousRenderable: SyntaxNode | null = null;
-  let bodyFrom: number | null = null;
-  let bodyTo: number | null = null;
-  let inlineTitle: string | undefined;
-  let child = node.firstChild;
-  while (child) {
-    if (child.name === NODE.FencedDivFence) {
-      if (previousRenderable && child.from > previousRenderable.to) {
-        for (const [from, to] of blankLineRangesBetweenBlocks(ctx.source, previousRenderable.to, child.from)) {
-          blocks.push(renderBlankLine(ctx, from, to));
-        }
-      }
-      child = child.nextSibling;
-      continue;
+  for (const childPlan of plan.children) {
+    for (const range of childPlan.blankBeforeRanges) {
+      blocks.push(renderBlankLine(ctx, range.from, range.to));
     }
-    if (
-      child.name === NODE.FencedDivAttributes ||
-      child.name === "FencedDivTitle"
-    ) {
-      if (child.name === "FencedDivTitle") {
-        const rawTitle = ctx.source.slice(child.from, child.to).trim();
-        if (rawTitle) inlineTitle = rawTitle;
-      }
-      child = child.nextSibling;
-      continue;
-    }
-    if (previousRenderable && child.from > previousRenderable.to) {
-      for (const [from, to] of blankLineRangesBetweenBlocks(ctx.source, previousRenderable.to, child.from)) {
-        blocks.push(renderBlankLine(ctx, from, to));
-      }
-    }
-    bodyFrom ??= child.from;
-    bodyTo = child.to;
-    blocks.push(renderBlock(ctx, child));
-    previousRenderable = child;
-    child = child.nextSibling;
+    blocks.push(renderBlock(ctx, childPlan.node));
   }
 
-  const normalizedClassName = className.toLowerCase();
-  const manifestEntry = getBlockManifestEntry(normalizedClassName);
-  if (manifestEntry?.specialBehavior === "qed") {
+  const normalizedClassName = plan.primaryClassName;
+  if (plan.primaryManifestEntry?.specialBehavior === "qed") {
     addClassToLastHtmlBlock(blocks, CSS.blockQed);
   }
   const collapsibleBlock = Boolean(
@@ -1590,54 +1537,48 @@ function renderFencedDiv(ctx: WalkContext, node: SyntaxNode): BlockResult {
   );
   const interactiveBlock = collapsibleBlock && ctx.interactiveBlockDisclosures;
   const attrs = blockContainerSurfaceAttrs({
-    types: normalizedClassName ? [normalizedClassName] : [],
-    id,
-    dataAttributes: kvs,
+    types: plan.classes,
+    id: plan.id,
+    dataAttributes: plan.keyValues,
     extraClassNames: interactiveBlock ? [CSS.blockCollapsible] : [],
   });
   const body = combineBlocks(blocks);
-  const sourceAttrs = blockSourceAttrs(ctx, node.from, node.to);
-  const title = kvs.title ?? inlineTitle;
-  const number = normalizedClassName ? nextBlockNumber(ctx, normalizedClassName) : undefined;
-  const plan = normalizedClassName
-    ? blockPresentationPlan({
-      blockType: normalizedClassName,
-      displayTitle: blockDisplayTitle(ctx, normalizedClassName),
-      number,
-      title,
-    })
-    : undefined;
-  const caption = plan?.hasCaptionBelow && title
-    ? renderBlockCaption(ctx, normalizedClassName, title, number, node.from, node.to)
+  const sourceAttrs = blockSourceAttrs(ctx, plan.sourceRange.from, plan.sourceRange.to);
+  const caption = plan.presentation?.hasCaptionBelow && plan.title && normalizedClassName
+    ? renderBlockCaption(ctx, normalizedClassName, plan.title, plan.number, node.from, node.to)
     : emptyBlock();
   const bodyHtml = body.html + caption.html;
-  if (ctx.buildCatalog && id && normalizedClassName) {
-    ctx.catalog.set(id, {
+  if (ctx.buildCatalog && plan.id && normalizedClassName) {
+    ctx.catalog.set(plan.id, {
       kind: "block",
-      label: formatBlockReferenceLabel(blockDisplayTitle(ctx, normalizedClassName), number),
+      label: formatBlockReferenceLabel(plan.displayTitle ?? blockDisplayTitle(ctx, normalizedClassName), plan.number),
     });
   }
-  if (ctx.buildReferencePreviews && id && normalizedClassName) {
-    const label = formatBlockReferenceLabel(blockDisplayTitle(ctx, normalizedClassName), number);
-    const bodyRange = trimSourceRange(ctx.source, bodyFrom ?? node.from, bodyTo ?? node.from);
-    ctx.referencePreviewIndex.set(id, {
+  if (ctx.buildReferencePreviews && plan.id && normalizedClassName) {
+    const label = formatBlockReferenceLabel(plan.displayTitle ?? blockDisplayTitle(ctx, normalizedClassName), plan.number);
+    const bodyRange = trimSourceRange(
+      ctx.source,
+      plan.bodyRange?.from ?? plan.sourceRange.from,
+      plan.bodyRange?.to ?? plan.sourceRange.from,
+    );
+    ctx.referencePreviewIndex.set(plan.id, {
       kind: "block",
-      id,
+      id: plan.id,
       label,
       blockType: normalizedClassName,
-      ...(title ? { title } : {}),
-      from: node.from,
-      to: node.to,
+      ...(plan.title ? { title: plan.title } : {}),
+      from: plan.sourceRange.from,
+      to: plan.sourceRange.to,
       bodyFrom: bodyRange.from,
       bodyTo: bodyRange.to,
-      ...(number === undefined ? {} : { number: String(number), ordinal: number }),
+      ...(plan.number === undefined ? {} : { number: String(plan.number), ordinal: plan.number }),
     });
   }
   const summary = normalizedClassName
-    ? renderBlockSummary(ctx, normalizedClassName, title, number)
+    ? renderBlockSummary(ctx, normalizedClassName, plan.title, plan.number)
     : emptyBlock();
   const summaryHtml = summary.html;
-  const html = plan?.hasInlineHeader
+  const html = plan.presentation?.hasInlineHeader
     ? renderInlineBlockHeadingContainerHtml(attrs, sourceAttrs, summaryHtml, bodyHtml)
     : collapsibleBlock
     ? `<div${attrs}${sourceAttrs}${interactiveBlock ? ' data-cf-block-open="true"' : ""}>${renderBlockHeader(summaryHtml, bodyHtml)}</div>`

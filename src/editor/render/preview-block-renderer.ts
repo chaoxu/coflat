@@ -21,10 +21,8 @@ import {
   createHorizontalRuleElement,
 } from "../../core/block-surface";
 import {
-  BLOCK_MANIFEST_ENTRIES,
   EXCLUDED_FROM_FALLBACK,
   isCollapsibleBlockType,
-  type BlockManifestEntry,
 } from "../../core/constants/block-manifest";
 import { CSS } from "../../core/constants/css-classes";
 import { appendCodeBlockDom } from "../../core/code-block-surface";
@@ -34,7 +32,6 @@ import {
   createDisplayMathSurfaceElement,
   replaceDisplayMathContent,
 } from "../../core/math-display-surface";
-import { displayMathLatex } from "../../core/math-source";
 import {
   createHeadingSurfaceElement,
 } from "../../core/heading-surface";
@@ -56,7 +53,6 @@ import {
   blankLineRangesBetweenBlocks,
   trailingBlankLineRangesAfterLastBlock,
 } from "../../core/parser/blank-lines";
-import { readBracedLabelId } from "../../core/parser/label-utils";
 import {
   analyzeDocumentSemantics,
   numberFootnotes,
@@ -69,9 +65,11 @@ import {
   createConfiguredBlockNumberingSpecLookup,
   displayTitleForBlockType,
 } from "../../core/semantics/block-numbering";
-import { blockPresentationPlan, type BlockPresentationPlan } from "../../core/block-presentation";
+import type { BlockPresentationPlan } from "../../core/block-presentation";
 import {
   blockquoteRenderPlan,
+  displayMathRenderPlan,
+  fencedDivRenderPlan,
   headingRenderPlan,
   horizontalRuleRenderPlan,
   listRenderPlan,
@@ -457,75 +455,52 @@ function renderFencedDiv(
   node: SyntaxNode,
   context: PreviewRenderContext,
 ): void {
-  const fencedDiv = context.semantics.fencedDivByFrom.get(node.from);
-  const classes = fencedDiv ? [...fencedDiv.classes] : [];
-  const id = fencedDiv?.id;
+  const plan = fencedDivRenderPlan(context.doc, node, {
+    displayTitleForBlockType: (blockType) => displayTitleForBlockType(blockType, context.blockTitleOverrides),
+    numberForBlockType: () => context.documentBlockNumbers.get(node.from)?.number,
+  });
 
-  if (classes.some((className) => EXCLUDED_FROM_FALLBACK.has(className))) {
+  if (plan.classes.some((className) => EXCLUDED_FROM_FALLBACK.has(className))) {
     return;
   }
 
   const block = createBlockContainerElement(document, {
-    types: classes,
-    id,
-    dataAttributes: fencedDiv?.keyValues,
+    types: plan.classes,
+    id: plan.id,
+    dataAttributes: plan.keyValues,
   });
 
-  const title = fencedDiv?.title ?? "";
-  const isSelfClosing = fencedDiv?.isSelfClosing ?? false;
-  const primaryClass = getPrimaryBlockClass(classes);
-  const primaryClassName = primaryClass?.name ?? fencedDiv?.primaryClass;
-  const blockNumber = primaryClassName
-    ? context.documentBlockNumbers.get(node.from)?.number
-    : undefined;
-  const plan = primaryClassName
-    ? blockPresentationPlan({
-      blockType: primaryClassName,
-      displayTitle: displayTitleForBlockType(primaryClassName, context.blockTitleOverrides),
-      number: blockNumber,
-      title,
-    })
-    : undefined;
-  const summary = plan
-    ? createBlockSummaryFragment(context, plan)
+  const title = plan.title ?? "";
+  const summary = plan.presentation
+    ? createBlockSummaryFragment(context, plan.presentation)
     : undefined;
 
-  if (title && isSelfClosing) {
+  if (title && plan.isSelfClosing) {
     const paragraph = createParagraphDom(document);
     appendInlineText(paragraph, title, context, "document-body");
     block.appendChild(paragraph);
   }
 
-  if (!isSelfClosing) {
+  if (!plan.isSelfClosing) {
     const body = document.createDocumentFragment();
-    let child = node.firstChild;
-    let previousRenderable: SyntaxNode | null = null;
-    while (child) {
-      if (
-        child.name !== "FencedDivFence" &&
-        child.name !== "FencedDivAttributes" &&
-        child.name !== "FencedDivTitle"
-      ) {
-        if (previousRenderable && child.from > previousRenderable.to) {
-          appendBlankLines(body, context, previousRenderable.to, child.from);
-        }
-        renderNode(body, child, context);
-        previousRenderable = child;
+    for (const childPlan of plan.children) {
+      for (const range of childPlan.blankBeforeRanges) {
+        appendBlankLine(body, range.from, range.to);
       }
-      child = child.nextSibling;
+      renderNode(body, childPlan.node, context);
     }
 
-    if (plan?.hasInlineHeader && summary) {
-      if (primaryClass?.specialBehavior === "qed") {
+    if (plan.presentation?.hasInlineHeader && summary) {
+      if (plan.primaryManifestEntry?.specialBehavior === "qed") {
         addClassToLastChildElement(body, CSS.blockQed);
       }
       prependInlineBlockHeading(body, summary);
     }
 
-    if (summary && isCollapsibleBlockType(primaryClassName)) {
+    if (summary && isCollapsibleBlockType(plan.primaryClassName)) {
       appendBlockHeader(block, summary, body);
     } else {
-      if (title && !plan?.hasCaptionBelow && !plan?.hasInlineHeader) {
+      if (title && !plan.presentation?.hasCaptionBelow && !plan.presentation?.hasInlineHeader) {
         const strong = createBlockLabelElement(document);
         appendInlineText(strong, title, context, "document-body");
         block.appendChild(strong);
@@ -534,19 +509,15 @@ function renderFencedDiv(
     }
   }
 
-  if (!isSelfClosing && plan?.hasCaptionBelow && title) {
+  if (!plan.isSelfClosing && plan.presentation?.hasCaptionBelow && title) {
     const caption = createBlockCaptionElement(document);
-    appendBlockCaptionLabel(caption, plan.label);
+    appendBlockCaptionLabel(caption, plan.presentation.label);
     const text = appendBlockCaptionText(caption);
     appendInlineText(text, title, context, "document-body");
     block.appendChild(caption);
   }
 
   parent.appendChild(block);
-}
-
-function getPrimaryBlockClass(classes: readonly string[]): BlockManifestEntry | undefined {
-  return BLOCK_MANIFEST_ENTRIES.find((entry) => classes.includes(entry.name));
 }
 
 function createBlockSummaryFragment(
@@ -581,22 +552,17 @@ function renderDisplayMath(
   node: SyntaxNode,
   context: PreviewRenderContext,
 ): void {
-  const latex = displayMathLatex(context.doc, node);
-
-  const equationLabel = node.getChild("EquationLabel");
-  const equationId = equationLabel
-    ? readBracedLabelId(context.doc, equationLabel.from, equationLabel.to, "eq:")
-    : null;
-  const equationNumber = equationId
-    ? context.semantics.equationById.get(equationId)?.number
+  const plan = displayMathRenderPlan(context.doc, node);
+  const equationNumber = plan.equationId
+    ? context.semantics.equationById.get(plan.equationId)?.number
     : undefined;
 
-  const wrapper = createDisplayMathSurfaceElement(document, latex, {
+  const wrapper = createDisplayMathSurfaceElement(document, plan.latex, {
     equationNumber,
-    id: equationId ?? undefined,
+    id: plan.equationId ?? undefined,
   });
   const content = createDisplayMathContentElement(document);
-  renderKatex(content, latex, true, context.macros);
+  renderKatex(content, plan.latex, true, context.macros);
   replaceDisplayMathContent(wrapper, content, equationNumber);
 
   parent.appendChild(wrapper);

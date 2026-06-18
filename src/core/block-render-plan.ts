@@ -1,5 +1,13 @@
 import type { SyntaxNode } from "@lezer/common";
+import {
+  BLOCK_MANIFEST_ENTRIES,
+  type BlockManifestEntry,
+} from "./constants/block-manifest";
 import { NODE } from "./constants/node-types";
+import {
+  blockPresentationPlan,
+  type BlockPresentationPlan,
+} from "./block-presentation";
 import {
   buildInlineFragments,
   inlineFragmentsPlainText,
@@ -9,7 +17,11 @@ import {
   isLooseListNode,
   orderedListStartNumber,
 } from "./parser/list-shape";
+import { blankLineRangesBetweenBlocks } from "./parser/blank-lines";
+import { extractDivClass } from "./parser/fenced-div-attrs";
 import { taskMarkerChecked } from "./list-surface";
+import { displayMathLatex } from "./math-source";
+import { readBracedLabelId } from "./parser/label-utils";
 
 export interface ParagraphRenderPlan {
   readonly kind: "paragraph";
@@ -32,6 +44,16 @@ export interface HorizontalRuleRenderPlan {
     readonly from: number;
     readonly to: number;
   };
+}
+
+export interface DisplayMathRenderPlan {
+  readonly kind: "display-math";
+  readonly sourceRange: {
+    readonly from: number;
+    readonly to: number;
+  };
+  readonly latex: string;
+  readonly equationId: string | null;
 }
 
 export interface BlockquoteRenderPlan {
@@ -78,6 +100,42 @@ export interface ListRenderPlan {
   readonly start: number;
   readonly task: boolean;
   readonly items: readonly ListItemRenderPlan[];
+}
+
+export interface FencedDivRenderChildPlan {
+  readonly node: SyntaxNode;
+  readonly blankBeforeRanges: readonly {
+    readonly from: number;
+    readonly to: number;
+  }[];
+}
+
+export interface FencedDivRenderPlanOptions {
+  readonly displayTitleForBlockType?: (blockType: string) => string;
+  readonly numberForBlockType?: (blockType: string) => number | undefined;
+}
+
+export interface FencedDivRenderPlan {
+  readonly kind: "fenced-div";
+  readonly sourceRange: {
+    readonly from: number;
+    readonly to: number;
+  };
+  readonly classes: readonly string[];
+  readonly id: string | undefined;
+  readonly keyValues: Readonly<Record<string, string>>;
+  readonly title: string | undefined;
+  readonly isSelfClosing: boolean;
+  readonly bodyRange: {
+    readonly from: number;
+    readonly to: number;
+  } | null;
+  readonly children: readonly FencedDivRenderChildPlan[];
+  readonly primaryManifestEntry: BlockManifestEntry | undefined;
+  readonly primaryClassName: string | undefined;
+  readonly displayTitle: string | undefined;
+  readonly number: number | undefined;
+  readonly presentation: BlockPresentationPlan | undefined;
 }
 
 export interface HeadingAttributePlan {
@@ -140,6 +198,21 @@ export function horizontalRuleRenderPlan(
   return {
     kind: "horizontal-rule",
     sourceRange: { from: node.from, to: node.to },
+  };
+}
+
+export function displayMathRenderPlan(
+  source: string,
+  node: SyntaxNode,
+): DisplayMathRenderPlan {
+  const equationLabel = node.getChild(NODE.EquationLabel);
+  return {
+    kind: "display-math",
+    sourceRange: { from: node.from, to: node.to },
+    latex: displayMathLatex(source, node),
+    equationId: equationLabel
+      ? readBracedLabelId(source, equationLabel.from, equationLabel.to, "eq:")
+      : null,
   };
 }
 
@@ -234,6 +307,112 @@ export function listItemRenderPlan(
     inlineOnly: blockCount === 1 && onlyInlineBlock,
     task,
     children,
+  };
+}
+
+export function fencedDivRenderPlan(
+  source: string,
+  node: SyntaxNode,
+  options: FencedDivRenderPlanOptions = {},
+): FencedDivRenderPlan {
+  if (node.name !== NODE.FencedDiv) {
+    throw new Error(`expected fenced div node, got ${node.name}`);
+  }
+
+  let classes: readonly string[] = [];
+  let id: string | undefined;
+  let keyValues: Readonly<Record<string, string>> = {};
+  const attrsNode = node.getChild(NODE.FencedDivAttributes);
+  if (attrsNode) {
+    const parsed = extractDivClass(source.slice(attrsNode.from, attrsNode.to).trim());
+    if (parsed) {
+      classes = parsed.classes;
+      id = parsed.id;
+      keyValues = { ...parsed.keyValues };
+    }
+  }
+
+  let title = keyValues.title;
+  const children: FencedDivRenderChildPlan[] = [];
+  let previousRenderable: SyntaxNode | null = null;
+  let bodyFrom: number | null = null;
+  let bodyTo: number | null = null;
+  let hasClosingFence = false;
+  let firstFence: SyntaxNode | null = null;
+  let lastFence: SyntaxNode | null = null;
+  let child = node.firstChild;
+  while (child) {
+    switch (child.name) {
+      case NODE.FencedDivFence:
+        firstFence ??= child;
+        lastFence = child;
+        if (child !== firstFence) hasClosingFence = true;
+        break;
+      case NODE.FencedDivAttributes:
+        break;
+      case NODE.FencedDivTitle: {
+        const rawTitle = source.slice(child.from, child.to).trim();
+        if (rawTitle) title = rawTitle;
+        break;
+      }
+      default: {
+        if (child.from === child.to) break;
+        const blankBeforeRanges = previousRenderable && child.from > previousRenderable.to
+          ? blankLineRangesBetweenBlocks(source, previousRenderable.to, child.from).map(([from, to]) => ({
+            from,
+            to,
+          }))
+          : [];
+        bodyFrom ??= child.from;
+        bodyTo = child.to;
+        children.push({ node: child, blankBeforeRanges });
+        previousRenderable = child;
+        break;
+      }
+    }
+    child = child.nextSibling;
+  }
+
+  const normalizedPrimaryClassName = classes[0]?.toLowerCase();
+  const primaryManifestEntry = BLOCK_MANIFEST_ENTRIES.find((entry) =>
+    classes.includes(entry.name) || normalizedPrimaryClassName === entry.name
+  );
+  const primaryClassName = primaryManifestEntry?.name ?? normalizedPrimaryClassName;
+  const displayTitle = primaryClassName
+    ? (options.displayTitleForBlockType?.(primaryClassName) ?? primaryClassName)
+    : undefined;
+  const number = primaryClassName
+    ? options.numberForBlockType?.(primaryClassName)
+    : undefined;
+  const presentation = primaryClassName && displayTitle
+    ? blockPresentationPlan({
+      blockType: primaryClassName,
+      displayTitle,
+      number,
+      title,
+    })
+    : undefined;
+  const fenceRange = firstFence && lastFence
+    ? source.slice(firstFence.from, lastFence.to)
+    : "";
+
+  return {
+    kind: "fenced-div",
+    sourceRange: { from: node.from, to: node.to },
+    classes,
+    id,
+    keyValues,
+    title,
+    isSelfClosing: hasClosingFence && !fenceRange.includes("\n"),
+    bodyRange: bodyFrom === null || bodyTo === null
+      ? null
+      : { from: bodyFrom, to: bodyTo },
+    children,
+    primaryManifestEntry,
+    primaryClassName,
+    displayTitle,
+    number,
+    presentation,
   };
 }
 

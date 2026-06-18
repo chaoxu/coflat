@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import { parseMarkdownSource } from "./parser";
 import {
   blockquoteRenderPlan,
+  displayMathRenderPlan,
+  fencedDivRenderPlan,
   headingRenderPlan,
   horizontalRuleRenderPlan,
   listRenderPlan,
@@ -60,6 +62,30 @@ describe("horizontalRuleRenderPlan", () => {
     expect(horizontalRuleRenderPlan(firstBlock(source, "HorizontalRule"))).toEqual({
       kind: "horizontal-rule",
       sourceRange: { from: 0, to: 3 },
+    });
+  });
+});
+
+describe("displayMathRenderPlan", () => {
+  it("extracts latex and optional equation labels for shared emitters", () => {
+    const source = "$$\nx^2+y^2\n$$ {#eq:pythagoras}";
+    const plan = displayMathRenderPlan(source, firstBlock(source, "DisplayMath"));
+
+    expect(plan).toEqual({
+      kind: "display-math",
+      sourceRange: { from: 0, to: source.length },
+      latex: "x^2+y^2",
+      equationId: "eq:pythagoras",
+    });
+  });
+
+  it("keeps unlabeled display math label-free", () => {
+    const source = "\\[\na+b\n\\]";
+    expect(displayMathRenderPlan(source, firstBlock(source, "DisplayMath"))).toEqual({
+      kind: "display-math",
+      sourceRange: { from: 0, to: source.length },
+      latex: "a+b",
+      equationId: null,
     });
   });
 });
@@ -187,5 +213,71 @@ describe("listRenderPlan", () => {
       "Paragraph",
       "BulletList",
     ]);
+  });
+});
+
+describe("fencedDivRenderPlan", () => {
+  it("captures attributes, title, primary class, and presentation label", () => {
+    const source = '::: {.note .theorem #thm:main title="Main" status="draft"}\nBody\n:::';
+    const plan = fencedDivRenderPlan(source, firstBlock(source, "FencedDiv"), {
+      displayTitleForBlockType: (blockType) => blockType === "theorem" ? "Theorem" : blockType,
+      numberForBlockType: () => 2,
+    });
+
+    expect(plan).toMatchObject({
+      kind: "fenced-div",
+      sourceRange: { from: 0, to: source.length },
+      classes: ["note", "theorem"],
+      id: "thm:main",
+      keyValues: { title: "Main", status: "draft" },
+      title: "Main",
+      isSelfClosing: false,
+      primaryClassName: "theorem",
+      displayTitle: "Theorem",
+      number: 2,
+      presentation: {
+        label: "Theorem 2",
+        title: "Main",
+        showTitleInHeader: true,
+      },
+    });
+    expect(plan.primaryManifestEntry?.name).toBe("theorem");
+    expect(source.slice(plan.bodyRange?.from, plan.bodyRange?.to).trim()).toBe("Body");
+    expect(plan.children.map((child) => child.node.name)).toEqual(["Paragraph"]);
+  });
+
+  it("uses inline fenced-div titles", () => {
+    const source = "::: {.theorem} Inline\nBody\n:::";
+    const plan = fencedDivRenderPlan(source, firstBlock(source, "FencedDiv"));
+
+    expect(plan.title).toBe("Inline");
+  });
+
+  it("uses title attributes when there is no inline title", () => {
+    const source = '::: {.theorem title="Attr"}\nBody\n:::';
+    const plan = fencedDivRenderPlan(source, firstBlock(source, "FencedDiv"));
+
+    expect(plan.title).toBe("Attr");
+  });
+
+  it("records blank-line ranges before renderable body children", () => {
+    const source = "::: {.proof}\nfirst\n\nsecond\n:::";
+    const plan = fencedDivRenderPlan(source, firstBlock(source, "FencedDiv"));
+
+    expect(plan.children.map((child) => child.node.name)).toEqual(["Paragraph", "Paragraph"]);
+    expect(plan.children[0].blankBeforeRanges).toEqual([]);
+    expect(plan.children[1].blankBeforeRanges).toEqual([{
+      from: source.indexOf("\n\n") + 1,
+      to: source.indexOf("\n\n") + 2,
+    }]);
+  });
+
+  it("keeps canonical multiline fenced divs non-self-closing", () => {
+    const source = '::: {.theorem title="Only"}\n:::';
+    const plan = fencedDivRenderPlan(source, firstBlock(source, "FencedDiv"));
+
+    expect(plan.isSelfClosing).toBe(false);
+    expect(plan.children).toEqual([]);
+    expect(plan.bodyRange).toBeNull();
   });
 });
