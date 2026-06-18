@@ -15,6 +15,7 @@ import {
   inlineFragmentsPlainText,
   type InlineFragment,
 } from "../core/inline-fragments";
+import { paragraphRenderPlan } from "../core/block-render-plan";
 import { parseFrontmatter, parseMarkdownSource } from "../core/parser";
 import {
   renderBlockCaptionHtml,
@@ -34,17 +35,12 @@ import { isSafeUrl } from "../core/lib/url-utils";
 import { escapeHtml } from "../core/lib/html-escape";
 import { buildLineOffsets, lineAt } from "../core/lib/line-offsets";
 import {
-  BRACKETED_REFERENCE_EXACT_RE,
-  parseReferenceClusterBody,
-} from "../core/lib/reference-grammar";
-import {
   getBlockManifestEntry,
   isCollapsibleBlockType,
 } from "../core/constants/block-manifest";
 import {
   CSS,
   hostReferenceClassNames,
-  mathSurfaceClassNames,
 } from "../core/constants/css-classes";
 import {
   createDisclosureToggleButton,
@@ -106,7 +102,6 @@ import { renderInlineMathPlaceholderHtml } from "../core/math-inline-surface";
 import {
   displayMathLatex,
   displayMathLatexRange,
-  stripMathDelimiters,
   trimSourceRange,
 } from "../core/math-source";
 import {
@@ -835,280 +830,9 @@ function renderInline(
   );
 }
 
-function renderInlineNode(
-  ctx: WalkContext,
-  node: SyntaxNode,
-): { html: string; text: string; hasMath: boolean } {
-  const source = ctx.source;
-  const name = node.name;
-
-  // Structural markers we never emit (their text positions are skipped
-  // because their from/to is enclosed by handled nodes).
-  switch (name) {
-    case "HeaderMark":
-    case "QuoteMark":
-    case "ListMark":
-    case "TaskMarker":
-    case "CodeMark":
-    case "CodeInfo":
-    case "EmphasisMark":
-    case "StrikethroughMark":
-    case "HighlightMark":
-    case "LinkMark":
-    case "URL":
-    case "LinkTitle":
-    case NODE.FencedDivFence:
-    case NODE.FencedDivAttributes:
-    case "TableDelimiter":
-      return { html: "", text: "", hasMath: false };
-  }
-
-  switch (name) {
-    case NODE.Emphasis: {
-      const inner = renderInline(ctx, node, node.from, node.to);
-      const sp = sourcePosAttrs(ctx, node.from, node.to);
-      return {
-        html: renderInlineMarkHtml("emphasis", inner.html, { sourceAttrs: sp }),
-        text: inner.text,
-        hasMath: inner.hasMath,
-      };
-    }
-    case NODE.StrongEmphasis: {
-      const inner = renderInline(ctx, node, node.from, node.to);
-      const sp = sourcePosAttrs(ctx, node.from, node.to);
-      return {
-        html: renderInlineMarkHtml("strong", inner.html, { sourceAttrs: sp }),
-        text: inner.text,
-        hasMath: inner.hasMath,
-      };
-    }
-    case NODE.Strikethrough: {
-      const inner = renderInline(ctx, node, node.from, node.to);
-      const sp = sourcePosAttrs(ctx, node.from, node.to);
-      return {
-        html: renderInlineMarkHtml("strikethrough", inner.html, { sourceAttrs: sp }),
-        text: inner.text,
-        hasMath: inner.hasMath,
-      };
-    }
-    case NODE.Highlight: {
-      const inner = renderInline(ctx, node, node.from, node.to);
-      const sp = sourcePosAttrs(ctx, node.from, node.to);
-      return {
-        html: renderInlineMarkHtml("highlight", inner.html, { sourceAttrs: sp }),
-        text: inner.text,
-        hasMath: inner.hasMath,
-      };
-    }
-    case NODE.InlineCode: {
-      const raw = source.slice(node.from, node.to);
-      const m = raw.match(/^`+/);
-      const fenceLen = m ? m[0].length : 1;
-      const inner = raw.slice(fenceLen, raw.length - fenceLen);
-      const sp = sourcePosAttrs(ctx, node.from, node.to);
-      return {
-        html: renderInlineMarkHtml("code", escapeHtml(inner), { sourceAttrs: sp }),
-        text: inner,
-        hasMath: false,
-      };
-    }
-    case NODE.Link:
-      return emitLink(ctx, node);
-    case NODE.Image:
-      return emitImage(ctx, node);
-    case "Autolink": {
-      const raw = source.slice(node.from, node.to);
-      const href = raw.startsWith("<") && raw.endsWith(">") ? raw.slice(1, -1) : raw;
-      const sp = sourcePosAttrs(ctx, node.from, node.to);
-      if (isSafeUrl(href)) {
-        return {
-          html: renderLinkSurfaceHtml(href, escapeHtml(href), { sourceAttrs: sp }),
-          text: href,
-          hasMath: false,
-        };
-      }
-      if (ctx.sourcePositions) {
-        return {
-          html: `<span class="${CSS.text}"${sp}>${escapeHtml(href)}</span>`,
-          text: href,
-          hasMath: false,
-        };
-      }
-      return { html: escapeHtml(href), text: href, hasMath: false };
-    }
-    case NODE.InlineMath: {
-      const raw = source.slice(node.from, node.to);
-      const inner = stripMathDelimiters(raw, false);
-      const sp = mathSourcePosAttrs(ctx, node.from, node.to);
-      return {
-        html: renderInlineMathPlaceholderHtml(inner, raw, { sourceAttrs: sp }),
-        text: raw,
-        hasMath: true,
-      };
-    }
-    case NODE.DisplayMath: {
-      const raw = source.slice(node.from, node.to);
-      const inner = stripMathDelimiters(raw, true);
-      const sp = mathSourcePosAttrs(ctx, node.from, node.to);
-      return {
-        html: `<span class="${mathSurfaceClassNames(true)}" data-math="${escapeHtml(inner)}"${sp}>${escapeHtml(raw)}</span>`,
-        text: raw,
-        hasMath: true,
-      };
-    }
-    case NODE.FootnoteRef: {
-      const raw = source.slice(node.from, node.to);
-      // raw is `[^id]`; extract id.
-      const idMatch = raw.match(/^\[\^([^\]]+)\]$/);
-      if (!idMatch) {
-        return { html: escapeHtml(raw), text: raw, hasMath: false };
-      }
-      const id = idMatch[1];
-      let entry = ctx.footnotesById.get(id);
-      if (!entry) {
-        // Forward ref before definition seen — create placeholder, body
-        // filled in when FootnoteDef is encountered.
-        entry = {
-          id,
-          number: ctx.footnotesInOrder.length + 1,
-          bodyHtml: "",
-          hasRef: true,
-        };
-        ctx.footnotesById.set(id, entry);
-        ctx.footnotesInOrder.push(entry);
-      } else {
-        entry.hasRef = true;
-      }
-      const sp = sourcePosAttrs(ctx, node.from, node.to);
-      return {
-        html: renderReaderFootnoteReferenceHtml(entry.number, id, sp),
-        text: `[${entry.number}]`,
-        hasMath: false,
-      };
-    }
-    case NODE.Escape: {
-      const raw = source.slice(node.from, node.to);
-      const ch = raw.length >= 2 ? raw.slice(1) : raw;
-      if (ctx.sourcePositions) {
-        const sp = sourcePosAttrs(ctx, node.from, node.to);
-        return { html: `<span class="${CSS.text}"${sp}>${escapeHtml(ch)}</span>`, text: ch, hasMath: false };
-      }
-      return { html: escapeHtml(ch), text: ch, hasMath: false };
-    }
-    case NODE.HardBreak: {
-      const sp = sourcePosAttrs(ctx, node.from, node.to);
-      return { html: `<br${sp}>`, text: " ", hasMath: false };
-    }
-    case NODE.Text: {
-      const raw = source.slice(node.from, node.to);
-      if (ctx.sourcePositions) {
-        const sp = sourcePosAttrs(ctx, node.from, node.to);
-        return { html: `<span class="${CSS.text}"${sp}>${escapeHtml(raw)}</span>`, text: raw, hasMath: false };
-      }
-      return { html: escapeHtml(raw), text: raw, hasMath: false };
-    }
-  }
-
-  // Unknown inline node — fall back to its source text.
-  const raw = source.slice(node.from, node.to);
-  if (ctx.sourcePositions) {
-    const sp = sourcePosAttrs(ctx, node.from, node.to);
-    return { html: `<span class="${CSS.text}"${sp}>${escapeHtml(raw)}</span>`, text: raw, hasMath: false };
-  }
-  return { html: escapeHtml(raw), text: raw, hasMath: false };
-}
-
 function equationLabelId(ctx: WalkContext, node: SyntaxNode): string | null {
   const label = node.getChild(NODE.EquationLabel);
   return label ? readBracedLabelId(ctx.source, label.from, label.to, "eq:") : null;
-}
-
-function emitLink(
-  ctx: WalkContext,
-  node: SyntaxNode,
-): { html: string; text: string; hasMath: boolean } {
-  const source = ctx.source;
-  const raw = source.slice(node.from, node.to);
-
-  // Citation cluster `[@key]` or `[@key; @other]` → handle via RefResolver.
-  const clusterMatch = BRACKETED_REFERENCE_EXACT_RE.exec(raw);
-  if (clusterMatch) {
-    const body = clusterMatch[1] ?? "";
-    const parts = parseReferenceClusterBody(body);
-    if (parts) {
-      return emitReferenceCluster(
-        ctx,
-        parts.map((p) => p.id),
-        parts.map((p) => p.locator),
-        raw,
-        node.from,
-        node.to,
-      );
-    }
-  }
-
-  const urlChild = node.getChild("URL");
-  let href = urlChild ? source.slice(urlChild.from, urlChild.to) : "";
-
-  const labelStart = node.from + 1;
-  let labelEnd = node.to;
-  if (urlChild) {
-    for (let i = urlChild.from - 1; i >= labelStart; i--) {
-      if (source[i] === "]") {
-        labelEnd = i;
-        break;
-      }
-    }
-  } else {
-    // No URL — find closing `]`.
-    for (let i = node.to - 1; i >= labelStart; i--) {
-      if (source[i] === "]") {
-        labelEnd = i;
-        break;
-      }
-    }
-  }
-
-  // Crossref `@eq:foo` / `@sec:bar` / `@thm:baz` inside `[ ]` — emit
-  // crossref placeholder unless we have a resolver wired up (not in v1
-  // for crossrefs). Same handling as narrative crossref below.
-  // The cluster code above handles `[@key]`; the body here is general.
-
-  // LinkResolver chance.
-  let className: string | undefined;
-  let title: string | undefined;
-  if (ctx.resolvers.linkResolver?.resolve) {
-    const labelText = source.slice(labelStart, labelEnd);
-    const resolved = ctx.resolvers.linkResolver.resolve(href, labelText, {
-      from: ctx.resolvers.documentPath,
-      documentPath: ctx.resolvers.documentPath,
-      raw,
-      sourceRange: { from: node.from, to: node.to },
-      surface: "reader",
-    });
-    if (resolved) {
-      if (resolved.href !== undefined) href = resolved.href;
-      if (resolved.className !== undefined) className = resolved.className;
-      if (resolved.title !== undefined) title = resolved.title;
-    }
-  }
-
-  // Render label inline.
-  const label = renderInline(ctx, node, labelStart, labelEnd);
-
-  if (!isSafeUrl(href)) {
-    return { html: label.html, text: label.text, hasMath: label.hasMath };
-  }
-
-  return {
-    html: renderLinkSurfaceHtml(href, label.html, {
-      className,
-      title,
-      sourceAttrs: sourcePosAttrs(ctx, node.from, node.to),
-    }),
-    text: label.text,
-    hasMath: label.hasMath,
-  };
 }
 
 function buildReaderRefResolverEnv(
@@ -1259,60 +983,6 @@ function emitReferenceCluster(
 
 function stripTags(html: string): string {
   return html.replace(/<[^>]*>/g, "");
-}
-
-function emitImage(
-  ctx: WalkContext,
-  node: SyntaxNode,
-): { html: string; text: string; hasMath: boolean } {
-  const source = ctx.source;
-  const urlChild = node.getChild("URL");
-  let src = urlChild ? source.slice(urlChild.from, urlChild.to) : "";
-
-  const altStart = node.from + 2;
-  let altEnd = node.to;
-  if (urlChild) {
-    for (let i = urlChild.from - 1; i >= altStart; i--) {
-      if (source[i] === "]") {
-        altEnd = i;
-        break;
-      }
-    }
-  }
-  const alt = source.slice(altStart, altEnd);
-
-  if (ctx.resolvers.resolveAssetUrl) {
-    try {
-      const resolved = ctx.resolvers.resolveAssetUrl(src);
-      if (typeof resolved === "string") src = resolved;
-    } catch {
-      // ignore
-    }
-  }
-
-  const sp = sourcePosAttrs(ctx, node.from, node.to);
-  if (!isSafeUrl(src)) {
-    if (ctx.sourcePositions) {
-      return {
-        html: `<span class="${CSS.text}"${sp}>${escapeHtml(alt)}</span>`,
-        text: alt,
-        hasMath: false,
-      };
-    }
-    return { html: escapeHtml(alt), text: alt, hasMath: false };
-  }
-  if (isUnresolvedLocalMediaUrl(src)) {
-    return {
-      html: renderMediaLoadingHtml(src, alt, sp),
-      text: alt,
-      hasMath: false,
-    };
-  }
-  return {
-    html: renderImageSurfaceHtml(src, alt, sp),
-    text: alt,
-    hasMath: false,
-  };
 }
 
 // ---------------------------------------------------------------------------
@@ -1704,18 +1374,19 @@ function isPandocHeadingAttributeToken(token: string): boolean {
 }
 
 function renderParagraph(ctx: WalkContext, node: SyntaxNode): BlockResult {
-  let contentFrom = node.from;
-  let contentTo = node.to;
-  while (contentFrom < contentTo && /\s/.test(ctx.source[contentFrom] ?? "")) contentFrom++;
-  while (contentTo > contentFrom && /\s/.test(ctx.source[contentTo - 1] ?? "")) contentTo--;
-  const inner = renderInline(ctx, node, contentFrom, contentTo);
-  // Trim boundary whitespace/newlines for tidy output; interior soft breaks
-  // stay available for CSS to preserve rich-editor visual parity.
-  const html = inner.html.replace(/^\s+/, "").replace(/\s+$/, "");
+  const plan = paragraphRenderPlan(ctx.source, node, {
+    sourceRanges: ctx.sourcePositions || ctx.mathSourcePositions,
+  });
+  const inner = renderInlineFragmentsForReader(
+    ctx,
+    plan.fragments,
+    plan.contentRange.from,
+    plan.contentRange.to,
+  );
   return {
-    html: renderParagraphHtml(html, blockSourceAttrs(ctx, node.from, node.to)),
-    text: inner.text.replace(/^\s+/, "").replace(/\s+$/, ""),
-    hasMath: inner.hasMath,
+    html: renderParagraphHtml(inner.html, blockSourceAttrs(ctx, plan.sourceRange.from, plan.sourceRange.to)),
+    text: plan.text,
+    hasMath: plan.hasMath,
   };
 }
 
@@ -2106,30 +1777,8 @@ function renderFootnoteDef(ctx: WalkContext, node: SyntaxNode): BlockResult {
   if (!m) return emptyBlock();
   const id = m[1];
 
-  // Body inline: render children after labelNode.
-  let html = "";
-  let text = "";
-  let hasMath = false;
-  let cursor = labelNode.to;
-  let child = labelNode.nextSibling;
-  while (child) {
-    if (child.from > cursor) {
-      const gap = ctx.source.slice(cursor, child.from);
-      html += escapeHtml(gap);
-      text += gap;
-    }
-    const r = renderInlineNode(ctx, child);
-    html += r.html;
-    text += r.text;
-    if (r.hasMath) hasMath = true;
-    cursor = child.to;
-    child = child.nextSibling;
-  }
-  if (cursor < node.to) {
-    const tail = ctx.source.slice(cursor, node.to);
-    html += escapeHtml(tail);
-    text += tail;
-  }
+  const renderedBody = renderInline(ctx, node, labelNode.to, node.to);
+  let { html, text, hasMath } = renderedBody;
 
   // Trim leading whitespace from body.
   html = html.replace(/^\s+/, "");

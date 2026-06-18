@@ -75,8 +75,10 @@ import {
   displayTitleForBlockType,
 } from "../../core/semantics/block-numbering";
 import { blockPresentationPlan, type BlockPresentationPlan } from "../../core/block-presentation";
+import { paragraphRenderPlan } from "../../core/block-render-plan";
 import type { BibStore } from "../state/bib-data";
 import {
+  renderInlineFragmentsToDom,
   renderInlineMarkdown,
   renderInlineSyntaxNodeToDom,
 } from "./inline-render";
@@ -266,8 +268,19 @@ function renderParagraph(
   node: SyntaxNode,
   context: PreviewRenderContext,
 ): void {
+  const plan = paragraphRenderPlan(context.doc, node);
   appendParagraphDom(parent, document, (paragraph) => {
-    appendInlineNode(paragraph, node, context);
+    renderInlineFragmentsToDom(
+      paragraph,
+      plan.fragments,
+      context.macros,
+      "document-body",
+      {
+        ...context.referenceContext,
+        imageUrlOverrides: context.imageUrlOverrides,
+        footnoteNumbers: context.footnoteNumbers,
+      },
+    );
   });
 }
 

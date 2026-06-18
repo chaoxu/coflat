@@ -437,6 +437,18 @@ describe("renderToHtml — block-level rendering ()", () => {
     expect(r.hasMath).toBe(true);
   });
 
+  it("uses shared inline fragments for footnote definition bodies", () => {
+    const r = renderToHtml(
+      "See [^note].\n\n[^note]: As shown in [@knuth1984] and **bold**.",
+      undefined,
+      { sourcePositions: true },
+    );
+    expect(r.html).toContain("[@knuth1984]");
+    expect(r.html).toContain('<strong class="cf-bold"');
+    expect(r.html).not.toContain('cf-crossref-unresolved');
+    expect(r.html).not.toContain('data-ref-key="knuth1984"');
+  });
+
   it("renders fenced divs with class and data-* attributes", () => {
     const r = renderToHtml("::: {.theorem #thm-1 title=\"Pythagoras\"}\nbody\n:::");
     expect(r.html).toContain('cf-doc-block-collapsible');
