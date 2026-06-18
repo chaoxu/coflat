@@ -31,6 +31,7 @@ import {
   requestHandlerFacet,
   type RequestHandler,
 } from "./editor-host-api";
+import { escapeMarkdownPath } from "./image-save";
 
 /* ────────────────────────────────────────────────────────────────────────────
  * Public API
@@ -51,6 +52,55 @@ export interface AssetUploader {
    * editor unmounted before resolve.
    */
   cancel?(file: File): void;
+}
+
+export type UploadedAssetMarkdownKind = "auto" | "image" | "link";
+
+export interface UploadedAssetMarkdownInput {
+  path: string;
+  name?: string;
+  mimeType?: string;
+  alt?: string;
+  kind?: UploadedAssetMarkdownKind;
+}
+
+const IMAGE_ASSET_EXTENSION_RE = /\.(?:png|jpe?g|gif|webp|svg|bmp|tiff?)$/i;
+
+export function isUploadedAssetImage(
+  asset: Pick<UploadedAssetMarkdownInput, "mimeType" | "name">,
+): boolean {
+  return Boolean(
+    asset.mimeType?.startsWith("image/") ||
+      (asset.name && IMAGE_ASSET_EXTENSION_RE.test(asset.name)),
+  );
+}
+
+function escapeMarkdownLabel(label: string): string {
+  return label.replace(/[[\]\n]/g, " ").trim();
+}
+
+export function uploadedAssetLabel(name: string | undefined): string {
+  const raw = name?.replace(/\.[^.]+$/, "").trim() || "asset";
+  return escapeMarkdownLabel(raw) || "asset";
+}
+
+export function formatUploadedAssetMarkdown(
+  asset: UploadedAssetMarkdownInput,
+): string {
+  const safePath = escapeMarkdownPath(asset.path);
+  const label = Object.hasOwn(asset, "alt")
+    ? escapeMarkdownLabel(asset.alt ?? "")
+    : uploadedAssetLabel(asset.name);
+  const kind =
+    asset.kind && asset.kind !== "auto"
+      ? asset.kind
+      : isUploadedAssetImage(asset)
+        ? "image"
+        : "link";
+  if (kind === "image") {
+    return `![${label}](${safePath})`;
+  }
+  return `[${label || "asset"}](${safePath})`;
 }
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -83,10 +133,6 @@ function makePlaceholderId(s: PerViewState): string {
   }
   s.counter += 1;
   return `upload-${s.counter}`;
-}
-
-function escapeMarkdownPath(path: string): string {
-  return path.replace(/ /g, "%20").replace(/\)/g, "%29");
 }
 
 function escapeAlt(alt: string): string {
@@ -173,7 +219,11 @@ async function runUpload(
 
   const altRaw = result.alt ?? PLACEHOLDER_ALT;
   const alt = escapeAlt(altRaw === PLACEHOLDER_ALT ? "" : altRaw);
-  const replacement = `![${alt}](${escapeMarkdownPath(result.path)})`;
+  const replacement = formatUploadedAssetMarkdown({
+    path: result.path,
+    alt,
+    kind: "image",
+  });
   rewritePlaceholder(view, pending.placeholderId, replacement);
   emitStatusEvent(view, "onAssetUploadSucceeded", {
     placeholderId: pending.placeholderId,

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   analyzeReferences,
   buildReferenceCatalog,
+  extractFirstH1,
 } from "../../parse";
 
 const fixture = [
@@ -23,6 +24,10 @@ const fixture = [
 ].join("\n");
 
 describe("buildReferenceCatalog", () => {
+  it("extracts the first H1 through the parser and ignores code fences", () => {
+    expect(extractFirstH1(["## Subhead", "", "```md", "# Fake", "```", "", "# Real"].join("\n"))).toBe("Real");
+  });
+
   it("returns shared target labels for headings, blocks, equations, and refs", () => {
     const catalog = buildReferenceCatalog(fixture);
 

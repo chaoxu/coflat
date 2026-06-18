@@ -204,9 +204,25 @@ import {
   referencePreviewSurfacePlan,
 } from "../core/reference-preview-source";
 import {
-  mapDomRangeToSource,
   sourceRangeAttrs,
   sourceRangeFromElement,
+} from "../core/source-range-surface";
+export {
+  applySourceRangeAttrs,
+  closestMathSourceCarrier,
+  closestSourceRangeCarrier,
+  isSourceRangeCarrier,
+  mapDomRangeToSource,
+  parseSourceOffset,
+  sourceRangeAttrs,
+  sourceRangeFromDataset,
+  sourceRangeFromElement,
+  sourceRangeFromValues,
+  type ElementSourceRangeOptions,
+  type ParseSourceRangeOptions,
+  type SourceRange,
+  type SourceRangeAttrsOptions,
+  type SourceRangeCarrierOptions,
 } from "../core/source-range-surface";
 import type {
   CitationFormatter,
@@ -223,7 +239,6 @@ export {
   blueprintBookThemeManifest,
 } from "../core/theme-manifest";
 export type { CoflatThemeManifest, CoflatThemeTarget } from "../core/theme-manifest";
-export { mapDomRangeToSource };
 import { noteLezerInvocation } from "./reader-internal";
 
 export type {

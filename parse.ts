@@ -32,6 +32,7 @@ import type {
   DocumentReferenceTargetKind,
 } from "./src/core/reference-targets";
 import {
+  analyzeHeadings,
   analyzeDocumentSemantics,
   stringTextSource,
 } from "./src/editor/semantics/document";
@@ -46,6 +47,12 @@ export {
   parseBibliographyKeys,
   type NumericCitationEntry,
 } from "./src/core/citations/numeric";
+export {
+  markdownReferencePathCandidatesFromDocument,
+  normalizeMarkdownReferencePath,
+  relativeMarkdownReferencePathFromDocument,
+  resolveMarkdownReferencePathFromDocument,
+} from "./src/editor/lib/markdown-reference-paths";
 
 export type ReferenceKind = "link" | "image" | "crossref";
 
@@ -374,6 +381,13 @@ export function buildReferenceCatalog(
 
 export function analyzeReferences(source: string): ReferenceCatalog {
   return buildReferenceCatalog(source);
+}
+
+/** Return the first level-1 ATX heading text using the Coflat Lezer parser. */
+export function extractFirstH1(source: string): string | null {
+  const tree = parseMarkdownSource(source, "semantic");
+  const headings = analyzeHeadings(stringTextSource(source), tree);
+  return headings.find((heading) => heading.level === 1)?.text ?? null;
 }
 
 // ---------------------------------------------------------------------------

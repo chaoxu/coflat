@@ -125,7 +125,12 @@ export {
 } from "./editor-host-api";
 export {
   assetUploaderExtension,
+  formatUploadedAssetMarkdown,
+  isUploadedAssetImage,
+  uploadedAssetLabel,
   type AssetUploader,
+  type UploadedAssetMarkdownInput,
+  type UploadedAssetMarkdownKind,
 } from "./asset-uploader";
 export { imagePasteExtension, type ImagePasteConfig } from "./image-paste";
 export { fileToDataUrl } from "./image-save";

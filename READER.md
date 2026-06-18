@@ -21,6 +21,15 @@ The package exports map is the public contract:
 
 Everything outside the exports map is private.
 
+## Parser Policy
+
+Lezer is the parser. Coflat and Markdown document structure must not be parsed
+with ad hoc regex: headings, references, math, labels, frontmatter boundaries,
+fenced blocks, tables, lists, footnotes, and outlines should come from the
+Lezer tree or from parser-owned scanners/helpers. Regex is acceptable for
+validation, escaping, test assertions, and as a sieve over text that the parser
+has already identified as plain text.
+
 ## Document Context
 
 `DocumentContext` is the host-owned read context shared by reader and editor

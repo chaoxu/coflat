@@ -12,6 +12,11 @@ import type {
   AssetUploader,
   StatusEvents,
 } from "../../editor";
+import {
+  formatUploadedAssetMarkdown,
+  isUploadedAssetImage,
+  uploadedAssetLabel,
+} from "./asset-uploader";
 
 interface Deferred<T> {
   promise: Promise<T>;
@@ -155,6 +160,54 @@ async function flush(): Promise<void> {
   await Promise.resolve();
   await Promise.resolve();
 }
+
+describe("uploaded asset Markdown helpers", () => {
+  it("detects images by MIME type or filename", () => {
+    expect(isUploadedAssetImage({ mimeType: "image/png" })).toBe(true);
+    expect(isUploadedAssetImage({ name: "diagram.svg" })).toBe(true);
+    expect(
+      isUploadedAssetImage({
+        mimeType: "application/pdf",
+        name: "paper.pdf",
+      }),
+    ).toBe(false);
+  });
+
+  it("derives a safe label from the uploaded filename", () => {
+    expect(uploadedAssetLabel("chart[final].png")).toBe("chart final");
+    expect(uploadedAssetLabel("")).toBe("asset");
+  });
+
+  it("formats image uploads with escaped paths", () => {
+    expect(
+      formatUploadedAssetMarkdown({
+        path: "assets/my figure(1).png",
+        name: "my figure.png",
+        mimeType: "image/png",
+      }),
+    ).toBe("![my figure](assets/my%20figure(1%29.png)");
+  });
+
+  it("formats non-image uploads as links", () => {
+    expect(
+      formatUploadedAssetMarkdown({
+        path: "assets/data sheet.pdf",
+        name: "data sheet.pdf",
+        mimeType: "application/pdf",
+      }),
+    ).toBe("[data sheet](assets/data%20sheet.pdf)");
+  });
+
+  it("can force image markup with an empty alt for placeholder rewrites", () => {
+    expect(
+      formatUploadedAssetMarkdown({
+        path: "assets/a.png",
+        alt: "",
+        kind: "image",
+      }),
+    ).toBe("![](assets/a.png)");
+  });
+});
 
 describe("assetUploaderExtension paste", () => {
   it("inserts a placeholder at the cursor and calls upload(file)", async () => {

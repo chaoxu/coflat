@@ -11,8 +11,15 @@
  * filesystem safety validation.
  */
 
-import { normalize } from "pathe";
-import { dirname } from "./utils";
+import {
+  dirname as patheDirname,
+  normalize,
+} from "pathe";
+
+function markdownReferenceDirname(path: string): string {
+  const dir = patheDirname(path);
+  return dir === "." ? "" : dir;
+}
 
 function splitMarkdownReferencePath(path: string): string[] {
   const normalized = normalizeMarkdownReferencePath(path);
@@ -32,7 +39,7 @@ export function resolveMarkdownReferencePathFromDocument(
     return normalizeMarkdownReferencePath(targetPath);
   }
 
-  const docDir = dirname(docPath);
+  const docDir = markdownReferenceDirname(docPath);
   return normalizeMarkdownReferencePath(docDir ? `${docDir}/${targetPath}` : targetPath);
 }
 
@@ -49,7 +56,7 @@ export function relativeMarkdownReferencePathFromDocument(
   docPath: string,
   targetPath: string,
 ): string {
-  const fromParts = splitMarkdownReferencePath(dirname(docPath));
+  const fromParts = splitMarkdownReferencePath(markdownReferenceDirname(docPath));
   const toParts = splitMarkdownReferencePath(targetPath);
 
   let common = 0;
