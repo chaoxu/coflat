@@ -42,6 +42,25 @@ describe("renderToHtml outline option", () => {
     expect(outline?.[0]?.html).toContain("cf-doc-code-token");
   });
 
+  it("renders outline html with resolved in-document reference labels", () => {
+    const { outline } = renderToHtml(
+      [
+        '::: {#thm:fundamental .theorem title="Fundamental Theorem"}',
+        "For all $n$, the claim holds.",
+        ":::",
+        "",
+        "# Proof of [@thm:fundamental]",
+      ].join("\n"),
+      undefined,
+      { outline: true, resolveReferences: true },
+    );
+    const proofHeading = outline?.find((entry) => entry.text.includes("Proof of"));
+    expect(proofHeading?.text).toBe("Proof of [@thm:fundamental]");
+    expect(proofHeading?.html).toContain("Proof of ");
+    expect(proofHeading?.html).toContain("Theorem 1");
+    expect(proofHeading?.html).not.toContain("@thm:fundamental");
+  });
+
   it("emits a matching id on every heading so outline anchors resolve", () => {
     const { html, outline } = renderToHtml(doc, undefined, { outline: true });
     for (const entry of outline ?? []) {

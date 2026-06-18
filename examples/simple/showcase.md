@@ -148,6 +148,10 @@ $$
 By induction. Base case $n=1$: $1 = \frac{1 \cdot 2 \cdot 3}{6}$.
 :::
 
+# Proof of [@thm:fundamental]
+
+This heading is a stable outline-label regression fixture: reader and editor outlines should show the resolved theorem label, not the raw source key.
+
 :::: {.theorem #thm:nested title="Outer shell"}
 Outer shell content should stay rendered while an inner structure target is active.
 
