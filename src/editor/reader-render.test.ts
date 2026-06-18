@@ -670,6 +670,12 @@ describe("renderToHtml — block-level rendering ()", () => {
     expect(r.html).not.toContain("@thm:main shows");
   });
 
+  it("keeps narrative reference text inert when no resolver context exists", () => {
+    const r = renderToHtml("As @cormen2009 showed.");
+    expect(r.html).toContain("As @cormen2009 showed.");
+    expect(r.html).not.toContain("cf-crossref-unresolved");
+  });
+
   it("passes resolver metadata and document path while rendering references", () => {
     const calls: unknown[] = [];
     const r = renderToHtml(

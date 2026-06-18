@@ -717,6 +717,15 @@ function renderInlineFragmentsForReader(
         break;
       }
       case "reference": {
+        const canResolveNarrative = fragment.parenthetical
+          || ctx.resolvers.citationFormatter
+          || ctx.resolvers.refResolver
+          || ctx.resolvers.referenceCatalog;
+        if (!canResolveNarrative) {
+          html += escapeHtml(fragment.rawText);
+          text += fragment.rawText;
+          break;
+        }
         const raw = fragment.parenthetical ? `[${fragment.rawText}]` : fragment.rawText;
         const ref = emitReferenceCluster(
           ctx,
