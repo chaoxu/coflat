@@ -717,10 +717,18 @@ function renderInlineFragmentsForReader(
         break;
       }
       case "reference": {
+        const hasResolverContext = ctx.resolvers.refResolver
+          || ctx.resolvers.referenceCatalog
+          || (ctx.resolvers.citationFormatter && ctx.resolvers.citationKeys);
+        const looksLikeLocalCrossref = fragment.ids.some((id) => id.includes(":"));
+        if (fragment.parenthetical && !hasResolverContext && !looksLikeLocalCrossref) {
+          const raw = `[${fragment.rawText}]`;
+          html += escapeHtml(raw);
+          text += raw;
+          break;
+        }
         const canResolveNarrative = fragment.parenthetical
-          || ctx.resolvers.citationFormatter
-          || ctx.resolvers.refResolver
-          || ctx.resolvers.referenceCatalog;
+          || hasResolverContext;
         if (!canResolveNarrative) {
           html += escapeHtml(fragment.rawText);
           text += fragment.rawText;

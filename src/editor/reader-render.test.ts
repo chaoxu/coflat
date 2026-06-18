@@ -639,11 +639,11 @@ describe("renderToHtml — block-level rendering ()", () => {
     });
   });
 
-  it("defaults [@key] to an unresolved crossref with no RefResolver", () => {
+  it("keeps citation-shaped [@key] text inert without citation context", () => {
     const r = renderToHtml("As shown in [@knuth1984], …");
-    expect(r.html).toContain('cf-crossref-unresolved');
-    expect(r.html).toContain('data-ref-key="knuth1984"');
-    expect(r.html).toContain('data-ref-mode="bracketed"');
+    expect(r.html).toContain("As shown in [@knuth1984],");
+    expect(r.html).not.toContain('cf-crossref-unresolved');
+    expect(r.html).not.toContain('data-ref-key="knuth1984"');
   });
 
   it("does not derive crossref classes from id prefixes", () => {

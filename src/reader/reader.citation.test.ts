@@ -61,7 +61,8 @@ describe("reader citations", () => {
   it("does nothing without citationKeys (backward compatible)", () => {
     const { html } = renderToHtml("See [@cormen2009] here.", { citationFormatter: fakeFormatter() });
     expect(html).not.toContain("cf-bibliography");
-    expect(html).toContain("cf-crossref-unresolved"); // falls through to unresolved
+    expect(html).toContain("See [@cormen2009] here.");
+    expect(html).not.toContain("cf-crossref-unresolved");
   });
 
   it("a non-citation [@eq:gaussian] is left for the host refResolver", () => {
