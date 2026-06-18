@@ -1,5 +1,6 @@
 import { type EditorView, WidgetType } from "@codemirror/view";
 import { CSS } from "../../core/constants/css-classes";
+import { sourceRangeFromDataset } from "../../core/source-range-surface";
 import type { VisibleSearchState } from "../search/search-matches";
 import { activeFencedDepthAtRange } from "../state/shell-ownership";
 import { activateStructureEditAt } from "../state/cm-structure-edit";
@@ -119,17 +120,18 @@ export function resolveLiveWidgetSourceRange(
   el: HTMLElement,
 ): WidgetSourceRange | null {
   const widget = widgetSourceMap.get(el);
-  const fallbackFrom = widget ? widget.sourceFrom : Number(el.dataset.sourceFrom);
-  const fallbackTo = widget ? widget.sourceTo : Number(el.dataset.sourceTo);
-  if (Number.isNaN(fallbackFrom) || Number.isNaN(fallbackTo) || fallbackFrom < 0 || fallbackTo < fallbackFrom) {
+  const fallbackRange = widget
+    ? { from: widget.sourceFrom, to: widget.sourceTo }
+    : sourceRangeFromDataset(el.dataset, "sourceFrom", "sourceTo");
+  if (!fallbackRange || fallbackRange.from < 0 || fallbackRange.to < fallbackRange.from) {
     return null;
   }
 
   if (widget && !widget.useLiveSourceRange) {
-    return { from: fallbackFrom, to: fallbackTo };
+    return fallbackRange;
   }
 
-  const sourceLength = fallbackTo - fallbackFrom;
+  const sourceLength = fallbackRange.to - fallbackRange.from;
   try {
     const liveFrom = view.posAtDOM(el, 0);
     if (Number.isInteger(liveFrom) && liveFrom >= 0) {
@@ -142,7 +144,7 @@ export function resolveLiveWidgetSourceRange(
     // Fall through to the last known source range.
   }
 
-  return { from: fallbackFrom, to: fallbackTo };
+  return fallbackRange;
 }
 
 function sourceRevealTargetFromPointer(

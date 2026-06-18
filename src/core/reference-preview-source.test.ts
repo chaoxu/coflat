@@ -10,6 +10,7 @@ import {
   findHeadingPreviewSource,
   findReferencePreviewSource,
   headingReferencePreviewEntry,
+  referencePreviewBodyInputFromEntry,
   referencePreviewBodyPlan,
   referencePreviewHeaderText,
   stripBracedLabelId,
@@ -167,6 +168,47 @@ describe("reference preview source helpers", () => {
       from: source.indexOf("\n  Body"),
       to: source.indexOf("\n:::", blockFrom),
     })).toEqual(range);
+  });
+
+  it("builds shared body inputs from indexed preview entries", () => {
+    const source = "::: {.theorem #thm:main}\nBody\n:::";
+    const blockEntry = blockReferencePreviewEntry({
+      id: "thm:main",
+      label: "Theorem 1",
+      blockType: "theorem",
+      sourceRange: { from: 0, to: source.length },
+      bodyRange: { from: source.indexOf("Body"), to: source.indexOf("\n:::") },
+      title: "Main",
+      number: 1,
+    });
+
+    expect(referencePreviewBodyInputFromEntry(headingReferencePreviewEntry({
+      id: "intro",
+      label: "Section 1",
+      title: "Intro",
+      level: 1,
+      sourceRange: { from: 0, to: 7 },
+    }))).toEqual({ kind: "heading" });
+    expect(referencePreviewBodyInputFromEntry(equationReferencePreviewEntry({
+      id: "eq:one",
+      label: "Equation 1",
+      latex: "x = y",
+      sourceRange: { from: 0, to: 14 },
+      bodyRange: { from: 2, to: 7 },
+      number: 1,
+    }))).toEqual({ kind: "equation", latex: "x = y" });
+    expect(referencePreviewBodyInputFromEntry(blockEntry, source)).toEqual({
+      kind: "block",
+      fullSource: source,
+      bodySource: "Body",
+      useFullSource: false,
+    });
+    expect(referencePreviewBodyInputFromEntry(blockEntry, source, { useFullSource: true })).toEqual({
+      kind: "block",
+      fullSource: source,
+      bodySource: "Body",
+      useFullSource: true,
+    });
   });
 
   it("extracts dollar and bracket display math preview source", () => {

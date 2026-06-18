@@ -13,24 +13,19 @@ import { dispatchWidgetKeyboardEntry } from "./state/widget-keyboard-entry";
 import { type HiddenWidgetStop } from "./widget-stop-index";
 import { requestSelectionVisibility } from "./vertical-motion-scroll";
 import { CSS } from "../core/constants/css-classes";
-
-function readDatasetNumber(value: string | undefined): number | null {
-  if (value === undefined) return null;
-  const parsed = Number.parseInt(value, 10);
-  return Number.isFinite(parsed) ? parsed : null;
-}
+import { parseSourceOffset } from "../core/source-range-surface";
 
 function tableWidgetContainerMatchesRange(
   container: HTMLElement,
   table: TableRange,
 ): boolean {
-  const sourceFrom = readDatasetNumber(container.dataset.sourceFrom);
-  const sourceTo = readDatasetNumber(container.dataset.sourceTo);
+  const sourceFrom = parseSourceOffset(container.dataset.sourceFrom);
+  const sourceTo = parseSourceOffset(container.dataset.sourceTo);
   if (sourceFrom !== null || sourceTo !== null) {
     return sourceFrom === table.from && sourceTo === table.to;
   }
 
-  return readDatasetNumber(container.dataset.tableFrom) === table.from;
+  return parseSourceOffset(container.dataset.tableFrom) === table.from;
 }
 
 function findTableWidgetContainer(

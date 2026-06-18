@@ -1,4 +1,5 @@
 import type { EditorView } from "@codemirror/view";
+import { sourceRangeFromDataset } from "../core/source-range-surface";
 import { rangesOverlap } from "./lib/range-helpers";
 import { frontmatterField } from "./state/frontmatter-state";
 import {
@@ -99,17 +100,8 @@ function unionClientRects(
   return normalizeRect(left, right, top, bottom);
 }
 
-function parseSourcePos(value: string | undefined): number | null {
-  if (!value) return null;
-  const parsed = Number.parseInt(value, 10);
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
 function sourceRangeFromWidget(el: HTMLElement): { from: number; to: number } | null {
-  const from = parseSourcePos(el.dataset.shellFrom);
-  if (from === null) return null;
-  const to = parseSourcePos(el.dataset.shellTo) ?? from;
-  return { from, to };
+  return sourceRangeFromDataset(el.dataset, "shellFrom", "shellTo", { defaultToFrom: true });
 }
 
 function lineContentRect(node: HTMLElement): ShellSurfaceRect | null {

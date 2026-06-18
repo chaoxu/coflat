@@ -193,11 +193,15 @@ import {
   equationReferencePreviewEntry,
   findReferencePreviewSource,
   headingReferencePreviewEntry,
+  referencePreviewBodyInputFromEntry,
   referencePreviewBodyPlan,
   referencePreviewHeaderText,
   trimReferencePreviewRange,
 } from "../core/reference-preview-source";
-import { sourceRangeAttrs } from "../core/source-range-surface";
+import {
+  sourceRangeAttrs,
+  sourceRangeFromElement,
+} from "../core/source-range-surface";
 import type {
   CitationFormatter,
   DocumentContext,
@@ -2407,16 +2411,6 @@ export interface HydrateReferencesOptions {
   readonly surface?: string;
 }
 
-function parseSourceRange(el: Element): { from: number; to: number } | undefined {
-  const carrier = el.hasAttribute("data-source-from")
-    ? el
-    : el.closest("[data-source-from][data-source-to]");
-  if (!carrier) return undefined;
-  const from = Number(carrier.getAttribute("data-source-from"));
-  const to = Number(carrier.getAttribute("data-source-to"));
-  return Number.isFinite(from) && Number.isFinite(to) ? { from, to } : undefined;
-}
-
 function hydrateReferenceElement(
   el: HTMLElement,
   ctx: DocumentContext,
@@ -2425,7 +2419,7 @@ function hydrateReferenceElement(
   const key = el.dataset.refKey;
   if (!key || !ctx.refResolver?.resolve) return;
   const mode = el.dataset.refMode === "narrative" ? "narrative" : "bracketed";
-  const sourceRange = parseSourceRange(el);
+  const sourceRange = sourceRangeFromElement(el, { closest: true }) ?? undefined;
   const raw = sourceRange && opts.source
     ? opts.source.slice(sourceRange.from, sourceRange.to)
     : el.textContent ?? "";
@@ -2464,7 +2458,7 @@ function hydrateLinkElement(
 ): void {
   const href = el.getAttribute("href");
   if (!href || !ctx.linkResolver?.resolve) return;
-  const sourceRange = parseSourceRange(el);
+  const sourceRange = sourceRangeFromElement(el, { closest: true }) ?? undefined;
   const resolved = ctx.linkResolver.resolve(href, el.textContent ?? "", {
     from: opts.documentPath,
     raw: sourceRange && opts.source
@@ -2591,18 +2585,7 @@ function buildReaderIndexedPreview(
     referencePreviewHeaderText(entry, fallbackLabel),
   ));
 
-  const bodyPlan = referencePreviewBodyPlan(
-    entry.kind === "heading"
-      ? { kind: "heading" }
-      : entry.kind === "equation"
-      ? { kind: "equation", latex: entry.latex }
-      : {
-        kind: "block",
-        fullSource: source?.slice(entry.from, entry.to) ?? "",
-        bodySource: source?.slice(entry.bodyFrom, entry.bodyTo) ?? "",
-        useFullSource: false,
-      },
-  );
+  const bodyPlan = referencePreviewBodyPlan(referencePreviewBodyInputFromEntry(entry, source));
 
   if (bodyPlan.kind === "display-math" || bodyPlan.kind === "markdown") {
     container.appendChild(renderReaderPreviewSource(bodyPlan.markdownSource, context, mathMacros));

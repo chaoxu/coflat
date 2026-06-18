@@ -274,6 +274,28 @@ export function blockPreviewBodyInputFromSource(
   };
 }
 
+export function referencePreviewBodyInputFromEntry(
+  entry: ReferencePreviewEntry,
+  source?: string,
+  options: {
+    readonly useFullSource?: boolean;
+  } = {},
+): ReferencePreviewBodyInput {
+  if (entry.kind === "heading") {
+    return { kind: "heading" };
+  }
+
+  if (entry.kind === "equation") {
+    return { kind: "equation", latex: entry.latex };
+  }
+
+  return blockPreviewBodyInputFromSource(source ?? "", {
+    fullRange: { from: entry.from, to: entry.to },
+    bodyRange: { from: entry.bodyFrom, to: entry.bodyTo },
+    useFullSource: options.useFullSource ?? false,
+  });
+}
+
 function escapeRegExpLiteral(value: string): string {
   return value.replace(/[\\^$.*+?()[\]{}|]/g, "\\$&");
 }

@@ -1,6 +1,7 @@
 import { EditorSelection, type EditorState } from "@codemirror/state";
 import { EditorView, type ViewUpdate } from "@codemirror/view";
 import { CSS } from "../../core/constants/css-classes";
+import { sourceRangeFromDataset } from "../../core/source-range-surface";
 import {
   buildPointerSelection,
   isPlainPrimaryMouseEvent,
@@ -81,10 +82,7 @@ export function resolveClickToSourcePos(
 }
 
 function parseInlineMathSourceRange(el: HTMLElement): InlineMathSourceRange | undefined {
-  const from = Number.parseInt(el.dataset.sourceFrom ?? "", 10);
-  const to = Number.parseInt(el.dataset.sourceTo ?? "", 10);
-  if (!Number.isFinite(from) || !Number.isFinite(to) || from >= to) return undefined;
-  return { from, to };
+  return sourceRangeFromDataset(el.dataset, "sourceFrom", "sourceTo", { requirePositive: true }) ?? undefined;
 }
 
 function findInlineMathSourceRange(
