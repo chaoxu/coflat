@@ -175,7 +175,7 @@ export function planReferenceRendering(
   const controller = createEditorReferencePresentationController(state, {
     store,
     formatter,
-    surface: documentSurfacePolicy("editor-preview").referenceHostSurface,
+    surface: documentSurfacePolicy("editor").referenceHostSurface,
   });
   const items: ReferenceRenderItem[] = [];
   const activeRef = getRevealedReferenceTarget(state, focused);
