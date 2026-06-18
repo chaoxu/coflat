@@ -1,5 +1,8 @@
 import type { SyntaxNode, SyntaxNodeRef } from "@lezer/common";
-import { headingSemanticPlan } from "../../../core/block-render-plan";
+import {
+  footnoteDefinitionSemanticPlan,
+  headingSemanticPlan,
+} from "../../../core/block-render-plan";
 import { NODE } from "../../../core/constants/node-types";
 import { primaryClassNameForFencedDivClasses } from "../../../core/semantics/block-numbering";
 import {
@@ -91,20 +94,22 @@ export function collectFootnoteRef(
 }
 
 export function collectFootnoteDef(
-  doc: TextSource,
+  source: string,
   node: SyntaxNodeRef,
   result: StructuralWindowExtraction,
 ): void {
-  const labelNode = node.node.getChild("FootnoteDefLabel");
-  if (!labelNode) return;
+  const plan = footnoteDefinitionSemanticPlan(source, node.node);
+  if (!plan) return;
 
   result.footnoteDefs.push({
-    id: doc.slice(labelNode.from + 2, labelNode.to - 2),
-    from: node.from,
-    to: node.to,
-    content: doc.slice(labelNode.to, node.to).trim(),
-    labelFrom: labelNode.from,
-    labelTo: labelNode.to,
+    id: plan.id,
+    from: plan.sourceRange.from,
+    to: plan.sourceRange.to,
+    content: source.slice(plan.bodyRange.from, plan.bodyRange.to),
+    bodyFrom: plan.bodyRange.from,
+    bodyTo: plan.bodyRange.to,
+    labelFrom: plan.labelRange.from,
+    labelTo: plan.labelRange.to,
   });
 }
 

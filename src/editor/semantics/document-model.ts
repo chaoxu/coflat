@@ -55,6 +55,8 @@ export interface FootnoteDefinition {
   readonly from: number;
   readonly to: number;
   readonly content: string;
+  readonly bodyFrom: number;
+  readonly bodyTo: number;
   readonly labelFrom: number;
   readonly labelTo: number;
 }

@@ -57,12 +57,16 @@ export function mapFootnoteDefinition(
   const to = Math.max(from, changes.mapPos(value.to, -1));
   const labelFrom = changes.mapPos(value.labelFrom, 1);
   const labelTo = Math.max(labelFrom, changes.mapPos(value.labelTo, -1));
+  const bodyFrom = changes.mapPos(value.bodyFrom, 1);
+  const bodyTo = Math.max(bodyFrom, changes.mapPos(value.bodyTo, -1));
 
   if (
     from === value.from
     && to === value.to
     && labelFrom === value.labelFrom
     && labelTo === value.labelTo
+    && bodyFrom === value.bodyFrom
+    && bodyTo === value.bodyTo
   ) {
     return value;
   }
@@ -72,6 +76,8 @@ export function mapFootnoteDefinition(
     from,
     to,
     content: value.content,
+    bodyFrom,
+    bodyTo,
     labelFrom,
     labelTo,
   };
@@ -119,6 +125,8 @@ function sameFootnoteDefinition(
     && left.from === right.from
     && left.to === right.to
     && left.content === right.content
+    && left.bodyFrom === right.bodyFrom
+    && left.bodyTo === right.bodyTo
     && left.labelFrom === right.labelFrom
     && left.labelTo === right.labelTo
   );

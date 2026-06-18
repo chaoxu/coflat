@@ -202,6 +202,23 @@ export interface FootnoteDefinitionRenderPlan {
   readonly hasMath: boolean;
 }
 
+export interface FootnoteDefinitionSemanticPlan {
+  readonly kind: "footnote-definition";
+  readonly sourceRange: {
+    readonly from: number;
+    readonly to: number;
+  };
+  readonly labelRange: {
+    readonly from: number;
+    readonly to: number;
+  };
+  readonly bodyRange: {
+    readonly from: number;
+    readonly to: number;
+  };
+  readonly id: string;
+}
+
 export interface BlockChildRenderPlan {
   readonly node: SyntaxNode;
   readonly blankBeforeRanges: readonly {
@@ -826,6 +843,29 @@ export function footnoteDefinitionRenderPlan(
   node: SyntaxNode,
   options: BlockRenderPlanOptions = {},
 ): FootnoteDefinitionRenderPlan | null {
+  const semantic = footnoteDefinitionSemanticPlan(source, node);
+  if (!semantic) return null;
+
+  const fragments = buildInlineFragments(
+    node,
+    source,
+    semantic.bodyRange.from,
+    semantic.bodyRange.to,
+    { sourceRanges: options.sourceRanges },
+  );
+
+  return {
+    ...semantic,
+    fragments,
+    text: inlineFragmentsPlainText(fragments),
+    hasMath: fragmentsContainMath(fragments),
+  };
+}
+
+export function footnoteDefinitionSemanticPlan(
+  source: string,
+  node: SyntaxNode,
+): FootnoteDefinitionSemanticPlan | null {
   if (node.name !== NODE.FootnoteDef) {
     throw new Error(`expected footnote definition node, got ${node.name}`);
   }
@@ -835,13 +875,6 @@ export function footnoteDefinitionRenderPlan(
 
   const id = source.slice(labelNode.from + 2, labelNode.to - 2);
   const bodyRange = trimmedNodeRange(source, labelNode.to, node.to);
-  const fragments = buildInlineFragments(
-    node,
-    source,
-    bodyRange.from,
-    bodyRange.to,
-    { sourceRanges: options.sourceRanges },
-  );
 
   return {
     kind: "footnote-definition",
@@ -849,9 +882,6 @@ export function footnoteDefinitionRenderPlan(
     labelRange: { from: labelNode.from, to: labelNode.to },
     bodyRange,
     id,
-    fragments,
-    text: inlineFragmentsPlainText(fragments),
-    hasMath: fragmentsContainMath(fragments),
   };
 }
 

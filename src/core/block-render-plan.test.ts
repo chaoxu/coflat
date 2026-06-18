@@ -13,6 +13,7 @@ import {
   emitDocumentRenderPlan,
   fencedDivRenderPlan,
   footnoteDefinitionRenderPlan,
+  footnoteDefinitionSemanticPlan,
   headingRenderPlan,
   headingSemanticPlan,
   horizontalRuleRenderPlan,
@@ -370,6 +371,19 @@ describe("codeBlockRenderPlan", () => {
 });
 
 describe("footnoteDefinitionRenderPlan", () => {
+  it("shares id, label range, and trimmed body range as a semantic plan", () => {
+    const source = "[^note:1]:   Footnote body   ";
+    const plan = footnoteDefinitionSemanticPlan(source, firstBlock(source, "FootnoteDef"));
+
+    expect(plan).toEqual({
+      kind: "footnote-definition",
+      sourceRange: { from: 0, to: source.length },
+      labelRange: { from: 0, to: 10 },
+      bodyRange: { from: 13, to: 26 },
+      id: "note:1",
+    });
+  });
+
   it("captures id, body range, shared inline fragments, and math state", () => {
     const source = "[^note:1]: Footnote with **bold** and $x^2$.";
     const plan = footnoteDefinitionRenderPlan(source, firstBlock(source, "FootnoteDef"), {

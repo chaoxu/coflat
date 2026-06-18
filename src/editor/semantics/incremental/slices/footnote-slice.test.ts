@@ -124,9 +124,23 @@ describe("footnote slice", () => {
       id: entry.id,
       number: entry.number,
       content: entry.def.content,
+      bodyFrom: entry.def.bodyFrom,
+      bodyTo: entry.def.bodyTo,
     }))).toEqual([
-      { id: "a", number: 1, content: "first" },
-      { id: "orphan", number: 2, content: "orphan body" },
+      {
+        id: "a",
+        number: 1,
+        content: "first",
+        bodyFrom: state.doc.toString().indexOf("first"),
+        bodyTo: state.doc.toString().indexOf("first") + "first".length,
+      },
+      {
+        id: "orphan",
+        number: 2,
+        content: "orphan body",
+        bodyFrom: state.doc.toString().indexOf("orphan body"),
+        bodyTo: state.doc.toString().indexOf("orphan body") + "orphan body".length,
+      },
     ]);
   });
 

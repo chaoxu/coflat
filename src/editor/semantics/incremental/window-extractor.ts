@@ -231,7 +231,7 @@ export function collectStructuralWindow(
             collectFootnoteRef(doc, c, result);
             break;
           case NODE.FootnoteDef:
-            collectFootnoteDef(doc, c, result);
+            collectFootnoteDef(source, c, result);
             break;
           case NODE.FencedDiv:
             collectFencedDiv(doc, c, result);

@@ -9,6 +9,7 @@ import {
   computeBlockNumbers,
   createConfiguredBlockNumberingSpecLookup,
 } from "../../core/semantics/block-numbering";
+import { headingSectionEndOffsets } from "../../core/semantics/section-boundaries";
 import type {
   BlockNode,
   DocumentIR,
@@ -72,17 +73,7 @@ function buildSectionTree(
 ): SectionNode[] {
   if (headings.length === 0) return [];
 
-  const rangeEnds: number[] = new Array(headings.length);
-  for (let index = 0; index < headings.length; index++) {
-    let end = docLength;
-    for (let nextIndex = index + 1; nextIndex < headings.length; nextIndex++) {
-      if (headings[nextIndex].level <= headings[index].level) {
-        end = headings[nextIndex].from;
-        break;
-      }
-    }
-    rangeEnds[index] = end;
-  }
+  const rangeEnds = headingSectionEndOffsets(headings, docLength);
 
   function buildChildren(start: number, parentEnd: number, parentLevel: number): {
     children: SectionNode[];

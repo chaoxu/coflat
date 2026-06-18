@@ -37,6 +37,7 @@ import {
   EDITOR_SECTION_FOLD_LABELS,
   syncDisclosureToggle,
 } from "../core/disclosure-toggle";
+import { headingBoundaryIndices } from "../core/semantics/section-boundaries";
 import { buildDecorations, RenderWidget } from "./render/render-core";
 import type { FencedDivSemantics, HeadingSemantics } from "./semantics/document";
 import {
@@ -122,35 +123,7 @@ function collectSections(
 function buildHeadingBoundaryIndices(
   headings: readonly HeadingSemantics[],
 ): readonly (number | null)[] {
-  const nextHeadingIndexByLevel: Array<number | undefined> = [
-    undefined,
-    undefined,
-    undefined,
-    undefined,
-    undefined,
-    undefined,
-    undefined,
-  ];
-  const boundaryIndices: Array<number | null> = new Array(headings.length);
-
-  for (let index = headings.length - 1; index >= 0; index--) {
-    const heading = headings[index];
-    let nextBoundaryIndex: number | null = null;
-
-    for (let level = 1; level <= heading.level; level++) {
-      const candidate = nextHeadingIndexByLevel[level];
-      if (candidate !== undefined && (
-        nextBoundaryIndex === null || candidate < nextBoundaryIndex
-      )) {
-        nextBoundaryIndex = candidate;
-      }
-    }
-
-    boundaryIndices[index] = nextBoundaryIndex;
-    nextHeadingIndexByLevel[heading.level] = index;
-  }
-
-  return boundaryIndices;
+  return headingBoundaryIndices(headings);
 }
 
 function createHeadingFoldSection(
