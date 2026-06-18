@@ -1,7 +1,7 @@
 /**
  * Shared inline markdown renderer for DOM elements.
  *
- * Parsing and fragment building now live in `src/inline-fragments.ts`.
+ * Parsing and fragment building now live in `src/core/inline-fragments.ts`.
  * This file is intentionally only the DOM render adapter.
  */
 

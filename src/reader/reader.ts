@@ -10,6 +10,11 @@
 import type { SyntaxNode, Tree } from "@lezer/common";
 import createDOMPurify from "dompurify";
 
+import {
+  buildInlineFragments,
+  inlineFragmentsPlainText,
+  type InlineFragment,
+} from "../core/inline-fragments";
 import { parseFrontmatter, parseMarkdownSource } from "../core/parser";
 import {
   renderBlockCaptionHtml,
@@ -624,6 +629,158 @@ function mathSourcePosAttrs(ctx: WalkContext, from: number, to: number): string 
 // Inline rendering (text-only output side-channel optional).
 // ---------------------------------------------------------------------------
 
+function renderInlineFragmentsForReader(
+  ctx: WalkContext,
+  fragments: readonly InlineFragment[],
+  from: number,
+  to: number,
+): { html: string; text: string; hasMath: boolean } {
+  let html = "";
+  let text = "";
+  let hasMath = false;
+
+  const renderChildren = (children: readonly InlineFragment[]) =>
+    renderInlineFragmentsForReader(ctx, children, from, to);
+
+  for (const fragment of fragments) {
+    switch (fragment.kind) {
+      case "text":
+        html += escapeHtml(fragment.text);
+        text += fragment.text;
+        break;
+      case "emphasis": {
+        const inner = renderChildren(fragment.children);
+        html += renderInlineMarkHtml("emphasis", inner.html);
+        text += inner.text;
+        hasMath ||= inner.hasMath;
+        break;
+      }
+      case "strong": {
+        const inner = renderChildren(fragment.children);
+        html += renderInlineMarkHtml("strong", inner.html);
+        text += inner.text;
+        hasMath ||= inner.hasMath;
+        break;
+      }
+      case "strikethrough": {
+        const inner = renderChildren(fragment.children);
+        html += renderInlineMarkHtml("strikethrough", inner.html);
+        text += inner.text;
+        hasMath ||= inner.hasMath;
+        break;
+      }
+      case "highlight": {
+        const inner = renderChildren(fragment.children);
+        html += renderInlineMarkHtml("highlight", inner.html);
+        text += inner.text;
+        hasMath ||= inner.hasMath;
+        break;
+      }
+      case "code":
+        html += renderInlineMarkHtml("code", escapeHtml(fragment.text));
+        text += fragment.text;
+        break;
+      case "math":
+        html += renderInlineMathPlaceholderHtml(fragment.latex, fragment.raw);
+        text += fragment.raw;
+        hasMath = true;
+        break;
+      case "link": {
+        const label = renderChildren(fragment.children);
+        const href = fragment.href?.trim() ?? "";
+        let resolvedHref = href;
+        let className: string | undefined;
+        let title: string | undefined;
+        if (ctx.resolvers.linkResolver?.resolve) {
+          const resolved = ctx.resolvers.linkResolver.resolve(
+            href,
+            inlineFragmentsPlainText(fragment.children),
+            {
+              from: ctx.resolvers.documentPath,
+              documentPath: ctx.resolvers.documentPath,
+              raw: "",
+              sourceRange: { from, to },
+              surface: "reader",
+            },
+          );
+          if (resolved) {
+            if (resolved.href !== undefined) resolvedHref = resolved.href;
+            if (resolved.className !== undefined) className = resolved.className;
+            if (resolved.title !== undefined) title = resolved.title;
+          }
+        }
+        html += isSafeUrl(resolvedHref)
+          ? renderLinkSurfaceHtml(resolvedHref, label.html, { className, title })
+          : label.html;
+        text += label.text;
+        hasMath ||= label.hasMath;
+        break;
+      }
+      case "reference": {
+        const raw = fragment.parenthetical ? `[${fragment.rawText}]` : fragment.rawText;
+        const ref = emitReferenceCluster(
+          ctx,
+          [...fragment.ids],
+          [...fragment.locators],
+          raw,
+          from,
+          to,
+          fragment.parenthetical ? "bracketed" : "narrative",
+        );
+        html += ref.html;
+        text += ref.text;
+        hasMath ||= ref.hasMath;
+        break;
+      }
+      case "image": {
+        let src = fragment.src?.trim() ?? "";
+        const alt = inlineFragmentsPlainText(fragment.alt);
+        if (ctx.resolvers.resolveAssetUrl) {
+          try {
+            const resolved = ctx.resolvers.resolveAssetUrl(src);
+            if (typeof resolved === "string") src = resolved;
+          } catch (_error) {
+            // Asset resolution is host-provided; fall back to the authored URL.
+          }
+        }
+        if (!isSafeUrl(src)) {
+          html += escapeHtml(alt);
+        } else if (isUnresolvedLocalMediaUrl(src)) {
+          html += renderMediaLoadingHtml(src, alt);
+        } else {
+          html += renderImageSurfaceHtml(src, alt);
+        }
+        text += alt;
+        break;
+      }
+      case "footnote-ref": {
+        let entry = ctx.footnotesById.get(fragment.id);
+        if (!entry) {
+          entry = {
+            id: fragment.id,
+            number: ctx.footnotesInOrder.length + 1,
+            bodyHtml: "",
+            hasRef: true,
+          };
+          ctx.footnotesById.set(fragment.id, entry);
+          ctx.footnotesInOrder.push(entry);
+        } else {
+          entry.hasRef = true;
+        }
+        html += renderReaderFootnoteReferenceHtml(entry.number, fragment.id);
+        text += `[${entry.number}]`;
+        break;
+      }
+      case "hard-break":
+        html += "<br>";
+        text += " ";
+        break;
+    }
+  }
+
+  return { html, text, hasMath };
+}
+
 /** Render the inline content inside a node range [from, to). Returns HTML + plain text. */
 function renderInline(
   ctx: WalkContext,
@@ -631,6 +788,10 @@ function renderInline(
   from: number,
   to: number,
 ): { html: string; text: string; hasMath: boolean } {
+  if (!ctx.sourcePositions && !ctx.mathSourcePositions) {
+    return renderInlineFragmentsForReader(ctx, buildInlineFragments(parent, ctx.source, from, to), from, to);
+  }
+
   let html = "";
   let text = "";
   let hasMath = false;
@@ -994,6 +1155,7 @@ function emitReferenceCluster(
   raw: string,
   from: number,
   to: number,
+  mode: "bracketed" | "narrative" = "bracketed",
 ): { html: string; text: string; hasMath: boolean } {
   const refResolver = ctx.resolvers.refResolver;
   const parts: Array<{ className: string; id: string; innerHtml: string }> = [];
@@ -1036,7 +1198,7 @@ function emitReferenceCluster(
     if (refResolver) {
       const resolved = refResolver.resolve(
         id,
-        "bracketed",
+        mode,
         buildReaderRefResolverEnv(ctx, raw, from, to, ids, locators, index),
       );
       if (resolved) {
@@ -1061,16 +1223,16 @@ function emitReferenceCluster(
     ? renderReferenceSurfaceHtml(parts[0].innerHtml, {
       className: parts[0].className,
       refKey: parts[0].id,
-      refMode: "bracketed",
+      refMode: mode,
     })
     : renderReferenceListSurfaceHtml({
       className: CSS.citationCluster,
-      refMode: "bracketed",
+      refMode: mode,
       items: parts.map((part) => ({
         className: part.className,
         id: part.id,
         innerHtml: part.innerHtml,
-        refMode: "bracketed",
+        refMode: mode,
       })),
       separatorText: "; ",
       sourceAttrs,

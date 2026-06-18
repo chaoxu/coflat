@@ -655,6 +655,21 @@ describe("renderToHtml — block-level rendering ()", () => {
     expect(r.html).toContain("[@eq:euler]");
   });
 
+  it("uses the shared inline fragment path for narrative references", () => {
+    const r = renderToHtml("As @thm:main shows.", {
+      refResolver: {
+        resolve: (key, mode) => ({
+          content: `${mode}:${key}`,
+          className: "cf-crossref",
+        }),
+      },
+    });
+    expect(r.html).toContain('data-ref-key="thm:main"');
+    expect(r.html).toContain('data-ref-mode="narrative"');
+    expect(r.html).toContain("narrative:thm:main");
+    expect(r.html).not.toContain("@thm:main shows");
+  });
+
   it("passes resolver metadata and document path while rendering references", () => {
     const calls: unknown[] = [];
     const r = renderToHtml(

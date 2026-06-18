@@ -8,25 +8,7 @@ import createDOMPurify from "dompurify";
 import katex from "katex";
 import { buildKatexOptions } from "../lib/katex-options";
 import { isSafeUrl } from "../../core/lib/url-utils";
-
-// ── Mark nodes ──────────────────────────────────────────────────────────────
-
-/**
- * Lezer node names that are syntactic "marks" (delimiters) and should be
- * skipped when rendering inline content.
- */
-export const MARK_NODES: ReadonlySet<string> = new Set([
-  "EmphasisMark",
-  "CodeMark",
-  "LinkMark",
-  "StrikethroughMark",
-  "HighlightMark",
-  "InlineMathMark",
-  "HeaderMark",
-  "ListMark",
-  "TaskMarker",
-  "TableDelimiter",
-]);
+export { MARK_NODES } from "../../core/parser/inline-mark-nodes";
 
 // ── Shared KaTeX HTML cache ────────────────────────────────────────────────
 
