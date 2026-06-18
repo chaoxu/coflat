@@ -31,7 +31,7 @@ import { CSS } from "../../core/constants/css-classes";
 import { appendCodeBlockDom } from "../../core/code-block-surface";
 import {
   createFootnoteSectionElement,
-  footnoteSectionPlan,
+  footnoteSectionPlanFromOrderedEntries,
 } from "../../core/footnote-section-surface";
 import {
   createDisplayMathContentElement,
@@ -506,8 +506,8 @@ function appendFootnoteSection(
   if (orderedEntries.length === 0) return;
 
   const definitionsById = new Map(orderedEntries.map((entry) => [entry.id, entry.def]));
-  const plannedEntries = footnoteSectionPlan(orderedEntries.map((entry) => ({
-    num: entry.number,
+  const plannedEntries = footnoteSectionPlanFromOrderedEntries(orderedEntries.map((entry) => ({
+    number: entry.number,
     id: entry.id,
     defFrom: entry.def.from,
   })));

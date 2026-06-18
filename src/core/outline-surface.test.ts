@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { documentOutlineEntry } from "./outline-surface";
+import { documentOutlineEntry, headingOutlineEntry, headingOutlineText } from "./outline-surface";
 
 describe("documentOutlineEntry", () => {
   it("preserves shared outline fields and section number", () => {
@@ -49,5 +49,26 @@ describe("documentOutlineEntry", () => {
       level: 3,
     });
   });
-});
 
+  it("derives shared heading outline text from inline markdown", () => {
+    expect(headingOutlineText("Proof of **Theorem** $a^2$ `code`")).toBe(
+      "Proof of Theorem $a^2$ code",
+    );
+  });
+
+  it("builds heading outline entries from markdown and rendered html", () => {
+    expect(headingOutlineEntry({
+      id: "proof",
+      markdown: "Proof of **Theorem**",
+      html: 'Proof of <strong class="cf-bold">Theorem</strong>',
+      level: 2,
+      number: "1.1",
+    })).toEqual({
+      id: "proof",
+      text: "Proof of Theorem",
+      html: 'Proof of <strong class="cf-bold">Theorem</strong>',
+      level: 2,
+      number: "1.1",
+    });
+  });
+});

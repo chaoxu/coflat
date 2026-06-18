@@ -3,11 +3,10 @@ import { EditorView } from "@codemirror/view";
 
 import { documentSurfacePolicy } from "../../core/document-surface-policy";
 import {
-  documentOutlineEntry,
+  headingOutlineEntry,
   type DocumentOutlineEntry,
 } from "../../core/outline-surface";
 import { isFrontmatterDelimiterLine } from "../../core/parser/frontmatter";
-import { inlineFragmentsPlainText, parseInlineFragments } from "../inline-fragments";
 import { documentContextFacet } from "../document-context";
 import { renderDocumentFragmentToHtml } from "../document-surfaces";
 import { createEditorReferencePresentationController } from "../references/presentation";
@@ -219,7 +218,6 @@ function computeOutline(view: EditorView): readonly OutlineEntry[] {
   return analysis.headings.map((heading) => {
     const line = view.state.doc.lineAt(heading.from);
     const markdown = view.state.doc.sliceString(heading.textFrom, heading.textTo);
-    const text = inlineFragmentsPlainText(parseInlineFragments(markdown));
     const html = renderDocumentFragmentToHtml({
       kind: "chrome-label",
       text: markdown,
@@ -232,10 +230,10 @@ function computeOutline(view: EditorView): readonly OutlineEntry[] {
       throw new Error(`Missing heading outline id at ${heading.from}`);
     }
     return {
-      ...documentOutlineEntry({
+      ...headingOutlineEntry({
         id,
         level: heading.level,
-        text,
+        markdown,
         html,
         number: heading.number,
         displayUnnumbered: !heading.number,

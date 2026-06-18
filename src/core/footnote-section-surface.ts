@@ -31,6 +31,13 @@ export interface FootnoteSectionPlanEntry {
   readonly backrefHref?: string;
 }
 
+export interface FootnoteSectionOrderedEntryInput {
+  readonly id: string;
+  readonly number: number;
+  readonly defFrom?: number;
+  readonly include?: boolean;
+}
+
 export function footnoteEntryId(id: string): string {
   return `fn-${encodeURIComponent(id)}`;
 }
@@ -52,6 +59,21 @@ export function footnoteSectionPlan(
       defFrom: entry.defFrom,
       backrefHref: backrefs ? footnoteBackrefHref(entry.id) : undefined,
     }));
+}
+
+export function footnoteSectionPlanFromOrderedEntries(
+  entries: readonly FootnoteSectionOrderedEntryInput[],
+  options: { readonly backrefs?: boolean } = {},
+): readonly FootnoteSectionPlanEntry[] {
+  return footnoteSectionPlan(
+    entries.map((entry) => ({
+      num: entry.number,
+      id: entry.id,
+      defFrom: entry.defFrom,
+      include: entry.include,
+    })),
+    options,
+  );
 }
 
 export function renderFootnoteSectionHtml(entries: readonly FootnoteSectionHtmlEntry[]): string {

@@ -132,7 +132,7 @@ import {
   renderHeadingSurfaceHtml,
 } from "../core/heading-surface";
 import {
-  documentOutlineEntry,
+  headingOutlineEntry,
   type DocumentOutlineEntry,
 } from "../core/outline-surface";
 import {
@@ -156,7 +156,7 @@ import {
   type MutableFootnoteNumberingState,
 } from "../core/footnote-ordering";
 import {
-  footnoteSectionPlan,
+  footnoteSectionPlanFromOrderedEntries,
   renderFootnoteSectionHtml,
 } from "../core/footnote-section-surface";
 import {
@@ -1255,9 +1255,9 @@ function renderHeading(ctx: WalkContext, node: SyntaxNode): BlockResult {
       { text: plan.text, id: headingId },
       ctx.usedHeadingIds,
     );
-    ctx.outline.push(documentOutlineEntry({
+    ctx.outline.push(headingOutlineEntry({
       id: headingId,
-      text: plan.text,
+      markdown: ctx.source.slice(plan.contentRange.from, plan.contentRange.to),
       html: inner.html,
       level: plan.level,
       number: headingNumber,
@@ -1578,10 +1578,10 @@ function renderFootnoteDef(ctx: WalkContext, node: SyntaxNode): BlockResult {
 
 function renderFootnotesList(ctx: WalkContext): string {
   if (ctx.footnoteNumbering.orderedIds.length === 0) return "";
-  const plannedEntries = footnoteSectionPlan(ctx.footnoteNumbering.orderedIds.map((id) => {
+  const plannedEntries = footnoteSectionPlanFromOrderedEntries(ctx.footnoteNumbering.orderedIds.map((id) => {
     const entry = ctx.footnotesById.get(id);
     return {
-      num: ctx.footnoteNumbering.numberById.get(id) ?? 0,
+      number: ctx.footnoteNumbering.numberById.get(id) ?? 0,
       id,
       include: Boolean(entry?.hasRef || entry?.bodyHtml),
     };

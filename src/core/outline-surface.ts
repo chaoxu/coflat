@@ -1,3 +1,5 @@
+import { inlineFragmentsPlainText, parseInlineFragments } from "./inline-fragments";
+
 export interface DocumentOutlineEntry {
   readonly id: string;
   readonly text: string;
@@ -32,3 +34,26 @@ export function documentOutlineEntry(input: DocumentOutlineEntryInput): Document
     };
 }
 
+export interface HeadingOutlineEntryInput {
+  readonly id: string;
+  readonly markdown: string;
+  readonly html: string;
+  readonly level: number;
+  readonly number?: string;
+  readonly displayUnnumbered?: boolean;
+}
+
+export function headingOutlineText(markdown: string): string {
+  return inlineFragmentsPlainText(parseInlineFragments(markdown));
+}
+
+export function headingOutlineEntry(input: HeadingOutlineEntryInput): DocumentOutlineEntry {
+  return documentOutlineEntry({
+    id: input.id,
+    text: headingOutlineText(input.markdown),
+    html: input.html,
+    level: input.level,
+    number: input.number,
+    displayUnnumbered: input.displayUnnumbered,
+  });
+}
