@@ -164,7 +164,7 @@ import {
   renderDisplayMathPlaceholderHtml,
 } from "../core/math-display-surface";
 import { renderInlineMathPlaceholderHtml } from "../core/math-inline-surface";
-import { displayMathLatexRange, trimSourceRange } from "../core/math-source";
+import { displayMathLatexRange } from "../core/math-source";
 import {
   isUnresolvedLocalMediaUrl,
   renderImageSurfaceHtml,
@@ -188,9 +188,14 @@ import {
   createUnresolvedHoverPreviewElement,
 } from "../core/hover-preview-surface";
 import {
+  blockReferencePreviewEntry,
+  type ReferencePreviewEntry,
+  equationReferencePreviewEntry,
   findReferencePreviewSource,
+  headingReferencePreviewEntry,
   referencePreviewBodyPlan,
   referencePreviewHeaderText,
+  trimReferencePreviewRange,
 } from "../core/reference-preview-source";
 import { sourceRangeAttrs } from "../core/source-range-surface";
 import type {
@@ -581,44 +586,7 @@ function fastRenderInline(source: string): FastInlineResult {
 
 type ReaderReferenceCatalog = ReadonlyMap<string, DocumentReferenceTarget>;
 
-export type ReaderReferencePreviewEntry =
-  | {
-      readonly kind: "heading";
-      readonly id: string;
-      readonly label: string;
-      readonly title: string;
-      readonly text: string;
-      readonly level: number;
-      readonly from: number;
-      readonly to: number;
-      readonly number?: string;
-    }
-  | {
-      readonly kind: "equation";
-      readonly id: string;
-      readonly label: string;
-      readonly latex: string;
-      readonly text: string;
-      readonly from: number;
-      readonly to: number;
-      readonly bodyFrom: number;
-      readonly bodyTo: number;
-      readonly number: string;
-      readonly ordinal: number;
-    }
-  | {
-      readonly kind: "block";
-      readonly id: string;
-      readonly label: string;
-      readonly blockType: string;
-      readonly title?: string;
-      readonly from: number;
-      readonly to: number;
-      readonly bodyFrom: number;
-      readonly bodyTo: number;
-      readonly number?: string;
-      readonly ordinal?: number;
-    };
+export type ReaderReferencePreviewEntry = ReferencePreviewEntry;
 
 export type ReaderReferencePreviewIndex = Readonly<Record<string, ReaderReferencePreviewEntry>>;
 
@@ -1192,19 +1160,14 @@ function renderBlock(ctx: WalkContext, node: SyntaxNode): BlockResult {
         : null;
       if (ctx.buildReferencePreviews && equationId && target && equationNumber !== undefined) {
         const range = displayMathLatexRange(ctx.source, node);
-        setPreferredReaderReferenceTarget(ctx, equationId, target, {
-          kind: "equation",
+        setPreferredReaderReferenceTarget(ctx, equationId, target, equationReferencePreviewEntry({
           id: equationId,
           label: target.displayLabel,
           latex: plan.latex,
-          text: plan.latex,
-          from: plan.sourceRange.from,
-          to: plan.sourceRange.to,
-          bodyFrom: range.from,
-          bodyTo: range.to,
-          number: String(equationNumber),
-          ordinal: equationNumber,
-        });
+          sourceRange: plan.sourceRange,
+          bodyRange: range,
+          number: equationNumber,
+        }));
       } else if (ctx.buildCatalog && equationId && target) {
         setPreferredReaderReferenceTarget(ctx, equationId, target);
       }
@@ -1270,17 +1233,14 @@ function renderHeading(ctx: WalkContext, node: SyntaxNode): BlockResult {
     text: headingTitle,
   });
   if (ctx.buildReferencePreviews && plan.attributes?.id) {
-    setPreferredReaderReferenceTarget(ctx, plan.attributes.id, headingTarget, {
-      kind: "heading",
+    setPreferredReaderReferenceTarget(ctx, plan.attributes.id, headingTarget, headingReferencePreviewEntry({
       id: plan.attributes.id,
       label: headingTarget.displayLabel,
       title: headingTitle,
-      text: headingTitle,
       level: plan.level,
-      from: plan.sourceRange.from,
-      to: plan.sourceRange.to,
+      sourceRange: plan.sourceRange,
       ...(headingNumber ? { number: headingNumber } : {}),
-    });
+    }));
   } else if (ctx.buildCatalog && plan.attributes?.id) {
     setPreferredReaderReferenceTarget(ctx, plan.attributes.id, headingTarget);
   }
@@ -1535,23 +1495,19 @@ function renderFencedDiv(ctx: WalkContext, node: SyntaxNode): BlockResult {
     })
     : null;
   if (ctx.buildReferencePreviews && plan.id && normalizedClassName && blockTarget) {
-    const bodyRange = trimSourceRange(
-      ctx.source,
-      plan.bodyRange?.from ?? plan.sourceRange.from,
-      plan.bodyRange?.to ?? plan.sourceRange.from,
-    );
-    setPreferredReaderReferenceTarget(ctx, plan.id, blockTarget, {
-      kind: "block",
+    const bodyRange = trimReferencePreviewRange(ctx.source, plan.bodyRange ?? {
+      from: plan.sourceRange.from,
+      to: plan.sourceRange.from,
+    });
+    setPreferredReaderReferenceTarget(ctx, plan.id, blockTarget, blockReferencePreviewEntry({
       id: plan.id,
       label: blockTarget.displayLabel,
       blockType: normalizedClassName,
       ...(plan.title ? { title: plan.title } : {}),
-      from: plan.sourceRange.from,
-      to: plan.sourceRange.to,
-      bodyFrom: bodyRange.from,
-      bodyTo: bodyRange.to,
-      ...(plan.number === undefined ? {} : { number: String(plan.number), ordinal: plan.number }),
-    });
+      sourceRange: plan.sourceRange,
+      bodyRange,
+      ...(plan.number === undefined ? {} : { number: plan.number }),
+    }));
   } else if (ctx.buildCatalog && plan.id && blockTarget) {
     setPreferredReaderReferenceTarget(ctx, plan.id, blockTarget);
   }

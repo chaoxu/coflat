@@ -18,6 +18,8 @@ import {
 } from "./media-preview";
 import {
   referencePreviewBodyPlan,
+  blockPreviewBodyInputFromSource,
+  fencedDivBodyRangeFromSource,
   referencePreviewHeaderText,
   unresolvedReferencePreviewLabel,
 } from "../../core/reference-preview-source";
@@ -73,38 +75,25 @@ export function shouldRebuildHoverPreviewContentForTest(
 
 // ── Content extraction helpers ──────────────────────────────────────────────
 
-/**
- * Extract the content of a fenced div block for the given NumberedBlock.
- * Returns the inner content (between opening/closing fences) as plain text.
- */
-function extractBlockContent(
+function blockPreviewBodyInput(
   view: EditorView,
   block: NumberedBlock,
-): string {
+  useFullSource: boolean,
+) {
+  const source = view.state.doc.toString();
   const div = view.state.field(documentAnalysisField).fencedDivByFrom.get(block.from);
-
-  let contentFrom = block.from;
-  let contentTo = block.to;
-
-  if (div) {
-    contentFrom = view.state.doc.lineAt(div.openFenceTo).to + 1;
-    if (div.closeFenceFrom >= 0) {
-      contentTo = div.closeFenceFrom;
-    }
-  }
-
-  contentFrom = Math.min(contentFrom, view.state.doc.length);
-  contentTo = Math.min(contentTo, view.state.doc.length);
-  if (contentFrom >= contentTo) return "";
-
-  return view.state.doc.sliceString(contentFrom, contentTo).trim();
-}
-
-function extractBlockSource(
-  view: EditorView,
-  block: NumberedBlock,
-): string {
-  return view.state.doc.sliceString(block.from, block.to).trim();
+  const bodyRange = div
+    ? fencedDivBodyRangeFromSource(source, {
+      blockRange: { from: block.from, to: block.to },
+      openFenceTo: div.openFenceTo,
+      closeFenceFrom: div.closeFenceFrom,
+    })
+    : { from: block.from, to: block.to };
+  return blockPreviewBodyInputFromSource(source, {
+    fullRange: { from: block.from, to: block.to },
+    bodyRange,
+    useFullSource,
+  });
 }
 
 function createCrossrefPreviewContainer(
@@ -134,12 +123,7 @@ function buildBlockPreviewPlan(
   useFullBlockSource: boolean,
   macros: Record<string, string>,
 ): BlockPreviewPlan {
-  const bodyPlan = referencePreviewBodyPlan({
-    kind: "block",
-    fullSource: extractBlockSource(view, block),
-    bodySource: extractBlockContent(view, block),
-    useFullSource: useFullBlockSource,
-  });
+  const bodyPlan = referencePreviewBodyPlan(blockPreviewBodyInput(view, block, useFullBlockSource));
   if (bodyPlan.kind !== "markdown") {
     return {
       buildBody: () => null,

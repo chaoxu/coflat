@@ -1,8 +1,54 @@
+import { trimSourceRange } from "./math-source";
+
 export interface ReferencePreviewLabelInput {
   readonly kind: string;
   readonly label?: string;
   readonly title?: string;
 }
+
+export interface ReferencePreviewRange {
+  readonly from: number;
+  readonly to: number;
+}
+
+export type ReferencePreviewEntry =
+  | {
+      readonly kind: "heading";
+      readonly id: string;
+      readonly label: string;
+      readonly title: string;
+      readonly text: string;
+      readonly level: number;
+      readonly from: number;
+      readonly to: number;
+      readonly number?: string;
+    }
+  | {
+      readonly kind: "equation";
+      readonly id: string;
+      readonly label: string;
+      readonly latex: string;
+      readonly text: string;
+      readonly from: number;
+      readonly to: number;
+      readonly bodyFrom: number;
+      readonly bodyTo: number;
+      readonly number: string;
+      readonly ordinal: number;
+    }
+  | {
+      readonly kind: "block";
+      readonly id: string;
+      readonly label: string;
+      readonly blockType: string;
+      readonly title?: string;
+      readonly from: number;
+      readonly to: number;
+      readonly bodyFrom: number;
+      readonly bodyTo: number;
+      readonly number?: string;
+      readonly ordinal?: number;
+    };
 
 export type ReferencePreviewSourceKind = "equation" | "fenced-div" | "heading";
 
@@ -43,6 +89,41 @@ export type ReferencePreviewBodyInput =
       readonly bodySource: string;
       readonly useFullSource: boolean;
     };
+
+export interface HeadingReferencePreviewEntryInput {
+  readonly id: string;
+  readonly label: string;
+  readonly title: string;
+  readonly text?: string;
+  readonly level: number;
+  readonly sourceRange: ReferencePreviewRange;
+  readonly number?: string;
+}
+
+export interface EquationReferencePreviewEntryInput {
+  readonly id: string;
+  readonly label: string;
+  readonly latex: string;
+  readonly sourceRange: ReferencePreviewRange;
+  readonly bodyRange: ReferencePreviewRange;
+  readonly number: number;
+}
+
+export interface BlockReferencePreviewEntryInput {
+  readonly id: string;
+  readonly label: string;
+  readonly blockType: string;
+  readonly sourceRange: ReferencePreviewRange;
+  readonly bodyRange: ReferencePreviewRange;
+  readonly title?: string;
+  readonly number?: number;
+}
+
+export interface FencedDivBodyRangeInput {
+  readonly blockRange: ReferencePreviewRange;
+  readonly openFenceTo?: number;
+  readonly closeFenceFrom?: number;
+}
 
 export function unresolvedReferencePreviewLabel(key: string): string {
   return `Unresolved: ${key}`;
@@ -86,6 +167,110 @@ export function referencePreviewBodyPlan(
     kind: "markdown",
     markdownSource,
     key: `${input.useFullSource ? "full" : "body"}\0${markdownSource}`,
+  };
+}
+
+export function headingReferencePreviewEntry(
+  input: HeadingReferencePreviewEntryInput,
+): ReferencePreviewEntry {
+  return {
+    kind: "heading",
+    id: input.id,
+    label: input.label,
+    title: input.title,
+    text: input.text ?? input.title,
+    level: input.level,
+    from: input.sourceRange.from,
+    to: input.sourceRange.to,
+    ...(input.number ? { number: input.number } : {}),
+  };
+}
+
+export function equationReferencePreviewEntry(
+  input: EquationReferencePreviewEntryInput,
+): ReferencePreviewEntry {
+  return {
+    kind: "equation",
+    id: input.id,
+    label: input.label,
+    latex: input.latex,
+    text: input.latex,
+    from: input.sourceRange.from,
+    to: input.sourceRange.to,
+    bodyFrom: input.bodyRange.from,
+    bodyTo: input.bodyRange.to,
+    number: String(input.number),
+    ordinal: input.number,
+  };
+}
+
+export function blockReferencePreviewEntry(
+  input: BlockReferencePreviewEntryInput,
+): ReferencePreviewEntry {
+  return {
+    kind: "block",
+    id: input.id,
+    label: input.label,
+    blockType: input.blockType,
+    ...(input.title ? { title: input.title } : {}),
+    from: input.sourceRange.from,
+    to: input.sourceRange.to,
+    bodyFrom: input.bodyRange.from,
+    bodyTo: input.bodyRange.to,
+    ...(input.number === undefined ? {} : {
+      number: String(input.number),
+      ordinal: input.number,
+    }),
+  };
+}
+
+export function trimReferencePreviewRange(
+  source: string,
+  range: ReferencePreviewRange,
+): ReferencePreviewRange {
+  return trimSourceRange(source, range.from, range.to);
+}
+
+function lineEndAfter(source: string, offset: number): number {
+  const newline = source.indexOf("\n", offset);
+  return newline < 0 ? source.length : newline;
+}
+
+export function fencedDivBodyRangeFromSource(
+  source: string,
+  input: FencedDivBodyRangeInput,
+): ReferencePreviewRange {
+  let contentFrom = input.blockRange.from;
+  let contentTo = input.blockRange.to;
+
+  if (input.openFenceTo !== undefined) {
+    contentFrom = lineEndAfter(source, input.openFenceTo) + 1;
+  }
+  if (input.closeFenceFrom !== undefined && input.closeFenceFrom >= 0) {
+    contentTo = input.closeFenceFrom;
+  }
+
+  contentFrom = Math.min(Math.max(contentFrom, 0), source.length);
+  contentTo = Math.min(Math.max(contentTo, 0), source.length);
+  if (contentFrom >= contentTo) {
+    return { from: contentFrom, to: contentFrom };
+  }
+  return trimSourceRange(source, contentFrom, contentTo);
+}
+
+export function blockPreviewBodyInputFromSource(
+  source: string,
+  input: {
+    readonly fullRange: ReferencePreviewRange;
+    readonly bodyRange: ReferencePreviewRange;
+    readonly useFullSource: boolean;
+  },
+): ReferencePreviewBodyInput {
+  return {
+    kind: "block",
+    fullSource: source.slice(input.fullRange.from, input.fullRange.to),
+    bodySource: source.slice(input.bodyRange.from, input.bodyRange.to),
+    useFullSource: input.useFullSource,
   };
 }
 

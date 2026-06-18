@@ -1,13 +1,19 @@
 import { describe, expect, it } from "vitest";
 import {
+  blockPreviewBodyInputFromSource,
+  blockReferencePreviewEntry,
   fencedDivBodySource,
+  fencedDivBodyRangeFromSource,
+  equationReferencePreviewEntry,
   findEquationPreviewSource,
   findFencedDivPreviewSource,
   findHeadingPreviewSource,
   findReferencePreviewSource,
+  headingReferencePreviewEntry,
   referencePreviewBodyPlan,
   referencePreviewHeaderText,
   stripBracedLabelId,
+  trimReferencePreviewRange,
   unresolvedReferencePreviewLabel,
 } from "./reference-preview-source";
 
@@ -61,6 +67,106 @@ describe("reference preview source helpers", () => {
       markdownSource: "::: {.figure #f}\n![x](x.png)\n:::",
       key: "full\0::: {.figure #f}\n![x](x.png)\n:::",
     });
+  });
+
+  it("builds shared reference preview entries", () => {
+    expect(headingReferencePreviewEntry({
+      id: "sec:intro",
+      label: "Section 2",
+      title: "Intro",
+      level: 2,
+      sourceRange: { from: 10, to: 20 },
+      number: "2",
+    })).toEqual({
+      kind: "heading",
+      id: "sec:intro",
+      label: "Section 2",
+      title: "Intro",
+      text: "Intro",
+      level: 2,
+      from: 10,
+      to: 20,
+      number: "2",
+    });
+
+    expect(equationReferencePreviewEntry({
+      id: "eq:main",
+      label: "Eq. (3)",
+      latex: "x^2",
+      sourceRange: { from: 30, to: 50 },
+      bodyRange: { from: 33, to: 36 },
+      number: 3,
+    })).toEqual({
+      kind: "equation",
+      id: "eq:main",
+      label: "Eq. (3)",
+      latex: "x^2",
+      text: "x^2",
+      from: 30,
+      to: 50,
+      bodyFrom: 33,
+      bodyTo: 36,
+      number: "3",
+      ordinal: 3,
+    });
+
+    expect(blockReferencePreviewEntry({
+      id: "thm:main",
+      label: "Theorem 4",
+      blockType: "theorem",
+      title: "Main",
+      sourceRange: { from: 50, to: 80 },
+      bodyRange: { from: 60, to: 70 },
+      number: 4,
+    })).toEqual({
+      kind: "block",
+      id: "thm:main",
+      label: "Theorem 4",
+      blockType: "theorem",
+      title: "Main",
+      from: 50,
+      to: 80,
+      bodyFrom: 60,
+      bodyTo: 70,
+      number: "4",
+      ordinal: 4,
+    });
+  });
+
+  it("extracts shared block preview body ranges from source offsets", () => {
+    const source = [
+      "# Intro",
+      "",
+      "::: {.theorem #thm:main}",
+      "",
+      "  Body  ",
+      "",
+      ":::",
+    ].join("\n");
+    const blockFrom = source.indexOf(":::");
+    const openFenceTo = source.indexOf("\n", blockFrom);
+    const closeFenceFrom = source.lastIndexOf(":::");
+    const range = fencedDivBodyRangeFromSource(source, {
+      blockRange: { from: blockFrom, to: source.length },
+      openFenceTo,
+      closeFenceFrom,
+    });
+
+    expect(source.slice(range.from, range.to)).toBe("Body");
+    expect(blockPreviewBodyInputFromSource(source, {
+      fullRange: { from: blockFrom, to: source.length },
+      bodyRange: range,
+      useFullSource: false,
+    })).toEqual({
+      kind: "block",
+      fullSource: source.slice(blockFrom),
+      bodySource: "Body",
+      useFullSource: false,
+    });
+    expect(trimReferencePreviewRange(source, {
+      from: source.indexOf("\n  Body"),
+      to: source.indexOf("\n:::", blockFrom),
+    })).toEqual(range);
   });
 
   it("extracts dollar and bracket display math preview source", () => {
