@@ -75,7 +75,12 @@ import {
   displayTitleForBlockType,
 } from "../../core/semantics/block-numbering";
 import { blockPresentationPlan, type BlockPresentationPlan } from "../../core/block-presentation";
-import { paragraphRenderPlan } from "../../core/block-render-plan";
+import {
+  blockquoteRenderPlan,
+  headingRenderPlan,
+  horizontalRuleRenderPlan,
+  paragraphRenderPlan,
+} from "../../core/block-render-plan";
 import type { BibStore } from "../state/bib-data";
 import {
   renderInlineFragmentsToDom,
@@ -193,7 +198,7 @@ function renderNode(
       renderList(parent, node, context, "ol");
       return;
     case "HorizontalRule": {
-      parent.appendChild(createHorizontalRuleElement(document));
+      renderHorizontalRule(parent, node);
       return;
     }
     case "FencedDiv":
@@ -284,14 +289,23 @@ function renderParagraph(
   });
 }
 
+function renderHorizontalRule(
+  parent: HTMLElement | DocumentFragment,
+  node: SyntaxNode,
+): void {
+  const plan = horizontalRuleRenderPlan(node);
+  if (plan.kind !== "horizontal-rule") return;
+  parent.appendChild(createHorizontalRuleElement(document));
+}
+
 function renderHeading(
   parent: HTMLElement | DocumentFragment,
   node: SyntaxNode,
   context: PreviewRenderContext,
 ): void {
+  const plan = headingRenderPlan(context.doc, node);
   const heading = context.semantics.headingByFrom.get(node.from);
-  const fallbackLevel = Number(node.name[node.name.length - 1]);
-  const level = heading?.level ?? fallbackLevel;
+  const level = heading?.level ?? plan.level;
   const element = createHeadingSurfaceElement(
     document,
     {
@@ -301,9 +315,9 @@ function renderHeading(
       unnumbered: heading?.unnumbered ?? false,
     },
     (target) => {
-      renderInlineMarkdown(
+      renderInlineFragmentsToDom(
         target,
-        heading?.text ?? context.doc.slice(node.from, node.to).replace(/^#{1,6}\s*/, "").trim(),
+        plan.fragments,
         context.macros,
         "document-body",
         {
@@ -664,8 +678,11 @@ function renderBlockquote(
   node: SyntaxNode,
   context: PreviewRenderContext,
 ): void {
+  const plan = blockquoteRenderPlan(node);
   const blockquote = createBlockquoteElement(document);
-  renderChildNodes(blockquote, node, context);
+  for (const child of plan.children) {
+    renderNode(blockquote, child, context);
+  }
   parent.appendChild(blockquote);
 }
 

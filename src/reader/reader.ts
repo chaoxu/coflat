@@ -15,7 +15,13 @@ import {
   inlineFragmentsPlainText,
   type InlineFragment,
 } from "../core/inline-fragments";
-import { paragraphRenderPlan } from "../core/block-render-plan";
+import {
+  blockquoteRenderPlan,
+  headingLevelFor,
+  headingRenderPlan,
+  horizontalRuleRenderPlan,
+  paragraphRenderPlan,
+} from "../core/block-render-plan";
 import { parseFrontmatter, parseMarkdownSource } from "../core/parser";
 import {
   renderBlockCaptionHtml,
@@ -1111,7 +1117,7 @@ function renderBlock(ctx: WalkContext, node: SyntaxNode): BlockResult {
   // Headings (ATX + Setext) — uniform handling.
   const headingLevel = headingLevelFor(name);
   if (headingLevel) {
-    return renderHeading(ctx, node, headingLevel);
+    return renderHeading(ctx, node);
   }
 
   switch (name) {
@@ -1128,11 +1134,7 @@ function renderBlock(ctx: WalkContext, node: SyntaxNode): BlockResult {
     case "CodeBlock":
       return renderIndentedCode(ctx, node);
     case NODE.HorizontalRule:
-      return {
-        html: renderHorizontalRuleHtml(blockSourceAttrs(ctx, node.from, node.to)),
-        text: "",
-        hasMath: false,
-      };
+      return renderHorizontalRule(ctx, node);
     case "Table":
       return renderTable(ctx, node);
     case NODE.FencedDiv:
@@ -1189,18 +1191,6 @@ function renderBlock(ctx: WalkContext, node: SyntaxNode): BlockResult {
   return renderParagraph(ctx, node);
 }
 
-function headingLevelFor(name: string): number {
-  switch (name) {
-    case NODE.ATXHeading1: case NODE.SetextHeading1: return 1;
-    case NODE.ATXHeading2: case NODE.SetextHeading2: return 2;
-    case NODE.ATXHeading3: return 3;
-    case NODE.ATXHeading4: return 4;
-    case NODE.ATXHeading5: return 5;
-    case NODE.ATXHeading6: return 6;
-  }
-  return 0;
-}
-
 /** Canonical heading slug: fold diacritics, lowercase, non-alphanumeric runs →
  *  "-", trimmed. Diacritic folding (NFKD + combining-mark strip) keeps accented
  *  headings readable ("Méthodes" → "methodes") instead of degrading to "m-thodes". */
@@ -1224,153 +1214,84 @@ function uniqueHeadingId(base: string, used: Set<string>): string {
   return candidate;
 }
 
-/** Source range of a heading's inline content, excluding the `#+`/underline
- *  HeaderMark(s). Shared by {@link renderHeading} and the explicit-id pre-pass. */
-function headingContentRange(source: string, node: SyntaxNode): { from: number; to: number } {
-  // For ATX, content starts after `#+` and optional space; for Setext, content
-  // is the line before the `===`/`---` underline.
-  let contentFrom = node.from;
-  let contentTo = node.to;
-  const headerMark = node.getChild("HeaderMark");
-  if (headerMark && headerMark.from === node.from) {
-    // ATX: skip leading marks + one space.
-    contentFrom = headerMark.to;
-    while (contentFrom < contentTo && source[contentFrom] === " ") contentFrom++;
-    // Strip trailing closing `#+` and whitespace.
-    while (contentTo > contentFrom && source[contentTo - 1] === " ") contentTo--;
-    // The Lezer tree may include a closing HeaderMark child at the end.
-    const trailing = node.lastChild;
-    if (trailing && trailing.name === "HeaderMark" && trailing.from !== headerMark.from) {
-      contentTo = trailing.from;
-      while (contentTo > contentFrom && source[contentTo - 1] === " ") contentTo--;
-    }
-  } else if (headerMark && headerMark.from > node.from) {
-    // Setext: content is everything before the underline mark.
-    contentTo = headerMark.from;
-    while (contentTo > contentFrom && /\s/.test(source[contentTo - 1] ?? "")) contentTo--;
-  }
-  return { from: contentFrom, to: contentTo };
-}
-
 /** Reserve every explicit `{#id}` heading id so auto-slugs yield to author-set
  *  anchors (explicit ids win; an auto-slug that would collide gets suffixed). */
 function reserveExplicitHeadingIds(ctx: WalkContext, tree: Tree): void {
   tree.iterate({
     enter(node) {
       if (!headingLevelFor(node.name)) return;
-      const { from, to } = headingContentRange(ctx.source, node.node);
-      const attrs = parsePandocHeadingAttributes(ctx.source, from, to);
-      if (attrs?.id) ctx.usedHeadingIds.add(attrs.id);
+      const plan = headingRenderPlan(ctx.source, node.node);
+      if (plan.attributes?.id) ctx.usedHeadingIds.add(plan.attributes.id);
       // A heading can't contain another heading — skip its inline subtree.
       return false;
     },
   });
 }
 
-function renderHeading(ctx: WalkContext, node: SyntaxNode, level: number): BlockResult {
-  const { from: contentFrom, to: contentRangeEnd } = headingContentRange(ctx.source, node);
-  let contentTo = contentRangeEnd;
-
-  const attrs = parsePandocHeadingAttributes(ctx.source, contentFrom, contentTo);
-  if (attrs) contentTo = attrs.contentTo;
-
-  const inner = renderInline(ctx, node, contentFrom, contentTo);
+function renderHeading(ctx: WalkContext, node: SyntaxNode): BlockResult {
+  const plan = headingRenderPlan(ctx.source, node, {
+    sourceRanges: ctx.sourcePositions || ctx.mathSourcePositions,
+  });
+  const inner = renderInlineFragmentsForReader(
+    ctx,
+    plan.fragments,
+    plan.contentRange.from,
+    plan.contentRange.to,
+  );
   // The numbering walk always advances (and records the catalog), so crossrefs
   // resolve even when numbers aren't shown; `displayUnnumbered` only hides the
   // number — when sectionNumbering is off, every heading renders unnumbered.
-  const headingNumber = nextHeadingNumber(ctx, level, !!attrs?.unnumbered);
-  const headingTitle = inner.text.trim();
+  const headingNumber = nextHeadingNumber(ctx, plan.level, !!plan.attributes?.unnumbered);
+  const headingTitle = plan.text.trim();
   const headingLabel = formatHeadingReferenceLabel({ number: headingNumber, text: headingTitle });
-  if (ctx.buildCatalog && attrs?.id) {
-    ctx.catalog.set(attrs.id, {
+  if (ctx.buildCatalog && plan.attributes?.id) {
+    ctx.catalog.set(plan.attributes.id, {
       kind: "heading",
       label: headingLabel,
     });
   }
-  if (ctx.buildReferencePreviews && attrs?.id) {
-    ctx.referencePreviewIndex.set(attrs.id, {
+  if (ctx.buildReferencePreviews && plan.attributes?.id) {
+    ctx.referencePreviewIndex.set(plan.attributes.id, {
       kind: "heading",
-      id: attrs.id,
+      id: plan.attributes.id,
       label: headingLabel,
       title: headingTitle,
       text: headingTitle,
-      level,
-      from: node.from,
-      to: node.to,
+      level: plan.level,
+      from: plan.sourceRange.from,
+      to: plan.sourceRange.to,
       ...(headingNumber ? { number: headingNumber } : {}),
     });
   }
-  const displayUnnumbered = !!attrs?.unnumbered || !ctx.numberHeadings;
+  const displayUnnumbered = !!plan.attributes?.unnumbered || !ctx.numberHeadings;
 
   // Default: an id only for explicitly-labeled headings (byte-identical to the
   // pre-outline output). With `opts.outline`, every heading gets a stable id
   // (explicit `{#id}` or a deduplicated slug) and contributes an outline entry.
-  let headingId = attrs?.id;
+  let headingId = plan.attributes?.id;
   if (ctx.collectOutline) {
     if (headingId) ctx.usedHeadingIds.add(headingId);
-    else headingId = uniqueHeadingId(slugifyHeading(inner.text), ctx.usedHeadingIds);
+    else headingId = uniqueHeadingId(slugifyHeading(plan.text), ctx.usedHeadingIds);
     ctx.outline.push(
       displayUnnumbered
-        ? { id: headingId, text: inner.text, html: inner.html, level }
-        : { id: headingId, text: inner.text, html: inner.html, level, number: headingNumber },
+        ? { id: headingId, text: plan.text, html: inner.html, level: plan.level }
+        : { id: headingId, text: plan.text, html: inner.html, level: plan.level, number: headingNumber },
     );
   }
   return {
     html: renderHeadingSurfaceHtml(
       inner.html,
       {
-        level,
+        level: plan.level,
         id: headingId,
         sectionNumber: headingNumber,
         unnumbered: displayUnnumbered,
       },
-      blockSourceAttrs(ctx, node.from, node.to),
+      blockSourceAttrs(ctx, plan.sourceRange.from, plan.sourceRange.to),
     ),
-    text: inner.text,
-    hasMath: inner.hasMath,
+    text: plan.text,
+    hasMath: plan.hasMath,
   };
-}
-
-interface HeadingAttributeInfo {
-  contentTo: number;
-  unnumbered: boolean;
-  id?: string;
-}
-
-function parsePandocHeadingAttributes(
-  source: string,
-  contentFrom: number,
-  contentTo: number,
-): HeadingAttributeInfo | null {
-  let end = contentTo;
-  while (end > contentFrom && /\s/.test(source[end - 1] ?? "")) end--;
-  if (source[end - 1] !== "}") return null;
-
-  const open = source.lastIndexOf("{", end - 1);
-  if (open < contentFrom) return null;
-  const beforeOpen = source[open - 1] ?? "";
-  if (open > contentFrom && !/\s/.test(beforeOpen)) return null;
-
-  const raw = source.slice(open + 1, end - 1).trim();
-  if (!raw) return null;
-  const tokens = raw.split(/\s+/);
-  if (!tokens.every(isPandocHeadingAttributeToken)) return null;
-  let strippedTo = open;
-  while (strippedTo > contentFrom && /\s/.test(source[strippedTo - 1] ?? "")) strippedTo--;
-  const idToken = tokens.find((token) => token.startsWith("#"));
-  return {
-    contentTo: strippedTo,
-    unnumbered: tokens.includes("-") || tokens.includes(".unnumbered"),
-    id: idToken?.slice(1),
-  };
-}
-
-function isPandocHeadingAttributeToken(token: string): boolean {
-  return (
-    token === "-" ||
-    /^[#.][^\s{}]+$/.test(token) ||
-    /^[A-Za-z_:][\w:.-]*=(?:"[^"]*"|'[^']*'|[^\s{}]+)$/.test(token)
-  );
 }
 
 function renderParagraph(ctx: WalkContext, node: SyntaxNode): BlockResult {
@@ -1387,6 +1308,15 @@ function renderParagraph(ctx: WalkContext, node: SyntaxNode): BlockResult {
     html: renderParagraphHtml(inner.html, blockSourceAttrs(ctx, plan.sourceRange.from, plan.sourceRange.to)),
     text: plan.text,
     hasMath: plan.hasMath,
+  };
+}
+
+function renderHorizontalRule(ctx: WalkContext, node: SyntaxNode): BlockResult {
+  const plan = horizontalRuleRenderPlan(node);
+  return {
+    html: renderHorizontalRuleHtml(blockSourceAttrs(ctx, plan.sourceRange.from, plan.sourceRange.to)),
+    text: "",
+    hasMath: false,
   };
 }
 
@@ -1508,20 +1438,15 @@ function renderListItem(
 }
 
 function renderBlockquote(ctx: WalkContext, node: SyntaxNode): BlockResult {
+  const plan = blockquoteRenderPlan(node);
   const blocks: BlockResult[] = [];
-  let child = node.firstChild;
-  while (child) {
-    if (child.name === "QuoteMark") {
-      child = child.nextSibling;
-      continue;
-    }
+  for (const child of plan.children) {
     blocks.push(renderBlock(ctx, child));
-    child = child.nextSibling;
   }
   return {
     html: renderBlockquoteHtml(
       blocks.map((b) => b.html).join(""),
-      blockSourceAttrs(ctx, node.from, node.to),
+      blockSourceAttrs(ctx, plan.sourceRange.from, plan.sourceRange.to),
     ),
     text: blocks.map((b) => b.text).join("\n"),
     hasMath: blocks.some((b) => b.hasMath),
