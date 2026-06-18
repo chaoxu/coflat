@@ -325,6 +325,13 @@ export interface DocumentRenderPlan {
   readonly topLevelRenderableCount: number;
 }
 
+export interface EmitDocumentRenderPlanHandlers<T> {
+  readonly emitBlank: (range: { readonly from: number; readonly to: number }) => void;
+  readonly emitChild: (childPlan: DocumentRenderChildPlan) => T;
+  readonly emitTrailingBlank?: (range: { readonly from: number; readonly to: number }) => void;
+  readonly afterDocument?: () => void;
+}
+
 export function blockNodeRenderKind(name: string): BlockNodeRenderKind {
   if (headingLevelFor(name)) return "heading";
   switch (name) {
@@ -391,6 +398,25 @@ export function dispatchBlockNodeRender<T>(
     case "fallback":
       return handlers.fallback(node);
   }
+}
+
+export function emitDocumentRenderPlan<T>(
+  plan: DocumentRenderPlan,
+  handlers: EmitDocumentRenderPlanHandlers<T>,
+): T[] {
+  const emitted: T[] = [];
+  for (const childPlan of plan.children) {
+    for (const range of childPlan.blankBeforeRanges) {
+      handlers.emitBlank(range);
+    }
+    emitted.push(handlers.emitChild(childPlan));
+  }
+  const emitTrailingBlank = handlers.emitTrailingBlank ?? handlers.emitBlank;
+  for (const range of plan.trailingBlankRanges) {
+    emitTrailingBlank(range);
+  }
+  handlers.afterDocument?.();
+  return emitted;
 }
 
 // Shared line-cost model for block-boundary truncation. The reader currently

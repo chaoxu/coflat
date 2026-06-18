@@ -74,6 +74,7 @@ import {
   dispatchBlockNodeRender,
   documentRenderPlan,
   displayMathRenderPlan,
+  emitDocumentRenderPlan,
   fencedDivRenderPlan,
   headingRenderPlan,
   horizontalRuleRenderPlan,
@@ -202,16 +203,11 @@ function renderDocument(
   context: PreviewRenderContext,
 ): void {
   const plan = documentRenderPlan(context.doc, node);
-  for (const childPlan of plan.children) {
-    for (const range of childPlan.blankBeforeRanges) {
-      appendBlankLine(parent, range.from, range.to);
-    }
-    renderNode(parent, childPlan.node, context);
-  }
-  for (const range of plan.trailingBlankRanges) {
-    appendBlankLine(parent, range.from, range.to);
-  }
-  appendFootnoteSection(parent, context);
+  emitDocumentRenderPlan(plan, {
+    emitBlank: (range) => appendBlankLine(parent, range.from, range.to),
+    emitChild: (childPlan) => renderNode(parent, childPlan.node, context),
+    afterDocument: () => appendFootnoteSection(parent, context),
+  });
 }
 
 function renderChildNodes(

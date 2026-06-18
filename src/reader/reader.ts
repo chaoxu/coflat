@@ -27,6 +27,7 @@ import {
   dispatchBlockNodeRender,
   documentRenderPlan,
   displayMathRenderPlan,
+  emitDocumentRenderPlan,
   fencedDivNumberingInfo,
   fencedDivRenderPlan,
   footnoteDefinitionRenderPlan,
@@ -1730,65 +1731,76 @@ function walkDocument(
   let used = 0;
   let truncated: TruncatedInfo | undefined;
   const documentPlan = documentRenderPlan(source, root, { leadingBlockCount: blocks.length });
+  let pendingBlankRanges: Array<{ from: number; to: number }> = [];
+  const flushPendingBlankRanges = () => {
+    for (const range of pendingBlankRanges) {
+      blocks.push(renderBlankLine(ctx, range.from, range.to));
+    }
+    pendingBlankRanges = [];
+  };
 
-  for (const childPlan of documentPlan.children) {
-    const child = childPlan.node;
-    if (budgetKind) {
-      // Snapshot footnote state so we can roll back if we end up not emitting.
-      const fnOrderLen = ctx.footnotesInOrder.length;
-      const fnIdSnapshot = new Map(ctx.footnotesById);
-      const headingCounterSnapshot = [...ctx.headingCounters];
-      const outlineLen = ctx.outline.length;
-      const usedHeadingIdsSnapshot = new Set(ctx.usedHeadingIds);
-      const citedKeysLen = ctx.citedKeys.length;
-      // A fenced div records nested + its own catalog entries (post-order), so a
-      // full snapshot is needed — a dropped block must not leave a catalog entry
-      // that a later [@id] resolves to a number whose target was truncated away.
-      const catalogSnapshot = ctx.buildCatalog ? new Map(ctx.catalog) : null;
-      const referencePreviewIndexSnapshot = ctx.buildReferencePreviews
-        ? new Map(ctx.referencePreviewIndex)
-        : null;
-      const rendered = renderBlock(ctx, child);
-      const cost = budgetKind === "lines"
-        ? blockLineCost(source, child)
-        : rendered.text.length;
-      if (used > 0 && used + cost > budget) {
-        // Roll back footnote side-effects, then stop before this block.
-        ctx.footnotesInOrder.length = fnOrderLen;
-        ctx.footnotesById = fnIdSnapshot;
-        ctx.headingCounters = headingCounterSnapshot;
-        ctx.outline.length = outlineLen;
-        ctx.usedHeadingIds = usedHeadingIdsSnapshot;
-        ctx.citedKeys.length = citedKeysLen;
-        if (catalogSnapshot) ctx.catalog = catalogSnapshot;
-        if (referencePreviewIndexSnapshot) {
-          ctx.referencePreviewIndex = referencePreviewIndexSnapshot;
-        }
-        truncated = { sourceFrom: child.from, sourceTo: source.length };
-        break;
+  emitDocumentRenderPlan(documentPlan, {
+    emitBlank: (range) => {
+      if (!truncated) {
+        pendingBlankRanges.push(range);
       }
-      // Either used===0 (must emit at least this block, even if it busts
-      // budget — atomic blocks) or budget still has room. Emit.
-      for (const range of childPlan.blankBeforeRanges) {
+    },
+    emitChild: (childPlan) => {
+      if (truncated) return;
+      const child = childPlan.node;
+      if (budgetKind) {
+        // Snapshot footnote state so we can roll back if we end up not emitting.
+        const fnOrderLen = ctx.footnotesInOrder.length;
+        const fnIdSnapshot = new Map(ctx.footnotesById);
+        const headingCounterSnapshot = [...ctx.headingCounters];
+        const outlineLen = ctx.outline.length;
+        const usedHeadingIdsSnapshot = new Set(ctx.usedHeadingIds);
+        const citedKeysLen = ctx.citedKeys.length;
+        // A fenced div records nested + its own catalog entries (post-order), so a
+        // full snapshot is needed — a dropped block must not leave a catalog entry
+        // that a later [@id] resolves to a number whose target was truncated away.
+        const catalogSnapshot = ctx.buildCatalog ? new Map(ctx.catalog) : null;
+        const referencePreviewIndexSnapshot = ctx.buildReferencePreviews
+          ? new Map(ctx.referencePreviewIndex)
+          : null;
+        const rendered = renderBlock(ctx, child);
+        const cost = budgetKind === "lines"
+          ? blockLineCost(source, child)
+          : rendered.text.length;
+        if (used > 0 && used + cost > budget) {
+          // Roll back footnote side-effects, then stop before this block.
+          ctx.footnotesInOrder.length = fnOrderLen;
+          ctx.footnotesById = fnIdSnapshot;
+          ctx.headingCounters = headingCounterSnapshot;
+          ctx.outline.length = outlineLen;
+          ctx.usedHeadingIds = usedHeadingIdsSnapshot;
+          ctx.citedKeys.length = citedKeysLen;
+          if (catalogSnapshot) ctx.catalog = catalogSnapshot;
+          if (referencePreviewIndexSnapshot) {
+            ctx.referencePreviewIndex = referencePreviewIndexSnapshot;
+          }
+          pendingBlankRanges = [];
+          truncated = { sourceFrom: child.from, sourceTo: source.length };
+          return;
+        }
+        // Either used===0 (must emit at least this block, even if it busts
+        // budget — atomic blocks) or budget still has room. Emit.
+        flushPendingBlankRanges();
+        blocks.push(rendered);
+        used += cost;
+        topCount++;
+        return;
+      }
+      flushPendingBlankRanges();
+      topCount++;
+      blocks.push(renderBlock(ctx, child));
+    },
+    emitTrailingBlank: (range) => {
+      if (!truncated) {
         blocks.push(renderBlankLine(ctx, range.from, range.to));
       }
-      blocks.push(rendered);
-      used += cost;
-      topCount++;
-      continue;
-    }
-    topCount++;
-    for (const range of childPlan.blankBeforeRanges) {
-      blocks.push(renderBlankLine(ctx, range.from, range.to));
-    }
-    blocks.push(renderBlock(ctx, child));
-  }
-
-  if (!truncated) {
-    for (const range of documentPlan.trailingBlankRanges) {
-      blocks.push(renderBlankLine(ctx, range.from, range.to));
-    }
-  }
+    },
+  });
 
   // If the document has exactly one top-level block AND it is a Paragraph
   // (and no math) AND we did not truncate, unwrap the `<p>` to preserve the

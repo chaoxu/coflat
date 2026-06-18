@@ -9,6 +9,7 @@ import {
   dispatchBlockNodeRender,
   documentRenderPlan,
   displayMathRenderPlan,
+  emitDocumentRenderPlan,
   fencedDivRenderPlan,
   footnoteDefinitionRenderPlan,
   headingRenderPlan,
@@ -65,6 +66,31 @@ describe("documentRenderPlan", () => {
     expect(withoutTitle.trailingBlankRanges).toEqual([]);
     expect(withTitle.topLevelRenderableCount).toBe(2);
     expect(withTitle.trailingBlankRanges.map((range) => source.slice(range.from, range.to))).toEqual(["\n"]);
+  });
+
+  it("emits document children, blanks, trailing blanks, and after hook in one shared order", () => {
+    const source = "First\n\nSecond\n";
+    const plan = documentRenderPlan(source, documentNode(source));
+    const events: string[] = [];
+
+    const emitted = emitDocumentRenderPlan(plan, {
+      emitBlank: (range) => events.push(`blank:${source.slice(range.from, range.to)}`),
+      emitChild: (childPlan) => {
+        events.push(`child:${childPlan.node.from}-${childPlan.node.to}`);
+        return childPlan.node.name;
+      },
+      emitTrailingBlank: (range) => events.push(`trailing:${source.slice(range.from, range.to)}`),
+      afterDocument: () => events.push("after"),
+    });
+
+    expect(emitted).toEqual(["Paragraph", "Paragraph"]);
+    expect(events).toEqual([
+      "child:0-5",
+      "blank:\n",
+      "child:7-13",
+      "trailing:\n",
+      "after",
+    ]);
   });
 });
 
