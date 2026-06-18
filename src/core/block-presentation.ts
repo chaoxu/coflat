@@ -1,5 +1,8 @@
 import type { CaptionPosition, HeaderPosition } from "./constants/block-manifest";
-import { getBlockManifestEntry } from "./constants/block-manifest";
+import {
+  getBlockManifestEntry,
+  isCollapsibleBlockType,
+} from "./constants/block-manifest";
 
 export interface BlockPresentationOptions {
   readonly blockType: string;
@@ -18,6 +21,26 @@ export interface BlockPresentationPlan {
   readonly hasInlineHeader: boolean;
   readonly hasCaptionBelow: boolean;
   readonly isProof: boolean;
+}
+
+export type SemanticBlockDisclosureMode = "interactive" | "static";
+
+export interface FencedDivEmissionPlanOptions {
+  readonly blockType: string | undefined;
+  readonly presentation: BlockPresentationPlan | undefined;
+  readonly title: string | undefined;
+  readonly isSelfClosing: boolean;
+  readonly semanticBlockDisclosures: SemanticBlockDisclosureMode;
+}
+
+export interface FencedDivEmissionPlan {
+  readonly containerLayout: "inline-header" | "disclosure" | "plain";
+  readonly collapsibleBlock: boolean;
+  readonly interactiveBlock: boolean;
+  readonly showSelfClosingTitleParagraph: boolean;
+  readonly addQedToLastBodyBlock: boolean;
+  readonly showStandaloneTitle: boolean;
+  readonly showCaptionBelow: boolean;
 }
 
 export function blockPresentationPlan(
@@ -44,5 +67,36 @@ export function blockPresentationPlan(
     hasInlineHeader: headerPosition === "inline",
     hasCaptionBelow: captionPosition === "below",
     isProof,
+  };
+}
+
+export function fencedDivEmissionPlan(
+  options: FencedDivEmissionPlanOptions,
+): FencedDivEmissionPlan {
+  const hasTitle = Boolean(options.title);
+  const collapsibleBlock = Boolean(
+    options.blockType && isCollapsibleBlockType(options.blockType),
+  );
+  const interactiveBlock = collapsibleBlock
+    && options.semanticBlockDisclosures === "interactive";
+  const containerLayout = options.presentation?.hasInlineHeader
+    ? "inline-header"
+    : collapsibleBlock
+      ? "disclosure"
+      : "plain";
+
+  return {
+    containerLayout,
+    collapsibleBlock,
+    interactiveBlock,
+    showSelfClosingTitleParagraph: hasTitle && options.isSelfClosing,
+    addQedToLastBodyBlock: Boolean(options.presentation?.isProof),
+    showStandaloneTitle: hasTitle
+      && !options.presentation?.hasCaptionBelow
+      && !options.presentation?.hasInlineHeader
+      && !collapsibleBlock,
+    showCaptionBelow: hasTitle
+      && !options.isSelfClosing
+      && Boolean(options.presentation?.hasCaptionBelow),
   };
 }

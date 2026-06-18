@@ -26,10 +26,7 @@ import {
 } from "../../core/document-surface-policy";
 import type { InlineSurfaceName } from "../../core/inline-surface-policy";
 import type { InlineFragment } from "../../core/inline-fragments";
-import {
-  EXCLUDED_FROM_FALLBACK,
-  isCollapsibleBlockType,
-} from "../../core/constants/block-manifest";
+import { EXCLUDED_FROM_FALLBACK } from "../../core/constants/block-manifest";
 import { CSS } from "../../core/constants/css-classes";
 import { appendCodeBlockDom } from "../../core/code-block-surface";
 import {
@@ -390,6 +387,7 @@ function renderFencedDiv(
   const plan = fencedDivRenderPlan(context.doc, node, {
     displayTitleForBlockType: (blockType) => displayTitleForBlockType(blockType, context.blockTitleOverrides),
     numberForBlockType: () => context.documentBlockNumbers.get(node.from)?.number,
+    semanticBlockDisclosures: context.surfacePolicy.semanticBlockDisclosures,
   });
 
   if (plan.classes.some((className) => EXCLUDED_FROM_FALLBACK.has(className))) {
@@ -408,7 +406,7 @@ function renderFencedDiv(
     : undefined;
   const policy = context.surfacePolicy;
 
-  if (title && plan.isSelfClosing) {
+  if (plan.emission.showSelfClosingTitleParagraph) {
     const paragraph = createParagraphDom(document);
     appendInlineFragments(paragraph, plan.titleFragments, context, policy.bodyInlineSurface);
     block.appendChild(paragraph);
@@ -423,21 +421,17 @@ function renderFencedDiv(
       renderNode(body, childPlan.node, context);
     }
 
-    if (plan.presentation?.hasInlineHeader && summary) {
-      if (plan.primaryManifestEntry?.specialBehavior === "qed") {
+    if (plan.emission.containerLayout === "inline-header" && summary) {
+      if (plan.emission.addQedToLastBodyBlock) {
         addClassToLastChildElement(body, CSS.blockQed);
       }
       prependInlineBlockHeading(body, summary);
     }
 
-    if (
-      summary
-      && isCollapsibleBlockType(plan.primaryClassName)
-      && policy.semanticBlockDisclosures === "static"
-    ) {
+    if (summary && plan.emission.containerLayout === "disclosure") {
       appendBlockHeader(block, summary, body);
     } else {
-      if (title && !plan.presentation?.hasCaptionBelow && !plan.presentation?.hasInlineHeader) {
+      if (plan.emission.showStandaloneTitle) {
         const strong = createBlockLabelElement(document);
         appendInlineFragments(strong, plan.titleFragments, context, policy.labelInlineSurface);
         block.appendChild(strong);
@@ -446,7 +440,7 @@ function renderFencedDiv(
     }
   }
 
-  if (!plan.isSelfClosing && plan.presentation?.hasCaptionBelow && title) {
+  if (plan.emission.showCaptionBelow && title && plan.presentation) {
     const caption = createBlockCaptionElement(document);
     appendBlockCaptionLabel(caption, plan.presentation.label);
     const text = appendBlockCaptionText(caption);

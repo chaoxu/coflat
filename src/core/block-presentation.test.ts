@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { blockPresentationPlan } from "./block-presentation";
+import {
+  blockPresentationPlan,
+  fencedDivEmissionPlan,
+} from "./block-presentation";
 
 describe("block presentation", () => {
   it("builds numbered block labels with title shown in the header", () => {
@@ -60,5 +63,100 @@ describe("block presentation", () => {
       showTitleInHeader: false,
       displayHeader: false,
     });
+  });
+});
+
+describe("fencedDivEmissionPlan", () => {
+  it("plans interactive collapsible theorem blocks", () => {
+    const presentation = blockPresentationPlan({
+      blockType: "theorem",
+      displayTitle: "Theorem",
+      number: 1,
+      title: "Main",
+    });
+
+    expect(fencedDivEmissionPlan({
+      blockType: "theorem",
+      presentation,
+      title: "Main",
+      isSelfClosing: false,
+      semanticBlockDisclosures: "interactive",
+    })).toEqual({
+      containerLayout: "disclosure",
+      collapsibleBlock: true,
+      interactiveBlock: true,
+      showSelfClosingTitleParagraph: false,
+      addQedToLastBodyBlock: false,
+      showStandaloneTitle: false,
+      showCaptionBelow: false,
+    });
+  });
+
+  it("plans inline proof headers and qed body decoration", () => {
+    const presentation = blockPresentationPlan({
+      blockType: "proof",
+      displayTitle: "Proof",
+      number: undefined,
+      title: "Main",
+    });
+
+    expect(fencedDivEmissionPlan({
+      blockType: "proof",
+      presentation,
+      title: "Main",
+      isSelfClosing: false,
+      semanticBlockDisclosures: "static",
+    })).toMatchObject({
+      containerLayout: "inline-header",
+      addQedToLastBodyBlock: true,
+      showStandaloneTitle: false,
+      showCaptionBelow: false,
+    });
+  });
+
+  it("keeps custom titled blocks visible without inventing disclosure chrome", () => {
+    const presentation = blockPresentationPlan({
+      blockType: "custom-note",
+      displayTitle: "Custom-note",
+      number: undefined,
+      title: "Visible title",
+    });
+
+    expect(fencedDivEmissionPlan({
+      blockType: "custom-note",
+      presentation,
+      title: "Visible title",
+      isSelfClosing: false,
+      semanticBlockDisclosures: "static",
+    })).toMatchObject({
+      containerLayout: "plain",
+      collapsibleBlock: false,
+      interactiveBlock: false,
+      showStandaloneTitle: true,
+    });
+  });
+
+  it("plans below captions only for non-self-closing captioned blocks", () => {
+    const presentation = blockPresentationPlan({
+      blockType: "figure",
+      displayTitle: "Figure",
+      number: 2,
+      title: "Diagram",
+    });
+
+    expect(fencedDivEmissionPlan({
+      blockType: "figure",
+      presentation,
+      title: "Diagram",
+      isSelfClosing: false,
+      semanticBlockDisclosures: "static",
+    }).showCaptionBelow).toBe(true);
+    expect(fencedDivEmissionPlan({
+      blockType: "figure",
+      presentation,
+      title: "Diagram",
+      isSelfClosing: true,
+      semanticBlockDisclosures: "static",
+    }).showCaptionBelow).toBe(false);
   });
 });

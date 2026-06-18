@@ -526,6 +526,15 @@ describe("fencedDivRenderPlan", () => {
         title: "Main",
         showTitleInHeader: true,
       },
+      emission: {
+        containerLayout: "disclosure",
+        collapsibleBlock: true,
+        interactiveBlock: false,
+        showSelfClosingTitleParagraph: false,
+        addQedToLastBodyBlock: false,
+        showStandaloneTitle: false,
+        showCaptionBelow: false,
+      },
     });
     expect(plan.primaryManifestEntry?.name).toBe("theorem");
     expect(source.slice(plan.bodyRange?.from, plan.bodyRange?.to).trim()).toBe("Body");
@@ -579,6 +588,34 @@ describe("fencedDivRenderPlan", () => {
     expect(plan.isSelfClosing).toBe(false);
     expect(plan.children).toEqual([]);
     expect(plan.bodyRange).toBeNull();
+  });
+
+  it("plans interactive disclosure layout for reader semantic blocks", () => {
+    const source = "::: {.theorem}\nBody\n:::";
+    const plan = fencedDivRenderPlan(source, firstBlock(source, "FencedDiv"), {
+      semanticBlockDisclosures: "interactive",
+    });
+
+    expect(plan.emission).toMatchObject({
+      containerLayout: "disclosure",
+      collapsibleBlock: true,
+      interactiveBlock: true,
+    });
+  });
+
+  it("plans inline-header layout for proof blocks", () => {
+    const source = "::: {.proof}\nDone.\n:::";
+    const plan = fencedDivRenderPlan(source, firstBlock(source, "FencedDiv"), {
+      semanticBlockDisclosures: "interactive",
+    });
+
+    expect(plan.presentation?.hasInlineHeader).toBe(true);
+    expect(plan.emission).toMatchObject({
+      containerLayout: "inline-header",
+      collapsibleBlock: false,
+      interactiveBlock: false,
+      addQedToLastBodyBlock: true,
+    });
   });
 });
 

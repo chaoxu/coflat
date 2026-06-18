@@ -263,6 +263,14 @@ describe("reader / editor-preview emission parity", () => {
       ].join("\n"),
     },
     {
+      name: "custom titled fenced block",
+      source: [
+        '::: {.custom-note title="Visible **title**"}',
+        "Body text.",
+        ":::",
+      ].join("\n"),
+    },
+    {
       name: "proof block with inline header",
       source: [
         "::: {.proof #proof:a}",

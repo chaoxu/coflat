@@ -6,7 +6,10 @@ import {
 import { NODE } from "./constants/node-types";
 import {
   blockPresentationPlan,
+  fencedDivEmissionPlan,
   type BlockPresentationPlan,
+  type FencedDivEmissionPlan,
+  type SemanticBlockDisclosureMode,
 } from "./block-presentation";
 import {
   buildInlineFragments,
@@ -200,6 +203,7 @@ export interface FencedDivRenderPlanOptions {
   readonly displayTitleForBlockType?: (blockType: string) => string;
   readonly numberForFencedDiv?: (block: FencedDivNumberingInfo) => number | undefined;
   readonly numberForBlockType?: (blockType: string) => number | undefined;
+  readonly semanticBlockDisclosures?: SemanticBlockDisclosureMode;
 }
 
 export interface FencedDivRenderPlan {
@@ -226,6 +230,7 @@ export interface FencedDivRenderPlan {
   readonly displayTitle: string | undefined;
   readonly number: number | undefined;
   readonly presentation: BlockPresentationPlan | undefined;
+  readonly emission: FencedDivEmissionPlan;
 }
 
 export interface HeadingAttributePlan {
@@ -850,10 +855,18 @@ export function fencedDivRenderPlan(
       title,
     })
     : undefined;
-  const titleFragments = title ? parseInlineFragments(title) : [];
   const fenceRange = firstFence && lastFence
     ? source.slice(firstFence.from, lastFence.to)
     : "";
+  const isSelfClosing = hasClosingFence && !fenceRange.includes("\n");
+  const emission = fencedDivEmissionPlan({
+    blockType: primaryClassName,
+    presentation,
+    title,
+    isSelfClosing,
+    semanticBlockDisclosures: options.semanticBlockDisclosures ?? "static",
+  });
+  const titleFragments = title ? parseInlineFragments(title) : [];
 
   return {
     kind: "fenced-div",
@@ -865,7 +878,7 @@ export function fencedDivRenderPlan(
     titleFragments,
     titleText: inlineFragmentsPlainText(titleFragments),
     titleHasMath: fragmentsContainMath(titleFragments),
-    isSelfClosing: hasClosingFence && !fenceRange.includes("\n"),
+    isSelfClosing,
     bodyRange: bodyFrom === null || bodyTo === null
       ? null
       : { from: bodyFrom, to: bodyTo },
@@ -875,6 +888,7 @@ export function fencedDivRenderPlan(
     displayTitle,
     number,
     presentation,
+    emission,
   };
 }
 

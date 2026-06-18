@@ -3,8 +3,12 @@ import { DOCUMENT_SURFACE_CLASS } from "./document-surface-classes";
 import { escapeHtml } from "./lib/html-escape";
 import { createParagraphDom, renderParagraphHtml } from "./paragraph-surface";
 
+export function renderBlockLabelContentHtml(labelHtml: string): string {
+  return `<span class="${CSS.blockHeaderRendered}">${labelHtml}</span>`;
+}
+
 export function renderBlockLabelHtml(label: string): string {
-  return `<span class="${CSS.blockHeaderRendered}">${escapeHtml(label)}</span>`;
+  return renderBlockLabelContentHtml(escapeHtml(label));
 }
 
 export function renderBlockAttributeTitleHtml(titleHtml: string): string {

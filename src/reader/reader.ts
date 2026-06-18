@@ -45,6 +45,7 @@ import {
 } from "../core/block-caption-surface";
 import {
   renderBlockDisclosureHtml,
+  renderBlockLabelContentHtml,
   renderBlockLabelHtml,
   renderInlineBlockHeadingContainerHtml,
   renderBlockSummaryHtml as renderBlockSummarySurfaceHtml,
@@ -53,9 +54,6 @@ import { NODE } from "../core/constants/node-types";
 import { isSafeUrl } from "../core/lib/url-utils";
 import { escapeHtml } from "../core/lib/html-escape";
 import { buildLineOffsets, lineAt } from "../core/lib/line-offsets";
-import {
-  isCollapsibleBlockType,
-} from "../core/constants/block-manifest";
 import {
   CSS,
   hostReferenceClassNames,
@@ -1512,6 +1510,7 @@ function renderFencedDiv(ctx: WalkContext, node: SyntaxNode): BlockResult {
   const plan = fencedDivRenderPlan(ctx.source, node, {
     displayTitleForBlockType: (blockType) => blockDisplayTitle(ctx, blockType),
     numberForFencedDiv: (block) => ctx.blockNumbers.byPosition.get(block.from)?.number,
+    semanticBlockDisclosures: ctx.semanticBlockDisclosures,
   });
 
   const blocks: BlockResult[] = [];
@@ -1523,26 +1522,20 @@ function renderFencedDiv(ctx: WalkContext, node: SyntaxNode): BlockResult {
   }
 
   const normalizedClassName = plan.primaryClassName;
-  if (plan.primaryManifestEntry?.specialBehavior === "qed") {
+  if (plan.emission.addQedToLastBodyBlock) {
     addClassToLastHtmlBlock(blocks, CSS.blockQed);
   }
-  const collapsibleBlock = Boolean(
-    normalizedClassName &&
-    isCollapsibleBlockType(normalizedClassName),
-  );
-  const interactiveBlock = collapsibleBlock && ctx.semanticBlockDisclosures === "interactive";
   const attrs = blockContainerSurfaceAttrs({
     types: plan.classes,
     id: plan.id,
     dataAttributes: plan.keyValues,
-    extraClassNames: interactiveBlock ? [CSS.blockCollapsible] : [],
+    extraClassNames: plan.emission.interactiveBlock ? [CSS.blockCollapsible] : [],
   });
   const body = combineBlocks(blocks);
   const sourceAttrs = blockSourceAttrs(ctx, plan.sourceRange.from, plan.sourceRange.to);
-  const caption = plan.presentation?.hasCaptionBelow && plan.title && normalizedClassName
+  const caption = plan.emission.showCaptionBelow && plan.title && normalizedClassName
     ? renderBlockCaption(ctx, normalizedClassName, plan.title, plan.titleFragments, plan.number, node.from, node.to)
     : emptyBlock();
-  const bodyHtml = body.html + caption.html;
   if (ctx.buildCatalog && plan.id && normalizedClassName) {
     ctx.catalog.set(plan.id, {
       kind: "block",
@@ -1573,16 +1566,22 @@ function renderFencedDiv(ctx: WalkContext, node: SyntaxNode): BlockResult {
     ? renderBlockSummary(ctx, normalizedClassName, plan.title, plan.titleFragments, plan.number)
     : emptyBlock();
   const summaryHtml = summary.html;
-  const html = plan.presentation?.hasInlineHeader
+  const standaloneTitle = plan.emission.showStandaloneTitle
+    ? renderInlineFragmentsForReader(ctx, plan.titleFragments, node.from, node.to)
+    : emptyBlock();
+  const bodyHtml = standaloneTitle.html
+    ? renderBlockLabelContentHtml(standaloneTitle.html) + body.html + caption.html
+    : body.html + caption.html;
+  const html = plan.emission.containerLayout === "inline-header"
     ? renderInlineBlockHeadingContainerHtml(attrs, sourceAttrs, summaryHtml, bodyHtml)
-    : collapsibleBlock
-    ? `<div${attrs}${sourceAttrs}${interactiveBlock ? ' data-cf-block-open="true"' : ""}>${renderBlockHeader(summaryHtml, bodyHtml)}</div>`
+    : plan.emission.containerLayout === "disclosure"
+    ? `<div${attrs}${sourceAttrs}${plan.emission.interactiveBlock ? ' data-cf-block-open="true"' : ""}>${renderBlockHeader(summaryHtml, bodyHtml)}</div>`
     : `<div${attrs}${sourceAttrs}>${bodyHtml}</div>`;
 
   return {
     html,
-    text: [body.text, caption.text].filter(Boolean).join("\n\n"),
-    hasMath: summary.hasMath || body.hasMath || caption.hasMath,
+    text: [standaloneTitle.text, body.text, caption.text].filter(Boolean).join("\n\n"),
+    hasMath: summary.hasMath || standaloneTitle.hasMath || body.hasMath || caption.hasMath,
   };
 }
 
