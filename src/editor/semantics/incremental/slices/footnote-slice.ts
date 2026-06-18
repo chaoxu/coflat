@@ -12,7 +12,7 @@ import {
 } from "../merge-utils";
 import type { DirtyWindow, SemanticDelta } from "../types";
 import type { StructuralWindowExtraction } from "../window-extractor";
-import { footnoteNumberingState } from "../../../../core/footnote-ordering";
+import { buildFootnotePlan } from "../../../../core/semantics/footnote-plan";
 
 export interface FootnoteSlice extends FootnoteSemantics {
   readonly definitions: readonly FootnoteDefinition[];
@@ -237,109 +237,26 @@ function removeDirtyOldRanges<T extends RangeLike>(
   return next;
 }
 
-function buildNumberById(
-  refs: readonly FootnoteReference[],
-  definitions: readonly FootnoteDefinition[],
-  previous?: FootnoteSlice,
-): ReadonlyMap<string, number> {
-  if (
-    previous
-    && refs === previous.refs
-    && definitions.length === previous.definitions.length
-    && definitions.every((def, index) => sameFootnoteDefinition(def, previous.definitions[index]))
-  ) {
-    return previous.numberById;
-  }
-
-  const numbers = footnoteNumberingState(refs, definitions).numberById;
-
-  if (
-    previous
-    && numbers.size === previous.numberById.size
-    && Array.from(numbers.entries()).every(
-      ([id, number]) => previous.numberById.get(id) === number,
-    )
-  ) {
-    return previous.numberById;
-  }
-
-  return numbers;
-}
-
-function buildOrderedEntries(
-  refs: readonly FootnoteReference[],
-  definitions: readonly FootnoteDefinition[],
-  defs: ReadonlyMap<string, FootnoteDefinition>,
-  numberById: ReadonlyMap<string, number>,
-  previous?: FootnoteSlice,
-): readonly OrderedFootnoteEntry[] {
-  const previousEntries = previous
-    ? new Map(previous.orderedEntries.map((entry) => [entry.id, entry]))
-    : null;
-  const entries: OrderedFootnoteEntry[] = [];
-
-  for (const id of footnoteNumberingState(refs, definitions).orderedIds) {
-    const def = defs.get(id);
-    if (!def) continue;
-
-    const number = numberById.get(id) ?? 0;
-    const previousEntry = previousEntries?.get(id);
-    if (
-      previousEntry
-      && previousEntry.number === number
-      && previousEntry.def === def
-    ) {
-      entries.push(previousEntry);
-      continue;
-    }
-
-    entries.push({
-      id,
-      number,
-      def,
-    });
-  }
-
-  if (
-    previous
-    && entries.length === previous.orderedEntries.length
-    && entries.every((entry, index) => entry === previous.orderedEntries[index])
-  ) {
-    return previous.orderedEntries;
-  }
-
-  return entries;
-}
-
 export function createFootnoteSlice(
   refs: readonly FootnoteReference[],
   definitions: readonly FootnoteDefinition[],
   previous?: FootnoteSlice,
 ): FootnoteSlice {
-  const footnoteDefs = new Map<string, FootnoteDefinition>();
-  const footnoteRefByFrom = new Map<number, FootnoteReference>();
-  const footnoteDefByFrom = new Map<number, FootnoteDefinition>();
-
-  for (const ref of refs) {
-    footnoteRefByFrom.set(ref.from, ref);
-  }
-
-  for (const def of definitions) {
-    footnoteDefs.set(def.id, def);
-    footnoteDefByFrom.set(def.from, def);
-  }
-
-  const numberById = buildNumberById(refs, definitions, previous);
-  const orderedEntries = buildOrderedEntries(refs, definitions, footnoteDefs, numberById, previous);
+  const plan = buildFootnotePlan(refs, definitions, {
+    previous,
+    previousDefinitions: previous?.definitions,
+    refsUnchanged: refs === previous?.refs,
+    sameDefinition: sameFootnoteDefinition,
+  });
 
   return {
-    refs,
-    definitions,
-    defs: footnoteDefs,
-    refByFrom: footnoteRefByFrom,
-    defByFrom: footnoteDefByFrom,
-    numberById,
-    orderedEntries,
+    refs: plan.refs,
+    definitions: plan.definitions,
+    defs: plan.defs,
+    refByFrom: plan.refByFrom,
+    defByFrom: plan.defByFrom,
+    numberById: plan.numberById,
+    orderedEntries: plan.orderedEntries,
   };
 }
 
