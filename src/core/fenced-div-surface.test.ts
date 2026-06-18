@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { fencedDivRenderPlan } from "./block-render-plan";
 import {
   fencedDivContainerOptions,
+  fencedDivLiveEditorChromePlan,
   fencedDivSurfaceAssemblyPlan,
   fencedDivSurfaceChromePlan,
 } from "./fenced-div-surface";
@@ -113,6 +114,96 @@ describe("fenced div surface assembly", () => {
     expect(fencedDivSurfaceChromePlan(selfClosingPlan)).toMatchObject({
       titleSlot: "self-closing-paragraph",
       bodySlot: "none",
+      captionSlot: "none",
+    });
+  });
+});
+
+describe("fenced div live editor chrome", () => {
+  it("keeps ordinary block headers on the opening line", () => {
+    expect(fencedDivLiveEditorChromePlan({
+      captionBelow: false,
+      inlineHeader: false,
+      displayHeader: true,
+      structureEditActive: false,
+      activeShell: false,
+      hasVisibleBody: true,
+      hasEditableInlineTitle: true,
+      hasAttributeTitle: false,
+    })).toEqual({
+      openerSourceActive: false,
+      openerSlot: "visible",
+      openerLabelSlot: "label",
+      openerIsBottom: false,
+      bodyShellStartsOnFirstBodyLine: false,
+      bodyShellEndsOnLastBodyLine: false,
+      titleSlot: "parenthesized-inline",
+      bodySlot: "plain",
+      captionSlot: "none",
+    });
+  });
+
+  it("moves inline headers to the first body line", () => {
+    expect(fencedDivLiveEditorChromePlan({
+      captionBelow: false,
+      inlineHeader: true,
+      displayHeader: true,
+      structureEditActive: false,
+      activeShell: true,
+      hasVisibleBody: true,
+      hasEditableInlineTitle: false,
+      hasAttributeTitle: false,
+    })).toMatchObject({
+      openerSourceActive: false,
+      openerSlot: "collapsed",
+      openerLabelSlot: "none",
+      bodyShellStartsOnFirstBodyLine: true,
+      bodyShellEndsOnLastBodyLine: true,
+      bodySlot: "inline-heading",
+      captionSlot: "none",
+    });
+  });
+
+  it("moves below captions after the last body line", () => {
+    expect(fencedDivLiveEditorChromePlan({
+      captionBelow: true,
+      inlineHeader: false,
+      displayHeader: true,
+      structureEditActive: false,
+      activeShell: true,
+      hasVisibleBody: true,
+      hasEditableInlineTitle: true,
+      hasAttributeTitle: false,
+    })).toMatchObject({
+      openerSourceActive: false,
+      openerSlot: "collapsed",
+      openerLabelSlot: "none",
+      titleSlot: "none",
+      bodyShellStartsOnFirstBodyLine: true,
+      bodyShellEndsOnLastBodyLine: false,
+      bodySlot: "plain",
+      captionSlot: "below",
+    });
+  });
+
+  it("uses source opener chrome while structure editing caption blocks", () => {
+    expect(fencedDivLiveEditorChromePlan({
+      captionBelow: true,
+      inlineHeader: false,
+      displayHeader: true,
+      structureEditActive: true,
+      activeShell: true,
+      hasVisibleBody: true,
+      hasEditableInlineTitle: true,
+      hasAttributeTitle: false,
+    })).toMatchObject({
+      openerSourceActive: true,
+      openerSlot: "visible",
+      openerLabelSlot: "empty",
+      bodyShellStartsOnFirstBodyLine: false,
+      bodyShellEndsOnLastBodyLine: true,
+      titleSlot: "none",
+      bodySlot: "plain",
       captionSlot: "none",
     });
   });

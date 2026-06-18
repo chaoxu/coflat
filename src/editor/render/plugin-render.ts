@@ -62,6 +62,7 @@ import {
 import type { BlockAttrs } from "../state/block-plugin";
 import { getCm6RenderDecorations } from "../state/cm6-block-plugin";
 import { applySpecialBehavior } from "../plugins/special-behavior-handlers";
+import { fencedDivLiveEditorChromePlan } from "../../core/fenced-div-surface";
 
 function joinClasses(...classes: Array<string | false | null | undefined>): string {
   return classes.filter(Boolean).join(" ");
@@ -124,17 +125,17 @@ function buildBlockDecorations(state: EditorState): DecorationSet {
     const spec = plugin.render(labelAttrs);
     const captionBelow = plugin.captionPosition === "below";
     const inlineHeader = plugin.headerPosition === "inline";
-    const openerSourceActive = structureEditActive && (
-      captionBelow ||
-      inlineHeader ||
-      div.titleFrom === undefined ||
-      div.titleTo === undefined
-    );
     const hasVisibleBody = closeLine.number > openLine.number + 1;
-    const openerLineVisible =
-      openerSourceActive || (!captionBelow && !inlineHeader && plugin.displayHeader !== false);
-    const bottomOnCaption = activeShell && captionBelow && !openerSourceActive && hasVisibleBody;
-    const openerIsBottom = activeShell && !hasVisibleBody && !bottomOnCaption;
+    const chrome = fencedDivLiveEditorChromePlan({
+      captionBelow,
+      inlineHeader,
+      displayHeader: plugin.displayHeader !== false,
+      structureEditActive,
+      activeShell,
+      hasVisibleBody,
+      hasEditableInlineTitle: div.titleFrom !== undefined && div.titleTo !== undefined,
+      hasAttributeTitle: Boolean(div.title),
+    });
 
     // --- Opening fence ---
     // Heading-like pattern: ALWAYS apply block styling, toggle marker visibility.
@@ -158,11 +159,11 @@ function buildBlockDecorations(state: EditorState): DecorationSet {
       spec.className,
       CSS.blockHeader,
       activeShell && CSS.activeShell,
-      activeShell && openerLineVisible && CSS.activeShellTop,
-      openerIsBottom && openerLineVisible && CSS.activeShellBottom,
-      openerSourceActive && openerLineVisible && CSS.blockSource,
+      activeShell && chrome.openerSlot === "visible" && CSS.activeShellTop,
+      chrome.openerIsBottom && chrome.openerSlot === "visible" && CSS.activeShellBottom,
+      chrome.openerSourceActive && chrome.openerSlot === "visible" && CSS.blockSource,
     );
-    if (openerLineVisible) {
+    if (chrome.openerSlot === "visible") {
       builder.addLine(div.from, headerClass);
     } else {
       addCollapsedStructureLine(
@@ -173,7 +174,7 @@ function buildBlockDecorations(state: EditorState): DecorationSet {
           CSS.blockHeaderCollapsed,
           activeShell && CSS.activeShell,
           activeShell && CSS.activeShellTop,
-          openerIsBottom && CSS.activeShellBottom,
+          chrome.openerIsBottom && CSS.activeShellBottom,
         ),
         items,
       );
@@ -181,14 +182,14 @@ function buildBlockDecorations(state: EditorState): DecorationSet {
     // Always keep the widget replacement active — structure editing uses
     // explicit mapped state, not raw-text editing of the fence syntax.
     // Toggling the replacement on/off caused a 1px geometry delta (#1015).
-    if (!openerLineVisible) {
+    if (chrome.openerSlot === "collapsed") {
       // The whole opener line is represented by the block replacement above.
-    } else if (captionBelow || inlineHeader) {
+    } else if (chrome.openerLabelSlot === "empty") {
       addHeaderWidgetDecoration(
         pluginRenderAdapter,
         div,
         "",
-        openerSourceActive,
+        chrome.openerSourceActive,
         macros,
         items,
       );
@@ -196,8 +197,8 @@ function buildBlockDecorations(state: EditorState): DecorationSet {
       addHeaderWidgetDecoration(
         pluginRenderAdapter,
         div,
-        plugin.displayHeader === false ? "" : spec.header,
-        openerSourceActive,
+        chrome.openerLabelSlot === "label" ? spec.header : "",
+        chrome.openerSourceActive,
         macros,
         items,
       );
@@ -207,19 +208,17 @@ function buildBlockDecorations(state: EditorState): DecorationSet {
     // Uses Decoration.widget (not Decoration.mark with CSS ::before/::after) because
     // marks get split around Decoration.replace (math widgets), causing ") $x^2$".
     // For below-caption blocks, title text is the caption — no parens needed.
-    if (openerLineVisible && !openerSourceActive && !captionBelow && !inlineHeader && div.titleFrom !== undefined && div.titleTo !== undefined) {
+    if (chrome.titleSlot === "parenthesized-inline" && div.titleFrom !== undefined && div.titleTo !== undefined) {
       addInlineTitleParenDecorations(div.titleFrom, div.titleTo, items);
     }
 
-    if (openerLineVisible && !openerSourceActive && (captionBelow || inlineHeader) && div.titleFrom !== undefined && div.titleTo !== undefined) {
+    if (chrome.titleSlot === "hidden-inline" && div.titleFrom !== undefined && div.titleTo !== undefined) {
       builder.addHidden(div.titleFrom, div.titleTo);
     }
 
     // Attribute-only title (not used for below-caption blocks — their title is the caption).
     if (
-      !openerSourceActive &&
-      openerLineVisible &&
-      !captionBelow &&
+      chrome.titleSlot === "attribute-title" &&
       div.titleFrom === undefined &&
       div.titleTo === undefined &&
       div.title
@@ -249,7 +248,7 @@ function buildBlockDecorations(state: EditorState): DecorationSet {
         div,
         items,
         activeShell,
-        openerSourceActive,
+        openerSourceActive: chrome.openerSourceActive,
       });
     }
 
@@ -264,13 +263,13 @@ function buildBlockDecorations(state: EditorState): DecorationSet {
           joinClasses(
             spec.className,
             activeShell && CSS.activeShell,
-            activeShell && !openerLineVisible && lineNum === openLine.number + 1 && CSS.activeShellTop,
-            activeShell && !bottomOnCaption && lineNum === bodyCloseLine.number - 1 && CSS.activeShellBottom,
+            chrome.bodyShellStartsOnFirstBodyLine && lineNum === openLine.number + 1 && CSS.activeShellTop,
+            chrome.bodyShellEndsOnLastBodyLine && lineNum === bodyCloseLine.number - 1 && CSS.activeShellBottom,
           ),
         );
       }
 
-      if (inlineHeader && !openerSourceActive && closeLine.number > openLine.number + 1) {
+      if (chrome.bodySlot === "inline-heading") {
         const firstBodyLine = state.doc.line(openLine.number + 1);
         addInlineHeaderDecoration(
           pluginRenderAdapter,
@@ -284,7 +283,7 @@ function buildBlockDecorations(state: EditorState): DecorationSet {
       }
 
       // Below-caption label: add a real caption block after the content.
-      if (captionBelow && !openerSourceActive && closeLine.number > openLine.number + 1) {
+      if (chrome.captionSlot === "below") {
         const lastBodyLine = state.doc.line(closeLine.number - 1);
         addCaptionDecoration(
           pluginRenderAdapter,
@@ -305,7 +304,7 @@ function buildBlockDecorations(state: EditorState): DecorationSet {
       builder,
       openLine,
       activeShell,
-      openerSourceActive,
+      openerSourceActive: chrome.openerSourceActive,
     });
   });
 
