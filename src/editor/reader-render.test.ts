@@ -646,6 +646,16 @@ describe("renderToHtml — block-level rendering ()", () => {
     expect(r.html).not.toContain('data-ref-key="knuth1984"');
   });
 
+  it("keeps citation-shaped [@key] inert with source positions enabled", () => {
+    const r = renderToHtml("As shown in [@knuth1984], …", undefined, {
+      sourcePositions: true,
+    });
+    expect(r.html).toContain("[@knuth1984]");
+    expect(r.html).toContain('data-source-from="12" data-source-to="24"');
+    expect(r.html).not.toContain('cf-crossref-unresolved');
+    expect(r.html).not.toContain('data-ref-key="knuth1984"');
+  });
+
   it("keeps citation-shaped [@key] inert when a workspace resolver misses", () => {
     const r = renderToHtml("As shown in [@knuth1984], …", {
       refResolver: {
@@ -765,7 +775,7 @@ describe("renderToHtml — block-level rendering ()", () => {
 
   it("hydrates unresolved reader references and links in place", () => {
     const root = document.createElement("div");
-    const source = "See [@host-page] and [docs](./docs.md).";
+    const source = "See [@page:host] and [docs](./docs.md).";
     root.innerHTML = renderToHtml(source, undefined, { sourcePositions: true }).html;
 
     hydrateReferences(
@@ -787,10 +797,10 @@ describe("renderToHtml — block-level rendering ()", () => {
       { documentPath: "paper.md", source },
     );
 
-    const ref = root.querySelector("[data-ref-key='host-page']");
+    const ref = root.querySelector("[data-ref-key='page:host']");
     expect(ref?.classList.contains("cf-citation-unresolved")).toBe(false);
     expect(ref?.classList.contains("cf-crossref")).toBe(true);
-    expect(ref?.innerHTML).toContain("<strong>host-page:");
+    expect(ref?.innerHTML).toContain("<strong>page:host:");
     const link = root.querySelector("a[href='https://example.com/resolved/./docs.md']");
     expect(link?.className).toContain("from-paper.md");
     expect(link?.getAttribute("data-cf-link-layout")).toBe("flow");

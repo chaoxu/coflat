@@ -69,6 +69,26 @@ describe("parseInlineFragments", () => {
     ]);
   });
 
+  it("can carry source ranges through normalized narrative references", () => {
+    expect(parseInlineFragments("See @thm:main and **bold**", { sourceRanges: true })).toEqual([
+      { kind: "text", text: "See ", sourceRange: { from: 0, to: 4 } },
+      {
+        kind: "reference",
+        parenthetical: false,
+        rawText: "@thm:main",
+        ids: ["thm:main"],
+        locators: [undefined],
+        sourceRange: { from: 4, to: 13 },
+      },
+      { kind: "text", text: " and ", sourceRange: { from: 13, to: 18 } },
+      {
+        kind: "strong",
+        children: [{ kind: "text", text: "bold", sourceRange: { from: 20, to: 24 } }],
+        sourceRange: { from: 18, to: 26 },
+      },
+    ]);
+  });
+
   it("finds a neutral plain-text anchor between rich inline fragments", () => {
     expect(findInlineNeutralAnchor("**Bold** and $x^2$")).toBe(9);
     expect(findInlineNeutralAnchor("[@cormen2009] and ==highlight==")).toBe(14);

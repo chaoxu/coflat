@@ -641,47 +641,58 @@ function renderInlineFragmentsForReader(
 
   const renderChildren = (children: readonly InlineFragment[]) =>
     renderInlineFragmentsForReader(ctx, children, from, to);
+  const rangeFor = (fragment: InlineFragment) => fragment.sourceRange ?? { from, to };
+  const sourceAttrsFor = (fragment: InlineFragment) => {
+    const range = rangeFor(fragment);
+    return sourcePosAttrs(ctx, range.from, range.to);
+  };
+  const mathSourceAttrsFor = (fragment: InlineFragment) => {
+    const range = rangeFor(fragment);
+    return mathSourcePosAttrs(ctx, range.from, range.to);
+  };
 
   for (const fragment of fragments) {
     switch (fragment.kind) {
       case "text":
-        html += escapeHtml(fragment.text);
+        html += ctx.sourcePositions
+          ? `<span class="${CSS.text}"${sourceAttrsFor(fragment)}>${escapeHtml(fragment.text)}</span>`
+          : escapeHtml(fragment.text);
         text += fragment.text;
         break;
       case "emphasis": {
         const inner = renderChildren(fragment.children);
-        html += renderInlineMarkHtml("emphasis", inner.html);
+        html += renderInlineMarkHtml("emphasis", inner.html, { sourceAttrs: sourceAttrsFor(fragment) });
         text += inner.text;
         hasMath ||= inner.hasMath;
         break;
       }
       case "strong": {
         const inner = renderChildren(fragment.children);
-        html += renderInlineMarkHtml("strong", inner.html);
+        html += renderInlineMarkHtml("strong", inner.html, { sourceAttrs: sourceAttrsFor(fragment) });
         text += inner.text;
         hasMath ||= inner.hasMath;
         break;
       }
       case "strikethrough": {
         const inner = renderChildren(fragment.children);
-        html += renderInlineMarkHtml("strikethrough", inner.html);
+        html += renderInlineMarkHtml("strikethrough", inner.html, { sourceAttrs: sourceAttrsFor(fragment) });
         text += inner.text;
         hasMath ||= inner.hasMath;
         break;
       }
       case "highlight": {
         const inner = renderChildren(fragment.children);
-        html += renderInlineMarkHtml("highlight", inner.html);
+        html += renderInlineMarkHtml("highlight", inner.html, { sourceAttrs: sourceAttrsFor(fragment) });
         text += inner.text;
         hasMath ||= inner.hasMath;
         break;
       }
       case "code":
-        html += renderInlineMarkHtml("code", escapeHtml(fragment.text));
+        html += renderInlineMarkHtml("code", escapeHtml(fragment.text), { sourceAttrs: sourceAttrsFor(fragment) });
         text += fragment.text;
         break;
       case "math":
-        html += renderInlineMathPlaceholderHtml(fragment.latex, fragment.raw);
+        html += renderInlineMathPlaceholderHtml(fragment.latex, fragment.raw, { sourceAttrs: mathSourceAttrsFor(fragment) });
         text += fragment.raw;
         hasMath = true;
         break;
@@ -699,7 +710,7 @@ function renderInlineFragmentsForReader(
               from: ctx.resolvers.documentPath,
               documentPath: ctx.resolvers.documentPath,
               raw: "",
-              sourceRange: { from, to },
+              sourceRange: rangeFor(fragment),
               surface: "reader",
             },
           );
@@ -710,7 +721,11 @@ function renderInlineFragmentsForReader(
           }
         }
         html += isSafeUrl(resolvedHref)
-          ? renderLinkSurfaceHtml(resolvedHref, label.html, { className, title })
+          ? renderLinkSurfaceHtml(resolvedHref, label.html, {
+            className,
+            title,
+            sourceAttrs: sourceAttrsFor(fragment),
+          })
           : label.html;
         text += label.text;
         hasMath ||= label.hasMath;
@@ -723,7 +738,9 @@ function renderInlineFragmentsForReader(
         const looksLikeLocalCrossref = fragment.ids.some((id) => id.includes(":"));
         if (fragment.parenthetical && !hasResolverContext && !looksLikeLocalCrossref) {
           const raw = `[${fragment.rawText}]`;
-          html += escapeHtml(raw);
+          html += ctx.sourcePositions && fragment.sourceRange
+            ? `<span class="${CSS.text}"${sourceAttrsFor(fragment)}>${escapeHtml(raw)}</span>`
+            : escapeHtml(raw);
           text += raw;
           break;
         }
@@ -735,13 +752,14 @@ function renderInlineFragmentsForReader(
           break;
         }
         const raw = fragment.parenthetical ? `[${fragment.rawText}]` : fragment.rawText;
+        const range = rangeFor(fragment);
         const ref = emitReferenceCluster(
           ctx,
           [...fragment.ids],
           [...fragment.locators],
           raw,
-          from,
-          to,
+          range.from,
+          range.to,
           fragment.parenthetical ? "bracketed" : "narrative",
         );
         html += ref.html;
@@ -761,11 +779,13 @@ function renderInlineFragmentsForReader(
           }
         }
         if (!isSafeUrl(src)) {
-          html += escapeHtml(alt);
+          html += ctx.sourcePositions
+            ? `<span class="${CSS.text}"${sourceAttrsFor(fragment)}>${escapeHtml(alt)}</span>`
+            : escapeHtml(alt);
         } else if (isUnresolvedLocalMediaUrl(src)) {
-          html += renderMediaLoadingHtml(src, alt);
+          html += renderMediaLoadingHtml(src, alt, sourceAttrsFor(fragment));
         } else {
-          html += renderImageSurfaceHtml(src, alt);
+          html += renderImageSurfaceHtml(src, alt, sourceAttrsFor(fragment));
         }
         text += alt;
         break;
@@ -784,12 +804,12 @@ function renderInlineFragmentsForReader(
         } else {
           entry.hasRef = true;
         }
-        html += renderReaderFootnoteReferenceHtml(entry.number, fragment.id);
+        html += renderReaderFootnoteReferenceHtml(entry.number, fragment.id, sourceAttrsFor(fragment));
         text += `[${entry.number}]`;
         break;
       }
       case "hard-break":
-        html += "<br>";
+        html += `<br${sourceAttrsFor(fragment)}>`;
         text += " ";
         break;
     }
@@ -805,57 +825,14 @@ function renderInline(
   from: number,
   to: number,
 ): { html: string; text: string; hasMath: boolean } {
-  if (!ctx.sourcePositions && !ctx.mathSourcePositions) {
-    return renderInlineFragmentsForReader(ctx, buildInlineFragments(parent, ctx.source, from, to), from, to);
-  }
-
-  let html = "";
-  let text = "";
-  let hasMath = false;
-
-  function emitText(slice: string, sliceFrom: number, sliceTo: number): void {
-    if (slice.length === 0) return;
-    if (ctx.sourcePositions) {
-      html += `<span class="${CSS.text}" data-source-from="${sliceFrom}" data-source-to="${sliceTo}">${escapeHtml(slice)}</span>`;
-    } else {
-      html += escapeHtml(slice);
-    }
-    text += slice;
-  }
-
-  // Walk children of `parent` whose ranges intersect [from, to).
-  // For Paragraph nodes the first child may start at `from` exactly;
-  // for headings, after the HeaderMark.
-  let cursor = from;
-  let child = parent.firstChild;
-  while (child) {
-    if (child.to <= from) {
-      child = child.nextSibling;
-      continue;
-    }
-    if (child.from >= to) break;
-
-    const cFrom = Math.max(child.from, from);
-    const cTo = Math.min(child.to, to);
-
-    if (cFrom > cursor) {
-      emitText(ctx.source.slice(cursor, cFrom), cursor, cFrom);
-    }
-
-    const r = renderInlineNode(ctx, child);
-    html += r.html;
-    text += r.text;
-    if (r.hasMath) hasMath = true;
-
-    cursor = cTo;
-    child = child.nextSibling;
-  }
-
-  if (cursor < to) {
-    emitText(ctx.source.slice(cursor, to), cursor, to);
-  }
-
-  return { html, text, hasMath };
+  return renderInlineFragmentsForReader(
+    ctx,
+    buildInlineFragments(parent, ctx.source, from, to, {
+      sourceRanges: ctx.sourcePositions || ctx.mathSourcePositions,
+    }),
+    from,
+    to,
+  );
 }
 
 function renderInlineNode(
