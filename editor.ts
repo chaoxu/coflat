@@ -42,6 +42,7 @@ import {
   type AssetUploader,
 } from "./src/editor/asset-uploader";
 import { autocompleteSourceExtension } from "./src/editor/autocomplete-source-controller";
+import { sidenotesCollapsedField } from "./src/editor/render";
 
 export type StandaloneEditorMode = "rich" | "source";
 
@@ -54,6 +55,8 @@ export interface MountEditorOptions {
   mode?: StandaloneEditorMode;
   /** Extra CodeMirror extensions supplied by the host. */
   extensions?: readonly Extension[];
+  /** Initial sidenote layout. Collapsed renders footnotes in the document tail. */
+  sidenotesCollapsed?: boolean;
   /** Host context for links, references, citations, file I/O, and math. */
   context?: DocumentContext;
   /** Host commands; ids matching built-ins override the library command. */
@@ -184,6 +187,9 @@ export function mountEditor(options: MountEditorOptions): MountedEditor {
           ]
         : []),
       ...(options.from ? [documentPathFacet.of(options.from)] : []),
+      ...(options.sidenotesCollapsed === undefined
+        ? []
+        : [sidenotesCollapsedField.init(() => options.sidenotesCollapsed ?? false)]),
       ...(options.extensions ?? []),
       ...(options.commands ? [commandRegistryExtension(options.commands)] : []),
       documentContextExtension(options.context),

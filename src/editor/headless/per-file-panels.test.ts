@@ -84,4 +84,20 @@ describe("mounted editor outline", () => {
       "methodes-results-2",
     ]);
   });
+
+  it("can mount with collapsed sidenotes and shared footnote section chrome", () => {
+    const parent = document.body.appendChild(document.createElement("div"));
+    const editor = mountEditor({
+      parent,
+      doc: "Text[^1].\n\n[^1]: Footnote body.",
+      sidenotesCollapsed: true,
+    });
+    cleanups.push(() => {
+      editor.unmount();
+      parent.remove();
+    });
+
+    expect(parent.querySelector(".cf-footnote-section")).not.toBeNull();
+    expect(parent.querySelector(".cf-bibliography-entry")).not.toBeNull();
+  });
 });
