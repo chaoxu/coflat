@@ -23,6 +23,7 @@ import {
   referencePreviewContentPlanFromSource,
   referencePreviewEntryFromTarget,
   referencePreviewHeaderText,
+  referencePreviewSurfacePlan,
   stripBracedLabelId,
   trimReferencePreviewRange,
   unresolvedReferencePreviewLabel,
@@ -111,6 +112,42 @@ describe("reference preview source helpers", () => {
     expect(referencePreviewContentPlanFromEntry(heading, source, "sec:intro")).toMatchObject({
       headerText: "Section 2 Intro",
       bodyPlan: { kind: "none" },
+    });
+  });
+
+  it("plans shared hover and completion preview shell slots", () => {
+    const plan = referencePreviewContentPlanFromEntry(blockReferencePreviewEntry({
+      id: "thm:main",
+      label: "Theorem 1",
+      blockType: "theorem",
+      sourceRange: { from: 0, to: 32 },
+      bodyRange: { from: 21, to: 25 },
+    }), "::: {.theorem #thm:main}\nBody\n:::", "thm:main");
+
+    expect(referencePreviewSurfacePlan(plan, {
+      variant: "hover",
+      hasBody: true,
+    })).toMatchObject({
+      headerText: "Theorem 1",
+      headerSlotClass: "default",
+      slots: ["header", "body"],
+    });
+
+    expect(referencePreviewSurfacePlan(plan, {
+      variant: "completion",
+      hasBody: true,
+    })).toMatchObject({
+      headerText: "Theorem 1",
+      headerSlotClass: "completion-meta",
+      slots: ["body", "header"],
+    });
+
+    expect(referencePreviewSurfacePlan(plan, {
+      variant: "completion",
+      hasBody: false,
+    })).toMatchObject({
+      headerSlotClass: "default",
+      slots: ["header"],
     });
   });
 

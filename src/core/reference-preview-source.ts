@@ -83,6 +83,16 @@ export interface ReferencePreviewContentPlan {
   readonly suppressGeneratedSectionNumbers: boolean;
 }
 
+export type ReferencePreviewSurfaceVariant = "hover" | "completion";
+export type ReferencePreviewSurfaceSlot = "header" | "body";
+
+export interface ReferencePreviewSurfacePlan {
+  readonly headerText: string;
+  readonly headerSlotClass: "default" | "completion-meta";
+  readonly slots: readonly ReferencePreviewSurfaceSlot[];
+  readonly key: string;
+}
+
 export type ReferencePreviewBodyInput =
   | {
       readonly kind: "heading";
@@ -201,6 +211,28 @@ export function referencePreviewContentPlan(input: {
     headerText,
     key: `${headerText}\0${bodyPlan.key}\0${input.suppressGeneratedSectionNumbers ? "no-section-numbers" : "section-numbers"}`,
     suppressGeneratedSectionNumbers: input.suppressGeneratedSectionNumbers ?? false,
+  };
+}
+
+export function referencePreviewSurfacePlan(
+  plan: ReferencePreviewContentPlan,
+  input: {
+    readonly variant: ReferencePreviewSurfaceVariant;
+    readonly hasBody: boolean;
+  },
+): ReferencePreviewSurfacePlan {
+  const slots: ReferencePreviewSurfaceSlot[] = input.variant === "completion" && input.hasBody
+    ? ["body", "header"]
+    : input.hasBody
+      ? ["header", "body"]
+      : ["header"];
+  return {
+    headerText: plan.headerText,
+    headerSlotClass: input.variant === "completion" && input.hasBody
+      ? "completion-meta"
+      : "default",
+    slots,
+    key: `${plan.key}\0${input.variant}\0${input.hasBody ? "body" : "no-body"}`,
   };
 }
 

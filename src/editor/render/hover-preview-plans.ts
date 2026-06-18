@@ -21,6 +21,8 @@ import {
   blockPreviewBodyInputFromFencedDiv,
   type ReferencePreviewBodyPlan,
   referencePreviewContentPlan,
+  referencePreviewSurfacePlan,
+  type ReferencePreviewSurfacePlan,
   unresolvedReferencePreviewLabel,
 } from "../../core/reference-preview-source";
 import {
@@ -100,6 +102,27 @@ function createCrossrefPreviewContainer(
   return createHoverPreviewContent(
     variant === "completion" ? CSS.referenceCompletionContent : null,
   );
+}
+
+function appendCrossrefPreviewSlots(
+  container: HTMLElement,
+  surfacePlan: ReferencePreviewSurfacePlan,
+  body: HTMLElement | null,
+  macros: Record<string, string>,
+): void {
+  for (const slot of surfacePlan.slots) {
+    if (slot === "body" && body) {
+      container.appendChild(body);
+    } else if (slot === "header") {
+      container.appendChild(
+        createHoverPreviewHeader(
+          surfacePlan.headerText,
+          macros,
+          surfacePlan.headerSlotClass === "completion-meta" ? CSS.referenceCompletionMeta : undefined,
+        ),
+      );
+    }
+  }
 }
 
 /**
@@ -209,19 +232,12 @@ function buildCrossrefTooltipPlan(
     return {
       buildContent: () => {
         const body = bodyPlan?.buildBody();
+        const surfacePlan = referencePreviewSurfacePlan(previewPlan, {
+          variant,
+          hasBody: !!body,
+        });
         const container = createCrossrefPreviewContainer(variant);
-        if (variant === "completion" && body) {
-          container.appendChild(body);
-          container.appendChild(
-            createHoverPreviewHeader(previewPlan.headerText, macros, CSS.referenceCompletionMeta),
-          );
-          return container;
-        }
-
-        container.appendChild(createHoverPreviewHeader(previewPlan.headerText, macros));
-        if (body) {
-          container.appendChild(body);
-        }
+        appendCrossrefPreviewSlots(container, surfacePlan, body ?? null, macros);
         return container;
       },
       cacheScope: view.state,
@@ -241,7 +257,12 @@ function buildCrossrefTooltipPlan(
     return {
       buildContent: () => {
         const container = createCrossrefPreviewContainer(variant);
-        container.appendChild(createHoverPreviewHeader(previewPlan.headerText, macros));
+        appendCrossrefPreviewSlots(
+          container,
+          referencePreviewSurfacePlan(previewPlan, { variant, hasBody: false }),
+          null,
+          macros,
+        );
         return container;
       },
       cacheScope: view.state,
@@ -272,18 +293,12 @@ function buildCrossrefTooltipPlan(
           renderKatex(body, previewPlan.bodyPlan.latex, true, macros);
         }
 
-        if (variant === "completion" && body) {
-          container.appendChild(body);
-          container.appendChild(
-            createHoverPreviewHeader(previewPlan.headerText, macros, CSS.referenceCompletionMeta),
-          );
-          return container;
-        }
-
-        container.appendChild(createHoverPreviewHeader(previewPlan.headerText, macros));
-        if (body) {
-          container.appendChild(body);
-        }
+        appendCrossrefPreviewSlots(
+          container,
+          referencePreviewSurfacePlan(previewPlan, { variant, hasBody: !!body }),
+          body,
+          macros,
+        );
         return container;
       },
       cacheScope: view.state,

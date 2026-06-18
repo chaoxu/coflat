@@ -201,6 +201,7 @@ import {
   referencePreviewContentPlanFromEntry,
   referencePreviewContentPlanFromSource,
   referencePreviewEntryFromTarget,
+  referencePreviewSurfacePlan,
 } from "../core/reference-preview-source";
 import {
   mapDomRangeToSource,
@@ -2405,8 +2406,12 @@ function buildReaderIndexedPreview(
 ): HTMLElement | null {
   if (!entry) return null;
   const plan = referencePreviewContentPlanFromEntry(entry, source, fallbackLabel);
-  const container = createHoverPreviewElementWithChild(createReaderHoverHeader(plan.headerText));
   const body = renderReaderPreviewBody(plan, context, mathMacros);
+  const surfacePlan = referencePreviewSurfacePlan(plan, {
+    variant: "hover",
+    hasBody: !!body,
+  });
+  const container = createHoverPreviewElementWithChild(createReaderHoverHeader(surfacePlan.headerText));
   if (body) {
     container.appendChild(body);
   }
@@ -2424,8 +2429,12 @@ function buildReaderSourcePreview(
   const plan = referencePreviewContentPlanFromSource(source, key, label);
   if (!plan) return null;
 
-  const container = createHoverPreviewElementWithChild(createReaderHoverHeader(plan.headerText));
   const body = renderReaderPreviewBody(plan, context, mathMacros);
+  const surfacePlan = referencePreviewSurfacePlan(plan, {
+    variant: "hover",
+    hasBody: !!body,
+  });
+  const container = createHoverPreviewElementWithChild(createReaderHoverHeader(surfacePlan.headerText));
   if (body) {
     container.appendChild(body);
   }
