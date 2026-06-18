@@ -40,6 +40,10 @@ import {
   tableRenderPlan,
   type TableRowRenderPlan,
 } from "../core/block-render-plan";
+import {
+  fencedDivContainerOptions,
+  fencedDivSurfaceAssemblyPlan,
+} from "../core/fenced-div-surface";
 import { parseFrontmatter, parseMarkdownSource } from "../core/parser";
 import {
   renderBlockCaptionHtml,
@@ -1506,18 +1510,14 @@ function renderFencedDiv(ctx: WalkContext, node: SyntaxNode): BlockResult {
   }
 
   const normalizedClassName = plan.primaryClassName;
-  if (plan.emission.addQedToLastBodyBlock) {
+  const assembly = fencedDivSurfaceAssemblyPlan(plan);
+  if (assembly.addQedToLastBodyBlock) {
     addClassToLastHtmlBlock(blocks, CSS.blockQed);
   }
-  const attrs = blockContainerSurfaceAttrs({
-    types: plan.classes,
-    id: plan.id,
-    dataAttributes: plan.keyValues,
-    extraClassNames: plan.emission.interactiveBlock ? [CSS.blockCollapsible] : [],
-  });
+  const attrs = blockContainerSurfaceAttrs(fencedDivContainerOptions(plan));
   const body = combineBlocks(blocks);
   const sourceAttrs = blockSourceAttrs(ctx, plan.sourceRange.from, plan.sourceRange.to);
-  const caption = plan.emission.showCaptionBelow && plan.title && normalizedClassName
+  const caption = assembly.renderCaptionBelow && plan.title && normalizedClassName
     ? renderBlockCaption(ctx, normalizedClassName, plan.title, plan.titleFragments, plan.number, node.from, node.to)
     : emptyBlock();
   const blockTarget = plan.id && normalizedClassName
@@ -1556,22 +1556,28 @@ function renderFencedDiv(ctx: WalkContext, node: SyntaxNode): BlockResult {
     ? renderBlockSummary(ctx, normalizedClassName, plan.title, plan.titleFragments, plan.number)
     : emptyBlock();
   const summaryHtml = summary.html;
-  const standaloneTitle = plan.emission.showStandaloneTitle
+  const selfClosingTitle = assembly.renderSelfClosingTitleParagraph
     ? renderInlineFragmentsForReader(ctx, plan.titleFragments, node.from, node.to)
     : emptyBlock();
+  const standaloneTitle = assembly.renderStandaloneTitle
+    ? renderInlineFragmentsForReader(ctx, plan.titleFragments, node.from, node.to)
+    : emptyBlock();
+  const blockBodyHtml = selfClosingTitle.html
+    ? renderParagraphHtml(selfClosingTitle.html)
+    : body.html;
   const bodyHtml = standaloneTitle.html
     ? renderBlockLabelContentHtml(standaloneTitle.html) + body.html + caption.html
-    : body.html + caption.html;
-  const html = plan.emission.containerLayout === "inline-header"
+    : blockBodyHtml + caption.html;
+  const html = assembly.prependInlineHeading
     ? renderInlineBlockHeadingContainerHtml(attrs, sourceAttrs, summaryHtml, bodyHtml)
-    : plan.emission.containerLayout === "disclosure"
-    ? `<div${attrs}${sourceAttrs}${plan.emission.interactiveBlock ? ' data-cf-block-open="true"' : ""}>${renderBlockHeader(summaryHtml, bodyHtml)}</div>`
+    : assembly.renderDisclosure
+    ? `<div${attrs}${sourceAttrs}${assembly.setInitialOpenState ? ' data-cf-block-open="true"' : ""}>${renderBlockHeader(summaryHtml, bodyHtml)}</div>`
     : `<div${attrs}${sourceAttrs}>${bodyHtml}</div>`;
 
   return {
     html,
-    text: [standaloneTitle.text, body.text, caption.text].filter(Boolean).join("\n\n"),
-    hasMath: summary.hasMath || standaloneTitle.hasMath || body.hasMath || caption.hasMath,
+    text: [selfClosingTitle.text, standaloneTitle.text, body.text, caption.text].filter(Boolean).join("\n\n"),
+    hasMath: summary.hasMath || selfClosingTitle.hasMath || standaloneTitle.hasMath || body.hasMath || caption.hasMath,
   };
 }
 

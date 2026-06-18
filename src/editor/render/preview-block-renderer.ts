@@ -82,6 +82,10 @@ import {
   type ListItemRenderPlan,
   paragraphRenderPlan,
 } from "../../core/block-render-plan";
+import {
+  fencedDivContainerOptions,
+  fencedDivSurfaceAssemblyPlan,
+} from "../../core/fenced-div-surface";
 import type { BibStore } from "../state/bib-data";
 import {
   renderInlineFragmentsToDom,
@@ -395,25 +399,21 @@ function renderFencedDiv(
     return;
   }
 
-  const block = createBlockContainerElement(document, {
-    types: plan.classes,
-    id: plan.id,
-    dataAttributes: plan.keyValues,
-  });
+  const assembly = fencedDivSurfaceAssemblyPlan(plan);
+  const block = createBlockContainerElement(document, fencedDivContainerOptions(plan));
 
-  const title = plan.title ?? "";
   const summary = plan.presentation
     ? createBlockSummaryFragment(context, plan.presentation, plan.titleFragments)
     : undefined;
   const policy = context.surfacePolicy;
 
-  if (plan.emission.showSelfClosingTitleParagraph) {
+  if (assembly.renderSelfClosingTitleParagraph) {
     const paragraph = createParagraphDom(document);
     appendInlineFragments(paragraph, plan.titleFragments, context, policy.bodyInlineSurface);
     block.appendChild(paragraph);
   }
 
-  if (!plan.isSelfClosing) {
+  if (assembly.renderBody) {
     const body = document.createDocumentFragment();
     for (const childPlan of plan.children) {
       for (const range of childPlan.blankBeforeRanges) {
@@ -422,26 +422,28 @@ function renderFencedDiv(
       renderNode(body, childPlan.node, context);
     }
 
-    if (plan.emission.containerLayout === "inline-header" && summary) {
-      if (plan.emission.addQedToLastBodyBlock) {
-        addClassToLastChildElement(body, CSS.blockQed);
-      }
+    if (assembly.addQedToLastBodyBlock) {
+      addClassToLastChildElement(body, CSS.blockQed);
+    }
+    if (assembly.prependInlineHeading && summary) {
       prependInlineBlockHeading(body, summary);
     }
 
-    if (summary && plan.emission.containerLayout === "disclosure") {
+    if (assembly.renderDisclosure && summary) {
       appendBlockHeader(block, summary, body);
     } else {
-      if (plan.emission.showStandaloneTitle) {
+      if (assembly.renderStandaloneTitle) {
         const strong = createBlockLabelElement(document);
         appendInlineFragments(strong, plan.titleFragments, context, policy.labelInlineSurface);
         block.appendChild(strong);
       }
-      block.appendChild(body);
+      if (assembly.appendPlainBody) {
+        block.appendChild(body);
+      }
     }
   }
 
-  if (plan.emission.showCaptionBelow && title && plan.presentation) {
+  if (assembly.renderCaptionBelow && plan.presentation) {
     const caption = createBlockCaptionElement(document);
     appendBlockCaptionLabel(caption, plan.presentation.label);
     const text = appendBlockCaptionText(caption);
