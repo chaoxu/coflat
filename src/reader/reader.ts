@@ -1459,7 +1459,9 @@ function renderIndentedCode(ctx: WalkContext, node: SyntaxNode): BlockResult {
 }
 
 function renderTable(ctx: WalkContext, node: SyntaxNode): BlockResult {
-  const plan = tableRenderPlan(ctx.source, node);
+  const plan = tableRenderPlan(ctx.source, node, {
+    sourceRanges: ctx.sourcePositions || ctx.mathSourcePositions,
+  });
 
   const headerRowsHtml: string[] = [];
   const bodyRowsHtml: string[] = [];
@@ -1497,7 +1499,12 @@ function renderTableRow(
   const cellTexts: string[] = [];
   let hasMath = false;
   row.cells.forEach((cell) => {
-    const inner = renderInline(ctx, cell.node, cell.node.from, cell.node.to);
+    const inner = renderInlineFragmentsForReader(
+      ctx,
+      cell.fragments,
+      cell.contentRange.from,
+      cell.contentRange.to,
+    );
     const tag = row.header ? "th" : "td";
     cellHtmls.push(renderTableCellHtml(tag, inner.html, cell.align));
     cellTexts.push(inner.text);

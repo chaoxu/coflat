@@ -190,6 +190,10 @@ describe("reader / editor-preview emission parity", () => {
       source: "| a | b | c |\n| :--- | :---: | ---: |\n| 1 | 2 | 3 |",
     },
     {
+      name: "table with shared inline cell fragments",
+      source: "| Inline | More |\n| --- | --- |\n| **bold** and `code` | ==mark== and ~~gone~~ |",
+    },
+    {
       name: "header-only table",
       source: "| a | b |\n| --- | --- |",
     },

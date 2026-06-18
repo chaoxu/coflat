@@ -129,6 +129,17 @@ export interface ListRenderPlan {
 export interface TableCellRenderPlan {
   readonly node: SyntaxNode;
   readonly align: string | null;
+  readonly sourceRange: {
+    readonly from: number;
+    readonly to: number;
+  };
+  readonly contentRange: {
+    readonly from: number;
+    readonly to: number;
+  };
+  readonly fragments: readonly InlineFragment[];
+  readonly text: string;
+  readonly hasMath: boolean;
 }
 
 export interface TableRowRenderPlan {
@@ -504,6 +515,7 @@ export function listItemRenderPlan(
 export function tableRenderPlan(
   source: string,
   node: SyntaxNode,
+  options: BlockRenderPlanOptions = {},
 ): TableRenderPlan {
   if (node.name !== NODE.Table) {
     throw new Error(`expected table node, got ${node.name}`);
@@ -514,7 +526,7 @@ export function tableRenderPlan(
   let child = node.firstChild;
   while (child) {
     if (child.name === NODE.TableRow) {
-      rows.push(tableRowRenderPlan(child, false, alignments));
+      rows.push(tableRowRenderPlan(source, child, false, alignments, options));
     }
     child = child.nextSibling;
   }
@@ -522,24 +534,46 @@ export function tableRenderPlan(
     kind: "table",
     sourceRange: { from: node.from, to: node.to },
     alignments,
-    header: headerNode ? tableRowRenderPlan(headerNode, true, alignments) : null,
+    header: headerNode ? tableRowRenderPlan(source, headerNode, true, alignments, options) : null,
     rows,
   };
 }
 
 function tableRowRenderPlan(
+  source: string,
   node: SyntaxNode,
   header: boolean,
   alignments: readonly (string | null)[],
+  options: BlockRenderPlanOptions,
 ): TableRowRenderPlan {
   return {
     kind: "table-row",
     sourceRange: { from: node.from, to: node.to },
     header,
-    cells: node.getChildren(NODE.TableCell).map((cell, index) => ({
-      node: cell,
-      align: alignments[index] ?? null,
-    })),
+    cells: node.getChildren(NODE.TableCell).map((cell, index) =>
+      tableCellRenderPlan(source, cell, alignments[index] ?? null, options)
+    ),
+  };
+}
+
+function tableCellRenderPlan(
+  source: string,
+  node: SyntaxNode,
+  align: string | null,
+  options: BlockRenderPlanOptions,
+): TableCellRenderPlan {
+  const contentRange = { from: node.from, to: node.to };
+  const fragments = buildInlineFragments(node, source, contentRange.from, contentRange.to, {
+    sourceRanges: options.sourceRanges,
+  });
+  return {
+    node,
+    align,
+    sourceRange: { from: node.from, to: node.to },
+    contentRange,
+    fragments,
+    text: inlineFragmentsPlainText(fragments),
+    hasMath: fragmentsContainMath(fragments),
   };
 }
 

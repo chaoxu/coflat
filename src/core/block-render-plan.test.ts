@@ -439,6 +439,39 @@ describe("tableRenderPlan", () => {
       "text",
       "`z`",
     ]);
+    expect(plan.rows[0].cells.map((cell) => cell.text)).toEqual(["$x$", "text", "z"]);
+    expect(plan.rows[0].cells.map((cell) => cell.hasMath)).toEqual([true, false, false]);
+  });
+
+  it("plans table cell inline fragments once for both reader and editor emitters", () => {
+    const source = "| Ref | Math |\n| --- | --- |\n| **bold** [@thm:a] | $x$ |";
+    const plan = tableRenderPlan(source, firstBlock(source, "Table"), {
+      sourceRanges: true,
+    });
+    const [refCell, mathCell] = plan.rows[0].cells;
+
+    expect(refCell.text).toBe("bold [@thm:a]");
+    expect(refCell.fragments.map((fragment) => fragment.kind)).toEqual([
+      "strong",
+      "text",
+      "reference",
+    ]);
+    expect(refCell.fragments[0]).toMatchObject({
+      kind: "strong",
+      sourceRange: { from: source.indexOf("**bold**"), to: source.indexOf(" [@thm:a]") },
+    });
+    expect(mathCell.hasMath).toBe(true);
+    expect(mathCell.fragments).toEqual([
+      {
+        kind: "math",
+        latex: "x",
+        raw: "$x$",
+        sourceRange: {
+          from: source.lastIndexOf("$x$"),
+          to: source.lastIndexOf("$x$") + "$x$".length,
+        },
+      },
+    ]);
   });
 
   it("keeps header-only tables without inventing body rows", () => {

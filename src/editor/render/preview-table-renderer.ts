@@ -6,7 +6,7 @@ import {
   createTableSurfaceElement,
 } from "../../core/table-surface";
 import type { PreviewRenderContext } from "./preview-render-context";
-import { renderInlineSyntaxNodeToDom } from "./inline-render";
+import { renderInlineFragmentsToDom } from "./inline-render";
 
 export function renderPreviewTable(
   parent: HTMLElement | DocumentFragment,
@@ -43,13 +43,16 @@ function renderTableRow(
   const tag = rowPlan.header ? "th" : "td";
   for (const cellPlan of rowPlan.cells) {
     const cell = createTableCellElement(document, tag, cellPlan.align);
-    renderInlineSyntaxNodeToDom(
+    renderInlineFragmentsToDom(
       cell,
-      cellPlan.node,
-      context.doc,
+      cellPlan.fragments,
       context.macros,
-      "document-body",
-      context.referenceContext,
+      context.surfacePolicy.bodyInlineSurface,
+      {
+        ...context.referenceContext,
+        imageUrlOverrides: context.imageUrlOverrides,
+        footnoteNumbers: context.footnoteNumbers,
+      },
     );
     row.appendChild(cell);
   }
