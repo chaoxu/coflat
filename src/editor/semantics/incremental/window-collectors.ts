@@ -3,11 +3,10 @@ import {
   fencedDivSyntaxPlan,
   headingSemanticPlan,
 } from "../../../core/block-render-plan";
-import { NODE } from "../../../core/constants/node-types";
 import {
   isDisplayMath,
 } from "../../lib/syntax-tree-helpers";
-import { readBracedLabelId } from "../../../core/parser/label-utils";
+import { displayMathSourcePlan } from "../../../core/math-source";
 import {
   extractFootnoteDefinition,
   extractFootnoteReference,
@@ -61,17 +60,6 @@ export function createStructuralWindowExtraction(): StructuralWindowExtraction {
     narrativeRefs: [],
     excludedRanges: [],
   };
-}
-
-function extractDisplayMathLatex(raw: string): string {
-  const text = raw.trim();
-  if (text.startsWith("$$") && text.endsWith("$$")) {
-    return text.slice(2, -2).trim();
-  }
-  if (text.startsWith("\\[") && text.endsWith("\\]")) {
-    return text.slice(2, -2).trim();
-  }
-  return text;
 }
 
 export function collectHeading(
@@ -146,13 +134,39 @@ export function collectMath(
   result: StructuralWindowExtraction,
 ): void {
   const isDisplay = isDisplayMath(node);
-  const markName = isDisplay ? "DisplayMathMark" : "InlineMathMark";
+  if (isDisplay) {
+    const plan = displayMathSourcePlan(doc.slice(0, doc.length), node.node);
+    if (!plan) return;
+
+    result.mathRegions.push({
+      from: node.from,
+      to: node.to,
+      isDisplay: true,
+      contentFrom: plan.contentRange.from,
+      contentTo: plan.contentRange.to,
+      labelFrom: plan.labelFrom,
+      latex: plan.latex,
+    });
+
+    if (plan.labelRange && plan.equationId) {
+      result.equations.push({
+        id: plan.equationId,
+        from: node.from,
+        to: node.to,
+        labelFrom: plan.labelRange.from,
+        labelTo: plan.labelRange.to,
+        latex: plan.latex,
+      });
+    }
+
+    result.excludedRanges.push({ from: node.from, to: node.to });
+    return;
+  }
+
+  const markName = "InlineMathMark";
   let markCount = 0;
   let firstMarkTo: number | undefined;
   let lastMarkFrom: number | undefined;
-  let lastMarkTo: number | undefined;
-  let equationLabelFrom: number | undefined;
-  let equationLabelTo: number | undefined;
   const cursor = node.node.cursor();
 
   if (cursor.firstChild()) {
@@ -163,25 +177,14 @@ export function collectMath(
           firstMarkTo = cursor.to;
         }
         lastMarkFrom = cursor.from;
-        lastMarkTo = cursor.to;
-      } else if (isDisplay && cursor.name === NODE.EquationLabel) {
-        equationLabelFrom = cursor.from;
-        equationLabelTo = cursor.to;
       }
     } while (cursor.nextSibling());
   }
 
   const contentFrom = firstMarkTo ?? node.from;
-  if (isDisplay && markCount < 2) {
-    return;
-  }
   const contentTo = markCount >= 2 && lastMarkFrom !== undefined
     ? lastMarkFrom
     : node.to;
-  const labelFrom =
-    equationLabelFrom !== undefined && markCount >= 2
-      ? lastMarkTo
-      : undefined;
   const latex = contentFrom <= contentTo
     ? doc.slice(contentFrom, contentTo)
     : "";
@@ -192,31 +195,8 @@ export function collectMath(
     isDisplay,
     contentFrom,
     contentTo,
-    labelFrom,
     latex,
   });
-
-  if (
-    equationLabelFrom !== undefined
-    && equationLabelTo !== undefined
-  ) {
-    const labelId = readBracedLabelId(
-      doc.slice(equationLabelFrom, equationLabelTo),
-      0,
-      equationLabelTo - equationLabelFrom,
-      "eq:",
-    );
-    if (labelId) {
-      result.equations.push({
-        id: labelId,
-        from: node.from,
-        to: node.to,
-        labelFrom: equationLabelFrom,
-        labelTo: equationLabelTo,
-        latex: extractDisplayMathLatex(doc.slice(node.from, equationLabelFrom)),
-      });
-    }
-  }
 
   result.excludedRanges.push({ from: node.from, to: node.to });
 }

@@ -27,7 +27,7 @@ const corpusDir = requestedDir || fallbackCandidates.find(isDirectory);
 if (!corpusDir) {
   console.error("Missing Cosheaf parity corpus.");
   console.error("Set COFLAT_PARITY_CORPUS_DIR, or clone it with:");
-  console.error("  git clone jupiter:/srv/forgejo/data/gitea/data/repos/cosheaf-admin/poa-network-game-clean.git /tmp/coflat-poa-network-game-clean");
+  console.error("  git clone jupiter:/srv/forgejo/data/gitea/data/repos/cosheaf-admin/poa-network-game.git /tmp/coflat-poa-network-game-clean");
   process.exit(1);
 }
 

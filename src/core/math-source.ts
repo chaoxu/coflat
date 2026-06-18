@@ -1,4 +1,5 @@
 import type { SyntaxNode } from "@lezer/common";
+import { readBracedLabelId } from "./parser/label-utils";
 
 interface MathDelimiterPair {
   readonly open: string;
@@ -55,6 +56,9 @@ export function displayMathLatexRange(
   source: string,
   node: SyntaxNode,
 ): { from: number; to: number } {
+  const plan = displayMathSourcePlan(source, node);
+  if (plan) return plan.latexRange;
+
   const marks = node.getChildren("DisplayMathMark");
   if (marks.length >= 2) {
     return trimSourceRange(source, marks[0].to, marks[marks.length - 1].from);
@@ -65,6 +69,9 @@ export function displayMathLatexRange(
 }
 
 export function displayMathLatex(source: string, node: SyntaxNode): string {
+  const plan = displayMathSourcePlan(source, node);
+  if (plan) return plan.latex;
+
   const marks = node.getChildren("DisplayMathMark");
   if (marks.length >= 2) {
     const range = displayMathLatexRange(source, node);
@@ -73,4 +80,57 @@ export function displayMathLatex(source: string, node: SyntaxNode): string {
   const label = node.getChild("EquationLabel");
   const sourceEnd = label ? label.from : node.to;
   return stripMathDelimiters(source.slice(node.from, sourceEnd).trim(), true).trim();
+}
+
+export interface DisplayMathSourcePlan {
+  readonly sourceRange: {
+    readonly from: number;
+    readonly to: number;
+  };
+  readonly contentRange: {
+    readonly from: number;
+    readonly to: number;
+  };
+  readonly latexRange: {
+    readonly from: number;
+    readonly to: number;
+  };
+  readonly closeMarkRange: {
+    readonly from: number;
+    readonly to: number;
+  };
+  readonly labelRange?: {
+    readonly from: number;
+    readonly to: number;
+  };
+  readonly labelFrom?: number;
+  readonly equationId: string | null;
+  readonly latex: string;
+}
+
+export function displayMathSourcePlan(
+  source: string,
+  node: SyntaxNode,
+): DisplayMathSourcePlan | null {
+  const marks = node.getChildren("DisplayMathMark");
+  if (marks.length < 2) return null;
+
+  const closeMark = marks[marks.length - 1];
+  const contentRange = { from: marks[0].to, to: closeMark.from };
+  const latexRange = trimSourceRange(source, contentRange.from, contentRange.to);
+  const label = node.getChild("EquationLabel");
+  const labelRange = label ? { from: label.from, to: label.to } : undefined;
+  const equationId = label
+    ? readBracedLabelId(source, label.from, label.to, "eq:")
+    : null;
+
+  return {
+    sourceRange: { from: node.from, to: node.to },
+    contentRange,
+    latexRange,
+    closeMarkRange: { from: closeMark.from, to: closeMark.to },
+    ...(labelRange ? { labelRange, labelFrom: closeMark.to } : {}),
+    equationId,
+    latex: source.slice(latexRange.from, latexRange.to),
+  };
 }

@@ -28,8 +28,7 @@ import {
 import { extractDivClass } from "./parser/fenced-div-attrs";
 import { extractRawFrontmatter } from "./parser/frontmatter";
 import { taskMarkerChecked } from "./list-surface";
-import { displayMathLatex } from "./math-source";
-import { readBracedLabelId } from "./parser/label-utils";
+import { displayMathSourcePlan } from "./math-source";
 import { parseTableDelimiterAlignments } from "./parser/table";
 import {
   primaryClassNameForFencedDivClasses,
@@ -620,14 +619,12 @@ export function displayMathRenderPlan(
   source: string,
   node: SyntaxNode,
 ): DisplayMathRenderPlan {
-  const equationLabel = node.getChild(NODE.EquationLabel);
+  const mathPlan = displayMathSourcePlan(source, node);
   return {
     kind: "display-math",
     sourceRange: { from: node.from, to: node.to },
-    latex: displayMathLatex(source, node),
-    equationId: equationLabel
-      ? readBracedLabelId(source, equationLabel.from, equationLabel.to, "eq:")
-      : null,
+    latex: mathPlan?.latex ?? "",
+    equationId: mathPlan?.equationId ?? null,
   };
 }
 
