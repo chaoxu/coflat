@@ -27,7 +27,10 @@ import {
   headingReferenceTarget,
   sortDocumentReferenceTargets,
 } from "./src/core/reference-targets";
-import type { DocumentReferenceTarget } from "./src/core/reference-targets";
+import type {
+  DocumentReferenceTarget,
+  DocumentReferenceTargetKind,
+} from "./src/core/reference-targets";
 import {
   analyzeDocumentSemantics,
   stringTextSource,
@@ -245,15 +248,25 @@ export function extractReferences(source: string): ExtractedReference[] {
   return out;
 }
 
-export type ReferenceCatalogTargetKind = "block" | "equation" | "heading";
+export type ReferenceCatalogTargetKind = DocumentReferenceTargetKind;
 
-export interface ReferenceCatalogTarget extends DocumentReferenceTarget {
+export interface ReferenceCatalogTarget {
+  readonly id?: string;
+  readonly kind: ReferenceCatalogTargetKind;
+  readonly from: number;
+  readonly to: number;
   /**
    * 1-based line number of `from`, counted over the full source (frontmatter
    * included). Convenience for line-based hosts (indexers, link tables) that
    * would otherwise recompute it from the offsets.
    */
   readonly line: number;
+  readonly displayLabel: string;
+  readonly number?: string;
+  readonly ordinal?: number;
+  readonly title?: string;
+  readonly text?: string;
+  readonly blockType?: string;
 }
 
 export interface ReferenceCatalogReference {
