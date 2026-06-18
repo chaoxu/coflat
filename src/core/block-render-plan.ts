@@ -273,6 +273,17 @@ export interface HeadingRenderPlan {
   readonly hasMath: boolean;
 }
 
+export interface HeadingSemanticPlan {
+  readonly from: number;
+  readonly to: number;
+  readonly level: number;
+  readonly textFrom: number;
+  readonly textTo: number;
+  readonly text: string;
+  readonly id?: string;
+  readonly unnumbered: boolean;
+}
+
 export interface BlockRenderPlanOptions {
   readonly sourceRanges?: boolean;
 }
@@ -1022,6 +1033,23 @@ export function headingRenderPlan(
     fragments,
     text: inlineFragmentsPlainText(fragments),
     hasMath: fragmentsContainMath(fragments),
+  };
+}
+
+export function headingSemanticPlan(
+  source: string,
+  node: SyntaxNode,
+): HeadingSemanticPlan {
+  const plan = headingRenderPlan(source, node);
+  return {
+    from: plan.sourceRange.from,
+    to: plan.sourceRange.to,
+    level: plan.level,
+    textFrom: plan.contentRange.from,
+    textTo: plan.contentRange.to,
+    text: plan.text,
+    id: plan.attributes?.id,
+    unnumbered: !!plan.attributes?.unnumbered,
   };
 }
 

@@ -1,4 +1,5 @@
 import type { SyntaxNode, SyntaxNodeRef } from "@lezer/common";
+import { headingSemanticPlan } from "../../../core/block-render-plan";
 import { NODE } from "../../../core/constants/node-types";
 import { primaryClassNameForFencedDivClasses } from "../../../core/semantics/block-numbering";
 import {
@@ -17,10 +18,6 @@ import type {
   ReferenceSemantics,
   TextSource,
 } from "../document-model";
-import {
-  findTrailingHeadingAttributes,
-  hasUnnumberedHeadingAttributes,
-} from "../heading-attributes";
 import { matchBracketedReference } from "../reference-parts";
 
 export interface StructuralWindow {
@@ -62,13 +59,6 @@ export function createStructuralWindowExtraction(): StructuralWindowExtraction {
   };
 }
 
-function extractHeadingId(text: string): string | undefined {
-  const attrs = findTrailingHeadingAttributes(text);
-  if (!attrs) return undefined;
-  const match = /(?:^|\s)#([^\s}]+)/.exec(attrs.content);
-  return match?.[1];
-}
-
 function extractDisplayMathLatex(raw: string): string {
   const text = raw.trim();
   if (text.startsWith("$$") && text.endsWith("$$")) {
@@ -81,50 +71,11 @@ function extractDisplayMathLatex(raw: string): string {
 }
 
 export function collectHeading(
-  doc: TextSource,
+  source: string,
   node: SyntaxNodeRef,
   result: StructuralWindowExtraction,
-  level: number,
 ): void {
-  const rawText = doc.slice(node.from, node.to);
-  const headerMark = node.node.getChild(NODE.HeaderMark);
-  let textFrom = node.from;
-  let textTo = node.to;
-  if (headerMark?.from === node.from) {
-    textFrom = headerMark.to;
-    const trailing = node.node.lastChild;
-    if (trailing?.name === NODE.HeaderMark && trailing.from !== headerMark.from) {
-      textTo = trailing.from;
-    }
-  } else if (headerMark && headerMark.from > node.from) {
-    textTo = headerMark.from;
-  }
-  const headingTail = doc.slice(textFrom, textTo);
-  const leadingWs = headingTail.length - headingTail.trimStart().length;
-  const rawHeadingText = headingTail.trim();
-  const rawHeadingTextFrom = textFrom + leadingWs;
-  const attrs = findTrailingHeadingAttributes(rawHeadingText);
-  const text = attrs
-    ? rawHeadingText.slice(0, attrs.index).trim()
-    : rawHeadingText;
-  const textTrailingWs = attrs
-    ? rawHeadingText.slice(0, attrs.index).length - text.length
-    : rawHeadingText.length - text.length;
-  const headingTextFrom = rawHeadingTextFrom;
-  const headingTextTo = attrs
-    ? rawHeadingTextFrom + attrs.index - textTrailingWs
-    : rawHeadingTextFrom + rawHeadingText.length - textTrailingWs;
-
-  result.headings.push({
-    from: node.from,
-    to: node.to,
-    level,
-    textFrom: headingTextFrom,
-    textTo: Math.max(headingTextFrom, headingTextTo),
-    text,
-    id: extractHeadingId(rawHeadingText),
-    unnumbered: hasUnnumberedHeadingAttributes(rawText),
-  });
+  result.headings.push(headingSemanticPlan(source, node.node));
 }
 
 export function collectFootnoteRef(

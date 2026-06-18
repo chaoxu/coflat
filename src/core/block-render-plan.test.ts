@@ -14,6 +14,7 @@ import {
   fencedDivRenderPlan,
   footnoteDefinitionRenderPlan,
   headingRenderPlan,
+  headingSemanticPlan,
   horizontalRuleRenderPlan,
   listItemEmissionPlan,
   listRenderPlan,
@@ -458,6 +459,36 @@ describe("headingRenderPlan", () => {
       { kind: "text", text: "Setext ", sourceRange: { from: 0, to: 7 } },
       { kind: "math", latex: "x", raw: "$x$", sourceRange: { from: 7, to: 10 } },
     ]);
+  });
+
+  it("builds shared heading semantics from the same heading plan", () => {
+    const source = "### Hello **world** {#sec:intro .unnumbered} ###";
+
+    expect(headingSemanticPlan(source, firstHeading(source))).toEqual({
+      from: 0,
+      to: source.length,
+      level: 3,
+      textFrom: 4,
+      textTo: source.indexOf(" {#"),
+      text: "Hello world",
+      id: "sec:intro",
+      unnumbered: true,
+    });
+  });
+
+  it("builds Setext heading semantics from the same heading plan", () => {
+    const source = "Setext $x$ {#sec:x}\n----------";
+
+    expect(headingSemanticPlan(source, firstHeading(source))).toEqual({
+      from: 0,
+      to: source.length,
+      level: 2,
+      textFrom: 0,
+      textTo: source.indexOf(" {#"),
+      text: "Setext $x$",
+      id: "sec:x",
+      unnumbered: false,
+    });
   });
 });
 

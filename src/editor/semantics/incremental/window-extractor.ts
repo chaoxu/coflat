@@ -1,4 +1,5 @@
 import type { Tree } from "@lezer/common";
+import { headingLevelFor } from "../../../core/block-render-plan";
 import { NODE } from "../../../core/constants/node-types";
 import { extractRawFrontmatter } from "../../../core/parser/frontmatter";
 import { scanReferenceTokens } from "../../lib/reference-tokens";
@@ -31,21 +32,6 @@ export interface FencedDivExpansionExtraction {
 
 interface StructuralWindowExtractOptions {
   readonly includeNarrativeRefs?: boolean;
-}
-
-const ATX_HEADING_RE = /^ATXHeading(\d)$/;
-
-function headingLevelForNode(name: string): number {
-  const atx = ATX_HEADING_RE.exec(name);
-  if (atx) return Number(atx[1]);
-  switch (name) {
-    case NODE.SetextHeading1:
-      return 1;
-    case NODE.SetextHeading2:
-      return 2;
-    default:
-      return 0;
-  }
 }
 
 function normalizeWindow(
@@ -214,7 +200,8 @@ export function collectStructuralWindow(
   options?: StructuralWindowExtractOptions,
 ): StructuralWindowExtraction {
   const range = normalizeWindow(doc, window);
-  const frontmatterEnd = extractRawFrontmatter(doc.slice(0, doc.length))?.end ?? -1;
+  const source = doc.slice(0, doc.length);
+  const frontmatterEnd = extractRawFrontmatter(source)?.end ?? -1;
   if (frontmatterEnd > range.from) {
     result.excludedRanges.push({
       from: 0,
@@ -235,9 +222,9 @@ export function collectStructuralWindow(
       const name = c.name;
       let shouldDescend = shouldDescendIntoStructuralNode(name);
 
-      const headingLevel = headingLevelForNode(name);
+      const headingLevel = headingLevelFor(name);
       if (headingLevel) {
-        collectHeading(doc, c, result, headingLevel);
+        collectHeading(source, c, result);
       } else {
         switch (name) {
           case NODE.FootnoteRef:
