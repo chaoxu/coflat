@@ -15,6 +15,7 @@ import {
   inlineFragmentsPlainText,
   type InlineFragment,
 } from "../core/inline-fragments";
+import { documentSurfacePolicy } from "../core/document-surface-policy";
 import { inlineSurfacePolicy } from "../core/inline-surface-policy";
 import {
   blockquoteRenderPlan,
@@ -226,7 +227,6 @@ function renderInlineSnippet(ctx: WalkContext, source: string): BlockResult {
     lineOffsets: null,
     sourcePositions: false,
     mathSourcePositions: false,
-    interactiveBlockDisclosures: ctx.interactiveBlockDisclosures,
     collectOutline: false,
     outline: [],
     usedHeadingIds: new Set(),
@@ -574,8 +574,8 @@ interface WalkContext {
   sourcePositions: boolean;
   /** When true, emit source offsets on math placeholders only. */
   mathSourcePositions: boolean;
-  /** When false, render semantic block headers without interactive disclosure controls. */
-  interactiveBlockDisclosures: boolean;
+  /** Semantic block disclosure policy for this document surface. */
+  semanticBlockDisclosures: "interactive" | "static";
   /** When true, emit ids on all headings and accumulate {@link outline}. */
   collectOutline: boolean;
   /** Headings in document order; populated only when {@link collectOutline}. */
@@ -1541,7 +1541,7 @@ function renderFencedDiv(ctx: WalkContext, node: SyntaxNode): BlockResult {
     normalizedClassName &&
     isCollapsibleBlockType(normalizedClassName),
   );
-  const interactiveBlock = collapsibleBlock && ctx.interactiveBlockDisclosures;
+  const interactiveBlock = collapsibleBlock && ctx.semanticBlockDisclosures === "interactive";
   const attrs = blockContainerSurfaceAttrs({
     types: plan.classes,
     id: plan.id,
@@ -1765,7 +1765,9 @@ function walkDocument(
     lineOffsets: opts.sourceLineAttribution ? buildLineOffsets(source) : null,
     sourcePositions: !!opts.sourcePositions,
     mathSourcePositions: !!(opts.sourcePositions || opts.mathSourcePositions),
-    interactiveBlockDisclosures: opts.interactiveBlockDisclosures !== false,
+    semanticBlockDisclosures: opts.interactiveBlockDisclosures === false
+      ? documentSurfacePolicy("inert-preview").semanticBlockDisclosures
+      : documentSurfacePolicy("reader").semanticBlockDisclosures,
     collectOutline: !!opts.outline,
     outline: [],
     usedHeadingIds: new Set(),

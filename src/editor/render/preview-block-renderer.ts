@@ -20,6 +20,7 @@ import {
   createBlockquoteElement,
   createHorizontalRuleElement,
 } from "../../core/block-surface";
+import { documentSurfacePolicy } from "../../core/document-surface-policy";
 import {
   EXCLUDED_FROM_FALLBACK,
   isCollapsibleBlockType,
@@ -472,6 +473,7 @@ function renderFencedDiv(
   const summary = plan.presentation
     ? createBlockSummaryFragment(context, plan.presentation)
     : undefined;
+  const policy = documentSurfacePolicy("editor-preview");
 
   if (title && plan.isSelfClosing) {
     const paragraph = createParagraphDom(document);
@@ -495,7 +497,11 @@ function renderFencedDiv(
       prependInlineBlockHeading(body, summary);
     }
 
-    if (summary && isCollapsibleBlockType(plan.primaryClassName)) {
+    if (
+      summary
+      && isCollapsibleBlockType(plan.primaryClassName)
+      && policy.semanticBlockDisclosures === "static"
+    ) {
       appendBlockHeader(block, summary, body);
     } else {
       if (title && !plan.presentation?.hasCaptionBelow && !plan.presentation?.hasInlineHeader) {
