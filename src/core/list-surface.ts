@@ -3,6 +3,7 @@ import {
   documentSurfaceClassNames,
 } from "./document-surface-classes";
 import { CSS } from "./constants/css-classes";
+import { NODE } from "./constants/node-types";
 
 export interface ListSurfaceOptions {
   readonly ordered: boolean;
@@ -15,6 +16,12 @@ export interface ListItemSurfaceOptions {
   readonly ordered: boolean;
   readonly task: boolean;
   readonly checked?: boolean;
+}
+
+export interface ListTreeNodeLike {
+  readonly name: string;
+  readonly parent?: ListTreeNodeLike | null;
+  getChild(name: string): unknown;
 }
 
 export function listSurfaceClassNames(options: ListSurfaceOptions): string {
@@ -46,6 +53,23 @@ export function editorListItemLineClassNames(options: ListItemSurfaceOptions): s
     }),
     listItemSurfaceClassNames(options),
   );
+}
+
+export function listItemSurfaceOptionsFromNode(node: ListTreeNodeLike): ListItemSurfaceOptions {
+  const ordered = node.parent?.name === NODE.OrderedList;
+  const taskNode = node.getChild(NODE.Task) as ListTreeNodeLike | null;
+  const task = Boolean(taskNode?.getChild(NODE.TaskMarker));
+  return { ordered, task };
+}
+
+export function editorListItemLineClassNamesFromNode(node: ListTreeNodeLike): string {
+  return editorListItemLineClassNames(listItemSurfaceOptionsFromNode(node));
+}
+
+export function listMarkerOrderedFromNode(node: ListTreeNodeLike): boolean {
+  const listNode = node.parent?.parent;
+  if (listNode?.name === NODE.BulletList) return false;
+  return true;
 }
 
 export function listMarkerClassName(ordered: boolean): string {

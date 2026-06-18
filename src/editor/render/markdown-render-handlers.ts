@@ -7,6 +7,12 @@ import {
   documentSurfaceClassNames,
 } from "../../core/document-surface-classes";
 import { headingSurfaceClassNames } from "../../core/heading-surface";
+import {
+  listMarkerClassName,
+  listMarkerOrderedFromNode,
+  listMarkerText,
+  type ListTreeNodeLike,
+} from "../../core/list-surface";
 import { findTrailingHeadingAttributes } from "../semantics/heading-ancestry";
 import {
   addMarkerReplacement,
@@ -82,7 +88,7 @@ const boldDecoration = Decoration.mark({ class: CSS.bold });
 const italicDecoration = Decoration.mark({ class: CSS.italic });
 const strikethroughDecoration = Decoration.mark({ class: CSS.strikethrough });
 const inlineCodeDecoration = Decoration.mark({ class: CSS.inlineCode });
-const numberListDecoration = Decoration.mark({ class: CSS.listNumber });
+const numberListDecoration = Decoration.mark({ class: listMarkerClassName(true) });
 
 const styleMap: Readonly<Record<string, Decoration>> = {
   StrongEmphasis: boldDecoration,
@@ -149,8 +155,8 @@ class HorizontalRuleWidget extends WidgetType {
 class BulletListMarkerWidget extends WidgetType {
   override toDOM(): HTMLElement {
     const span = document.createElement("span");
-    span.className = CSS.listBullet;
-    span.textContent = "•";
+    span.className = listMarkerClassName(false);
+    span.textContent = listMarkerText(false, 1);
     return span;
   }
 
@@ -417,8 +423,8 @@ function handleEscape(node: SyntaxNodeRef, ctx: MarkdownHandlerContext): void {
 }
 
 function handleListMark(node: SyntaxNodeRef, ctx: MarkdownHandlerContext): void {
-  const grandparent = node.node.parent?.parent?.name;
-  if (grandparent === "BulletList") {
+  const ordered = listMarkerOrderedFromNode(node.node as ListTreeNodeLike);
+  if (!ordered) {
     ctx.items.push(
       Decoration.replace({ widget: bulletListMarkerWidget }).range(node.from, node.to),
     );

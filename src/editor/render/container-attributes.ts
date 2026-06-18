@@ -31,7 +31,10 @@ import {
   DOCUMENT_SURFACE_CLASS,
   documentSurfaceClassNames,
 } from "../../core/document-surface-classes";
-import { editorListItemLineClassNames } from "../../core/list-surface";
+import {
+  editorListItemLineClassNamesFromNode,
+  type ListTreeNodeLike,
+} from "../../core/list-surface";
 
 /**
  * Maps Lezer syntax node type names to HTML tag names.
@@ -141,11 +144,8 @@ function addListLineDecorations(
   });
 }
 
-function listItemLineClasses(node: { readonly node: { readonly parent?: { readonly name: string } | null; getChild(name: string): unknown } }): readonly string[] {
-  const ordered = node.node.parent?.name === "OrderedList";
-  const taskNode = node.node.getChild("Task") as { getChild(name: string): unknown } | null;
-  const task = Boolean(taskNode?.getChild("TaskMarker"));
-  return editorListItemLineClassNames({ ordered, task }).split(" ");
+function listItemLineClasses(node: { readonly node: ListTreeNodeLike }): readonly string[] {
+  return editorListItemLineClassNamesFromNode(node.node).split(" ");
 }
 
 function collectLineDecorationsInRange(

@@ -6,6 +6,9 @@ import {
   createListSurfaceElement,
   createReadOnlyTaskCheckboxElement,
   editorListItemLineClassNames,
+  editorListItemLineClassNamesFromNode,
+  listItemSurfaceOptionsFromNode,
+  listMarkerOrderedFromNode,
   listItemSurfaceClassNames,
   listMarkerClassName,
   listMarkerText,
@@ -15,7 +18,24 @@ import {
   renderListSurfaceHtml,
   renderReadOnlyTaskCheckboxHtml,
   taskMarkerChecked,
+  type ListTreeNodeLike,
 } from "./list-surface";
+
+function treeNode(
+  name: string,
+  options: {
+    readonly parent?: ListTreeNodeLike | null;
+    readonly children?: Readonly<Record<string, unknown>>;
+  } = {},
+): ListTreeNodeLike {
+  return {
+    name,
+    parent: options.parent,
+    getChild(childName: string) {
+      return options.children?.[childName] ?? null;
+    },
+  };
+}
 
 describe("list surface", () => {
   it("builds shared list classes", () => {
@@ -45,6 +65,34 @@ describe("list surface", () => {
     );
   });
 
+  it("derives editor list line classes from list item syntax nodes", () => {
+    const bulletList = treeNode("BulletList");
+    const orderedList = treeNode("OrderedList");
+    const task = treeNode("Task", {
+      children: {
+        TaskMarker: treeNode("TaskMarker"),
+      },
+    });
+
+    expect(listItemSurfaceOptionsFromNode(treeNode("ListItem", { parent: bulletList }))).toEqual({
+      ordered: false,
+      task: false,
+    });
+    expect(listItemSurfaceOptionsFromNode(treeNode("ListItem", {
+      parent: orderedList,
+      children: { Task: task },
+    }))).toEqual({
+      ordered: true,
+      task: true,
+    });
+    expect(editorListItemLineClassNamesFromNode(treeNode("ListItem", {
+      parent: orderedList,
+      children: { Task: task },
+    }))).toBe(
+      "cf-doc-list cf-doc-list--ordered cf-doc-list--check cf-doc-list--tight cf-doc-list-item cf-doc-list-item--check",
+    );
+  });
+
   it("builds marker classes and text", () => {
     expect(listMarkerClassName(false)).toBe("cf-list-bullet");
     expect(listMarkerText(false, 3)).toBe("•");
@@ -53,6 +101,18 @@ describe("list surface", () => {
     expect(renderListMarkerHtml(true, 3)).toBe(
       '<span class="cf-list-number">3.</span> ',
     );
+  });
+
+  it("derives list marker kind from list mark syntax nodes", () => {
+    const bulletList = treeNode("BulletList");
+    const bulletItem = treeNode("ListItem", { parent: bulletList });
+    const bulletMark = treeNode("ListMark", { parent: bulletItem });
+    const orderedList = treeNode("OrderedList");
+    const orderedItem = treeNode("ListItem", { parent: orderedList });
+    const orderedMark = treeNode("ListMark", { parent: orderedItem });
+
+    expect(listMarkerOrderedFromNode(bulletMark)).toBe(false);
+    expect(listMarkerOrderedFromNode(orderedMark)).toBe(true);
   });
 
   it("renders and creates list wrappers from the same surface contract", () => {
