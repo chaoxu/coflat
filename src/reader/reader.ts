@@ -27,6 +27,7 @@ import {
   dispatchBlockNodeRender,
   documentRenderPlan,
   displayMathRenderPlan,
+  fencedDivNumberingInfo,
   fencedDivRenderPlan,
   footnoteDefinitionRenderPlan,
   headingLevelFor,
@@ -70,10 +71,12 @@ import { applyLinkSurface, renderLinkSurfaceHtml } from "../core/link-surface";
 import type { NumberingScheme } from "../core/parser/frontmatter";
 import {
   blockTitleOverridesFromConfig,
-  counterGroupForBlockNumberingSpec,
+  computeBlockNumbers,
   createConfiguredBlockNumberingSpecLookup,
   displayTitleForBlockType,
+  type BlockCounterState,
   type BlockNumberingSpecLookup,
+  type FencedDivNumberingInfo,
 } from "../core/semantics/block-numbering";
 import {
   initialHeadingNumberCounters,
@@ -215,13 +218,21 @@ function blockDisplayTitle(ctx: WalkContext, type: string): string {
   return displayTitleForBlockType(type, ctx.blockTitles);
 }
 
-function nextBlockNumber(ctx: WalkContext, type: string): number | undefined {
-  const spec = ctx.blockNumberingSpec(type);
-  if (!spec?.numbered) return undefined;
-  const counterGroup = counterGroupForBlockNumberingSpec(spec, ctx.blockNumbering);
-  const next = (ctx.blockCounters.get(counterGroup) ?? 0) + 1;
-  ctx.blockCounters.set(counterGroup, next);
-  return next;
+function computeReaderBlockNumbers(
+  source: string,
+  tree: Tree,
+  getSpec: BlockNumberingSpecLookup,
+  numbering: NumberingScheme,
+): BlockCounterState {
+  const blocks: FencedDivNumberingInfo[] = [];
+  tree.iterate({
+    enter(node) {
+      if (node.name !== NODE.FencedDiv) return;
+      const info = fencedDivNumberingInfo(source, node.node);
+      if (info) blocks.push(info);
+    },
+  });
+  return computeBlockNumbers(blocks, getSpec, numbering);
 }
 
 function renderInlineSnippet(ctx: WalkContext, source: string): BlockResult {
@@ -236,7 +247,7 @@ function renderInlineSnippet(ctx: WalkContext, source: string): BlockResult {
     outline: [],
     usedHeadingIds: new Set(),
     headingCounters: [...ctx.headingCounters],
-    blockCounters: new Map(ctx.blockCounters),
+    blockNumbers: ctx.blockNumbers,
     blockNumbering: ctx.blockNumbering,
     blockNumberingSpec: ctx.blockNumberingSpec,
     blockTitles: ctx.blockTitles,
@@ -277,7 +288,7 @@ function renderInlineSnippetFragments(
     outline: [],
     usedHeadingIds: new Set(),
     headingCounters: [...ctx.headingCounters],
-    blockCounters: new Map(ctx.blockCounters),
+    blockNumbers: ctx.blockNumbers,
     blockNumbering: ctx.blockNumbering,
     blockNumberingSpec: ctx.blockNumberingSpec,
     blockTitles: ctx.blockTitles,
@@ -625,7 +636,7 @@ interface WalkContext {
   /** Heading ids already emitted, for slug de-duplication. */
   usedHeadingIds: Set<string>;
   headingCounters: HeadingNumberCounters;
-  blockCounters: Map<string, number>;
+  blockNumbers: BlockCounterState;
   blockNumbering: NumberingScheme;
   blockNumberingSpec: BlockNumberingSpecLookup;
   blockTitles: ReadonlyMap<string, string>;
@@ -1499,7 +1510,7 @@ function renderBlankLine(ctx: WalkContext, from: number, to: number): BlockResul
 function renderFencedDiv(ctx: WalkContext, node: SyntaxNode): BlockResult {
   const plan = fencedDivRenderPlan(ctx.source, node, {
     displayTitleForBlockType: (blockType) => blockDisplayTitle(ctx, blockType),
-    numberForBlockType: (blockType) => nextBlockNumber(ctx, blockType),
+    numberForFencedDiv: (block) => ctx.blockNumbers.byPosition.get(block.from)?.number,
   });
 
   const blocks: BlockResult[] = [];
@@ -1661,6 +1672,8 @@ function walkDocument(
   const surfacePolicy = opts.interactiveBlockDisclosures === false
     ? documentSurfacePolicy("hover-preview")
     : documentSurfacePolicy("reader");
+  const blockNumbering = frontmatter.config.numbering ?? "grouped";
+  const blockNumberingSpec = createConfiguredBlockNumberingSpecLookup(blockConfig);
   const ctx: WalkContext = {
     source,
     resolvers,
@@ -1673,10 +1686,15 @@ function walkDocument(
     outline: [],
     usedHeadingIds: new Set(),
     headingCounters: initialHeadingNumberCounters(),
-    blockCounters: new Map(),
-    blockNumbering: frontmatter.config.numbering ?? "grouped",
-    blockNumberingSpec: createConfiguredBlockNumberingSpecLookup(blockConfig),
+    blockNumbering,
+    blockNumberingSpec,
     blockTitles: blockTitleOverridesFromConfig(blockConfig),
+    blockNumbers: computeReaderBlockNumbers(
+      source,
+      tree,
+      blockNumberingSpec,
+      blockNumbering,
+    ),
     equationCounter: initialEquationNumberCounter(),
     footnotesById: new Map(),
     footnotesInOrder: [],
@@ -1724,7 +1742,6 @@ function walkDocument(
       const fnOrderLen = ctx.footnotesInOrder.length;
       const fnIdSnapshot = new Map(ctx.footnotesById);
       const headingCounterSnapshot = [...ctx.headingCounters];
-      const blockCounterSnapshot = new Map(ctx.blockCounters);
       const outlineLen = ctx.outline.length;
       const usedHeadingIdsSnapshot = new Set(ctx.usedHeadingIds);
       const citedKeysLen = ctx.citedKeys.length;
@@ -1744,7 +1761,6 @@ function walkDocument(
         ctx.footnotesInOrder.length = fnOrderLen;
         ctx.footnotesById = fnIdSnapshot;
         ctx.headingCounters = headingCounterSnapshot;
-        ctx.blockCounters = blockCounterSnapshot;
         ctx.outline.length = outlineLen;
         ctx.usedHeadingIds = usedHeadingIdsSnapshot;
         ctx.citedKeys.length = citedKeysLen;

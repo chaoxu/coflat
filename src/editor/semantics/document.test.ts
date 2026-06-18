@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { getMarkdownParser } from "../../core/parser";
 import {
+  computeBlockNumbers,
+  createConfiguredBlockNumberingSpecLookup,
+} from "../../core/semantics/block-numbering";
+import {
   analyzeDocumentSemantics,
   analyzeEquations,
   analyzeFencedDivs,
@@ -245,6 +249,32 @@ describe("document semantics analyzers", () => {
 
     expect(semantics.fencedDivs).toHaveLength(1);
     expect(semantics.fencedDivs[0]?.primaryClass).toBe("custom-note");
+  });
+
+  it("uses the shared manifest class as the primary fenced div class", () => {
+    const doc = "::: {.highlight .theorem #thm:a}\nBody\n:::\n";
+    const tree = parser.parse(doc);
+
+    const semantics = analyzeDocumentSemantics(stringTextSource(doc), tree);
+
+    expect(semantics.fencedDivs).toHaveLength(1);
+    expect(semantics.fencedDivs[0]).toMatchObject({
+      classes: ["highlight", "theorem"],
+      primaryClass: "theorem",
+      id: "thm:a",
+    });
+    expect(computeBlockNumbers(
+      semantics.fencedDivs,
+      createConfiguredBlockNumberingSpecLookup(undefined),
+    ).byId.get("thm:a")).toMatchObject({
+      type: "theorem",
+      number: 1,
+    });
+    expect(semantics.referenceIndex.get("thm:a")).toMatchObject({
+      targetKind: "block",
+      blockType: "theorem",
+      display: "theorem",
+    });
   });
 
   // --- Regression: #353 — literal braces must not be treated as Pandoc attributes ---

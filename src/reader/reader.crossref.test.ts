@@ -33,6 +33,19 @@ describe("reader in-document crossref resolution", () => {
     expect(b?.[1]).toBe("2");
   });
 
+  it("uses the shared manifest primary class for block reference numbering", () => {
+    const src =
+      "::: {.highlight .theorem #thm:a}\nFirst.\n:::\n\nSee [@thm:a].";
+    const { html, referencePreviewIndex } = renderToHtml(src, undefined, {
+      referencePreviews: true,
+      resolveReferences: true,
+    });
+
+    expect(html).toContain('<span class="cf-block-header-rendered">Theorem 1</span>');
+    expect(html).toMatch(/data-ref-key="thm:a"[\s\S]*?>Theorem 1</);
+    expect(referencePreviewIndex?.["thm:a"]?.label).toBe("Theorem 1");
+  });
+
   it("uses frontmatter global block numbering for in-document references", () => {
     const src = [
       "---",

@@ -220,6 +220,16 @@ describe("reader / editor-preview emission parity", () => {
       ].join("\n"),
     },
     {
+      name: "numbered theorem block with manifest class after a custom class",
+      source: [
+        '::: {.highlight .theorem #thm:class-order title="Main"}',
+        "Body text.",
+        ":::",
+        "",
+        "See [@thm:class-order].",
+      ].join("\n"),
+    },
+    {
       name: "numbered theorem block with inline title markup",
       source: [
         '::: {.theorem #thm:inline-title title="**Main** `case`"}',

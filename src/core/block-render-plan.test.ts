@@ -199,6 +199,30 @@ describe("blockLineCost", () => {
   });
 });
 
+describe("fencedDivRenderPlan", () => {
+  it("uses the shared manifest class as primary even when it is not the first class", () => {
+    const source = "::: {.highlight .theorem #thm:a}\nBody\n:::";
+    const plan = fencedDivRenderPlan(source, firstBlock(source, "FencedDiv"), {
+      numberForFencedDiv: (block) => {
+        expect(block).toMatchObject({
+          primaryClass: "theorem",
+          id: "thm:a",
+        });
+        return 7;
+      },
+      numberForBlockType: () => {
+        throw new Error("numberForBlockType fallback should not be used");
+      },
+    });
+
+    expect(plan.classes).toEqual(["highlight", "theorem"]);
+    expect(plan.primaryClassName).toBe("theorem");
+    expect(plan.presentation).toMatchObject({
+      label: "theorem 7",
+    });
+  });
+});
+
 describe("paragraphRenderPlan", () => {
   it("builds a shared inline fragment plan from trimmed paragraph content", () => {
     const source = "  Hello **world** and $x$  ";

@@ -1,5 +1,6 @@
 import type { SyntaxNode, SyntaxNodeRef } from "@lezer/common";
 import { NODE } from "../../../core/constants/node-types";
+import { primaryClassNameForFencedDivClasses } from "../../../core/semantics/block-numbering";
 import {
   isDisplayMath,
   isFencedDivFence,
@@ -288,7 +289,7 @@ export function collectFencedDiv(
     const attrs = extractDivClass(doc.slice(attrNode.from, attrNode.to));
     if (attrs) {
       classes = [...attrs.classes];
-      primaryClass = attrs.classes[0];
+      primaryClass = primaryClassNameForFencedDivClasses(attrs.classes);
       id = attrs.id;
       keyValues = { ...attrs.keyValues };
       keyValueTitle = attrs.keyValues.title;

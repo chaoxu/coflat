@@ -1,5 +1,6 @@
 import {
   BLOCK_MANIFEST_BY_NAME,
+  BLOCK_MANIFEST_ENTRIES,
   EXCLUDED_FROM_FALLBACK,
   getManifestBlockTitle,
 } from "../constants/block-manifest";
@@ -104,6 +105,17 @@ export function counterGroupForBlockNumberingSpec(
   return numbering === "global"
     ? GLOBAL_COUNTER
     : spec.counter ?? spec.name;
+}
+
+export function primaryClassNameForFencedDivClasses(
+  classes: readonly string[],
+): string | undefined {
+  const rawPrimaryClassName = classes[0]?.toLowerCase();
+  if (!rawPrimaryClassName) return undefined;
+  const manifestEntry = BLOCK_MANIFEST_ENTRIES.find((entry) =>
+    classes.includes(entry.name) || rawPrimaryClassName === entry.name
+  );
+  return manifestEntry?.name ?? rawPrimaryClassName;
 }
 
 function buildNumberedBlocks(

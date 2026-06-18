@@ -515,6 +515,39 @@ describe("documentAnalysisField incremental contract", () => {
     expect(after.fencedDivs[1]).toBe(stableSecondDiv);
   });
 
+  it("uses the shared manifest primary class during incremental fenced div updates", () => {
+    const doc = [
+      "::: {.highlight .theorem #thm:first}",
+      "first.md",
+      ":::",
+      "",
+      "::: {.highlight .theorem #thm:second}",
+      "second.md",
+      ":::",
+      "",
+    ].join("\n");
+
+    const beforeState = createSemanticsState(doc);
+    const before = beforeState.field(documentAnalysisField);
+    const stableSecondDiv = before.fencedDivs[1];
+
+    const afterState = replaceOnce(beforeState, "first.md", "other.md");
+    const after = afterState.field(documentAnalysisField);
+
+    expect(after.fencedDivs).toHaveLength(2);
+    expect(after.fencedDivs[0]).toMatchObject({
+      classes: ["highlight", "theorem"],
+      primaryClass: "theorem",
+      id: "thm:first",
+    });
+    expect(after.fencedDivs[1]).toBe(stableSecondDiv);
+    expect(after.referenceIndex.get("thm:first")).toMatchObject({
+      targetKind: "block",
+      blockType: "theorem",
+      display: "theorem",
+    });
+  });
+
   it("does not duplicate trailing custom divs when inserting at another boundary", () => {
     const doc = [
       "::: {.custom-note}",

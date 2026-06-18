@@ -28,6 +28,10 @@ import { taskMarkerChecked } from "./list-surface";
 import { displayMathLatex } from "./math-source";
 import { readBracedLabelId } from "./parser/label-utils";
 import { parseTableDelimiterAlignments } from "./parser/table";
+import {
+  primaryClassNameForFencedDivClasses,
+  type FencedDivNumberingInfo,
+} from "./semantics/block-numbering";
 
 export interface ParagraphRenderPlan {
   readonly kind: "paragraph";
@@ -194,6 +198,7 @@ export interface FencedDivRenderChildPlan {
 
 export interface FencedDivRenderPlanOptions {
   readonly displayTitleForBlockType?: (blockType: string) => string;
+  readonly numberForFencedDiv?: (block: FencedDivNumberingInfo) => number | undefined;
   readonly numberForBlockType?: (blockType: string) => number | undefined;
 }
 
@@ -825,16 +830,17 @@ export function fencedDivRenderPlan(
     child = child.nextSibling;
   }
 
-  const normalizedPrimaryClassName = classes[0]?.toLowerCase();
-  const primaryManifestEntry = BLOCK_MANIFEST_ENTRIES.find((entry) =>
-    classes.includes(entry.name) || normalizedPrimaryClassName === entry.name
-  );
-  const primaryClassName = primaryManifestEntry?.name ?? normalizedPrimaryClassName;
+  const primaryClassName = primaryClassNameForFencedDivClasses(classes);
+  const primaryManifestEntry = BLOCK_MANIFEST_ENTRIES.find((entry) => entry.name === primaryClassName);
   const displayTitle = primaryClassName
     ? (options.displayTitleForBlockType?.(primaryClassName) ?? primaryClassName)
     : undefined;
-  const number = primaryClassName
-    ? options.numberForBlockType?.(primaryClassName)
+  const numberingInfo = primaryClassName
+    ? { from: node.from, to: node.to, primaryClass: primaryClassName, id }
+    : null;
+  const number = numberingInfo
+    ? options.numberForFencedDiv?.(numberingInfo)
+      ?? options.numberForBlockType?.(numberingInfo.primaryClass)
     : undefined;
   const presentation = primaryClassName && displayTitle
     ? blockPresentationPlan({
@@ -869,6 +875,28 @@ export function fencedDivRenderPlan(
     displayTitle,
     number,
     presentation,
+  };
+}
+
+export function fencedDivNumberingInfo(
+  source: string,
+  node: SyntaxNode,
+): FencedDivNumberingInfo | null {
+  if (node.name !== NODE.FencedDiv) {
+    throw new Error(`expected fenced div node, got ${node.name}`);
+  }
+
+  const attrsNode = node.getChild(NODE.FencedDivAttributes);
+  if (!attrsNode) return null;
+  const attrs = extractDivClass(source.slice(attrsNode.from, attrsNode.to).trim());
+  if (!attrs) return null;
+  const primaryClass = primaryClassNameForFencedDivClasses(attrs.classes);
+  if (!primaryClass) return null;
+  return {
+    from: node.from,
+    to: node.to,
+    primaryClass,
+    id: attrs.id,
   };
 }
 
