@@ -300,6 +300,7 @@ const richPointClickGuardPlugin = ViewPlugin.fromClass(class {
     if (!view.dom.contains(event.target as Node | null)) return false;
     if (!isRichLikeMode(view)) return false;
     if (!isPlainPrimaryMouseEvent(event) || event.detail !== 1) return false;
+    if (!view.state.selection.main.empty) return false;
     if (startsOnRenderedMath(view, event.clientX, event.clientY, event.target)) return false;
     if (startsOnWidgetOwnedSurface(view, event.clientX, event.clientY, event.target)) return false;
     if (!isPlainRenderedLineTarget(view, event.clientX, event.clientY, event.target)) return false;
