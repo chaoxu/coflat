@@ -19,6 +19,7 @@ import { type ChangeSet, type EditorState, type Extension, type Range, type Tran
 import { CSS } from "../../core/constants/css-classes";
 import { documentSurfacePolicy } from "../../core/document-surface-policy";
 import { escapeHtml } from "../../core/lib/html-escape";
+import { documentContextFacet } from "../document-context";
 import { forEachOverlappingOrderedRange } from "../lib/range-helpers";
 import type { CitationFormatter } from "../../core/document-context-types";
 import type { BibStore } from "../state/bib-data";
@@ -171,6 +172,7 @@ export function planReferenceRendering(
       ? formatterOrReferences as readonly ReferenceSemantics[] | undefined
       : maybeReferences
   ) ?? getReferenceRenderAnalysis(state).references;
+  const contextFormatter = state.facet(documentContextFacet).citationFormatter ?? null;
 
   const controller = createEditorReferencePresentationController(state, {
     store,
@@ -198,7 +200,7 @@ export function planReferenceRendering(
 
     // Compatibility path for explicit custom contexts that still classify a
     // reference as a citation without attaching a formatter.
-    if (route.kind === "citation" && !formatter) {
+    if (route.kind === "citation" && !formatter && !contextFormatter) {
       items.push(buildDegradedCitationItem(ref.ids, ref.bracketed, ref.from, ref.to, raw));
       continue;
     }
@@ -358,12 +360,23 @@ export function collectReferenceRanges(
     : (formatterOrReferences as CitationFormatter | null | undefined) ?? null;
   const references = maybeReferences ?? getReferenceRenderState(state).analysis.references;
   const { analysis, bibliography } = getReferenceRenderState(state);
-  const effectiveFormatter = formatter ?? bibliography.formatter ?? null;
+  const documentContext = state.facet(documentContextFacet);
+  const contextFormatter = documentContext.citationFormatter ?? null;
+  const effectiveFormatter = formatter ?? bibliography.formatter ?? contextFormatter ?? null;
+  const citationKeys = effectiveFormatter === contextFormatter
+    ? documentContext.citationKeys
+    : store;
 
   // Citation cluster registration is global to document order. Cache it at the
   // (analysis, bibliography-store) boundary so ordinary navigation does not
   // reset and replay every citation cluster.
-  ensureEditorReferencePresentationCitationsRegistered(analysis, store, effectiveFormatter);
+  if (citationKeys) {
+    ensureEditorReferencePresentationCitationsRegistered(
+      analysis,
+      citationKeys,
+      effectiveFormatter,
+    );
+  }
 
   return emitReferenceDecorations(
     planReferenceRendering(

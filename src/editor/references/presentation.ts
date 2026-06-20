@@ -6,6 +6,7 @@ import {
   collectCitationMatchesFromAnalysis,
   getCitationRegistrationKey,
   type CitationCollectionOptions,
+  type CitationIdLookup,
 } from "../citations/citation-matching";
 import type {
   CitationFormatter,
@@ -44,6 +45,7 @@ import {
   type ReferencePresentationRoute,
   type ResolvedCrossref,
 } from "../../core/references/presentation";
+import { bibliographyEntryFor } from "../../core/references/citation-rendering";
 
 export {
   coreClassifyReferenceTarget as classifyReferenceTarget,
@@ -81,6 +83,7 @@ interface CachedCitationFormat {
 
 interface ReferencePresentationControllerOptions {
   readonly bibliography?: BibStore;
+  readonly citationKeys?: CitationIdLookup;
   readonly cite?: (
     ids: readonly string[],
     locators: readonly (string | undefined)[],
@@ -159,6 +162,30 @@ function getCachedCitationFormat(
   return next;
 }
 
+function plainTextFromCslHtml(html: string): string | undefined {
+  const sanitized = sanitizeCslHtml(html);
+  if (typeof document !== "undefined") {
+    const container = document.createElement("div");
+    container.innerHTML = sanitized;
+    const text = container.textContent?.replace(/\s+/g, " ").trim();
+    return text || undefined;
+  }
+
+  const text = sanitized.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+  return text || undefined;
+}
+
+function getDocumentContextCitationPreview(
+  context: DocumentContext | undefined,
+  id: string,
+): string | undefined {
+  if (!context?.citationFormatter || !context.citationKeys?.has(id)) {
+    return undefined;
+  }
+  const entry = bibliographyEntryFor(context.citationFormatter, id);
+  return entry ? plainTextFromCslHtml(entry.html) : undefined;
+}
+
 export function resolveCatalogCrossref(
   catalog: DocumentReferenceCatalog,
   id: string,
@@ -209,8 +236,11 @@ function createReferencePresentationController(
     surface: options.surface,
     resolveHostReference,
 
-    classify(id, _preferCitation) {
-      return coreClassifyReferenceTarget(options.resolveCrossref, id);
+    classify(id, preferCitation) {
+      return coreClassifyReferenceTarget(options.resolveCrossref, id, {
+        bibliography: options.citationKeys,
+        preferCitation,
+      });
     },
 
     cite(ids, locators) {
@@ -232,7 +262,8 @@ function createReferencePresentationController(
 
     getPreviewText(id) {
       return options.getCitationPreview?.(id)
-        ?? getCachedCitationFormat(citationEntries, options.bibliography, id)?.preview;
+        ?? getCachedCitationFormat(citationEntries, options.bibliography, id)?.preview
+        ?? getDocumentContextCitationPreview(options.documentContext, id);
     },
 
     planReference(input) {
@@ -265,11 +296,11 @@ export function createCatalogReferencePresentationController(
  */
 export function ensureEditorReferencePresentationCitationsRegistered(
   analysis: DocumentAnalysis,
-  store: BibStore,
+  citationKeys: CitationIdLookup,
   formatter: CitationFormatter | null,
 ): void {
   if (!formatter) return;
-  const matches = collectCitationMatchesFromAnalysis(analysis, store);
+  const matches = collectCitationMatchesFromAnalysis(analysis, citationKeys);
   const registrationKey = getCitationRegistrationKey(matches);
   if (formatter.citationRegistrationKey === registrationKey) return;
   formatter.registerCitations(matches);
@@ -286,15 +317,21 @@ export function createEditorReferencePresentationController(
 ): ReferencePresentationController {
   const bibliography = state.field(bibDataField, false);
   const store = options.store ?? bibliography?.store;
-  const formatter =
-    options.formatter !== undefined ? options.formatter : bibliography?.formatter ?? null;
   const documentContext = state.facet(documentContextFacet);
+  const localFormatter = options.formatter !== undefined
+    ? options.formatter
+    : bibliography?.formatter ?? null;
+  const formatter = localFormatter ?? documentContext.citationFormatter ?? null;
+  const citationKeys = formatter === documentContext.citationFormatter
+    ? documentContext.citationKeys
+    : undefined;
   const documentPath = state.facet(documentPathFacet) || undefined;
 
   return createCatalogReferencePresentationController(
     getEditorDocumentReferenceCatalog(state),
     {
       bibliography: store,
+      citationKeys,
       documentContext,
       documentPath,
       equationLabels: options.equationLabels,
@@ -302,9 +339,9 @@ export function createEditorReferencePresentationController(
       citeNarrative: (id) => formatter?.citeNarrative(id) ?? id,
       surface: options.surface ?? "editor",
       registerCitations: (references) => {
-        if (!store || !formatter) return;
+        if (!citationKeys || !formatter) return;
         const catalog = getEditorDocumentReferenceCatalog(state);
-        const matches = collectCitationMatches(references, store, {
+        const matches = collectCitationMatches(references, citationKeys, {
           isLocalTarget: (id) =>
             resolveCatalogCrossref(catalog, id, options.equationLabels) !== null,
         });
@@ -360,9 +397,13 @@ function getPreviewCitationOptions(
 export function createPreviewReferencePresentationController(
   options: PreviewReferencePresentationOptions,
 ): ReferencePresentationController {
-  const formatter = options.formatter ?? null;
+  const formatter = (options.formatter ?? options.documentContext?.citationFormatter) ?? null;
+  const citationKeys = formatter === options.documentContext?.citationFormatter
+    ? options.documentContext?.citationKeys
+    : undefined;
   return createReferencePresentationController({
     bibliography: options.bibliography,
+    citationKeys,
     documentContext: options.documentContext,
     documentPath: options.documentPath,
     surface: options.surface ?? "editor-widget",
@@ -372,15 +413,15 @@ export function createPreviewReferencePresentationController(
       return `(${ids.map((id, index) => locators[index] ? `${id}, ${locators[index]}` : id).join("; ")})`;
     },
     citeNarrative: (id) => (
-      formatter && options.bibliography?.has(id)
+      formatter && citationKeys?.has(id)
         ? formatter.citeNarrative(id)
         : id
     ),
     registerCitations: (references) => {
-      if (!options.bibliography || !formatter) return;
+      if (!citationKeys || !formatter) return;
       const matches = collectCitationMatches(
         references,
-        options.bibliography,
+        citationKeys,
         getPreviewCitationOptions(options),
       );
       formatter.registerCitations(matches);

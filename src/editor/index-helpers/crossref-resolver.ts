@@ -94,5 +94,6 @@ export function classifyReference(
   return classifyReferenceTarget(
     (targetId) => resolveCatalogCrossref(catalog, targetId, options.equationLabels),
     id,
+    options,
   );
 }

@@ -126,10 +126,15 @@ function citeSingle(
 export function classifyReferenceTarget(
   resolveCrossref: (id: string) => ResolvedCrossref | null,
   id: string,
+  options: ReferenceClassificationOptions = {},
 ): ReferenceClassification {
   const resolved = resolveCrossref(id);
   if (resolved) {
     return { kind: "crossref", resolved };
+  }
+
+  if (options.bibliography?.has(id)) {
+    return { kind: "citation", id };
   }
 
   return { kind: "unresolved", id };
@@ -234,9 +239,6 @@ export function planReferencePresentation(
   context: ReferencePresentationContext,
   input: ReferencePresentationInput,
 ): ReferencePresentationRoute | null {
-  const hostRef = context.resolveHostReference?.(input);
-  if (hostRef) return hostRef;
-
   const classifications = input.ids.map((id) =>
     context.classify(id, input.bracketed),
   );
@@ -254,6 +256,8 @@ export function planReferencePresentation(
         narrative: true,
       };
     }
+    const hostRef = context.resolveHostReference?.(input);
+    if (hostRef) return hostRef;
     return { kind: "unresolved", raw: input.raw };
   }
 
@@ -269,6 +273,9 @@ export function planReferencePresentation(
       narrative: false,
     };
   }
+
+  const hostRef = context.resolveHostReference?.(input);
+  if (hostRef) return hostRef;
 
   if (hasCitation) {
     const parts: ReferencePresentationMixedPart[] = input.ids.map((id, index) => {

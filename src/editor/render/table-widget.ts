@@ -39,6 +39,7 @@ import {
 } from "./table-widget-navigation";
 import { TableWidgetShellAdapter } from "./table-widget-shell-adapter";
 import { getOptionalReferenceRenderState } from "../state/reference-render-state";
+import { documentContextFacet } from "../document-context";
 import {
   createEditorReferencePresentationController,
   ensureEditorReferencePresentationCitationsRegistered,
@@ -133,10 +134,22 @@ export class TableWidget extends ShellWidget implements
       return undefined;
     }
     const { store, formatter } = bibliography;
-    ensureEditorReferencePresentationCitationsRegistered(analysis, store, formatter);
+    const documentContext = rootView.state.facet(documentContextFacet);
+    const contextFormatter = documentContext.citationFormatter ?? null;
+    const effectiveFormatter = formatter ?? contextFormatter;
+    const citationKeys = effectiveFormatter === contextFormatter
+      ? documentContext.citationKeys
+      : store;
+    if (citationKeys) {
+      ensureEditorReferencePresentationCitationsRegistered(
+        analysis,
+        citationKeys,
+        effectiveFormatter,
+      );
+    }
     return createEditorReferencePresentationController(rootView.state, {
       store,
-      formatter,
+      formatter: effectiveFormatter,
       surface: documentSurfacePolicy("editor-preview").referenceHostSurface,
     });
   }

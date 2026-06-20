@@ -318,6 +318,20 @@ describe("resolveCrossref", () => {
 });
 
 describe("classifyReference", () => {
+  it("classifies bibliography ids as citations when no local target owns them", () => {
+    const state = withBibliography(createState("See [@karger2000]."));
+
+    const result = classifyReference(state, "karger2000", {
+      bibliography: state.field(bibDataField).store,
+      preferCitation: true,
+    });
+
+    expect(result).toEqual({
+      kind: "citation",
+      id: "karger2000",
+    });
+  });
+
   it("prefers local crossrefs for bracketed refs when a bibliography key shares the same id", () => {
     const doc = [
       "::: {.theorem #karger2000}",

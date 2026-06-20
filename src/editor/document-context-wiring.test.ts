@@ -4,11 +4,18 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   documentContextFacet,
 } from "./document-context";
-import type { LinkResolver, RefResolver } from "../core/document-context-types";
+import type {
+  CitationFormatter,
+  LinkResolver,
+  RefResolver,
+} from "../core/document-context-types";
 import { documentPathFacet } from "./lib/types";
 import { isBareDocumentAnchor } from "./render/link-handler";
 import { renderPreviewBlockContentToDom } from "./render/preview-block-renderer";
-import { planReferenceRendering } from "./render/reference-render";
+import {
+  collectReferenceRanges,
+  planReferenceRendering,
+} from "./render/reference-render";
 import {
   createView,
   store,
@@ -28,6 +35,35 @@ function withResolver(view: EditorView, refResolver?: RefResolver): EditorView {
     ),
   });
   return view;
+}
+
+function fakeNumericFormatter(ids: readonly string[]): CitationFormatter {
+  const numbers = new Map(ids.map((id, index) => [id, index + 1]));
+  let citationRegistrationKey: string | null = null;
+  return {
+    cite(citedIds, locators) {
+      if (!citationRegistrationKey) return "[unregistered]";
+      return `[${citedIds.map((id, index) => {
+        const label = String(numbers.get(id) ?? id);
+        return locators[index] ? `${label}, ${locators[index]}` : label;
+      }).join(", ")}]`;
+    },
+    citeNarrative(id) {
+      return `${id} [${numbers.get(id) ?? id}]`;
+    },
+    bibliographyEntries() {
+      return [];
+    },
+    registerCitations(clusters) {
+      citationRegistrationKey = clusters
+        .map((cluster) => cluster.ids.join(","))
+        .join(";");
+    },
+    get citationRegistrationKey() {
+      return citationRegistrationKey;
+    },
+    revision: 1,
+  };
 }
 
 describe("documentContextFacet — LinkResolver wiring", () => {
@@ -202,6 +238,43 @@ describe("documentContextFacet — RefResolver wiring through planReferenceRende
     ]);
   });
 
+  it("all-citation clusters use DocumentContext citation keys before the host resolver", () => {
+    const doc = "See [@deKosterLR07; @BoysenKW19].";
+    view = createView(doc, doc.length);
+    const formatter = fakeNumericFormatter(["deKosterLR07", "BoysenKW19"]);
+    let resolverCalls = 0;
+
+    view.dispatch({
+      effects: [
+        bibDataEffect.of({ store, formatter: null }),
+        StateEffect.appendConfig.of(
+          documentContextFacet.of({
+            citationFormatter: formatter,
+            citationKeys: new Set(["deKosterLR07", "BoysenKW19"]),
+            refResolver: {
+              resolve(key) {
+                resolverCalls += 1;
+                return { content: formatter.cite([key], []) };
+              },
+            },
+          }),
+        ),
+      ],
+    });
+
+    const { formatter: fieldFormatter } = view.state.field(bibDataField);
+    const ranges = collectReferenceRanges(view, store, fieldFormatter);
+    const range = ranges.find(
+      (it) => view?.state.sliceDoc(it.from, it.to) === "[@deKosterLR07; @BoysenKW19]",
+    );
+    const widget = range?.value.spec.widget;
+
+    expect(widget?.constructor.name).toBe("CitationWidget");
+    expect((widget?.toDOM() as HTMLElement | undefined)?.textContent).toBe("[1, 2]");
+    expect(formatter.citationRegistrationKey).not.toBeNull();
+    expect(resolverCalls).toBe(0);
+  });
+
   it("mixed local crossref and host refs render through one supported cluster path", () => {
     const resolver: RefResolver = {
       resolve(key) {
@@ -321,6 +394,33 @@ describe("default unresolved reference rendering — no formatter, no resolver",
 });
 
 describe("DocumentContext wiring through rich preview widgets", () => {
+  it("preview citation clusters use DocumentContext citation keys before the host resolver", () => {
+    const formatter = fakeNumericFormatter(["deKosterLR07", "BoysenKW19"]);
+    let resolverCalls = 0;
+    const container = document.createElement("div");
+
+    renderPreviewBlockContentToDom(
+      container,
+      "See [@deKosterLR07; @BoysenKW19].",
+      {
+        documentContext: {
+          citationFormatter: formatter,
+          citationKeys: new Set(["deKosterLR07", "BoysenKW19"]),
+          refResolver: {
+            resolve(key) {
+              resolverCalls += 1;
+              return { content: formatter.cite([key], []) };
+            },
+          },
+        },
+      },
+    );
+
+    expect(container.textContent).toContain("See [1, 2].");
+    expect(container.textContent).not.toContain("[1]; [2]");
+    expect(resolverCalls).toBe(0);
+  });
+
   it("table cell preview rendering consumes host RefResolver and LinkResolver", () => {
     const container = document.createElement("div");
     renderPreviewBlockContentToDom(

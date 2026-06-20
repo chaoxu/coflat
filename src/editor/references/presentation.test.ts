@@ -1,5 +1,5 @@
 import { describe, expect, it, afterEach } from "vitest";
-import { EditorState } from "@codemirror/state";
+import { EditorState, StateEffect } from "@codemirror/state";
 import { markdown } from "@codemirror/lang-markdown";
 import { fencedDiv } from "../../core/parser/fenced-div";
 import { mathExtension } from "../../core/parser/math-backslash";
@@ -19,6 +19,8 @@ import {
   makeBlockPlugin,
 } from "../test-utils";
 import type { DocumentReferenceCatalog } from "../semantics/reference-catalog";
+import { documentContextFacet } from "../document-context";
+import type { CitationFormatter } from "../../core/document-context-types";
 import {
   createCatalogReferencePresentationController,
   getReferencePresentationComputationCountForTest,
@@ -129,6 +131,32 @@ describe("getReferencePresentationModel", () => {
     expect(getReferencePresentationModel(nextState).getPreviewText("karger2000"))
       .toContain("Updated title");
     expect(getReferencePresentationComputationCountForTest()).toBe(2);
+  });
+
+  it("reads citation previews from DocumentContext when no local bibliography owns the key", () => {
+    const formatter: CitationFormatter = {
+      cite: () => "[1]",
+      citeNarrative: (id) => `${id} [1]`,
+      bibliographyEntries: () => [{
+        id: "host2024",
+        html: "<div><span>[1]</span> <i>Host citation title</i></div>",
+      }],
+      registerCitations: () => undefined,
+      citationRegistrationKey: null,
+      revision: 1,
+    };
+    const state = applyStateEffects(
+      createState("See [@host2024]."),
+      StateEffect.appendConfig.of(
+        documentContextFacet.of({
+          citationFormatter: formatter,
+          citationKeys: new Set(["host2024"]),
+        }),
+      ),
+    );
+
+    expect(getReferencePresentationModel(state).getPreviewText("host2024"))
+      .toBe("[1] Host citation title");
   });
 });
 
