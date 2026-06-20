@@ -87,6 +87,7 @@ describe("theme CSS contract", () => {
     const css = readRepoFile("editor/editor-theme.css");
 
     expect(cssRuleBody(css, ".cf-doc-flow")).toContain("-webkit-font-smoothing: antialiased;");
+    expect(cssRuleBody(css, ".cf-doc-title")).toContain("user-select: text;");
     expect(cssRuleBody(css, ".cf-reader")).toContain("max-width: var(--cf-content-max-width, 800px);");
     expect(cssRuleBody(css, ".cf-reader")).toContain("counter-reset: cf-reader-h1 cf-reader-h2 cf-reader-h3 cf-reader-h4 cf-reader-h5 cf-reader-h6;");
     expect(cssRuleBody(css, ".cf-reader .cf-doc-heading--h1")).toContain(

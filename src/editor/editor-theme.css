@@ -465,7 +465,7 @@
   border-bottom: var(--cf-border-width) solid var(--cf-border);
   display: block;
   cursor: text;
-  user-select: none;
+  user-select: text;
 }
 
 .cf-reader .cf-doc-heading:not(.cf-doc-heading--unnumbered)::before {
