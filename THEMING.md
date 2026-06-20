@@ -125,6 +125,7 @@ import { blueprintBookThemeManifest } from "@chaoxu/coflat/reader";
 | `cf-footnote-ref` | `<sup>` wrapping the ref `<a>` |
 | `cf-footnote-backref` | `<a>` linking back from the definition |
 | `cf-doc-inline-math` | inline math placeholder |
+| `cf-katex-small-caps` | KaTeX HTML span emitted for `\textsc{...}` |
 | `cf-citation` | explicitly formatted citation `<span>` |
 | `cf-crossref-unresolved` | unresolved crossref `<span>` |
 
@@ -145,6 +146,11 @@ both surfaces. Fenced semantic block references are derived from the block
 manifest prefixes (`thm`, `lem`, `prop`, `conj`, `def`, `prob`, `rem`, `ex`,
 and related figure/table/algorithm prefixes), so new block types should add a
 manifest prefix instead of teaching the reader and editor separately.
+
+KaTeX HTML output may also contain `cf-katex-small-caps` when the source uses
+`\textsc{...}` in math. The default stylesheet renders that class with
+`font-variant-caps: small-caps`; hosts that replace the Coflat stylesheet should
+preserve equivalent styling.
 
 ### Data attributes
 
