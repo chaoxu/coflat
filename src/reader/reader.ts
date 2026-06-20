@@ -2382,6 +2382,30 @@ function buildReaderCitationPreview(
   return createHoverPreviewElementWithChild(body);
 }
 
+export function createReaderCitationClusterPreviewBody(
+  key: string,
+  context: DocumentContext | undefined,
+): HTMLElement | null {
+  if (!context?.citationFormatter || !context.citationKeys) return null;
+  const ids = key.split(";").map((id) => id.trim()).filter(Boolean);
+  if (ids.length < 2) return null;
+  const citationIds = ids.filter((id) => coreIsCitationKey(context.citationKeys, id));
+  if (citationIds.length === 0) return null;
+  const entriesById = new Map(
+    coreBibliographyEntries(context.citationFormatter, citationIds).map((entry) => [entry.id, entry.html]),
+  );
+  const container = document.createElement("div");
+  container.className = "cf-hover-preview-citation-body";
+  for (const id of citationIds) {
+    const html = entriesById.get(id);
+    if (!html) continue;
+    const body = createHoverPreviewCitationBodyElement();
+    body.innerHTML = sanitize(html);
+    container.appendChild(body);
+  }
+  return container.childNodes.length > 0 ? container : null;
+}
+
 function renderReaderPreviewSource(
   source: string,
   context: DocumentContext | undefined,

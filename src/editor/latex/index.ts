@@ -3,6 +3,7 @@ export type {
   ExportDependencyTool,
   ExportContract,
   LatexExportFlags,
+  LatexExportDefaults,
   ResolvedLatexExportOptions,
   BuildLatexPandocArgsOptions,
 } from "./export-options.mjs";
@@ -14,6 +15,7 @@ export {
   EXPORT_CONTRACT,
   parseLatexFrontmatterConfig,
   resolveLatexExportOptions,
+  latexConfigWithDefaults,
   resolveLatexCslPath,
   resolveLatexTemplatePath,
   latexBibliographyMetadataValue,

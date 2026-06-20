@@ -11,6 +11,7 @@ export {
   EXPORT_CONTRACT,
   parseLatexFrontmatterConfig,
   resolveLatexExportOptions,
+  latexConfigWithDefaults,
   resolveLatexCslPath,
   resolveLatexTemplatePath,
   latexBibliographyMetadataValue,
@@ -22,6 +23,7 @@ export {
   type ExportDependencyTool,
   type ExportContract,
   type LatexExportFlags,
+  type LatexExportDefaults,
   type ResolvedLatexExportOptions,
   type BuildLatexPandocArgsOptions,
 } from "./src/editor/latex";

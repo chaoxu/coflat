@@ -75,6 +75,21 @@ export function resolveLatexExportOptions({ config = {}, flags = {} } = {}) {
   };
 }
 
+export function latexConfigWithDefaults(config = {}, defaults = {}) {
+  const latex = config.latex && typeof config.latex === "object" ? config.latex : {};
+  return {
+    ...config,
+    bibliography: stringOption(config.bibliography) || stringOption(latex.bibliography)
+      ? config.bibliography
+      : defaults.bibliography,
+    csl: stringOption(config.csl) || stringOption(latex.csl) ? config.csl : defaults.csl,
+    latex: {
+      ...latex,
+      ...(!stringOption(latex.template) && defaults.template ? { template: defaults.template } : {}),
+    },
+  };
+}
+
 function stringOption(value) {
   return typeof value === "string" && value.length > 0 ? value : undefined;
 }
