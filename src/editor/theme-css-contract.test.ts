@@ -148,6 +148,8 @@ describe("theme CSS contract", () => {
     expect(cssRuleBody(css, ".cf-math-display-content")).toContain("display: block;");
     expect(cssRuleBody(css, ".cf-math-display-content")).toContain("width: fit-content;");
     expect(cssRuleBody(css, ".cf-math-display-content")).toContain("margin-inline: auto;");
+    expect(cssRuleBody(css, ".cf-katex-small-caps")).toContain("font-variant: small-caps;");
+    expect(cssRuleBody(css, ".cf-katex-small-caps")).toContain("font-variant-caps: small-caps;");
     expect(cssRuleBody(css, ".cf-reader .cf-doc-table-block")).toContain("margin: var(--cf-spacing-sm) 0;");
     expect(cssRuleBody(css, ".cf-reader .cf-doc-table-block")).toContain("width: 100%;");
     expect(cssRuleBody(css, ".cf-reader .cf-doc-table-cell")).toContain("text-align: left;");

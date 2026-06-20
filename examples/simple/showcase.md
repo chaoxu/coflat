@@ -45,6 +45,8 @@ This heading exists to verify:
 
 Inline math: $e^{i\pi} + 1 = 0$, $\sum_{k=1}^n k = \frac{n(n+1)}{2}$.
 
+Small-caps math text: $\textsc{Minimum Vertex Cover}$ and $\textsc{st-Connectivity}$.
+
 Mixed delimiters: $x^2$ and \(y^2\) in the same line.
 
 # Display Math

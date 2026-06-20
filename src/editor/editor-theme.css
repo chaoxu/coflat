@@ -924,6 +924,11 @@
   font-size: inherit;
 }
 
+.cf-katex-small-caps {
+  font-variant: small-caps;
+  font-variant-caps: small-caps;
+}
+
 /* ── Breadcrumb overlay ─────────────────────────────────────────────────── */
 
 .cf-breadcrumbs {

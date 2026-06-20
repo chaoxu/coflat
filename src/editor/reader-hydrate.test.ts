@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { KATEX_TEXTSC_CLASS } from "../core/lib/katex-options";
 import {
   hydrateBlockDisclosures,
   hydrateMath,
@@ -154,6 +155,20 @@ describe("hydrateMath", () => {
     expect(placeholder2.getAttribute("data-math-hydrated")).toBe("true");
     // `\mathbb{R}` renders with a double-struck mathvariant in the MathML.
     expect(placeholder2.innerHTML).toContain("double-struck");
+  });
+
+  it("hydrates \\textsc using the built-in KaTeX small-caps fallback", async () => {
+    const { html } = renderToHtml("Problem $\\textsc{Minimum Vertex Cover}$.");
+    const root = makeRoot(html);
+    const placeholder = requireMathPlaceholder(root);
+
+    await hydrateMath(root);
+
+    expect(placeholder.classList.contains("cf-math-error")).toBe(false);
+    expect(placeholder.getAttribute("data-math-hydrated")).toBe("true");
+    expect(placeholder.innerHTML).toContain(KATEX_TEXTSC_CLASS);
+    expect(placeholder.textContent).toContain("Minimum");
+    expect(placeholder.textContent).not.toContain("\\textsc");
   });
   // `\myfoo` is a custom macro defined only in the frontmatter preamble and
   // used in both the title and the body — the case the macro fix exists for.

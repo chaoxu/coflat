@@ -143,6 +143,15 @@ describe("promoteLabeledDisplayMath", () => {
 });
 
 describe("preprocess", () => {
+  it("preserves standard \\textsc in math for LaTeX/PDF export", async () => {
+    const body = "Problem $\\textsc{Minimum Vertex Cover}$ stays standard.";
+    const out = await preprocess(body, "main.md");
+
+    expect(out).toContain("\\textsc{Minimum Vertex Cover}");
+    expect(out).not.toContain("\\htmlClass");
+    expect(out).not.toContain("cf-katex-small-caps");
+  });
+
   it("runs macro hoisting, equation promotion, and title lifting", async () => {
     const body = [
       "---",

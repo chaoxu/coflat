@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import katex from "katex";
+import { KATEX_TEXTSC_CLASS } from "../../core/lib/katex-options";
 import { isSafeUrl } from "../../core/lib/url-utils";
 import { buildKatexOptions } from "../lib/katex-options";
 import { sanitizeCslHtml } from "../lib/sanitize-csl-html";
@@ -86,16 +87,28 @@ describe("buildKatexOptions", () => {
     expect(buildKatexOptions(false).throwOnError).toBe(false);
   });
 
-  it("omits macros when not provided", () => {
+  it("includes the built-in \\textsc macro", () => {
     const opts = buildKatexOptions(false);
-    expect(opts.macros).toBeUndefined();
+    expect(opts.macros).toEqual({
+      "\\textsc": `\\htmlClass{${KATEX_TEXTSC_CLASS}}{\\text{#1}}`,
+    });
   });
 
   it("spreads macros into a new object", () => {
     const original = { "\\R": "\\mathbb{R}" };
     const opts = buildKatexOptions(false, original);
-    expect(opts.macros).toEqual({ "\\R": "\\mathbb{R}" });
+    expect(opts.macros).toEqual({
+      "\\textsc": `\\htmlClass{${KATEX_TEXTSC_CLASS}}{\\text{#1}}`,
+      "\\R": "\\mathbb{R}",
+    });
     expect(opts.macros).not.toBe(original);
+  });
+
+  it("lets document macros override the built-in \\textsc fallback", () => {
+    const opts = buildKatexOptions(false, {
+      "\\textsc": "\\mathrm{#1}",
+    });
+    expect(opts.macros["\\textsc"]).toBe("\\mathrm{#1}");
   });
 
   it("drops bare-letter macro keys before passing options to KaTeX", () => {
@@ -103,7 +116,10 @@ describe("buildKatexOptions", () => {
       R: "\\mathbb{R}",
       "\\N": "\\mathbb{N}",
     });
-    expect(opts.macros).toEqual({ "\\N": "\\mathbb{N}" });
+    expect(opts.macros).toEqual({
+      "\\textsc": `\\htmlClass{${KATEX_TEXTSC_CLASS}}{\\text{#1}}`,
+      "\\N": "\\mathbb{N}",
+    });
   });
 
   describe("trust callback", () => {
@@ -111,6 +127,7 @@ describe("buildKatexOptions", () => {
     const trust = opts.trust as (ctx: {
       command: string;
       url?: string;
+      class?: string;
     }) => boolean;
 
     it("trusts \\href with https URL", () => {
@@ -138,6 +155,11 @@ describe("buildKatexOptions", () => {
     it("rejects unknown commands", () => {
       expect(trust({ command: "\\input", url: "https://x.com" })).toBe(false);
     });
+
+    it("trusts only the built-in small-caps HTML class", () => {
+      expect(trust({ command: "\\htmlClass", class: KATEX_TEXTSC_CLASS })).toBe(true);
+      expect(trust({ command: "\\htmlClass", class: "other-class" })).toBe(false);
+    });
   });
 });
 
@@ -160,6 +182,12 @@ describe("renderKatexToHtml", () => {
   it("preserves safe KaTeX links", () => {
     const html = renderKatexToHtml("\\href{https://example.com}{x}", false, {});
     expect(html).toContain('href="https://example.com"');
+  });
+
+  it("renders \\textsc through the built-in small-caps class", () => {
+    const html = renderKatexToHtml("\\textsc{AReach}", false, {});
+    expect(html).toContain(KATEX_TEXTSC_CLASS);
+    expect(html).not.toContain("katex-error");
   });
 
   it("supports lightweight inline HTML without the MathML subtree", () => {

@@ -64,6 +64,7 @@ import { NODE } from "../core/constants/node-types";
 import { isSafeUrl } from "../core/lib/url-utils";
 import { escapeHtml } from "../core/lib/html-escape";
 import { buildLineOffsets, lineAt } from "../core/lib/line-offsets";
+import { buildKatexOptions } from "../core/lib/katex-options";
 import {
   CSS,
   hostReferenceClassNames,
@@ -2655,10 +2656,8 @@ export async function hydrateMath(
     const isDisplay = el.classList.contains(DOCUMENT_SURFACE_CLASS.displayMath);
     let html: string;
     html = katex.renderToString(latex, {
-      displayMode: isDisplay,
-      throwOnError: false,
+      ...buildKatexOptions(isDisplay, macros),
       output: isDisplay ? "htmlAndMathml" : "html",
-      ...(macros ? { macros: { ...macros } } : {}),
     });
     if (html.includes("katex-error")) {
       el.classList.add(CSS.mathError);
