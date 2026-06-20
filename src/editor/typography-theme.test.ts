@@ -2,6 +2,13 @@ import { describe, expect, it } from "vitest";
 import { typographyThemeStyles } from "./typography-theme";
 
 describe("typographyThemeStyles", () => {
+  it("keeps rendered document titles selectable", () => {
+    expect(typographyThemeStyles[".cf-doc-title"]).toMatchObject({
+      cursor: "text",
+      userSelect: "text",
+    });
+  });
+
   it("keeps inline source reveal typography from contributing line-box height", () => {
     for (const selector of [
       ".cf-source-delimiter",

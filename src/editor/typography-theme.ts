@@ -25,7 +25,7 @@ export const typographyThemeStyles = {
     borderBottom: "var(--cf-border-width) solid var(--cf-border)",
     display: "block",
     cursor: "text",
-    userSelect: "none",
+    userSelect: "text",
   },
 
   /* Frontmatter YAML lines — monospace when editing (structured data, not prose) */
