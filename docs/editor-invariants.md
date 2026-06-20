@@ -65,6 +65,13 @@ For widget edits, keep the range mapping explicit. Avoid deriving persisted
 Markdown from rendered HTML except where the widget owns that conversion, such
 as table cell editing.
 
+## KaTeX Compatibility Is Renderer-Only
+
+HTML rendering may add KaTeX compatibility macros for standard LaTeX commands
+that KaTeX does not implement. `\textsc{...}` is one of these: the reader and
+editor render it with `cf-katex-small-caps`, but saved Markdown and LaTeX/PDF
+export must stay as ordinary `\textsc{...}` source.
+
 ## Review And Simplify Loop
 
 For architecture-touching changes:

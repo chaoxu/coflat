@@ -179,19 +179,6 @@ Equation labels must be unique within a document. Duplicate `{#eq:id}` labels ar
 
 **Escape rules.** A literal dollar sign in prose is written `\$` and does not open inline math. Inside `$...$` inline math, a backslash escapes the following character, so `$ \$50 $` is a math span containing a literal `$`. Display math `\[...\]` and inline math `\(...\)` are the LaTeX-style alternative syntaxes for `$$...$$` and `$...$`; the same backslash-escape applies to their contents. Dollar-math is suppressed inside fenced code blocks and inline code spans.
 
-### Small caps in math
-
-Use standard LaTeX `\textsc{...}` inside math for small-caps text:
-
-```markdown
-$\textsc{Minimum Vertex Cover}$
-```
-
-Coflat's HTML reader/editor renders this through KaTeX as text wrapped in the
-`cf-katex-small-caps` CSS class. This is a Coflat HTML-rendering compatibility
-macro, because KaTeX does not natively implement `\textsc`. LaTeX/PDF export
-does not use the compatibility macro; the source remains ordinary `\textsc`.
-
 ### Custom macros
 
 Define in frontmatter under `math:`. Available in all math expressions:
