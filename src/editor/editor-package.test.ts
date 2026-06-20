@@ -28,6 +28,7 @@ describe("package editor export", () => {
 
     expect(Object.keys(packageJson.exports ?? {}).sort()).toEqual([
       ".",
+      "./browser-test-utils",
       "./citeproc",
       "./latex",
       "./latex/csl/ieee.csl",
@@ -128,6 +129,16 @@ describe("package editor export", () => {
     expect(testUtilsExport).toEqual({
       types: "./dist/test-utils.d.ts",
       import: "./dist/test-utils.js",
+    });
+  });
+
+  it("publishes browser selector helpers from a dependency-light test entry", () => {
+    const packageJson = readPackageJson();
+    const testUtilsExport = packageJson.exports?.["./browser-test-utils"];
+
+    expect(testUtilsExport).toEqual({
+      types: "./dist/browser-test-utils.d.ts",
+      import: "./dist/browser-test-utils.js",
     });
   });
 

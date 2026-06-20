@@ -59,6 +59,10 @@
       "types": "./dist/test-utils.d.ts",
       "import": "./dist/test-utils.js"
     },
+    "./browser-test-utils": {
+      "types": "./dist/browser-test-utils.d.ts",
+      "import": "./dist/browser-test-utils.js"
+    },
     "./style.css": "./dist/editor.css"
   },
   "scripts": {
