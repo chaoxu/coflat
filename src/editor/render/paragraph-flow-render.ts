@@ -3,6 +3,7 @@ import {
   type EditorState,
   type Extension,
   type Range,
+  StateEffect,
   StateField,
   type Transaction,
 } from "@codemirror/state";
@@ -10,6 +11,7 @@ import {
   Decoration,
   type DecorationSet,
   EditorView,
+  ViewPlugin,
 } from "@codemirror/view";
 import type { SyntaxNode, SyntaxNodeRef } from "@lezer/common";
 import {
@@ -27,11 +29,87 @@ import {
   focusTracker,
 } from "./focus-state";
 import { buildPreviewBlockOptions } from "./hover-preview-block-options";
+import { PARAGRAPH_FLOW_WIDGET_CLASS } from "./paragraph-flow-dom";
 import { renderPreviewBlockContentToDom } from "./preview-block-renderer";
 import { getReferenceRenderDependencySignature } from "./reference-render";
 import { RenderWidget } from "./source-widget";
 
-const PARAGRAPH_FLOW_WIDGET_CLASS = "cf-paragraph-flow-widget";
+const PARAGRAPH_FLOW_SELECTION_FREEZE_TAIL_MS = 100;
+
+const setParagraphFlowSelectionFrozen = StateEffect.define<boolean>();
+
+const paragraphFlowSelectionFrozenField = StateField.define<boolean>({
+  create: () => false,
+  update(frozen, tr) {
+    for (const effect of tr.effects) {
+      if (effect.is(setParagraphFlowSelectionFrozen)) return effect.value;
+    }
+    return frozen;
+  },
+});
+
+function transactionChangesParagraphFlowSelectionFreeze(tr: Transaction): boolean {
+  return tr.effects.some((effect) => effect.is(setParagraphFlowSelectionFrozen));
+}
+
+function isParagraphFlowPointerTarget(
+  target: EventTarget | null,
+  view: EditorView,
+): boolean {
+  if (!(target instanceof Node) || !view.contentDOM.contains(target)) return false;
+  const element = target instanceof Element ? target : target.parentElement;
+  return Boolean(element?.closest(`.${PARAGRAPH_FLOW_WIDGET_CLASS}`));
+}
+
+const paragraphFlowSelectionFreezePlugin = ViewPlugin.fromClass(class {
+  private pointerDownInParagraphFlow = false;
+  private releaseTimer: number | null = null;
+
+  private readonly onPointerDown = (event: PointerEvent) => {
+    if (event.button !== 0) return;
+    if (!isParagraphFlowPointerTarget(event.target, this.view)) return;
+    this.pointerDownInParagraphFlow = true;
+    if (this.releaseTimer !== null) {
+      this.view.dom.ownerDocument.defaultView?.clearTimeout(this.releaseTimer);
+      this.releaseTimer = null;
+    }
+    if (!this.view.state.field(paragraphFlowSelectionFrozenField)) {
+      this.view.dispatch({ effects: setParagraphFlowSelectionFrozen.of(true) });
+    }
+  };
+
+  private readonly onPointerRelease = () => {
+    if (!this.pointerDownInParagraphFlow) return;
+    this.pointerDownInParagraphFlow = false;
+    if (this.releaseTimer !== null) {
+      this.view.dom.ownerDocument.defaultView?.clearTimeout(this.releaseTimer);
+    }
+    this.releaseTimer = this.view.dom.ownerDocument.defaultView?.setTimeout(() => {
+      this.releaseTimer = null;
+      if (!this.view.state.field(paragraphFlowSelectionFrozenField)) return;
+      try {
+        this.view.dispatch({ effects: setParagraphFlowSelectionFrozen.of(false) });
+      } catch {
+        // The view may be destroyed while the release timer is pending.
+      }
+    }, PARAGRAPH_FLOW_SELECTION_FREEZE_TAIL_MS) ?? null;
+  };
+
+  constructor(private readonly view: EditorView) {
+    view.dom.addEventListener("pointerdown", this.onPointerDown, true);
+    view.dom.ownerDocument.defaultView?.addEventListener("pointerup", this.onPointerRelease);
+    view.dom.ownerDocument.defaultView?.addEventListener("pointercancel", this.onPointerRelease);
+  }
+
+  destroy() {
+    this.view.dom.removeEventListener("pointerdown", this.onPointerDown, true);
+    this.view.dom.ownerDocument.defaultView?.removeEventListener("pointerup", this.onPointerRelease);
+    this.view.dom.ownerDocument.defaultView?.removeEventListener("pointercancel", this.onPointerRelease);
+    if (this.releaseTimer !== null) {
+      this.view.dom.ownerDocument.defaultView?.clearTimeout(this.releaseTimer);
+    }
+  }
+});
 
 function selectionIntersects(
   state: EditorState,
@@ -59,10 +137,11 @@ function isEligibleParagraph(
   state: EditorState,
   node: SyntaxNode,
   focused: boolean,
+  selectionFrozen: boolean,
 ): boolean {
   if (!isTopLevelParagraph(node)) return false;
   if (!isMultiLineRange(state, node.from, node.to)) return false;
-  if (selectionIntersects(state, node.from, node.to, focused)) return false;
+  if (!selectionFrozen && selectionIntersects(state, node.from, node.to, focused)) return false;
   return true;
 }
 
@@ -89,14 +168,21 @@ class ParagraphFlowWidget extends RenderWidget {
         view.state.field(mathMacrosField, false) ?? config.math ?? {},
       )
       : { config };
-    renderPreviewBlockContentToDom(wrapper, this.source, options);
+    renderPreviewBlockContentToDom(wrapper, this.source, {
+      ...options,
+      paragraphSourceOffset: this.sourceFrom,
+      paragraphSourcePositions: this.sourceFrom >= 0,
+    });
     this.syncWidgetAttrs(wrapper, view);
     const paragraph = wrapper.querySelector<HTMLElement>(".cf-doc-paragraph");
     if (paragraph) {
       this.setSourceRangeAttrs(paragraph);
     }
-    if (view) this.bindSourceReveal(wrapper, view);
     return wrapper;
+  }
+
+  override ignoreEvent(event?: Event): boolean {
+    return event?.type !== "mousedown";
   }
 
   override eq(other: ParagraphFlowWidget): boolean {
@@ -109,13 +195,14 @@ class ParagraphFlowWidget extends RenderWidget {
 
 function collectParagraphFlowDecorations(state: EditorState): DecorationSet {
   const focused = state.field(editorFocusField, false) ?? false;
+  const selectionFrozen = state.field(paragraphFlowSelectionFrozenField, false) ?? false;
   const fullDocumentSource = state.doc.toString();
   const items: Range<Decoration>[] = [];
   syntaxTree(state).iterate({
     enter(node: SyntaxNodeRef) {
       if (node.name !== "Paragraph") return undefined;
       const paragraph = node.node;
-      if (!isEligibleParagraph(state, paragraph, focused)) return undefined;
+      if (!isEligibleParagraph(state, paragraph, focused, selectionFrozen)) return undefined;
       const widget = new ParagraphFlowWidget(
         state.sliceDoc(paragraph.from, paragraph.to),
         fullDocumentSource,
@@ -136,6 +223,7 @@ function collectParagraphFlowDecorations(state: EditorState): DecorationSet {
 
 function shouldRebuildParagraphFlow(tr: Transaction): boolean {
   return (
+    transactionChangesParagraphFlowSelectionFreeze(tr) ||
     cursorSensitiveShouldRebuild(tr) ||
     getReferenceRenderDependencySignature(tr.startState) !== getReferenceRenderDependencySignature(tr.state) ||
     tr.startState.field(mathMacrosField, false) !== tr.state.field(mathMacrosField, false) ||
@@ -166,6 +254,8 @@ const paragraphFlowField = StateField.define<DecorationSet>({
 export const paragraphFlowRenderPlugin: Extension = [
   editorFocusField,
   focusTracker,
+  paragraphFlowSelectionFrozenField,
+  paragraphFlowSelectionFreezePlugin,
   paragraphFlowField,
 ];
 

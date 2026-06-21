@@ -1,6 +1,12 @@
 import { escapeHtml } from "./lib/html-escape";
 import { isSafeUrl } from "./lib/url-utils";
 import { renderLinkSurfaceHtml } from "./link-surface";
+import {
+  applySourceRangeAttrs,
+  clearSourceRangeAttrs,
+  sourceRangeAttrs,
+  type SourceRange,
+} from "./source-range-surface";
 import { CSS, hostReferenceClassNames } from "./constants/css-classes";
 import type {
   ReferencePresentationInput,
@@ -15,6 +21,8 @@ export interface ReferenceSurfaceSpec {
   readonly refMode?: ReferenceMode;
   readonly refResolver?: boolean;
   readonly sourceAttrs?: string;
+  readonly sourceAtomic?: boolean;
+  readonly sourceRange?: SourceRange;
 }
 
 export interface ReferenceListItemSpec {
@@ -54,6 +62,8 @@ export type ReferenceRouteSurfacePlan =
 export interface ReferenceRouteSurfaceOptions {
   readonly hasCrossrefTarget?: (id: string) => boolean;
   readonly sourceAttrs?: string;
+  readonly sourceAtomic?: boolean;
+  readonly sourceRange?: SourceRange;
 }
 
 export function referencePresentationRouteText(route: ReferencePresentationRoute): string {
@@ -91,6 +101,7 @@ export function referencePresentationRouteSurfacePlan(
   options: ReferenceRouteSurfaceOptions = {},
 ): ReferenceRouteSurfacePlan {
   const mode = input.bracketed ? "bracketed" : "narrative";
+  const sourceSpec = referenceSourceSpec(options);
   switch (route.kind) {
     case "citation":
       if (!route.rendered) {
@@ -114,7 +125,7 @@ export function referencePresentationRouteSurfacePlan(
           className: route.narrative ? CSS.citationNarrative : CSS.citation,
           refKey: input.ids.join(";"),
           refMode: mode,
-          sourceAttrs: options.sourceAttrs,
+          ...sourceSpec,
         },
         text: route.rendered,
       };
@@ -132,7 +143,7 @@ export function referencePresentationRouteSurfacePlan(
           prefixText: "(",
           separatorText: "; ",
           suffixText: ")",
-          sourceAttrs: options.sourceAttrs,
+          ...sourceSpec,
         },
         text: referencePresentationRouteText(route),
       };
@@ -145,7 +156,7 @@ export function referencePresentationRouteSurfacePlan(
           className: CSS.crossref,
           refKey: id,
           refMode: mode,
-          sourceAttrs: options.sourceAttrs,
+          ...sourceSpec,
         },
         text: route.resolved.label,
       };
@@ -165,7 +176,7 @@ export function referencePresentationRouteSurfacePlan(
             refMode: mode,
           })),
           separatorText: "; ",
-          sourceAttrs: options.sourceAttrs,
+          ...sourceSpec,
         },
         text: referencePresentationRouteText(route),
       };
@@ -177,7 +188,7 @@ export function referencePresentationRouteSurfacePlan(
           className: CSS.crossrefUnresolved,
           refKey: input.ids[0],
           refMode: mode,
-          sourceAttrs: options.sourceAttrs,
+          ...sourceSpec,
         },
         text: route.raw,
       };
@@ -195,7 +206,7 @@ export function referencePresentationRouteSurfacePlan(
               refMode: route.mode,
             })),
             separatorText: "; ",
-            sourceAttrs: options.sourceAttrs,
+            ...sourceSpec,
           },
           text: referencePresentationRouteText(route),
         };
@@ -210,12 +221,22 @@ export function referencePresentationRouteSurfacePlan(
           refKey: route.key,
           refMode: route.mode,
           refResolver: route.hasOnClick,
-          sourceAttrs: options.sourceAttrs,
+          ...sourceSpec,
         },
         text: referencePresentationRouteText(route),
       };
     }
   }
+}
+
+function referenceSourceSpec(
+  options: ReferenceRouteSurfaceOptions,
+): Pick<ReferenceSurfaceSpec, "sourceAttrs" | "sourceAtomic" | "sourceRange"> {
+  return {
+    sourceAttrs: options.sourceAttrs,
+    sourceAtomic: options.sourceAtomic,
+    sourceRange: options.sourceRange,
+  };
 }
 
 export function renderReferenceSurfaceHtml(
@@ -232,7 +253,14 @@ export function renderReferenceSurfaceHtml(
   if (spec.refResolver) {
     attrs += ' data-ref-resolver="1"';
   }
-  if (spec.sourceAttrs) attrs += spec.sourceAttrs;
+  if (spec.sourceAttrs) {
+    attrs += spec.sourceAttrs;
+  } else if (spec.sourceRange) {
+    attrs += sourceRangeAttrs({
+      sourceAtomic: spec.sourceAtomic,
+      sourceRange: spec.sourceRange,
+    });
+  }
   return `<span${attrs}>${innerHtml}</span>`;
 }
 
@@ -297,6 +325,23 @@ export function applyReferenceSurface(
   } else {
     delete el.dataset.refResolver;
   }
+  applyReferenceSourceAttrs(el, spec);
+}
+
+function applyReferenceSourceAttrs(
+  el: HTMLElement,
+  spec: ReferenceSurfaceSpec,
+): void {
+  if (spec.sourceRange) {
+    clearSourceRangeAttrs(el);
+    applySourceRangeAttrs(el, {
+      sourceAtomic: spec.sourceAtomic,
+      sourceRange: spec.sourceRange,
+    });
+    return;
+  }
+
+  clearSourceRangeAttrs(el);
 }
 
 export function createReferenceSurfaceDom(

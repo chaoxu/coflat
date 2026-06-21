@@ -232,6 +232,20 @@ describe("mapDomRangeToSource", () => {
     expect(mapDomRangeToSource(range, container)).toEqual({ from: 4, to: 9 });
   });
 
+  it("maps a Range inside an atomic source carrier to the full source range", () => {
+    const container = mount(
+      '<p><span data-source-from="4" data-source-to="17" data-source-atomic="true">rendered</span></p>',
+    );
+    const text = requireFirstText(
+      requireElement(container, "[data-source-atomic]"),
+      "atomic source carrier",
+    );
+    const range = document.createRange();
+    range.setStart(text, 1);
+    range.setEnd(text, 4);
+    expect(mapDomRangeToSource(range, container)).toEqual({ from: 4, to: 17 });
+  });
+
   it("swaps from/to if startContainer is after endContainer", () => {
     const src = "abc def";
     const { html } = renderToHtml(src, undefined, { sourcePositions: true });

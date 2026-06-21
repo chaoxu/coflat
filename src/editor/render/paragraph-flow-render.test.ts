@@ -92,6 +92,31 @@ describe("paragraph flow render", () => {
     expect(paragraphFlowSpecs(target)).toEqual([]);
   });
 
+  it("emits full-document source ranges for rendered inline paragraph content", () => {
+    const doc = [
+      "# Title",
+      "",
+      "Lead **bold text** and [link text](https://example.com) include $x^2$ math.",
+      "continued paragraph text for flow rendering.",
+      "",
+      "next",
+    ].join("\n");
+    const target = createParagraphFlowView(doc, doc.length);
+
+    const boldText = target.dom.querySelector<HTMLElement>(".cf-paragraph-flow-widget strong .cf-text");
+    expect(boldText?.dataset.sourceFrom).toBe(String(doc.indexOf("bold text")));
+    expect(boldText?.dataset.sourceTo).toBe(String(doc.indexOf("bold text") + "bold text".length));
+
+    const linkText = target.dom.querySelector<HTMLElement>(".cf-paragraph-flow-widget a .cf-text");
+    expect(linkText?.dataset.sourceFrom).toBe(String(doc.indexOf("link text")));
+    expect(linkText?.dataset.sourceTo).toBe(String(doc.indexOf("link text") + "link text".length));
+
+    const math = target.dom.querySelector<HTMLElement>(".cf-paragraph-flow-widget .cf-doc-inline-math");
+    expect(math?.dataset.sourceFrom).toBe(String(doc.indexOf("$x^2$")));
+    expect(math?.dataset.sourceTo).toBe(String(doc.indexOf("$x^2$") + "$x^2$".length));
+    expect(math?.dataset.sourceAtomic).toBe("true");
+  });
+
   it("renders reference-bearing paragraphs with full-document reference labels", () => {
     const doc = [
       "::: {.theorem #thm:main}",
@@ -116,6 +141,11 @@ describe("paragraph flow render", () => {
     const paragraph = target.dom.querySelector<HTMLElement>(".cf-paragraph-flow-widget .cf-doc-paragraph");
     expect(paragraph?.textContent?.replace(/\s+/g, " ")).toContain("See Theorem 1 for the main result.");
     expect(paragraph?.textContent).not.toContain("[@thm:main]");
+    const reference = target.dom.querySelector<HTMLElement>(".cf-paragraph-flow-widget [data-reference-widget]");
+    const referenceStart = doc.indexOf("[@thm:main]");
+    expect(reference?.dataset.sourceFrom).toBe(String(referenceStart));
+    expect(reference?.dataset.sourceTo).toBe(String(referenceStart + "[@thm:main]".length));
+    expect(reference?.dataset.sourceAtomic).toBe("true");
   });
 
   it("does not replace list item paragraphs", () => {

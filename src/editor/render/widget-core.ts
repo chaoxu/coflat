@@ -46,7 +46,7 @@ export abstract class BaseRenderWidget extends WidgetType {
    * Return true so CM6 does NOT also process mouse events on this widget.
    * Interactive widgets override this or attach their own event handling.
    */
-  ignoreEvent(): boolean {
+  ignoreEvent(_event?: Event): boolean {
     return true;
   }
 }

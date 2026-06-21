@@ -21,4 +21,6 @@ export interface PreviewRenderContext {
   readonly footnoteNumbers: ReadonlyMap<string, number>;
   readonly referenceContext: InlineReferenceRenderContext;
   readonly surfacePolicy: DocumentSurfacePolicy;
+  readonly paragraphSourceOffset: number;
+  readonly paragraphSourcePositions: boolean;
 }
