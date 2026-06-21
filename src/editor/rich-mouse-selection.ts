@@ -5,6 +5,7 @@ import { CSS } from "../core/constants/css-classes";
 import {
   clampToLineBounds,
   coarseHitTestPositionAndSide,
+  domCaretRangeAtPoint,
   domCaretHitTestPosition,
   editorElementFromPoint,
   editorElementsFromPoint,
@@ -20,7 +21,11 @@ import {
 import {
   closestMathSourceCarrier,
   closestSourceRangeCarrier,
+  isAtomicSourceRangeCarrier,
+  mapDomRangeToSource,
+  sourceRangeFromElement,
 } from "../core/source-range-surface";
+import { PARAGRAPH_FLOW_WIDGET_CLASS } from "./render/paragraph-flow-dom";
 
 function isRichLikeMode(view: EditorView): boolean {
   return !view.dom.classList.contains(CSS.sourceMode);
@@ -86,6 +91,99 @@ function resolveVisibleLineTarget(
     domCaretTargetAtPoint(view, x, y, line, bounds)
     ?? coordTargetAtPoint(view, x, y, bounds)
     ?? fallbackTargetForLine(line, bounds, x)
+  );
+}
+
+function isParagraphFlowSourceCarrier(carrier: Element | null): carrier is HTMLElement {
+  return carrier instanceof HTMLElement && Boolean(carrier.closest(`.${PARAGRAPH_FLOW_WIDGET_CLASS}`));
+}
+
+function paragraphFlowSourceCarrierFromElement(element: Element | null): HTMLElement | null {
+  const carrier = closestSourceRangeCarrier(element, { ignoredClassNames: ["cm-line"] });
+  return isParagraphFlowSourceCarrier(carrier) ? carrier : null;
+}
+
+function paragraphFlowSourceCarrierAtPoint(
+  view: EditorView,
+  x: number,
+  y: number,
+  target: EventTarget | null,
+): HTMLElement | null {
+  const direct = target instanceof Element
+    ? paragraphFlowSourceCarrierFromElement(target)
+    : null;
+  if (direct) return direct;
+
+  const fromPoint = editorElementFromPoint(view, { x, y });
+  return fromPoint instanceof Element
+    ? paragraphFlowSourceCarrierFromElement(fromPoint)
+    : null;
+}
+
+function fallbackSourceRangeTargetAtPoint(
+  carrier: HTMLElement,
+  x: number,
+): PointerSelectionTarget | null {
+  const sourceRange = sourceRangeFromElement(carrier);
+  if (!sourceRange) return null;
+  const rect = carrier.getBoundingClientRect();
+  if (rect.width <= 0 || sourceRange.to <= sourceRange.from) {
+    return { pos: sourceRange.from, assoc: 1 };
+  }
+  const ratio = Math.max(0, Math.min(1, (x - rect.left) / rect.width));
+  const pos = Math.round(sourceRange.from + ratio * (sourceRange.to - sourceRange.from));
+  return {
+    pos: Math.max(sourceRange.from, Math.min(sourceRange.to, pos)),
+    assoc: ratio >= 0.5 ? -1 : 1,
+  };
+}
+
+function atomicSourceRangeTargetAtPoint(
+  carrier: HTMLElement,
+  x: number,
+): PointerSelectionTarget | null {
+  const sourceRange = sourceRangeFromElement(carrier);
+  if (!sourceRange) return null;
+  const rect = carrier.getBoundingClientRect();
+  if (rect.width <= 0) return { pos: sourceRange.from, assoc: 1 };
+  const midpoint = rect.left + rect.width / 2;
+  return x >= midpoint
+    ? { pos: sourceRange.to, assoc: -1 }
+    : { pos: sourceRange.from, assoc: 1 };
+}
+
+function sourceRangeTargetAtPoint(
+  view: EditorView,
+  x: number,
+  y: number,
+  target: EventTarget | null,
+): PointerSelectionTarget | null {
+  const carrier = paragraphFlowSourceCarrierAtPoint(view, x, y, target);
+  if (!carrier) return null;
+  if (isAtomicSourceRangeCarrier(carrier)) {
+    return atomicSourceRangeTargetAtPoint(carrier, x);
+  }
+
+  const range = domCaretRangeAtPoint(view.dom.ownerDocument, { x, y });
+  if (range) {
+    const sourceRange = mapDomRangeToSource(range, view.contentDOM);
+    if (sourceRange) {
+      return { pos: sourceRange.from, assoc: 1 };
+    }
+  }
+
+  return fallbackSourceRangeTargetAtPoint(carrier, x);
+}
+
+function resolveRichSelectionTarget(
+  view: EditorView,
+  x: number,
+  y: number,
+  target: EventTarget | null,
+): PointerSelectionTarget | null {
+  return (
+    sourceRangeTargetAtPoint(view, x, y, target) ??
+    resolveVisibleLineTarget(view, x, y, target)
   );
 }
 
@@ -166,11 +264,11 @@ function startsOnWidgetOwnedSurface(
   const direct = target instanceof HTMLElement
     ? closestSourceRangeCarrier(target, { ignoredClassNames: ["cm-line"] })
     : null;
-  if (direct) return true;
+  if (direct && !isParagraphFlowSourceCarrier(direct)) return true;
   const fromPoint = editorElementFromPoint(view, { x, y });
-  return fromPoint instanceof HTMLElement
-    ? Boolean(closestSourceRangeCarrier(fromPoint, { ignoredClassNames: ["cm-line"] }))
-    : false;
+  if (!(fromPoint instanceof HTMLElement)) return false;
+  const carrier = closestSourceRangeCarrier(fromPoint, { ignoredClassNames: ["cm-line"] });
+  return Boolean(carrier && !isParagraphFlowSourceCarrier(carrier));
 }
 
 function mapTarget(
@@ -196,6 +294,98 @@ function createStickySelectionStyle(
   };
 }
 
+interface ActiveParagraphFlowPointerSelection {
+  readonly pointerId: number;
+  readonly start: PointerSelectionTarget;
+  current: PointerSelectionTarget;
+}
+
+const paragraphFlowPointerSelectionPlugin = ViewPlugin.fromClass(class {
+  private active: ActiveParagraphFlowPointerSelection | null = null;
+
+  private readonly onPointerDown = (event: PointerEvent) => {
+    const view = this.view;
+    if (!isRichLikeMode(view)) return;
+    if (!isPlainPrimaryMouseEvent(event) || !event.isPrimary) return;
+    if (startsOnRenderedMath(view, event.clientX, event.clientY, event.target)) return;
+
+    const start = sourceRangeTargetAtPoint(
+      view,
+      event.clientX,
+      event.clientY,
+      event.target,
+    );
+    if (!start) return;
+
+    event.preventDefault();
+    view.focus();
+    this.active = {
+      pointerId: event.pointerId,
+      start,
+      current: start,
+    };
+    view.dom.ownerDocument.defaultView?.addEventListener("pointermove", this.onPointerMove, true);
+    view.dom.ownerDocument.defaultView?.addEventListener("pointerup", this.onPointerUp, true);
+    view.dom.ownerDocument.defaultView?.addEventListener("pointercancel", this.onPointerCancel, true);
+  };
+
+  private readonly onPointerMove = (event: PointerEvent) => {
+    const active = this.active;
+    if (!active || active.pointerId !== event.pointerId) return;
+    event.preventDefault();
+    const current = resolveRichSelectionTarget(
+      this.view,
+      event.clientX,
+      event.clientY,
+      event.target,
+    ) ?? active.current;
+    active.current = current;
+    this.view.dispatch({
+      selection: buildPointerSelection(active.start, current),
+      scrollIntoView: false,
+    });
+  };
+
+  private readonly onPointerUp = (event: PointerEvent) => {
+    const active = this.active;
+    if (!active || active.pointerId !== event.pointerId) return;
+    event.preventDefault();
+    const current = resolveRichSelectionTarget(
+      this.view,
+      event.clientX,
+      event.clientY,
+      event.target,
+    ) ?? active.current;
+    this.view.dispatch({
+      selection: buildPointerSelection(active.start, current),
+      scrollIntoView: false,
+    });
+    this.clearActive();
+  };
+
+  private readonly onPointerCancel = (event: PointerEvent) => {
+    if (!this.active || this.active.pointerId !== event.pointerId) return;
+    this.clearActive();
+  };
+
+  private clearActive(): void {
+    if (!this.active) return;
+    this.active = null;
+    this.view.dom.ownerDocument.defaultView?.removeEventListener("pointermove", this.onPointerMove, true);
+    this.view.dom.ownerDocument.defaultView?.removeEventListener("pointerup", this.onPointerUp, true);
+    this.view.dom.ownerDocument.defaultView?.removeEventListener("pointercancel", this.onPointerCancel, true);
+  }
+
+  constructor(private readonly view: EditorView) {
+    view.dom.addEventListener("pointerdown", this.onPointerDown, true);
+  }
+
+  destroy() {
+    this.view.dom.removeEventListener("pointerdown", this.onPointerDown, true);
+    this.clearActive();
+  }
+});
+
 function createRichMouseSelectionStyle(
   view: EditorView,
   start: PointerSelectionTarget,
@@ -205,7 +395,7 @@ function createRichMouseSelectionStyle(
 
   return {
     get(currentEvent: MouseEvent) {
-      const resolved = resolveVisibleLineTarget(
+      const resolved = resolveRichSelectionTarget(
         view,
         currentEvent.clientX,
         currentEvent.clientY,
@@ -271,7 +461,7 @@ const richPointClickGuardPlugin = ViewPlugin.fromClass(class {
     if (startsOnWidgetOwnedSurface(view, event.clientX, event.clientY, event.target)) return false;
     if (!isImmediatePointGuardLineTarget(view, event.clientX, event.clientY, event.target)) return false;
 
-    const target = resolveVisibleLineTarget(
+    const target = resolveRichSelectionTarget(
       view,
       event.clientX,
       event.clientY,
@@ -305,7 +495,7 @@ const richPointClickGuardPlugin = ViewPlugin.fromClass(class {
     if (startsOnWidgetOwnedSurface(view, event.clientX, event.clientY, event.target)) return false;
     if (!isPlainRenderedLineTarget(view, event.clientX, event.clientY, event.target)) return false;
 
-    const target = resolveVisibleLineTarget(
+    const target = resolveRichSelectionTarget(
       view,
       event.clientX,
       event.clientY,
@@ -340,7 +530,7 @@ const richMouseSelectionStyleExtension = EditorView.mouseSelectionStyle.of((view
   if (startsOnRenderedMath(view, event.clientX, event.clientY, event.target)) return null;
   if (startsOnWidgetOwnedSurface(view, event.clientX, event.clientY, event.target)) return null;
 
-  const start = resolveVisibleLineTarget(
+  const start = resolveRichSelectionTarget(
     view,
     event.clientX,
     event.clientY,
@@ -361,6 +551,7 @@ const richMouseSelectionStyleExtension = EditorView.mouseSelectionStyle.of((view
 });
 
 export const richMouseSelectionStyle: Extension = [
+  Prec.highest(paragraphFlowPointerSelectionPlugin),
   Prec.highest(richPointClickGuardPlugin),
   richMouseSelectionStyleExtension,
 ];

@@ -43,6 +43,10 @@ import {
   appendReferenceRouteSurfaceDom,
   referencePresentationRouteSurfacePlan,
 } from "../../core/reference-surface";
+import {
+  applySourceRangeAttrs,
+  type SourceRange,
+} from "../../core/source-range-surface";
 
 interface InlineSegment {
   isMath: boolean;
@@ -59,16 +63,65 @@ export interface InlineReferenceRenderContext extends ReferencePresentationConte
   readonly surface?: string;
 }
 
+export interface InlineDomRenderOptions {
+  readonly sourcePositions?: boolean;
+  readonly sourceOffset?: number;
+}
+
+function offsetSourceRange(
+  fragment: InlineFragment,
+  options: InlineDomRenderOptions,
+): SourceRange | null {
+  if (!options.sourcePositions || !fragment.sourceRange) return null;
+  const offset = options.sourceOffset ?? 0;
+  return {
+    from: fragment.sourceRange.from + offset,
+    to: fragment.sourceRange.to + offset,
+  };
+}
+
+function applyFragmentSourceAttrs(
+  element: HTMLElement,
+  fragment: InlineFragment,
+  options: InlineDomRenderOptions,
+  atomic = false,
+): void {
+  const sourceRange = offsetSourceRange(fragment, options);
+  if (!sourceRange) return;
+  applySourceRangeAttrs(element, { sourceRange, sourceAtomic: atomic });
+}
+
+function appendSourceText(
+  container: HTMLElement | DocumentFragment,
+  text: string,
+  fragment: InlineFragment,
+  options: InlineDomRenderOptions,
+  atomic = false,
+): void {
+  const sourceRange = offsetSourceRange(fragment, options);
+  if (!sourceRange) {
+    container.appendChild(document.createTextNode(text));
+    return;
+  }
+
+  const span = document.createElement("span");
+  span.className = CSS.text;
+  applySourceRangeAttrs(span, { sourceRange, sourceAtomic: atomic });
+  span.textContent = text;
+  container.appendChild(span);
+}
+
 function renderFragments(
   container: HTMLElement | DocumentFragment,
   fragments: readonly InlineFragment[],
   macros: Record<string, string>,
   surface: DomInlineSurface,
   referenceContext?: InlineReferenceRenderContext,
+  options: InlineDomRenderOptions = {},
 ): void {
   const policy = inlineSurfacePolicy(surface);
   for (const fragment of fragments) {
-    renderFragment(container, fragment, macros, surface, policy, referenceContext);
+    renderFragment(container, fragment, macros, surface, policy, referenceContext, options);
   }
 }
 
@@ -77,15 +130,16 @@ function renderReference(
   fragment: Extract<InlineFragment, { kind: "reference" }>,
   policy: InlineSurfacePolicy,
   referenceContext?: InlineReferenceRenderContext,
+  options: InlineDomRenderOptions = {},
 ): void {
   if (policy.references === "inert") {
-    container.appendChild(document.createTextNode(fragment.rawText));
+    appendSourceText(container, fragment.rawText, fragment, options, true);
     return;
   }
 
   if (!referenceContext) {
     if (!fragment.parenthetical) {
-      container.appendChild(document.createTextNode(fragment.rawText));
+      appendSourceText(container, fragment.rawText, fragment, options, true);
       return;
     }
 
@@ -94,9 +148,11 @@ function renderReference(
       anchor.className = "cross-ref";
       anchor.href = `#${fragment.ids[0]}`;
       anchor.textContent = fragment.ids[0];
+      applyFragmentSourceAttrs(anchor, fragment, options, true);
       if (fragment.parenthetical) {
         const span = document.createElement("span");
         span.className = CSS.crossref;
+        applyFragmentSourceAttrs(span, fragment, options, true);
         span.appendChild(anchor);
         container.appendChild(span);
       } else {
@@ -107,6 +163,7 @@ function renderReference(
 
     const span = document.createElement("span");
     span.className = CSS.crossref;
+    applyFragmentSourceAttrs(span, fragment, options, true);
     span.appendChild(document.createTextNode("("));
     fragment.ids.forEach((id, index) => {
       if (index > 0) span.appendChild(document.createTextNode("; "));
@@ -132,19 +189,24 @@ function renderReference(
   });
 
   if (!route) {
-    container.appendChild(document.createTextNode(raw));
+    appendSourceText(container, raw, fragment, options, true);
     return;
   }
 
-  appendReferenceRouteSurfaceDom(
-    container,
-    referencePresentationRouteSurfacePlan({
+  const plan = referencePresentationRouteSurfacePlan({
       bracketed: fragment.parenthetical,
       ids: fragment.ids,
       locators: fragment.locators,
       raw,
-    }, route),
-  );
+    }, route, {
+      sourceAtomic: true,
+      sourceRange: offsetSourceRange(fragment, options) ?? undefined,
+    });
+  if (plan.kind === "text") {
+    appendSourceText(container, plan.text, fragment, options, true);
+    return;
+  }
+  appendReferenceRouteSurfaceDom(container, plan);
 }
 
 function renderFragment(
@@ -154,42 +216,48 @@ function renderFragment(
   surface: DomInlineSurface,
   policy: InlineSurfacePolicy,
   referenceContext?: InlineReferenceRenderContext,
+  options: InlineDomRenderOptions = {},
 ): void {
   switch (fragment.kind) {
     case "text":
-      container.appendChild(document.createTextNode(fragment.text));
+      appendSourceText(container, fragment.text, fragment, options);
       return;
 
     case "emphasis": {
       const em = createInlineMarkElement(document, "emphasis", { surface });
-      renderFragments(em, fragment.children, macros, surface, referenceContext);
+      applyFragmentSourceAttrs(em, fragment, options);
+      renderFragments(em, fragment.children, macros, surface, referenceContext, options);
       container.appendChild(em);
       return;
     }
 
     case "strong": {
       const strong = createInlineMarkElement(document, "strong", { surface });
-      renderFragments(strong, fragment.children, macros, surface, referenceContext);
+      applyFragmentSourceAttrs(strong, fragment, options);
+      renderFragments(strong, fragment.children, macros, surface, referenceContext, options);
       container.appendChild(strong);
       return;
     }
 
     case "strikethrough": {
       const del = createInlineMarkElement(document, "strikethrough", { surface });
-      renderFragments(del, fragment.children, macros, surface, referenceContext);
+      applyFragmentSourceAttrs(del, fragment, options);
+      renderFragments(del, fragment.children, macros, surface, referenceContext, options);
       container.appendChild(del);
       return;
     }
 
     case "highlight": {
       const highlight = createInlineMarkElement(document, "highlight", { surface });
-      renderFragments(highlight, fragment.children, macros, surface, referenceContext);
+      applyFragmentSourceAttrs(highlight, fragment, options);
+      renderFragments(highlight, fragment.children, macros, surface, referenceContext, options);
       container.appendChild(highlight);
       return;
     }
 
     case "code": {
       const code = createInlineMarkElement(document, "code", { surface });
+      applyFragmentSourceAttrs(code, fragment, options, true);
       code.textContent = fragment.text;
       container.appendChild(code);
       return;
@@ -197,6 +265,7 @@ function renderFragment(
 
     case "math": {
       const span = createInlineMathSurfaceElement(document, fragment.latex);
+      applyFragmentSourceAttrs(span, fragment, options, true);
       const renderRawError = (label: string): void => {
         renderInlineMathErrorFallback(span, fragment.raw, label);
       };
@@ -225,13 +294,13 @@ function renderFragment(
 
     case "link": {
       if (policy.links === "inert") {
-        renderFragments(container, fragment.children, macros, surface, referenceContext);
+        renderFragments(container, fragment.children, macros, surface, referenceContext, options);
         return;
       }
 
       const href = fragment.href?.trim();
       if (!href || !isSafeUrl(href)) {
-        renderFragments(container, fragment.children, macros, surface, referenceContext);
+        renderFragments(container, fragment.children, macros, surface, referenceContext, options);
         return;
       }
 
@@ -253,22 +322,23 @@ function renderFragment(
         title = resolved.title;
       }
       if (!isSafeUrl(resolvedHref)) {
-        renderFragments(container, fragment.children, macros, surface, referenceContext);
+        renderFragments(container, fragment.children, macros, surface, referenceContext, options);
         return;
       }
 
       const anchor = document.createElement("a");
       applyLinkSurface(anchor, resolvedHref, { className, title });
+      applyFragmentSourceAttrs(anchor, fragment, options);
       if (typeof resolved?.onClick === "function") {
         anchor.addEventListener("click", resolved.onClick);
       }
-      renderFragments(anchor, fragment.children, macros, surface, referenceContext);
+      renderFragments(anchor, fragment.children, macros, surface, referenceContext, options);
       container.appendChild(anchor);
       return;
     }
 
     case "reference":
-      renderReference(container, fragment, policy, referenceContext);
+      renderReference(container, fragment, policy, referenceContext, options);
       return;
 
     case "image": {
@@ -283,26 +353,32 @@ function renderFragment(
           renderedSrc = referenceContext?.imageUrlOverrides?.get(resolvedPath) ?? "";
         }
         if (renderedSrc) {
-          container.appendChild(createImageSurfaceElement(document, "span", renderedSrc, fragment.rawAlt));
+          const image = createImageSurfaceElement(document, "span", renderedSrc, fragment.rawAlt);
+          applyFragmentSourceAttrs(image, fragment, options, true);
+          container.appendChild(image);
           return;
         }
         const loading = document.createElement("span");
+        applyFragmentSourceAttrs(loading, fragment, options, true);
         renderMediaLoadingInto(loading, mediaKindForSrc(src), fragment.rawAlt);
         container.appendChild(loading);
         return;
       }
-      renderFragments(container, fragment.alt, macros, surface, referenceContext);
+      renderFragments(container, fragment.alt, macros, surface, referenceContext, options);
       return;
     }
 
     case "footnote-ref": {
       if (policy.footnotes === "raw-superscript") {
         const sup = document.createElement("sup");
+        applyFragmentSourceAttrs(sup, fragment, options, true);
         sup.textContent = fragment.id;
         container.appendChild(sup);
       } else {
         const label = String(referenceContext?.footnoteNumbers?.get(fragment.id) ?? fragment.id);
-        container.appendChild(createReaderFootnoteReferenceElement(document, label, fragment.id));
+        const ref = createReaderFootnoteReferenceElement(document, label, fragment.id);
+        applyFragmentSourceAttrs(ref, fragment, options, true);
+        container.appendChild(ref);
       }
       return;
     }
@@ -359,9 +435,17 @@ export function renderInlineMarkdown(
   macros: Record<string, string> = {},
   surface: DomInlineSurface = "document-body",
   referenceContext?: InlineReferenceRenderContext,
+  options: InlineDomRenderOptions = {},
 ): void {
   if (!text) return;
-  renderFragments(container, parseInlineFragments(text), macros, surface, referenceContext);
+  renderFragments(
+    container,
+    parseInlineFragments(text, { sourceRanges: options.sourcePositions }),
+    macros,
+    surface,
+    referenceContext,
+    options,
+  );
 }
 
 export function renderInlineFragmentsToDom(
@@ -370,8 +454,9 @@ export function renderInlineFragmentsToDom(
   macros: Record<string, string> = {},
   surface: DomInlineSurface = "document-body",
   referenceContext?: InlineReferenceRenderContext,
+  options: InlineDomRenderOptions = {},
 ): void {
-  renderFragments(container, fragments, macros, surface, referenceContext);
+  renderFragments(container, fragments, macros, surface, referenceContext, options);
 }
 
 export function renderInlineSyntaxNodeToDom(
@@ -383,12 +468,14 @@ export function renderInlineSyntaxNodeToDom(
   referenceContext?: InlineReferenceRenderContext,
   rangeFrom?: number,
   rangeTo?: number,
+  options: InlineDomRenderOptions = {},
 ): void {
   renderInlineFragmentsToDom(
     container,
-    buildInlineFragments(node, doc, rangeFrom, rangeTo),
+    buildInlineFragments(node, doc, rangeFrom, rangeTo, { sourceRanges: options.sourcePositions }),
     macros,
     surface,
     referenceContext,
+    options,
   );
 }

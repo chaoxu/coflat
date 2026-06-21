@@ -119,6 +119,8 @@ export interface PreviewBlockRenderOptions {
   readonly imageUrlOverrides?: ReadonlyMap<string, string>;
   readonly referenceSemantics?: DocumentSemantics;
   readonly documentSurface?: DocumentSurfaceName;
+  readonly paragraphSourceOffset?: number;
+  readonly paragraphSourcePositions?: boolean;
 }
 
 /**
@@ -176,6 +178,8 @@ export function renderPreviewBlockContentToDom(
     footnoteNumbers,
     referenceContext: referenceController,
     surfacePolicy,
+    paragraphSourceOffset: options.paragraphSourceOffset ?? 0,
+    paragraphSourcePositions: options.paragraphSourcePositions ?? false,
   };
 
   renderNode(container, tree.topNode, context);
@@ -234,7 +238,9 @@ function renderParagraph(
   node: SyntaxNode,
   context: PreviewRenderContext,
 ): void {
-  const plan = paragraphRenderPlan(context.doc, node);
+  const plan = paragraphRenderPlan(context.doc, node, {
+    sourceRanges: context.paragraphSourcePositions,
+  });
   appendParagraphDom(parent, document, (paragraph) => {
     renderInlineFragmentsToDom(
       paragraph,
@@ -245,6 +251,10 @@ function renderParagraph(
         ...context.referenceContext,
         imageUrlOverrides: context.imageUrlOverrides,
         footnoteNumbers: context.footnoteNumbers,
+      },
+      {
+        sourceOffset: context.paragraphSourceOffset,
+        sourcePositions: context.paragraphSourcePositions,
       },
     );
   });

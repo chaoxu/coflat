@@ -42,6 +42,7 @@ export interface SourceRangeAttrsOptions {
   readonly sourceRange?: SourceRange | null;
   readonly sourceLine?: number | null;
   readonly sourceLineRange?: SourceLineRange | null;
+  readonly sourceAtomic?: boolean;
 }
 
 export interface ParseSourceRangeOptions {
@@ -76,6 +77,7 @@ export interface ReaderSourceDecoration {
 const SOURCE_RANGE_CARRIER_SELECTOR = "[data-source-from][data-source-to]";
 const MATH_SOURCE_CARRIER_SELECTOR = "[data-math]";
 const SOURCE_ANCHOR_SELECTOR = "[data-cf-anchor-id][data-source-from][data-source-to]";
+const SOURCE_ATOMIC_ATTRIBUTE = "data-source-atomic";
 
 export function parseSourceOffset(value: string | null | undefined): number | null {
   if (!value) return null;
@@ -146,6 +148,14 @@ export function closestSourceRangeCarrier(
 
 export function closestMathSourceCarrier(element: Element | null): Element | null {
   return element?.closest(MATH_SOURCE_CARRIER_SELECTOR) ?? null;
+}
+
+export function markSourceRangeAtomic(element: HTMLElement): void {
+  element.dataset.sourceAtomic = "true";
+}
+
+export function isAtomicSourceRangeCarrier(element: Element): boolean {
+  return element.getAttribute(SOURCE_ATOMIC_ATTRIBUTE) === "true";
 }
 
 function sourcePositionValue(position: number | SourcePosition): number {
@@ -546,10 +556,16 @@ function resolveDomRangeEndpoint(
   let probe: Element | null =
     node.nodeType === Node.ELEMENT_NODE ? (node as Element) : node.parentElement;
   while (probe && probe !== el) {
+    if (isAtomicSourceRangeCarrier(probe)) {
+      return atEnd ? range.to : range.from;
+    }
     if (closestMathSourceCarrier(probe) === probe) {
       return atEnd ? range.to : range.from;
     }
     probe = probe.parentElement;
+  }
+  if (isAtomicSourceRangeCarrier(el)) {
+    return atEnd ? range.to : range.from;
   }
   if (closestMathSourceCarrier(el) === el) {
     return atEnd ? range.to : range.from;
@@ -600,6 +616,7 @@ function countTextCharsBefore(root: Element, target: Node): number {
 }
 
 export function sourceRangeAttrs({
+  sourceAtomic,
   sourceLine,
   sourceLineRange,
   sourceRange,
@@ -615,6 +632,9 @@ export function sourceRangeAttrs({
   }
   if (sourceRange) {
     attrs += ` data-source-from="${sourceRange.from}" data-source-to="${sourceRange.to}"`;
+  }
+  if (sourceAtomic) {
+    attrs += ' data-source-atomic="true"';
   }
   return attrs;
 }
@@ -682,15 +702,33 @@ export function applyReaderSourceDecorations(
 export function applySourceRangeAttrs(
   element: HTMLElement,
   {
+    sourceAtomic,
     sourceLine,
+    sourceLineRange,
     sourceRange,
   }: SourceRangeAttrsOptions,
 ): void {
-  if (sourceLine !== undefined && sourceLine !== null) {
-    element.dataset.sourceLine = String(sourceLine);
+  const lineFrom = sourceLineRange?.from ?? sourceLine;
+  const lineTo = sourceLineRange?.to ?? lineFrom;
+  if (lineFrom !== undefined && lineFrom !== null) {
+    element.dataset.sourceLine = String(lineFrom);
+    if (lineTo !== undefined && lineTo !== null && lineTo !== lineFrom) {
+      element.dataset.sourceLineTo = String(lineTo);
+    }
   }
   if (sourceRange) {
     element.dataset.sourceFrom = String(sourceRange.from);
     element.dataset.sourceTo = String(sourceRange.to);
   }
+  if (sourceAtomic) {
+    markSourceRangeAtomic(element);
+  }
+}
+
+export function clearSourceRangeAttrs(element: HTMLElement): void {
+  delete element.dataset.sourceLine;
+  delete element.dataset.sourceLineTo;
+  delete element.dataset.sourceFrom;
+  delete element.dataset.sourceTo;
+  delete element.dataset.sourceAtomic;
 }

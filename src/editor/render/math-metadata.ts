@@ -1,6 +1,10 @@
 import { type DecorationSet, type EditorView, ViewPlugin, type ViewUpdate } from "@codemirror/view";
 import { type Extension, type StateField } from "@codemirror/state";
 import { CSS } from "../../core/constants/css-classes";
+import {
+  applySourceRangeAttrs,
+  clearSourceRangeAttrs,
+} from "../../core/source-range-surface";
 import { rangesIntersect } from "../lib/range-helpers";
 import { MathWidget } from "./math-widget";
 import {
@@ -9,9 +13,8 @@ import {
   widgetSourceMap,
 } from "./source-widget";
 
-function clearSourceRangeAttrs(el: HTMLElement): void {
-  delete el.dataset.sourceFrom;
-  delete el.dataset.sourceTo;
+function clearRenderedMathMetadata(el: HTMLElement): void {
+  clearSourceRangeAttrs(el);
   delete el.dataset.activeFenceGuides;
   clearActiveFenceGuideClasses(el);
   widgetSourceMap.delete(el);
@@ -66,8 +69,7 @@ function syncRenderedMathWidgetMetadata(
   for (let i = 0; i < count; i++) {
     const el = mathRoots[i];
     const { widget, from, to } = widgets[i];
-    el.dataset.sourceFrom = String(from);
-    el.dataset.sourceTo = String(to);
+    applySourceRangeAttrs(el, { sourceRange: { from, to } });
     if (el.classList.contains(CSS.mathDisplay)) {
       el.dataset.activeFenceGuides = "true";
       syncActiveFenceGuideClasses(el, view, from, to);
@@ -80,7 +82,7 @@ function syncRenderedMathWidgetMetadata(
   }
 
   for (let i = count; i < mathRoots.length; i++) {
-    clearSourceRangeAttrs(mathRoots[i]);
+    clearRenderedMathMetadata(mathRoots[i]);
   }
 
   return count > 0;

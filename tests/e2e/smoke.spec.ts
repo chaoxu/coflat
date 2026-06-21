@@ -38,6 +38,14 @@ console.log(value);
 \`\`\`
 `;
 
+const RICH_DRAG_SELECTION_DOC = `# Selection Repro
+
+Order-picking and **crane scheduling** share [one continuous](https://example.com) operational paragraph with $x^2$ inline math and enough rendered words to make a real drag target in rich mode.
+The second visual source line continues the same paragraph so Coflat renders it as one paragraph-flow widget for the regression.
+
+Next paragraph stays outside the drag target.
+`;
+
 const IMAGE_CAPTION_PARITY_SOURCE = `# Media Caption
 
 ::: {.figure #fig:rich title="Caption with [doc](chapter.md), [@fig:rich], $x^2$, and \`code\`"}
@@ -340,6 +348,73 @@ async function clickLineOffset(page: Page, locator: Locator, offsetX: number): P
   await page.mouse.click(coordinates.x, coordinates.y);
 }
 
+async function dragBetweenText(
+  page: Page,
+  locator: Locator,
+  startText: string,
+  endText: string,
+): Promise<void> {
+  await dragBetweenTextTargets(page, locator, startText, locator, endText);
+}
+
+async function dragBetweenTextTargets(
+  page: Page,
+  startLocator: Locator,
+  startText: string,
+  endLocator: Locator,
+  endText: string,
+): Promise<void> {
+  const start = await textRect(startLocator, startText);
+  const end = await textRect(endLocator, endText);
+  await page.mouse.move(start.left + 2, start.top + start.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(end.left + end.width - 2, end.top + end.height / 2, { steps: 8 });
+  await page.mouse.up();
+  await settleLayout(page);
+}
+
+async function dragFromTextToElement(
+  page: Page,
+  startLocator: Locator,
+  startText: string,
+  endLocator: Locator,
+  endSide: "left" | "right" = "right",
+): Promise<void> {
+  const start = await textRect(startLocator, startText);
+  const end = await endLocator.boundingBox();
+  if (!end) throw new Error("end element has no bounding box");
+  const endX = endSide === "right" ? end.x + end.width - 1 : end.x + 1;
+  await page.mouse.move(start.left + 2, start.top + start.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(endX, end.y + end.height / 2, { steps: 8 });
+  await page.mouse.up();
+  await settleLayout(page);
+}
+
+async function editorSelectedText(page: Page): Promise<string> {
+  return page.evaluate(() => {
+    type EditorViewLike = {
+      readonly state: {
+        readonly selection: {
+          readonly main: {
+            readonly from: number;
+            readonly to: number;
+          };
+        };
+        sliceDoc(from: number, to: number): string;
+      };
+    };
+    const view = (
+      window as typeof window & {
+        __coflatEditorView?: EditorViewLike | null;
+      }
+    ).__coflatEditorView;
+    if (!view) return "";
+    const { from, to } = view.state.selection.main;
+    return view.state.sliceDoc(from, to);
+  });
+}
+
 interface WrapMetrics {
   readonly height: number;
   readonly lineHeight: number;
@@ -467,6 +542,75 @@ test("rich editor does not reveal heading source while pointer is down", async (
   expect(Math.abs(during.width - before.width)).toBeLessThanOrEqual(0.5);
 
   await page.mouse.up();
+});
+
+test("rich editor keeps mouse drag selection on rendered paragraph text", async ({ page }) => {
+  await page.goto("/tests/e2e/fixtures/index.html");
+  await setEditorDoc(page, RICH_DRAG_SELECTION_DOC, "rich");
+  await settleLayout(page);
+
+  const renderedParagraph = page.locator(".cf-paragraph-flow-widget .cf-doc-paragraph", {
+    hasText: "Order-picking and crane scheduling",
+  });
+  await expect(renderedParagraph).toBeVisible();
+
+  await dragBetweenText(
+    page,
+    renderedParagraph,
+    "Order-picking",
+    "paragraph-flow widget",
+  );
+  await expect.poll(() => editorSelectedText(page)).toContain("Order-picking and **crane scheduling**");
+  await expect.poll(() => editorSelectedText(page)).toContain("[one continuous](https://example.com)");
+  await expect.poll(() => editorSelectedText(page)).toContain("$x^2$");
+  await expect.poll(() => editorSelectedText(page)).toContain("paragraph-flow");
+
+  await setEditorDoc(page, RICH_DRAG_SELECTION_DOC, "source");
+  await settleLayout(page);
+  const sourceLine = page.locator(".cm-line", {
+    hasText: "Order-picking and **crane scheduling**",
+  });
+  await dragBetweenText(page, sourceLine, "Order-picking", "operational paragraph");
+  await expect.poll(() => editorSelectedText(page)).toContain("Order-picking and **crane scheduling**");
+});
+
+test("rich editor maps paragraph-flow drag endpoints on rendered math", async ({ page }) => {
+  await page.goto("/tests/e2e/fixtures/index.html");
+  await setEditorDoc(page, RICH_DRAG_SELECTION_DOC, "rich");
+  await settleLayout(page);
+  const renderedParagraphForMathDrag = page.locator(".cf-paragraph-flow-widget .cf-doc-paragraph", {
+    hasText: "Order-picking and crane scheduling",
+  });
+  const renderedMath = page.locator(".cf-paragraph-flow-widget .cf-doc-inline-math").first();
+  await expect(renderedMath).toBeVisible();
+  await dragFromTextToElement(
+    page,
+    renderedParagraphForMathDrag,
+    "Order-picking",
+    renderedMath,
+    "right",
+  );
+  await expect.poll(() => editorSelectedText(page)).toContain("$x^2$");
+});
+
+test("rich editor extends paragraph-flow drag selection into the next block", async ({ page }) => {
+  await page.goto("/tests/e2e/fixtures/index.html");
+  await setEditorDoc(page, RICH_DRAG_SELECTION_DOC, "rich");
+  await settleLayout(page);
+  const renderedParagraphForCrossBlockDrag = page.locator(".cf-paragraph-flow-widget .cf-doc-paragraph", {
+    hasText: "Order-picking and crane scheduling",
+  });
+  const nextParagraph = page.locator(".cm-line", {
+    hasText: "Next paragraph stays outside",
+  });
+  await dragBetweenTextTargets(
+    page,
+    renderedParagraphForCrossBlockDrag,
+    "Order-picking",
+    nextParagraph,
+    "outside",
+  );
+  await expect.poll(() => editorSelectedText(page)).toContain("Next paragraph stays outside");
 });
 
 test("rich editor rerenders a block header after clicking body text", async ({ page }) => {

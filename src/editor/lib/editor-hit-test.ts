@@ -180,31 +180,31 @@ export function domCaretHitTestPosition(
   point: EditorHitPoint,
   options: DomCaretOptions = {},
 ): EditorHitPosition | null {
-  const doc = view.dom.ownerDocument as Document & LegacyCaretRangeDocument;
+  const range = domCaretRangeAtPoint(view.dom.ownerDocument, point);
+  return range
+    ? posFromDomCaretNode(view, range.startContainer, range.startOffset, options)
+    : null;
+}
+
+export function domCaretRangeAtPoint(
+  ownerDocument: Document,
+  point: EditorHitPoint,
+): Range | null {
+  const doc = ownerDocument as Document & LegacyCaretRangeDocument;
 
   const caretPosition = doc.caretPositionFromPoint?.(point.x, point.y);
   if (caretPosition) {
-    const hit = posFromDomCaretNode(
-      view,
-      caretPosition.offsetNode,
-      caretPosition.offset,
-      options,
-    );
-    if (hit) return hit;
+    const range = doc.createRange();
+    range.setStart(caretPosition.offsetNode, caretPosition.offset);
+    range.collapse(true);
+    return range;
   }
 
   const caretRange = doc.caretRangeFromPoint?.(point.x, point.y);
-  if (caretRange) {
-    const hit = posFromDomCaretNode(
-      view,
-      caretRange.startContainer,
-      caretRange.startOffset,
-      options,
-    );
-    if (hit) return hit;
-  }
-
-  return null;
+  if (!caretRange) return null;
+  const range = caretRange.cloneRange();
+  range.collapse(true);
+  return range;
 }
 
 export function editorHitTestSnapshot(
