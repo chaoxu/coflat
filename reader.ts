@@ -27,6 +27,7 @@ export {
   hydrateBlockDisclosures,
   hydrateReaderDisclosures,
   hydrateMath,
+  createReaderCitationClusterPreviewBody,
   hydrateReaderHoverPreviews,
   hydrateReferences,
   type HydrateMathOptions,

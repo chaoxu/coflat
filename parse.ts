@@ -255,6 +255,56 @@ export function extractReferences(source: string): ExtractedReference[] {
   return out;
 }
 
+export type DocumentReferenceKind = "id" | "path";
+
+export interface ExtractedDocumentReference {
+  readonly kind: DocumentReferenceKind;
+  readonly ref: string;
+  readonly raw: string;
+  readonly from: number;
+  readonly to: number;
+  readonly line: number;
+}
+
+function isMarkdownPageHref(href: string): boolean {
+  const hash = href.indexOf("#");
+  const hrefPath = hash < 0 ? href : href.slice(0, hash);
+  return hrefPath.toLowerCase().endsWith(".md");
+}
+
+/**
+ * Extract document-indexable Coflat references in one parser-owned pass.
+ *
+ * Hosts still decide how ids and paths map to their own repository/index state;
+ * this helper owns syntax classification and source line attribution.
+ */
+export function extractDocumentReferences(source: string): ExtractedDocumentReference[] {
+  const lineOffsets = buildLineOffsets(source);
+  return extractReferences(source).flatMap((ref): ExtractedDocumentReference[] => {
+    if (ref.kind === "crossref" && ref.bracketed && ref.key) {
+      return [{
+        kind: "id",
+        ref: ref.key,
+        raw: `[@${ref.key}]`,
+        from: ref.from,
+        to: ref.to,
+        line: lineAt(lineOffsets, ref.from),
+      }];
+    }
+    if (ref.kind === "link" && ref.href && isMarkdownPageHref(ref.href)) {
+      return [{
+        kind: "path",
+        ref: ref.href,
+        raw: ref.raw,
+        from: ref.from,
+        to: ref.to,
+        line: lineAt(lineOffsets, ref.from),
+      }];
+    }
+    return [];
+  });
+}
+
 export type ReferenceCatalogTargetKind = DocumentReferenceTargetKind;
 
 export interface ReferenceCatalogTarget {

@@ -42,6 +42,12 @@ export interface LatexExportFlags {
   readonly template?: unknown;
 }
 
+export interface LatexExportDefaults {
+  readonly bibliography?: string;
+  readonly csl?: string;
+  readonly template?: string;
+}
+
 export interface ResolvedLatexExportOptions {
   readonly bibliography?: string;
   readonly csl: string;
@@ -63,6 +69,10 @@ export function resolveLatexExportOptions(options?: {
   readonly config?: FrontmatterConfig;
   readonly flags?: LatexExportFlags;
 }): ResolvedLatexExportOptions;
+export function latexConfigWithDefaults(
+  config?: FrontmatterConfig,
+  defaults?: LatexExportDefaults,
+): FrontmatterConfig;
 export function resolveLatexTemplatePath(
   template: string | undefined,
   options: {

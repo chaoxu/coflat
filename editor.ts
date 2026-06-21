@@ -31,11 +31,12 @@ import {
   type Command,
 } from "./src/editor/command-registry";
 import type { DocumentContext } from "./src/core/document-context-types";
+import type { FileSystem } from "./src/core/lib/file-system-types";
 import {
   documentContextExtension,
   setDocumentContext,
 } from "./src/editor/document-context";
-import { documentPathFacet } from "./src/editor/lib/types";
+import { documentPathFacet, fileSystemFacet } from "./src/editor/lib/types";
 import { createSaveController, saveExtension } from "./src/editor/save-handler";
 import {
   assetUploaderExtension,
@@ -59,6 +60,8 @@ export interface MountEditorOptions {
   sidenotesCollapsed?: boolean;
   /** Host context for links, references, citations, file I/O, and math. */
   context?: DocumentContext;
+  /** Host-backed file system for local media previews and repository assets. */
+  fileSystem?: FileSystem;
   /** Host commands; ids matching built-ins override the library command. */
   commands?: readonly Command[];
   /** Called for direct user edits only. */
@@ -187,6 +190,7 @@ export function mountEditor(options: MountEditorOptions): MountedEditor {
           ]
         : []),
       ...(options.from ? [documentPathFacet.of(options.from)] : []),
+      ...(options.fileSystem ? [fileSystemFacet.of(options.fileSystem)] : []),
       ...(options.sidenotesCollapsed === undefined
         ? []
         : [sidenotesCollapsedField.init(() => options.sidenotesCollapsed ?? false)]),
