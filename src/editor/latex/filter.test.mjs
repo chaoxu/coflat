@@ -66,6 +66,17 @@ describe("LaTeX filter custom blocks", () => {
 });
 
 describe("LaTeX filter inline mappings", () => {
+  it.skipIf(!hasPandoc)("keeps author macro calls unexpanded in LaTeX output", () => {
+    const latex = runPandoc([
+      "\\newcommand{\\set}[1]{\\left\\{#1\\right\\}}",
+      "",
+      "Body $\\set{1,2}$.",
+    ].join("\n"));
+
+    expect(latex).toContain("\\(\\set{1,2}\\)");
+    expect(latex).not.toContain("\\(\\left\\{1,2\\right\\}\\)");
+  });
+
   it.skipIf(!hasPandoc)("does not require newer Pandoc mark syntax support", () => {
     const latex = runPandoc("A ==highlighted **term**==.\n");
 
