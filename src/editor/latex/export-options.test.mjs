@@ -243,10 +243,10 @@ describe("buildLatexPandocArgs", () => {
 
 describe("shared export contract", () => {
   it("owns LaTeX, PDF, and HTML Pandoc profiles", () => {
-    expect(LATEX_PANDOC_FROM).toBe(EXPORT_CONTRACT.pandoc_from);
+    expect(LATEX_PANDOC_FROM).toBe(`${EXPORT_CONTRACT.pandoc_from}-latex_macros`);
     expect(LATEX_CSL_NAMES).toContain("ieee");
     expect(EXPORT_CONTRACT.latex.args).toEqual([
-      "--from={pandoc_from}",
+      "--from={pandoc_from}-latex_macros",
       "--to=latex",
       "--wrap=preserve",
       "--no-highlight",
@@ -273,7 +273,7 @@ describe("shared export contract", () => {
         resourcePath: "/project/notes:/project",
       }),
     ).toEqual([
-      `--from=${LATEX_PANDOC_FROM}`,
+      `--from=${EXPORT_CONTRACT.pandoc_from}`,
       "--to=html5",
       "--standalone",
       "--wrap=preserve",

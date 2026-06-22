@@ -4,7 +4,15 @@ import exportContract from "./export-contract.json" with { type: "json" };
 import { isFrontmatterDelimiterLine } from "../lib/frontmatter-delimiter.js";
 
 export const EXPORT_CONTRACT = exportContract;
-export const LATEX_PANDOC_FROM = exportContract.pandoc_from;
+// LaTeX export disables pandoc's `latex_macros` extension (on by default for
+// the markdown reader). With it on, pandoc expands every author macro inline in
+// the body (`\set{1,2}` -> `\left\{1,2\right\}`) while still emitting the
+// `\newcommand` into the preamble — redundant, and harder to read or edit. With
+// it off, the body keeps `\macro{}` calls verbatim and the preamble
+// `\newcommand`s (from `renderMathMacros`) do the expansion at compile time, the
+// way a hand-written LaTeX paper would. The HTML path keeps `latex_macros` on so
+// KaTeX receives fully expanded math. Must match the contract's LaTeX `--from`.
+export const LATEX_PANDOC_FROM = `${exportContract.pandoc_from}-latex_macros`;
 
 export const LATEX_TEMPLATE_NAMES = new Set(
   Object.keys(exportContract.latex.templates.builtins),
