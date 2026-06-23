@@ -98,4 +98,17 @@ describe("mountEditor document change callbacks", () => {
     expect(changes[1].getDoc()).toBe("abc");
     expect(editor.getDoc()).toBe("abc");
   });
+
+  it("does not materialize the live document when setDoc receives an obviously different value", () => {
+    const { editor, view } = mountWithCapturedView({
+      doc: "alpha",
+    });
+    view().dispatch({ changes: { from: 5, insert: " beta" } });
+    const toStringSpy = vi.spyOn(view().state.doc, "toString");
+
+    editor.setDoc("short");
+
+    expect(toStringSpy).not.toHaveBeenCalled();
+    expect(editor.getDoc()).toBe("short");
+  });
 });

@@ -373,11 +373,16 @@ export function mountEditor(options: MountEditorOptions): MountedEditor {
     },
 
     setDoc(doc) {
-      currentDoc = doc;
-      if (!view || doc === view.state.doc.toString()) {
+      if (!view || currentDoc === doc) {
+        currentDoc = doc;
+        return;
+      }
+      if (doc.length === view.state.doc.length && doc === view.state.doc.toString()) {
+        currentDoc = doc;
         return;
       }
 
+      currentDoc = doc;
       view.dispatch({
         changes: {
           from: 0,

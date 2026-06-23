@@ -18,7 +18,6 @@ import {
 } from "./media-preview";
 import {
   referencePreviewBodyPlan,
-  blockPreviewBodyInputFromFencedDiv,
   type ReferencePreviewBodyPlan,
   referencePreviewContentPlan,
   referencePreviewSurfacePlan,
@@ -82,18 +81,17 @@ function blockPreviewBodyInput(
   block: NumberedBlock,
   useFullSource: boolean,
 ) {
-  const source = view.state.doc.toString();
+  const doc = view.state.doc;
   const div = view.state.field(documentAnalysisField).fencedDivByFrom.get(block.from);
-  return blockPreviewBodyInputFromFencedDiv(source, {
-    fullRange: { from: block.from, to: block.to },
-    ...(div ? {
-      openFenceTo: div.openFenceTo,
-      closeFenceFrom: div.closeFenceFrom,
-    } : {
-      bodyRange: { from: block.from, to: block.to },
-    }),
+  const bodyRange = div
+    ? { from: div.openFenceTo, to: div.closeFenceFrom >= 0 ? div.closeFenceFrom : block.to }
+    : { from: block.from, to: block.to };
+  return {
+    kind: "block" as const,
+    fullSource: useFullSource ? doc.sliceString(block.from, block.to) : "",
+    bodySource: doc.sliceString(bodyRange.from, bodyRange.to),
     useFullSource,
-  });
+  };
 }
 
 function createCrossrefPreviewContainer(
