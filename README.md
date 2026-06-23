@@ -114,8 +114,24 @@ pnpm install
 pnpm build
 ```
 
-The npm package is not published yet. Until it is, consume it from a workspace
-or sibling checkout:
+Internal fleet packages are published to the Gitea npm registry:
+
+```ini
+@chaoxu:registry=http://packages.lab/api/packages/chaoxu/npm/
+```
+
+Publish a new version from a clean checkout on `jupiter`:
+
+```sh
+pnpm publish:gitea
+```
+
+The publish command creates a temporary package-scoped Gitea token on `jupiter`
+and removes it after `npm publish` exits. From another host, set
+`GITEA_NPM_TOKEN` to a token with `write:package`.
+
+For unpublished local changes, consume Coflat from a workspace or sibling
+checkout:
 
 ```json
 {

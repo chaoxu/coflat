@@ -92,6 +92,7 @@
     "test:watch": "vitest",
     "lint": "biome lint . && node scripts/check-layer-boundary.mjs",
     "lint:layers": "node scripts/check-layer-boundary.mjs",
+    "publish:gitea": "node scripts/publish-gitea.mjs",
     "prepack": "pnpm build && pnpm publint",
     "test:e2e": "env -u NO_COLOR -u FORCE_COLOR playwright test tests/e2e/smoke.spec.ts",
     "test:e2e:corpus": "node scripts/run-corpus-parity.mjs",
