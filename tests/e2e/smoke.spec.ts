@@ -88,6 +88,36 @@ $$
 > $$
 `;
 
+const ARTICLE_FRONTMATTER_PARITY_SOURCE = `---
+title: 'Article Metadata $\\R$'
+subtitle: Quarto-shaped frontmatter
+description: |
+  Short presentation summary that should stay out of the title shell.
+abstract: |
+  A richer article abstract with math $x^2$.
+date: 2026-06-20
+date-format: long
+doi: 10.5555/coflat.1
+author:
+  - name: First Author
+    affiliation:
+      - ref: lab
+affiliations:
+  - id: lab
+    name: Coflat Lab
+citation: true
+google-scholar: true
+keywords:
+  - math writing
+math:
+  \\R: "\\\\mathbb{R}"
+---
+
+# Body
+
+The title presentation should remain reader/editor aligned.
+`;
+
 async function setEditorDoc(page: Page, doc: string, mode: "rich" | "source" = "rich") {
   await page.evaluate(({ doc, mode }) => {
     const editor = (window as unknown as {
@@ -2149,6 +2179,23 @@ test("reader and CM6 rich editor share tall inline image metrics", async ({ page
     reader: "#reader-root .cf-doc-paragraph",
     editor: "#editor-root .cm-line.cf-doc-paragraph",
   });
+});
+
+test("article metadata frontmatter keeps current title presentation aligned", async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 1200 });
+  await loadParityPairSurface(page, "default", ARTICLE_FRONTMATTER_PARITY_SOURCE);
+
+  for (const selector of ["#reader-root .cf-doc-title", "#editor-root .cf-doc-title"]) {
+    const title = page.locator(selector);
+    await expect(title).toHaveCount(1);
+    await expect(title).toContainText("Article Metadata");
+    await expect(title).not.toContainText("Quarto-shaped frontmatter");
+    await expect(title.locator(".katex")).toBeVisible();
+  }
+
+  await expect(page.locator("#reader-root")).not.toContainText("Short presentation summary");
+  await expect(page.locator("#editor-root")).not.toContainText("Short presentation summary");
+  await expectLoadedSplitContentPixelsMatch(page, "article metadata frontmatter");
 });
 
 test("public showcase keeps reader and CM6 rich editor block geometry aligned", async ({ page }) => {

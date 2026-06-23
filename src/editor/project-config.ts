@@ -10,8 +10,11 @@ import type { FileSystem } from "../core/lib/file-system-types";
 import type { FrontmatterConfig } from "../core/parser/frontmatter";
 import { parseFrontmatter } from "../core/parser/frontmatter";
 
-/** Project-level configuration. Derived from FrontmatterConfig, minus title (always per-file). */
-export type ProjectConfig = Omit<FrontmatterConfig, "title">;
+/** Project-level configuration. Article identity metadata is always per-file. */
+export type ProjectConfig = Pick<
+  FrontmatterConfig,
+  "bibliography" | "blocks" | "csl" | "imageFolder" | "latex" | "math" | "numbering"
+>;
 
 /** Well-known project config file name. */
 export const PROJECT_CONFIG_FILE = "coflat.yaml";
@@ -76,8 +79,6 @@ export function parseProjectConfigWithStatus(yaml: string): ProjectConfigLoadRes
   const wrapped = `---\n${yaml}\n---\n`;
   const { config, status } = parseFrontmatter(wrapped);
 
-  // ProjectConfig excludes title (title is always per-file)
-  const { title: _title, ...projectConfig } = config;
   if (status.state === "error") {
     return {
       config: {},
@@ -90,9 +91,21 @@ export function parseProjectConfigWithStatus(yaml: string): ProjectConfigLoadRes
     };
   }
   return {
-    config: projectConfig,
+    config: projectConfigFromFrontmatter(config),
     status: { state: "ok", path: PROJECT_CONFIG_FILE },
   };
+}
+
+function projectConfigFromFrontmatter(config: FrontmatterConfig): ProjectConfig {
+  const projectConfig: ProjectConfig = {};
+  if (config.bibliography !== undefined) projectConfig.bibliography = config.bibliography;
+  if (config.blocks !== undefined) projectConfig.blocks = config.blocks;
+  if (config.csl !== undefined) projectConfig.csl = config.csl;
+  if (config.imageFolder !== undefined) projectConfig.imageFolder = config.imageFolder;
+  if (config.latex !== undefined) projectConfig.latex = config.latex;
+  if (config.math !== undefined) projectConfig.math = config.math;
+  if (config.numbering !== undefined) projectConfig.numbering = config.numbering;
+  return projectConfig;
 }
 
 /**
@@ -148,17 +161,18 @@ export function mergeConfigs(
   file: FrontmatterConfig,
 ): FrontmatterConfig {
   const merged: FrontmatterConfig = {};
+  const projectByKey: Partial<FrontmatterConfig> = project;
 
   if (file.title !== undefined) merged.title = file.title;
 
-  const allKeys = new Set([
+  const allKeys = new Set<keyof FrontmatterConfig>([
     ...Object.keys(project) as (keyof ProjectConfig)[],
-    ...Object.keys(file).filter((key) => key !== "title") as (keyof ProjectConfig)[],
+    ...Object.keys(file).filter((key) => key !== "title") as (keyof FrontmatterConfig)[],
   ]);
 
   for (const key of allKeys) {
     if (ADDITIVE_KEYS.has(key)) {
-      const projectValue = project[key] as Record<string, unknown> | undefined;
+      const projectValue = projectByKey[key] as Record<string, unknown> | undefined;
       const fileValue = file[key] as Record<string, unknown> | undefined;
       if (projectValue || fileValue) {
         (merged as Record<string, unknown>)[key] = { ...projectValue, ...fileValue };
@@ -166,7 +180,7 @@ export function mergeConfigs(
       continue;
     }
 
-    const value = file[key] ?? project[key];
+    const value = file[key] ?? projectByKey[key];
     if (value !== undefined) {
       (merged as Record<string, unknown>)[key] = value;
     }
