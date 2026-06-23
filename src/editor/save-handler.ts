@@ -14,7 +14,7 @@
  * {@code onSaveFailed} fire in a single place.
  */
 
-import { Prec } from "@codemirror/state";
+import { Prec, type Text } from "@codemirror/state";
 import { EditorView, keymap, ViewPlugin } from "@codemirror/view";
 
 import {
@@ -32,7 +32,7 @@ interface SaveControllerInternal {
 }
 
 interface PerViewState {
-  lastSavedSource: string;
+  lastSavedDoc: Text;
   dirty: boolean;
   autosaveTimer: ReturnType<typeof setTimeout> | null;
   pendingDispatch: Promise<void> | null;
@@ -44,7 +44,7 @@ function getState(view: EditorView): PerViewState {
   let s = stateByView.get(view);
   if (!s) {
     s = {
-      lastSavedSource: view.state.doc.toString(),
+      lastSavedDoc: view.state.doc,
       dirty: false,
       autosaveTimer: null,
       pendingDispatch: null,
@@ -68,10 +68,7 @@ function setDirty(view: EditorView, s: PerViewState, dirty: boolean): void {
 }
 
 function liveDocEqualsLastSaved(view: EditorView, s: PerViewState): boolean {
-  return (
-    view.state.doc.length === s.lastSavedSource.length &&
-    view.state.doc.toString() === s.lastSavedSource
-  );
+  return view.state.doc.eq(s.lastSavedDoc);
 }
 
 function dirtyAfterDocumentChange(
@@ -79,7 +76,7 @@ function dirtyAfterDocumentChange(
   s: PerViewState,
   exactRevertDetection: boolean,
 ): boolean {
-  if (view.state.doc.length !== s.lastSavedSource.length) return true;
+  if (view.state.doc.length !== s.lastSavedDoc.length) return true;
   return exactRevertDetection ? !liveDocEqualsLastSaved(view, s) : true;
 }
 
@@ -88,18 +85,19 @@ async function dispatchSave(view: EditorView, reason: SaveReason): Promise<void>
   if (!handler) return;
   const s = getState(view);
   // Serialize concurrent saves; keymap + autosave + triggerSave share this.
-  if (s.pendingDispatch) {
+  while (s.pendingDispatch) {
     await s.pendingDispatch;
   }
-  const source = view.state.doc.toString();
+  const savedDoc = view.state.doc;
+  const source = savedDoc.toString();
   const run = (async () => {
     clearAutosave(s);
     emitStatusEvent(view, "onSaveStart");
     try {
       const result = await handler.save({ source, reason });
       if (result.ok) {
-        s.lastSavedSource = source;
-        setDirty(view, s, source !== view.state.doc.toString());
+        s.lastSavedDoc = savedDoc;
+        setDirty(view, s, !view.state.doc.eq(savedDoc));
         emitStatusEvent(view, "onSaveSucceeded");
       } else {
         emitStatusEvent(view, "onSaveFailed", { error: result.error });

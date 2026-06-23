@@ -7,9 +7,12 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { EditorState, Text } from "@codemirror/state";
+import { EditorView } from "@codemirror/view";
 
 import { mountEditor, type MountedEditor } from "../../editor";
-import type { SaveHandler, StatusEvents } from "./editor-host-api";
+import { saveHandlerFacet, statusEventsFacet, type SaveHandler, type StatusEvents } from "./editor-host-api";
+import { saveExtension } from "./save-handler";
 
 interface Harness {
   editor: MountedEditor;
@@ -132,6 +135,41 @@ describe("SaveHandler dirty tracking", () => {
     typeAt(h.editor, "hello"); // back to original
     expect(h.events.onDirtyChange).toHaveBeenLastCalledWith(false);
     expect(h.editor.isSaved()).toBe(true);
+  });
+
+  it("does not materialize the full document for same-length dirty checks", () => {
+    const parent = document.createElement("div");
+    document.body.appendChild(parent);
+    const onDirtyChange = vi.fn();
+    const saveHandler: SaveHandler = {
+      save: async () => ({ ok: true as const }),
+    };
+    const view = new EditorView({
+      parent,
+      state: EditorState.create({
+        doc: "hello",
+        extensions: [
+          statusEventsFacet.of({ onDirtyChange }),
+          saveHandlerFacet.of(saveHandler),
+          saveExtension(),
+        ],
+      }),
+    });
+    cleanups.push(() => {
+      view.destroy();
+      parent.remove();
+    });
+    const toStringSpy = vi.spyOn(Text.prototype, "toString");
+    toStringSpy.mockClear();
+
+    try {
+      view.dispatch({ changes: { from: 0, to: 1, insert: "j" } });
+
+      expect(toStringSpy).not.toHaveBeenCalled();
+      expect(onDirtyChange).toHaveBeenCalledWith(true);
+    } finally {
+      toStringSpy.mockRestore();
+    }
   });
 });
 
