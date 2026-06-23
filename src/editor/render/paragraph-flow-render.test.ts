@@ -117,6 +117,44 @@ describe("paragraph flow render", () => {
     expect(math?.dataset.sourceAtomic).toBe("true");
   });
 
+  it("updates paragraph-flow widgets when the cursor moves between paragraphs", () => {
+    const first = "first source line\nsecond source line";
+    const second = "third source line\nfourth source line";
+    const doc = `${first}\n\n${second}`;
+    const target = createParagraphFlowView(doc, doc.length);
+
+    expect(paragraphFlowSpecs(target)).toEqual([
+      expect.objectContaining({ from: 0, to: first.length }),
+    ]);
+
+    target.dispatch({ selection: { anchor: doc.indexOf("second") } });
+    expect(paragraphFlowSpecs(target)).toEqual([
+      expect.objectContaining({
+        from: first.length + 2,
+        to: doc.length,
+      }),
+    ]);
+
+    target.dispatch({ selection: { anchor: doc.length } });
+    expect(paragraphFlowSpecs(target)).toEqual([
+      expect.objectContaining({ from: 0, to: first.length }),
+    ]);
+  });
+
+  it("exposes paragraph-flow replacements as atomic ranges", () => {
+    const doc = "first source line\nsecond source line\n\nnext";
+    const target = createParagraphFlowView(doc, doc.length);
+    let atomicRangeCount = 0;
+
+    for (const provider of target.state.facet(EditorView.atomicRanges)) {
+      provider(target).between(0, doc.length, () => {
+        atomicRangeCount++;
+      });
+    }
+
+    expect(atomicRangeCount).toBeGreaterThan(0);
+  });
+
   it("renders reference-bearing paragraphs with full-document reference labels", () => {
     const doc = [
       "::: {.theorem #thm:main}",

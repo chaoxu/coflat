@@ -76,49 +76,59 @@ export {
 } from "./compartments";
 
 /** Standard code-language descriptions for fenced code blocks. */
+const loadJavaScriptLanguage = () => import("@codemirror/lang-javascript");
+const loadPythonLanguage = () => import("@codemirror/lang-python");
+const loadHtmlLanguage = () => import("@codemirror/lang-html");
+const loadCssLanguage = () => import("@codemirror/lang-css");
+const loadJsonLanguage = () => import("@codemirror/lang-json");
+const loadJavaLanguage = () => import("@codemirror/lang-java");
+const loadCppLanguage = () => import("@codemirror/lang-cpp");
+const loadRustLanguage = () => import("@codemirror/lang-rust");
+
 const codeLanguageDescriptions: LanguageDescription[] = [
   LanguageDescription.of({
     name: "javascript",
     alias: ["js", "jsx"],
-    load: async () => (await import("@codemirror/lang-javascript")).javascript({ jsx: true }),
+    load: async () => (await loadJavaScriptLanguage()).javascript({ jsx: true }),
   }),
   LanguageDescription.of({
     name: "typescript",
     alias: ["ts", "tsx"],
-    load: async () => (await import("@codemirror/lang-javascript")).javascript({ jsx: true, typescript: true }),
+    load: async () =>
+      (await loadJavaScriptLanguage()).javascript({ jsx: true, typescript: true }),
   }),
   LanguageDescription.of({
     name: "python",
     alias: ["py"],
-    load: async () => (await import("@codemirror/lang-python")).python(),
+    load: async () => (await loadPythonLanguage()).python(),
   }),
   LanguageDescription.of({
     name: "html",
     alias: ["htm"],
-    load: async () => (await import("@codemirror/lang-html")).html(),
+    load: async () => (await loadHtmlLanguage()).html(),
   }),
   LanguageDescription.of({
     name: "css",
     alias: ["scss", "less"],
-    load: async () => (await import("@codemirror/lang-css")).css(),
+    load: async () => (await loadCssLanguage()).css(),
   }),
   LanguageDescription.of({
     name: "json",
-    load: async () => (await import("@codemirror/lang-json")).json(),
+    load: async () => (await loadJsonLanguage()).json(),
   }),
   LanguageDescription.of({
     name: "java",
-    load: async () => (await import("@codemirror/lang-java")).java(),
+    load: async () => (await loadJavaLanguage()).java(),
   }),
   LanguageDescription.of({
     name: "cpp",
     alias: ["c", "c++", "cc", "cxx", "h"],
-    load: async () => (await import("@codemirror/lang-cpp")).cpp(),
+    load: async () => (await loadCppLanguage()).cpp(),
   }),
   LanguageDescription.of({
     name: "rust",
     alias: ["rs"],
-    load: async () => (await import("@codemirror/lang-rust")).rust(),
+    load: async () => (await loadRustLanguage()).rust(),
   }),
 ];
 

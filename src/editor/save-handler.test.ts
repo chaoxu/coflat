@@ -82,6 +82,26 @@ afterEach(() => {
 });
 
 describe("SaveHandler dirty tracking", () => {
+  it("fires onDirtyChange without requiring a save handler", () => {
+    const parent = document.createElement("div");
+    document.body.appendChild(parent);
+    const onDirtyChange = vi.fn();
+    const editor = mountEditor({
+      parent,
+      doc: "hello",
+      statusEvents: { onDirtyChange },
+    });
+    cleanups.push(() => {
+      editor.unmount();
+      parent.remove();
+    });
+
+    typeAt(editor, "hello world");
+
+    expect(onDirtyChange).toHaveBeenCalledWith(true);
+    expect(editor.isSaved()).toBe(false);
+  });
+
   it("fires onDirtyChange(true) exactly once across multiple changes", () => {
     const h = makeHarness();
     cleanups.push(() => {

@@ -1,5 +1,5 @@
 import type { ChangeSet, Extension } from "@codemirror/state";
-import { EditorView } from "@codemirror/view";
+import { EditorView, type ViewUpdate } from "@codemirror/view";
 
 import {
   createEditor,
@@ -50,7 +50,7 @@ import {
 } from "./src/editor/document-context";
 import { documentPathFacet, fileSystemFacet } from "./src/editor/lib/types";
 import { bibDataEffect, type BibData } from "./src/editor/state/bib-data";
-import { createSaveController, saveExtension } from "./src/editor/save-handler";
+import { createSaveController, dirtyStateExtension, saveExtension } from "./src/editor/save-handler";
 import {
   assetUploaderExtension,
   type AssetUploader,
@@ -59,6 +59,15 @@ import { autocompleteSourceExtension } from "./src/editor/autocomplete-source-co
 import { sidenotesCollapsedField } from "./src/editor/render";
 
 export type StandaloneEditorMode = "rich" | "rich-readonly" | "source";
+
+export interface MountedDocumentChange {
+  /** CodeMirror change set for hosts that can update incrementally. */
+  readonly changes: ChangeSet;
+  /** The original CodeMirror update for hosts that need transaction metadata. */
+  readonly update: ViewUpdate;
+  /** Materializes the full document only when the host explicitly needs it. */
+  readonly getDoc: () => string;
+}
 
 export interface MountEditorOptions {
   /** DOM element that receives the mounted editor. */
@@ -138,10 +147,6 @@ export interface MountEditorOptions {
    * loaded from.
    */
   from?: string;
-}
-
-export interface MountedDocumentChange {
-  changes: ChangeSet;
 }
 
 export interface EditorSourcePosition {
@@ -260,7 +265,7 @@ export function mountEditor(options: MountEditorOptions): MountedEditor {
   const initialDoc = options.doc ?? "";
   const initialMode = options.mode ?? "rich";
   const initialSidenotesCollapsed = options.sidenotesCollapsed ?? initialMode === "rich-readonly";
-  let currentDoc = initialDoc;
+  let currentDoc: string | null = initialDoc;
   let currentMode: StandaloneEditorMode = "rich";
   let suppressModeCallback = false;
   const panelApi = createPerFilePanelApi();
@@ -269,14 +274,28 @@ export function mountEditor(options: MountEditorOptions): MountedEditor {
 
   const updateListener = EditorView.updateListener.of((update) => {
     if (update.docChanged) {
-      const nextDoc = update.state.doc.toString();
-      currentDoc = nextDoc;
+      currentDoc = null;
       const programmaticDocChange = update.transactions.some((tr) =>
         tr.annotation(programmaticDocumentChangeAnnotation),
       );
-      if (!programmaticDocChange) {
+      let nextDoc: string | null = null;
+      if (!programmaticDocChange && options.onChange) {
+        nextDoc = update.state.doc.toString();
+        currentDoc = nextDoc;
         options.onChange?.(nextDoc);
-        options.onDocumentChange?.({ changes: update.changes });
+      }
+      if (!programmaticDocChange && options.onDocumentChange) {
+        let updateDoc = nextDoc;
+        options.onDocumentChange({
+          changes: update.changes,
+          update,
+          getDoc: () => {
+            if (updateDoc === null) {
+              updateDoc = update.state.doc.toString();
+            }
+            return updateDoc;
+          },
+        });
       }
     }
 
@@ -308,7 +327,11 @@ export function mountEditor(options: MountEditorOptions): MountedEditor {
       ...(options.saveHandler
         ? [saveHandlerFacet.of(options.saveHandler)]
         : []),
-      saveExtension(),
+      ...(options.saveHandler
+        ? [saveExtension()]
+        : options.statusEvents?.onDirtyChange
+          ? [dirtyStateExtension()]
+          : []),
       ...(options.assetUploader
         ? [assetUploaderExtension(options.assetUploader)]
         : []),
@@ -343,6 +366,9 @@ export function mountEditor(options: MountEditorOptions): MountedEditor {
 
   return {
     getDoc() {
+      if (currentDoc === null) {
+        currentDoc = view?.state.doc.toString() ?? "";
+      }
       return currentDoc;
     },
 

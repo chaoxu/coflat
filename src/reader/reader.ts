@@ -271,6 +271,10 @@ export {
 } from "../core/theme-manifest";
 export type { CoflatThemeManifest, CoflatThemeTarget } from "../core/theme-manifest";
 import { noteLezerInvocation } from "./reader-internal";
+import {
+  orderElementsVisibleFirst,
+  scheduleHydrationYield,
+} from "./hydration-scheduler";
 
 export type {
   DocumentContext,
@@ -2891,6 +2895,40 @@ export interface HydrateMathOptions {
   mathMacros?: Record<string, string>;
 }
 
+interface KatexRenderer {
+  renderToString: typeof import("katex").renderToString;
+}
+
+function hydrateMathElement(
+  el: HTMLElement,
+  katex: KatexRenderer,
+  macros: Record<string, string> | undefined,
+): void {
+  if (el.getAttribute("data-math-hydrated") === "true") return;
+  const latex = el.getAttribute("data-math");
+  if (latex === null) return;
+
+  const isDisplay = el.classList.contains(DOCUMENT_SURFACE_CLASS.displayMath);
+  const html = katex.renderToString(latex, {
+    ...buildKatexOptions(isDisplay, macros),
+    output: isDisplay ? "htmlAndMathml" : "html",
+  });
+  if (html.includes("katex-error")) {
+    el.classList.add(CSS.mathError);
+    el.setAttribute("data-math-error", "KaTeX error");
+  }
+
+  if (isDisplay) {
+    const content = document.createElement("div");
+    content.innerHTML = html;
+    const equationNumber = el.dataset.equationNumber;
+    replaceDisplayMathContent(el, content, equationNumber);
+  } else {
+    el.innerHTML = html;
+  }
+  el.setAttribute("data-math-hydrated", "true");
+}
+
 /**
  * Lazily hydrate `[data-math]` placeholders inside `root` with KaTeX-rendered
  * HTML.
@@ -2930,31 +2968,19 @@ export async function hydrateMath(
   const katexModule = await import("katex");
   const katex = katexModule.default ?? katexModule;
   const macros = opts?.mathMacros;
+  const orderedPlaceholders = orderElementsVisibleFirst(Array.from(placeholders));
+  const chunkBudgetMs = 8;
 
-  for (const el of Array.from(placeholders)) {
-    if (el.getAttribute("data-math-hydrated") === "true") continue;
-    const latex = el.getAttribute("data-math");
-    if (latex === null) continue;
-
-    const isDisplay = el.classList.contains(DOCUMENT_SURFACE_CLASS.displayMath);
-    let html: string;
-    html = katex.renderToString(latex, {
-      ...buildKatexOptions(isDisplay, macros),
-      output: isDisplay ? "htmlAndMathml" : "html",
-    });
-    if (html.includes("katex-error")) {
-      el.classList.add(CSS.mathError);
-      el.setAttribute("data-math-error", "KaTeX error");
+  let chunkStartedAt = performance.now();
+  for (let index = 0; index < orderedPlaceholders.length; index += 1) {
+    hydrateMathElement(orderedPlaceholders[index], katex, macros);
+    if (
+      index < orderedPlaceholders.length - 1 &&
+      orderedPlaceholders.length > 32 &&
+      performance.now() - chunkStartedAt >= chunkBudgetMs
+    ) {
+      await scheduleHydrationYield();
+      chunkStartedAt = performance.now();
     }
-
-    if (isDisplay) {
-      const content = document.createElement("div");
-      content.innerHTML = html;
-      const equationNumber = el.dataset.equationNumber;
-      replaceDisplayMathContent(el, content, equationNumber);
-    } else {
-      el.innerHTML = html;
-    }
-    el.setAttribute("data-math-hydrated", "true");
   }
 }

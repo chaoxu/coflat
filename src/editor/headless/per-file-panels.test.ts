@@ -89,6 +89,18 @@ describe("mounted editor outline", () => {
     ]);
   });
 
+  it("can emit the current outline to late subscribers", () => {
+    const editor = mount("# Alpha\n\nbody");
+    const values: string[][] = [];
+
+    const unsubscribe = editor.outline.subscribe((outline) => {
+      values.push(outline.map((entry) => entry.text));
+    }, { emitCurrent: true });
+    cleanups.push(unsubscribe);
+
+    expect(values).toEqual([["Alpha"]]);
+  });
+
   it("can mount with collapsed sidenotes and shared footnote section chrome", () => {
     const parent = document.body.appendChild(document.createElement("div"));
     const editor = mountEditor({

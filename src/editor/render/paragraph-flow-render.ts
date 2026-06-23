@@ -1,4 +1,4 @@
-import { syntaxTree, syntaxTreeAvailable } from "@codemirror/language";
+import { syntaxTree } from "@codemirror/language";
 import {
   type EditorState,
   type Extension,
@@ -18,19 +18,23 @@ import {
   DOCUMENT_SURFACE_CLASS,
   documentSurfaceClassNames,
 } from "../../core/document-surface-classes";
-import {
-  parseFrontmatter,
-} from "../../core/parser";
+import type { FrontmatterConfig } from "../state/frontmatter-state";
+import { frontmatterField } from "../state/frontmatter-state";
 import { mathMacrosField } from "../state/math-macros";
 import { buildDecorations } from "./decoration-core";
-import { cursorSensitiveShouldRebuild } from "./decoration-field";
+import {
+  createDecorationStateField,
+  cursorSensitiveShouldRebuild,
+} from "./decoration-field";
 import {
   editorFocusField,
   focusTracker,
 } from "./focus-state";
-import { buildPreviewBlockOptions } from "./hover-preview-block-options";
+import {
+  buildPreviewBlockOptions,
+  getPreviewRenderDependencySignature,
+} from "./hover-preview-block-options";
 import { renderPreviewBlockContentToDom } from "./preview-block-renderer";
-import { getReferenceRenderDependencySignature } from "./reference-render";
 import { RenderWidget } from "./source-widget";
 import {
   selectionIntersectsRange,
@@ -158,7 +162,8 @@ class ParagraphFlowWidget extends RenderWidget {
 
   constructor(
     private readonly source: string,
-    private readonly fullDocumentSource: string,
+    private readonly config: FrontmatterConfig,
+    private readonly renderKey: string,
   ) {
     super();
   }
@@ -169,13 +174,12 @@ class ParagraphFlowWidget extends RenderWidget {
       DOCUMENT_SURFACE_CLASS.flow,
       PARAGRAPH_FLOW_WIDGET_CLASS,
     );
-    const config = parseFrontmatter(this.fullDocumentSource).config;
     const options = view
       ? buildPreviewBlockOptions(
         view,
-        view.state.field(mathMacrosField, false) ?? config.math ?? {},
+        view.state.field(mathMacrosField, false) ?? this.config.math ?? {},
       )
-      : { config };
+      : { config: this.config };
     renderPreviewBlockContentToDom(wrapper, this.source, {
       ...options,
       paragraphSourceOffset: this.sourceFrom,
@@ -197,7 +201,7 @@ class ParagraphFlowWidget extends RenderWidget {
   override eq(other: ParagraphFlowWidget): boolean {
     return (
       this.source === other.source &&
-      this.fullDocumentSource === other.fullDocumentSource
+      this.renderKey === other.renderKey
     );
   }
 }
@@ -207,7 +211,8 @@ class BlockquoteFlowWidget extends RenderWidget {
 
   constructor(
     private readonly source: string,
-    private readonly fullDocumentSource: string,
+    private readonly config: FrontmatterConfig,
+    private readonly renderKey: string,
   ) {
     super();
   }
@@ -219,13 +224,12 @@ class BlockquoteFlowWidget extends RenderWidget {
       PARAGRAPH_FLOW_WIDGET_CLASS,
       BLOCKQUOTE_FLOW_WIDGET_CLASS,
     );
-    const config = parseFrontmatter(this.fullDocumentSource).config;
     const options = view
       ? buildPreviewBlockOptions(
         view,
-        view.state.field(mathMacrosField, false) ?? config.math ?? {},
+        view.state.field(mathMacrosField, false) ?? this.config.math ?? {},
       )
-      : { config };
+      : { config: this.config };
     renderPreviewBlockContentToDom(wrapper, this.source, {
       ...options,
       paragraphSourceOffset: this.sourceFrom,
@@ -247,15 +251,22 @@ class BlockquoteFlowWidget extends RenderWidget {
   override eq(other: BlockquoteFlowWidget): boolean {
     return (
       this.source === other.source &&
-      this.fullDocumentSource === other.fullDocumentSource
+      this.renderKey === other.renderKey
     );
   }
 }
 
-function collectParagraphFlowDecorations(state: EditorState): DecorationSet {
+function paragraphFlowConfig(state: EditorState): FrontmatterConfig {
+  return state.field(frontmatterField, false)?.config ?? {};
+}
+
+function collectParagraphFlowItems(
+  state: EditorState,
+): Range<Decoration>[] {
   const focused = state.field(editorFocusField, false) ?? false;
   const selectionFrozen = state.field(paragraphFlowSelectionFrozenField, false) ?? false;
-  const fullDocumentSource = state.doc.toString();
+  const config = paragraphFlowConfig(state);
+  const renderKey = getPreviewRenderDependencySignature(state);
   const items: Range<Decoration>[] = [];
   syntaxTree(state).iterate({
     enter(node: SyntaxNodeRef) {
@@ -264,7 +275,8 @@ function collectParagraphFlowDecorations(state: EditorState): DecorationSet {
         if (!isEligibleParagraph(state, paragraph, focused, selectionFrozen)) return undefined;
         const widget = new ParagraphFlowWidget(
           state.sliceDoc(paragraph.from, paragraph.to),
-          fullDocumentSource,
+          config,
+          renderKey,
         );
         widget.updateSourceRange(paragraph.from, paragraph.to);
         items.push(
@@ -281,7 +293,8 @@ function collectParagraphFlowDecorations(state: EditorState): DecorationSet {
         if (!isEligibleBlockquote(state, blockquote, focused)) return undefined;
         const widget = new BlockquoteFlowWidget(
           state.sliceDoc(blockquote.from, blockquote.to),
-          fullDocumentSource,
+          config,
+          renderKey,
         );
         widget.updateSourceRange(blockquote.from, blockquote.to);
         items.push(
@@ -296,36 +309,30 @@ function collectParagraphFlowDecorations(state: EditorState): DecorationSet {
       return undefined;
     },
   });
-  return buildDecorations(items);
+  return items;
 }
 
-function shouldRebuildParagraphFlow(tr: Transaction): boolean {
-  return (
-    transactionChangesParagraphFlowSelectionFreeze(tr) ||
-    cursorSensitiveShouldRebuild(tr) ||
-    getReferenceRenderDependencySignature(tr.startState) !== getReferenceRenderDependencySignature(tr.state) ||
-    tr.startState.field(mathMacrosField, false) !== tr.state.field(mathMacrosField, false) ||
-    (
-      syntaxTree(tr.state) !== syntaxTree(tr.startState) &&
-      syntaxTreeAvailable(tr.state, tr.state.doc.length)
-    )
-  );
+function collectParagraphFlowDecorations(state: EditorState): DecorationSet {
+  return buildDecorations(collectParagraphFlowItems(state));
 }
 
-const paragraphFlowField = StateField.define<DecorationSet>({
+function paragraphFlowDependenciesNeedRebuild(tr: Transaction): boolean {
+  return getPreviewRenderDependencySignature(tr.startState) !==
+    getPreviewRenderDependencySignature(tr.state);
+}
+
+const paragraphFlowField = createDecorationStateField({
+  atomicRanges: true,
   create: collectParagraphFlowDecorations,
   update(value, tr) {
-    if (shouldRebuildParagraphFlow(tr)) {
+    if (
+      transactionChangesParagraphFlowSelectionFreeze(tr) ||
+      cursorSensitiveShouldRebuild(tr) ||
+      paragraphFlowDependenciesNeedRebuild(tr)
+    ) {
       return collectParagraphFlowDecorations(tr.state);
     }
-    if (tr.docChanged) return value.map(tr.changes);
     return value;
-  },
-  provide(field) {
-    return [
-      EditorView.decorations.from(field),
-      EditorView.atomicRanges.of((view) => view.state.field(field)),
-    ];
   },
 });
 
