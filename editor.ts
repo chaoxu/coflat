@@ -1,4 +1,4 @@
-import type { Extension } from "@codemirror/state";
+import type { ChangeSet, Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 
 import {
@@ -66,6 +66,8 @@ export interface MountEditorOptions {
   commands?: readonly Command[];
   /** Called for direct user edits only. */
   onChange?: (doc: string) => void;
+  /** Called for direct user edits with CodeMirror change metadata. */
+  onDocumentChange?: (change: MountedDocumentChange) => void;
   /** Called whenever the effective rich/source mode changes. */
   onModeChange?: (mode: StandaloneEditorMode) => void;
   /**
@@ -110,6 +112,10 @@ export interface MountEditorOptions {
   from?: string;
 }
 
+export interface MountedDocumentChange {
+  changes: ChangeSet;
+}
+
 export interface MountedEditor {
   getDoc: () => string;
   setDoc: (doc: string) => void;
@@ -152,6 +158,7 @@ export function mountEditor(options: MountEditorOptions): MountedEditor {
       );
       if (!programmaticDocChange) {
         options.onChange?.(nextDoc);
+        options.onDocumentChange?.({ changes: update.changes });
       }
     }
 

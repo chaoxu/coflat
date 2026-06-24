@@ -71,9 +71,17 @@ interface FileSystem {
   deleteFile(path: string): Promise<void>;
   writeFileBinary(path: string, content: Uint8Array): Promise<void>;
   readFileBinary(path: string): Promise<Uint8Array>;
-  resolveAssetUrl(path: string): string | Promise<string>;
+  resolveAssetUrl(
+    path: string,
+    options?: { purpose?: "source" | "display" },
+  ): string;
 }
 ```
+
+`resolveAssetUrl` is synchronous. `purpose: "source"` means the canonical
+referenced asset; `purpose: "display"` means a browser-renderable
+representation of that asset. Reader image rendering asks for `"display"` and
+falls back to the authored URL if host resolution fails.
 
 ## Links and References
 

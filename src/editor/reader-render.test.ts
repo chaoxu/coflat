@@ -273,6 +273,66 @@ describe("renderToHtml — slow path (Lezer)", () => {
     expect(r.html).toContain('src="https://cdn/logo.png"');
     expect(r.html).toContain('alt="alt text"');
   });
+
+  it("resolves reader image assets relative to the document path", () => {
+    const seen: string[] = [];
+    const ctx = {
+      fileSystem: {
+        resolveAssetUrl: (path: string, options?: { purpose?: "source" | "display" }) => {
+          seen.push(`${options?.purpose ?? "source"}:${path}`);
+          return `https://cdn/${path.replace(/\.pdf$/, ".png")}`;
+        },
+      } as unknown as FileSystem,
+    };
+    const r = renderToHtml("![Paper](figures/paper.pdf)", ctx, { documentPath: "posts/math.md" });
+    expect(seen).toEqual(["display:posts/figures/paper.pdf"]);
+    expect(r.html).toContain('src="https://cdn/posts/figures/paper.png"');
+  });
+
+  it("resolves root-relative reader image assets from the workspace root", () => {
+    const seen: string[] = [];
+    const ctx = {
+      fileSystem: {
+        resolveAssetUrl: (path: string, options?: { purpose?: "source" | "display" }) => {
+          seen.push(`${options?.purpose ?? "source"}:${path}`);
+          return `https://cdn/${path.replace(/\.pdf$/, ".png")}`;
+        },
+      } as unknown as FileSystem,
+    };
+    const r = renderToHtml("![Paper](/assets/paper.pdf)", ctx, { documentPath: "posts/math.md" });
+    expect(seen).toEqual(["display:assets/paper.pdf"]);
+    expect(r.html).toContain('src="https://cdn/assets/paper.png"');
+  });
+
+  it("does not resolve protocol image URLs through the filesystem", () => {
+    const calls: string[] = [];
+    const ctx = {
+      fileSystem: {
+        resolveAssetUrl: (path: string) => {
+          calls.push(path);
+          return `https://cdn/${path}`;
+        },
+      } as unknown as FileSystem,
+    };
+    const r = renderToHtml("![Remote](https://example.com/remote.png)", ctx, { documentPath: "posts/math.md" });
+    expect(calls).toEqual([]);
+    expect(r.html).toContain('src="https://example.com/remote.png"');
+  });
+
+  it("does not resolve protocol-relative image URLs through the filesystem", () => {
+    const calls: string[] = [];
+    const ctx = {
+      fileSystem: {
+        resolveAssetUrl: (path: string) => {
+          calls.push(path);
+          return `https://cdn/${path}`;
+        },
+      } as unknown as FileSystem,
+    };
+    const r = renderToHtml("![Remote](//cdn.example/remote.png)", ctx, { documentPath: "posts/math.md" });
+    expect(calls).toEqual([]);
+    expect(r.html).toContain('src="//cdn.example/remote.png"');
+  });
 });
 
 describe("renderToText", () => {

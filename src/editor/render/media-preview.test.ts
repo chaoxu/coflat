@@ -101,6 +101,39 @@ describe("resolveLocalMediaPreview", () => {
       expect(result?.resolvedPath).toBe("posts/diagram.pdf");
       if (result?.kind === "loading") expect(result?.isPdf).toBe(true);
     });
+
+    it("uses a host-provided display image URL before classifying PDF media", () => {
+      const fs = {
+        ...createMockFs(),
+        resolveAssetUrl: vi.fn().mockImplementation((path: string, options?: { purpose?: "source" | "display" }) =>
+          path === "posts/diagram.pdf" && options?.purpose === "display"
+            ? "https://cdn.example/posts/diagram.png"
+            : `https://cdn.example/${path}`
+        ),
+      };
+      const view = createMockView(fs);
+      const result = resolveLocalMediaPreview(view, "diagram.pdf");
+      expect(result).not.toBeNull();
+      expect(result?.kind).toBe("image");
+      expect(result?.resolvedPath).toBe("posts/diagram.pdf");
+      if (result?.kind === "image") expect(result.dataUrl).toBe("https://cdn.example/posts/diagram.png");
+    });
+
+    it("falls back to PDF previewing when host display URL resolution throws", () => {
+      const fs = {
+        ...createMockFs(),
+        resolveAssetUrl: vi.fn().mockImplementation((_path: string, options?: { purpose?: "source" | "display" }) => {
+          if (options?.purpose === "display") throw new Error("display URL failed");
+          return "https://cdn.example/posts/diagram.pdf";
+        }),
+      };
+      const view = createMockView(fs);
+      const result = resolveLocalMediaPreview(view, "diagram.pdf");
+      expect(result).not.toBeNull();
+      expect(result?.kind).toBe("loading");
+      expect(result?.resolvedPath).toBe("posts/diagram.pdf");
+      if (result?.kind === "loading") expect(result.isPdf).toBe(true);
+    });
   });
 
   describe("image cache states", () => {
@@ -252,7 +285,7 @@ describe("local media preview dependencies", () => {
     );
   });
 
-  it("classifies error previews from the original source type", () => {
+  it("classifies error previews from the resolved source path", () => {
     const dependency = getLocalMediaPreviewDependency("diagram.pdf", {
       kind: "error",
       resolvedPath: "posts/diagram.pdf",

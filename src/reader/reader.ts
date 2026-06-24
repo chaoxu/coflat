@@ -865,9 +865,9 @@ function renderInlineFragmentsForReader(
           text += alt;
           break;
         }
-        if (ctx.resolvers.resolveAssetUrl) {
+        if (ctx.resolvers.resolveAssetUrl && isReaderLocalAssetSrc(src)) {
           try {
-            const resolved = ctx.resolvers.resolveAssetUrl(src);
+            const resolved = ctx.resolvers.resolveAssetUrl(resolveReaderAssetPath(ctx.resolvers.documentPath, src));
             if (typeof resolved === "string") src = resolved;
           } catch (_error) {
             // Asset resolution is host-provided; fall back to the authored URL.
@@ -2026,7 +2026,7 @@ function buildResolvers(
   let resolveAssetUrl: ((path: string) => string) | undefined;
   if (fs && typeof fs.resolveAssetUrl === "function") {
     resolveAssetUrl = (path: string) => {
-      const v = fs.resolveAssetUrl(path);
+      const v = fs.resolveAssetUrl(path, { purpose: "display" });
       return typeof v === "string" ? v : path;
     };
   }
@@ -2038,6 +2038,28 @@ function buildResolvers(
     resolveAssetUrl,
     documentPath,
   };
+}
+
+function resolveReaderAssetPath(documentPath: string | undefined, src: string): string {
+  if (!src || /^[a-z][a-z0-9+.-]*:/i.test(src)) return src;
+  const baseDir = documentPath?.includes("/") ? documentPath.slice(0, documentPath.lastIndexOf("/")) : "";
+  const parts = src.startsWith("/")
+    ? src.slice(1).split("/")
+    : [...(baseDir ? baseDir.split("/") : []), ...src.split("/")];
+  const out: string[] = [];
+  for (const part of parts) {
+    if (!part || part === ".") continue;
+    if (part === "..") {
+      out.pop();
+      continue;
+    }
+    out.push(part);
+  }
+  return out.join("/");
+}
+
+function isReaderLocalAssetSrc(src: string): boolean {
+  return Boolean(src) && !src.startsWith("//") && !/^[a-z][a-z0-9+.-]*:/i.test(src);
 }
 
 // ---------------------------------------------------------------------------
