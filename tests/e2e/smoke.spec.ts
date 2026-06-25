@@ -541,6 +541,7 @@ test("public demo sidebar switches to the format guide", async ({ page }) => {
     "aria-current",
     "page",
   );
+  await expect(page.getByRole("button", { name: "Readonly" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Reader" })).toBeVisible();
   await expect(page.getByRole("link", { name: "GitHub" })).toBeVisible();
   await expect(page.getByRole("link", { name: "FORMAT.md" })).toBeVisible();
@@ -561,6 +562,30 @@ test("public demo sidebar switches to the format guide", async ({ page }) => {
   await expect(page).toHaveURL(/doc=showcase/);
   await expect(page).toHaveTitle("Coflat Editor Showcase");
   await expect(page.locator(".cm-content")).toContainText("Coflat Feature Showcase");
+});
+
+test("public demo readonly surface uses CM6 rich rendering without editing", async ({ page }) => {
+  await page.goto("/examples/simple/index.html?doc=showcase&surface=readonly");
+
+  const editor = page.locator("#editor");
+  const content = editor.locator(".cm-content");
+  await expect(editor).toBeVisible();
+  await expect(page.locator("#reader")).toBeHidden();
+  await expect(page.getByRole("button", { name: "Readonly" })).toHaveAttribute(
+    "aria-current",
+    "page",
+  );
+  await expect(content).toHaveAttribute("contenteditable", "false");
+  await expect(content).toContainText("Coflat Feature Showcase");
+
+  const before = await content.textContent();
+  await content.click();
+  await page.keyboard.type("not inserted");
+  await expect.poll(() => content.textContent()).toBe(before);
+
+  await page.getByRole("button", { name: "Editor" }).click();
+  await expect(page).toHaveURL(/surface=editor/);
+  await expect(content).toHaveAttribute("contenteditable", "true");
 });
 
 test("public demo reader surface shows shared hover previews", async ({ page }) => {

@@ -42,7 +42,7 @@ const docs = {
   },
 } as const;
 type DemoDocId = keyof typeof docs;
-type DemoSurfaceId = "editor" | "reader";
+type DemoSurfaceId = "editor" | "readonly" | "reader";
 let currentDocId: DemoDocId = "showcase";
 let currentSurfaceId: DemoSurfaceId = "editor";
 let cleanupReaderHover: (() => void) | null = null;
@@ -176,7 +176,7 @@ function isDemoDocId(value: string | null): value is DemoDocId {
 }
 
 function isDemoSurfaceId(value: string | null): value is DemoSurfaceId {
-  return value === "editor" || value === "reader";
+  return value === "editor" || value === "readonly" || value === "reader";
 }
 
 function formatBibliographyPreview(key: string): string | null {
@@ -219,9 +219,9 @@ function renderReaderDoc(): void {
 
 function setActiveSurface(id: DemoSurfaceId): void {
   currentSurfaceId = id;
-  const isEditor = id === "editor";
-  mountedEditorRoot.hidden = !isEditor;
-  mountedReaderRoot.hidden = isEditor;
+  const isReader = id === "reader";
+  mountedEditorRoot.hidden = isReader;
+  mountedReaderRoot.hidden = !isReader;
   for (const link of surfaceLinks) {
     setCurrentPageAttribute(link, link.dataset.surfaceId === id);
   }
@@ -229,10 +229,11 @@ function setActiveSurface(id: DemoSurfaceId): void {
   const url = new URL(window.location.href);
   url.searchParams.set("surface", id);
   window.history.replaceState(null, "", url);
-  if (isEditor) {
-    editor.focus();
-  } else {
+  if (isReader) {
     renderReaderDoc();
+  } else {
+    editor.setMode(id === "readonly" ? "rich-readonly" : "rich");
+    editor.focus();
   }
 }
 
@@ -240,7 +241,7 @@ function setActiveDoc(id: DemoDocId): void {
   currentDocId = id;
   const doc = docs[id];
   editor.setDoc(doc.source);
-  editor.setMode("rich");
+  editor.setMode(currentSurfaceId === "readonly" ? "rich-readonly" : "rich");
   document.title = doc.title;
   for (const link of docLinks) {
     const isActive = link.dataset.docId === id;
