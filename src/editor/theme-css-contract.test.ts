@@ -26,6 +26,14 @@ function cssCustomProperties(ruleBody: string): string[] {
 }
 
 describe("theme CSS contract", () => {
+  it("lets compact editor padding inherit the document padding token", () => {
+    const compact = baseThemeStyles["@media (max-width: 720px)"][".cm-content"];
+
+    expect(compact.paddingInline).toBe(
+      "var(--cf-doc-content-padding-inline-compact, var(--cf-doc-content-padding-inline, 20px))",
+    );
+  });
+
   it("keeps dark mode as a complete token set", () => {
     const css = readRepoFile("editor/editor-theme.css");
     const rootTokens = cssCustomProperties(cssRuleBody(css, ":root"));

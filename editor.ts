@@ -32,7 +32,10 @@ import {
 } from "./src/editor/command-registry";
 import type { DocumentContext } from "./src/core/document-context-types";
 import type { FileSystem } from "./src/core/lib/file-system-types";
-import { visibleSourcePositionInScroller } from "./src/core/source-range-surface";
+import {
+  sourceElementAtPosition,
+  visibleSourcePositionInScroller,
+} from "./src/core/source-range-surface";
 import {
   documentContextExtension,
   setDocumentContext,
@@ -348,6 +351,13 @@ export function mountEditor(options: MountEditorOptions): MountedEditor {
         const ratio = clampRatio(viewportRatio);
         const align = () => {
           if (!view) return;
+          const element = sourceElementAtPosition(view.scrollDOM, target);
+          if (element) {
+            const rect = view.scrollDOM.getBoundingClientRect();
+            const elementRect = element.getBoundingClientRect();
+            view.scrollDOM.scrollTop += elementRect.top - (rect.top + rect.height * ratio);
+            return;
+          }
           let coords: ReturnType<EditorView["coordsAtPos"]>;
           try {
             coords = view.coordsAtPos(target);
@@ -358,10 +368,13 @@ export function mountEditor(options: MountEditorOptions): MountedEditor {
           const rect = view.scrollDOM.getBoundingClientRect();
           view.scrollDOM.scrollTop += coords.top - (rect.top + rect.height * ratio);
         };
-        requestAnimationFrame(() => {
+        let frames = 0;
+        const alignFrame = () => {
           align();
-          requestAnimationFrame(align);
-        });
+          frames += 1;
+          if (frames < 8) requestAnimationFrame(alignFrame);
+        };
+        requestAnimationFrame(alignFrame);
       }
     },
 

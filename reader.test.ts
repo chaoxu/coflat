@@ -79,6 +79,16 @@ describe("@chaoxu/coflat/reader public source-range helpers", () => {
     expect(sourceElementAtPosition(container, 45)?.textContent?.trim()).toBe("tail");
   });
 
+  it("prefers the carrier starting at a source boundary over the previous carrier ending there", () => {
+    const container = document.createElement("div");
+    container.innerHTML = `
+      <div data-source-from="39" data-source-to="40">blank</div>
+      <li data-source-from="40" data-source-to="76">item</li>
+    `;
+
+    expect(sourceElementAtPosition(container, 40)?.tagName).toBe("LI");
+  });
+
   it("scrolls to a rendered source position when source positions are present", () => {
     const container = document.createElement("div");
     container.innerHTML = '<p data-source-from="10" data-source-to="20">target</p>';

@@ -119,6 +119,10 @@ function sourceRangeSpan(range: SourceRange): number {
   return Math.max(0, range.to - range.from);
 }
 
+function sourceRangeStartsAt(range: SourceRange, pos: number): boolean {
+  return range.from === pos && range.to > range.from;
+}
+
 function clampViewportRatio(value: number): number {
   if (!Number.isFinite(value)) return 0.5;
   return Math.max(0, Math.min(1, value));
@@ -135,11 +139,13 @@ export function visibleSourcePositionInScroller(
 ): SourcePosition | null {
   const rect = scroller.getBoundingClientRect();
   if (rect.height <= 0) return null;
-  const sampleY = rect.top + rect.height * clampViewportRatio(options.viewportRatio ?? 0.5);
+  const sampleRatio = clampViewportRatio(options.viewportRatio ?? 0.5);
+  const sampleY = rect.top + rect.height * sampleRatio;
   let best: { range: SourceRange; distance: number; height: number; viewportRatio: number } | null = null;
   for (const element of scroller.querySelectorAll<HTMLElement>(SOURCE_RANGE_CARRIER_SELECTOR)) {
     const elementRect = element.getBoundingClientRect();
     if (elementRect.bottom < rect.top || elementRect.top > rect.bottom) continue;
+    if (getComputedStyle(element).display === "inline") continue;
     const range = sourceRangeFromElement(element);
     if (!range) continue;
     const distance = elementRect.top <= sampleY && elementRect.bottom >= sampleY
@@ -152,7 +158,7 @@ export function visibleSourcePositionInScroller(
     }
   }
   if (!best) return null;
-  return { pos: Math.max(0, best.range.from), viewportRatio: best.viewportRatio };
+  return { pos: Math.max(0, best.range.from), viewportRatio: sampleRatio };
 }
 
 /**
@@ -185,6 +191,10 @@ export function sourceElementAtPosition(
       continue;
     }
     if (distance === best.distance && sourceRangeSpan(range) < sourceRangeSpan(best.range)) {
+      if (sourceRangeStartsAt(best.range, pos) && !sourceRangeStartsAt(range, pos)) continue;
+      best = { element, range, distance };
+    }
+    if (distance === best.distance && sourceRangeStartsAt(range, pos) && !sourceRangeStartsAt(best.range, pos)) {
       best = { element, range, distance };
     }
   }
@@ -205,19 +215,20 @@ export function scrollReaderToSourcePosition(
   const element = sourceElementAtPosition(container, position);
   if (!element) return false;
   const viewportRatio = options.viewportRatio ?? (typeof position === "number" ? undefined : position.viewportRatio);
-  element.scrollIntoView({
-    block: options.block ?? "start",
-    inline: options.inline ?? "nearest",
-    behavior: options.behavior ?? "auto",
-  });
   if (typeof viewportRatio === "number") {
     const scroller = container instanceof HTMLElement ? container : element.parentElement;
     if (scroller) {
       const rect = scroller.getBoundingClientRect();
       const elementRect = element.getBoundingClientRect();
       scroller.scrollTop += elementRect.top - (rect.top + rect.height * clampViewportRatio(viewportRatio));
+      return true;
     }
   }
+  element.scrollIntoView({
+    block: options.block ?? "start",
+    inline: options.inline ?? "nearest",
+    behavior: options.behavior ?? "auto",
+  });
   return true;
 }
 

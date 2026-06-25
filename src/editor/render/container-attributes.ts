@@ -73,6 +73,15 @@ const LINE_CLASS_BY_TAG: Readonly<Record<string, string>> = {
 const LINE_DECORATION_CACHE = new Map<string, Decoration>();
 const LIST_LINE_DECORATION_CACHE = new Map<string, Decoration>();
 
+function sourceLineDecoration(from: number, to: number): Decoration {
+  return Decoration.line({
+    attributes: {
+      "data-source-from": String(from),
+      "data-source-to": String(to),
+    },
+  });
+}
+
 function lineDecorationFor(tagName: string): Decoration {
   const classes = documentSurfaceClassNames(LINE_CLASS_BY_TAG[tagName]);
   const cached = LINE_DECORATION_CACHE.get(tagName);
@@ -229,6 +238,13 @@ function collectLineDecorationsInRange(
 
   for (const [pos, tagName] of [...lineTagMap.entries()].sort((a, b) => a[0] - b[0])) {
     items.push(lineDecorationFor(tagName).range(pos));
+  }
+
+  const firstLine = state.doc.lineAt(rangeFrom);
+  const lastLine = state.doc.lineAt(rangeTo);
+  for (let lineNumber = firstLine.number; lineNumber <= lastLine.number; lineNumber++) {
+    const line = state.doc.line(lineNumber);
+    items.push(sourceLineDecoration(line.from, line.to).range(line.from));
   }
 
   return items;
