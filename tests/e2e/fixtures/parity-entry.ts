@@ -35,6 +35,7 @@ const context = {
       const target = catalog.uniqueTargetById.get(key);
       if (target) return { content: target.displayLabel, className: CSS.crossref };
       if (key === "karger2000") return { content: "[1]" };
+      if (key === "cormen2009") return { content: "[1]" };
       if (key === "external-page") return { content: "External Page" };
       return null;
     },

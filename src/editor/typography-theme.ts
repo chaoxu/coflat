@@ -146,11 +146,13 @@ export const typographyThemeStyles = {
   ".cf-inline-code": {
     fontFamily: monoFont,
     fontSize: "0.85em",
-    lineHeight: "0",
     verticalAlign: "baseline",
     backgroundColor: "var(--cf-color-code-bg, var(--cf-hover))",
     borderRadius: "var(--cf-border-radius)",
     padding: "0.1em 0.25em",
+  },
+  ".cm-line .cf-inline-code": {
+    lineHeight: "0",
   },
 
   /* Rendered link styling — shown when cursor is outside the link */
