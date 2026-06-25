@@ -149,8 +149,15 @@ describe("theme CSS contract", () => {
 
     expect(cssRuleBody(css, ".cf-doc-flow")).toContain("-webkit-font-smoothing: antialiased;");
     expect(cssRuleBody(css, ".cf-doc-title")).toContain("user-select: text;");
-    expect(cssRuleBody(css, ".cf-reader")).toContain("max-width: var(--cf-content-max-width, 800px);");
-    expect(cssRuleBody(css, ".cf-reader")).toContain("counter-reset: cf-reader-h1 cf-reader-h2 cf-reader-h3 cf-reader-h4 cf-reader-h5 cf-reader-h6;");
+    const readerRule = cssRuleBody(css, ".cf-reader");
+    expect(readerRule).toContain("max-width: var(--cf-content-max-width, 800px);");
+    expect(readerRule).toContain("padding-block-start: var(--cf-doc-content-padding-block-start, 24px);");
+    expect(readerRule).toContain("padding-block-end: var(--cf-doc-content-padding-block-end, 64px);");
+    expect(readerRule).toContain(
+      "padding-inline-start: max(var(--cf-doc-content-padding-inline, 48px), var(--cf-reader-control-gutter-inline, calc(var(--cf-h1-size, 1.15em) + var(--cf-spacing-xs))));",
+    );
+    expect(readerRule).toContain("padding-inline-end: var(--cf-doc-content-padding-inline, 48px);");
+    expect(readerRule).toContain("counter-reset: cf-reader-h1 cf-reader-h2 cf-reader-h3 cf-reader-h4 cf-reader-h5 cf-reader-h6;");
     expect(cssRuleBody(css, ".cf-reader .cf-doc-heading--h1")).toContain(
       "font-size: var(--cf-h1-size, 1.15em);",
     );

@@ -159,6 +159,7 @@
   --cf-doc-content-padding-block-start: 24px;
   --cf-doc-content-padding-block-end: 64px;
   --cf-doc-content-padding-inline: 48px;
+  --cf-reader-control-gutter-inline: calc(var(--cf-h1-size, 1.15em) + var(--cf-spacing-xs));
   --cf-doc-paragraph-margin: 0;
   --cf-doc-heading-margin: 0;
   --cf-doc-list-margin: 0.8em 0;
@@ -247,7 +248,10 @@
   box-sizing: border-box;
   max-width: var(--cf-content-max-width, 800px);
   margin-inline: auto;
-  padding: var(--cf-doc-content-padding-block-start, 24px) var(--cf-doc-content-padding-inline, 48px) var(--cf-doc-content-padding-block-end, 64px);
+  padding-block-start: var(--cf-doc-content-padding-block-start, 24px);
+  padding-block-end: var(--cf-doc-content-padding-block-end, 64px);
+  padding-inline-start: max(var(--cf-doc-content-padding-inline, 48px), var(--cf-reader-control-gutter-inline, calc(var(--cf-h1-size, 1.15em) + var(--cf-spacing-xs))));
+  padding-inline-end: var(--cf-doc-content-padding-inline, 48px);
   counter-reset: cf-reader-h1 cf-reader-h2 cf-reader-h3 cf-reader-h4 cf-reader-h5 cf-reader-h6;
 }
 

@@ -125,7 +125,10 @@ body {
   margin-left: auto;
   margin-right: max(var(--cf-sidenote-margin-width, 0px), calc((100% - var(--cf-content-max-width, 800px)) / 2));
   overflow: auto;
-  padding: var(--cf-doc-content-padding-block-start, 24px) var(--cf-doc-content-padding-inline, 48px) var(--cf-doc-content-padding-block-end, 24px) var(--cf-doc-content-padding-inline, 48px);
+  padding-block-start: var(--cf-doc-content-padding-block-start, 24px);
+  padding-block-end: var(--cf-doc-content-padding-block-end, 24px);
+  padding-inline-start: max(var(--cf-doc-content-padding-inline, 48px), var(--cf-reader-control-gutter-inline, calc(var(--cf-h1-size, 1.15em) + var(--cf-spacing-xs))));
+  padding-inline-end: var(--cf-doc-content-padding-inline, 48px);
 }
 
 #editor > .cm-editor {

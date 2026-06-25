@@ -1036,6 +1036,37 @@ test("public demo exposes matching section and block disclosure controls", async
   await expect(editorSectionButton).toHaveAttribute("aria-label", "Unfold section");
 });
 
+test("public demo keeps reader disclosure controls inside zero-padding embeds", async ({ page }) => {
+  await page.goto("/examples/simple/index.html?doc=showcase&surface=reader");
+  const reader = page.locator("#reader");
+  await expect(reader).toBeVisible();
+
+  await reader.evaluate((el) => {
+    (el as HTMLElement).style.setProperty("--cf-doc-content-padding-inline", "0px");
+  });
+  await settleLayout(page);
+
+  const geometry = await page.locator("#reader .cf-doc-section-heading-collapsible").first().evaluate((heading) => {
+    const readerRoot = heading.closest("#reader");
+    const toggle = heading.querySelector(":scope > .cf-section-disclosure-toggle");
+    if (!(readerRoot instanceof HTMLElement) || !(toggle instanceof HTMLElement)) {
+      throw new Error("missing reader section disclosure geometry");
+    }
+    const readerBox = readerRoot.getBoundingClientRect();
+    const toggleBox = toggle.getBoundingClientRect();
+    return {
+      paddingInlineStart: getComputedStyle(readerRoot).paddingInlineStart,
+      readerLeft: readerBox.left,
+      toggleLeft: toggleBox.left,
+      toggleRight: toggleBox.right,
+    };
+  });
+
+  expect(Number.parseFloat(geometry.paddingInlineStart)).toBeGreaterThan(0);
+  expect(geometry.toggleLeft).toBeGreaterThanOrEqual(geometry.readerLeft - 0.5);
+  expect(geometry.toggleRight).toBeGreaterThan(geometry.toggleLeft);
+});
+
 test("public demo table cell editing does not inherit page-height scrolling", async ({ page }) => {
   await page.goto("/examples/simple/index.html");
 
