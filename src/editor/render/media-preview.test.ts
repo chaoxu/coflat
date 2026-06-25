@@ -84,6 +84,11 @@ describe("resolveLocalMediaPreview", () => {
       expect(resolveLocalMediaPreview(view, "data:image/png;base64,ABC")).toBeNull();
     });
 
+    it("returns null for root-relative browser URLs when no filesystem is mounted", () => {
+      const view = createMockView();
+      expect(resolveLocalMediaPreview(view, "/showcase/figure.svg")).toBeNull();
+    });
+
     it("returns a loading result for a fresh relative image", () => {
       const view = createMockView(createMockFs());
       const result = resolveLocalMediaPreview(view, "diagram.png");
@@ -91,6 +96,14 @@ describe("resolveLocalMediaPreview", () => {
       expect(result?.kind).toBe("loading");
       expect(result?.resolvedPath).toBe("posts/diagram.png");
       if (result?.kind === "loading") expect(result?.isPdf).toBe(false);
+    });
+
+    it("resolves root-relative image paths from the project root when a filesystem is mounted", () => {
+      const view = createMockView(createMockFs());
+      const result = resolveLocalMediaPreview(view, "/assets/plot.png");
+      expect(result).not.toBeNull();
+      expect(result?.kind).toBe("loading");
+      expect(result?.resolvedPath).toBe("assets/plot.png");
     });
 
     it("returns a loading result for a fresh relative PDF", () => {

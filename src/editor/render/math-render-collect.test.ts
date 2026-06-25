@@ -118,6 +118,23 @@ describe("collectMathRanges", () => {
     expect(displayWidget?.from).toBeLessThan(displayWidget?.to ?? 0);
   });
 
+  it("replaces indentation-only prefixes before indented display math", () => {
+    const doc = "1. text\n   $$\n   x^2\n   $$";
+    const state = createMathRenderState(doc);
+    const specs = getDecorationSpecs(state.field(mathDecorationField));
+    const displayWidget = specs.find((spec) => spec.widgetClass === "MathWidget");
+
+    const openerLine = state.doc.line(2);
+    const delimiterFrom = openerLine.from + openerLine.text.indexOf("$$");
+    expect(displayWidget).toMatchObject({
+      block: true,
+      from: openerLine.from,
+      to: doc.length,
+      widgetClass: "MathWidget",
+    });
+    expect(displayWidget?.from).toBeLessThan(delimiterFrom);
+  });
+
   it("collects display math with backslash-bracket syntax", () => {
     const doc = "before\n\n\\[x^2\\]\n\nafter";
     view = createMathView(doc, doc.length);
@@ -468,4 +485,3 @@ describe("math decoration invalidation", () => {
     expect(after).toHaveLength(20);
   });
 });
-

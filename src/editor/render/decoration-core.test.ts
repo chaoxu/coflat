@@ -6,6 +6,7 @@ import {
   buildDecorations,
   decorationHidden,
   pushBlockWidgetDecoration,
+  pushBlockWidgetReplacementDecoration,
   pushWidgetDecoration,
 } from "./decoration-core";
 import { RenderWidget } from "./source-widget";
@@ -193,5 +194,33 @@ describe("pushBlockWidgetDecoration", () => {
     pushBlockWidgetDecoration(items, new TestWidget("w"), 12, 10);
 
     expect(items).toHaveLength(0);
+  });
+});
+
+describe("pushBlockWidgetReplacementDecoration", () => {
+  it("keeps widget source metadata separate from the visual replacement range", () => {
+    const items: Range<Decoration>[] = [];
+    const widget = new TestWidget("w");
+    pushBlockWidgetReplacementDecoration(items, widget, 5, 20, 8, 20);
+
+    expect(items).toHaveLength(1);
+    expect(items[0].from).toBe(5);
+    expect(items[0].to).toBe(20);
+    expect(items[0].value.spec.block).toBe(true);
+    expect(items[0].value.spec.widget).toBe(widget);
+    expect(widget.sourceFrom).toBe(8);
+    expect(widget.sourceTo).toBe(20);
+  });
+
+  it("skips invalid replacement and source ranges", () => {
+    const items: Range<Decoration>[] = [];
+    const widget = new TestWidget("w");
+
+    pushBlockWidgetReplacementDecoration(items, widget, 5, 5, 8, 20);
+    pushBlockWidgetReplacementDecoration(items, widget, 5, 20, 8, 8);
+
+    expect(items).toHaveLength(0);
+    expect(widget.sourceFrom).toBe(-1);
+    expect(widget.sourceTo).toBe(-1);
   });
 });

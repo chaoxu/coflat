@@ -109,9 +109,35 @@ export function pushBlockWidgetDecoration(
   from: number,
   to: number,
 ): void {
-  if (!Number.isFinite(from) || !Number.isFinite(to) || from < 0 || from >= to) {
+  pushBlockWidgetReplacementDecoration(items, widget, from, to, from, to);
+}
+
+/**
+ * Push a block widget replacement decoration whose visual replacement range
+ * can differ from the widget's semantic source range. Use this when surrounding
+ * source-only scaffolding must disappear with the block, but click-to-edit and
+ * search metadata should still target the canonical source node.
+ */
+export function pushBlockWidgetReplacementDecoration(
+  items: Range<Decoration>[],
+  widget: RenderWidget,
+  replacementFrom: number,
+  replacementTo: number,
+  sourceFrom: number,
+  sourceTo: number,
+): void {
+  if (
+    !Number.isFinite(replacementFrom) ||
+    !Number.isFinite(replacementTo) ||
+    replacementFrom < 0 ||
+    replacementFrom >= replacementTo ||
+    !Number.isFinite(sourceFrom) ||
+    !Number.isFinite(sourceTo) ||
+    sourceFrom < 0 ||
+    sourceFrom >= sourceTo
+  ) {
     return;
   }
-  widget.updateSourceRange(from, to);
-  items.push(Decoration.replace({ widget, block: true }).range(from, to));
+  widget.updateSourceRange(sourceFrom, sourceTo);
+  items.push(Decoration.replace({ widget, block: true }).range(replacementFrom, replacementTo));
 }

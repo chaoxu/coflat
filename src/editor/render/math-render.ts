@@ -26,7 +26,7 @@ import {
 import { MathWidget } from "./math-widget";
 import {
   buildDecorations,
-  pushBlockWidgetDecoration,
+  pushBlockWidgetReplacementDecoration,
   pushWidgetDecoration,
 } from "./decoration-core";
 import { createDecorationStateField } from "./decoration-field";
@@ -147,6 +147,17 @@ function getTouchedInlineMathTarget(
   );
 }
 
+function displayMathVisualReplacementFrom(
+  state: EditorState,
+  sourceFrom: number,
+): number {
+  const line = state.doc.lineAt(sourceFrom);
+  if (line.from === sourceFrom) return sourceFrom;
+
+  const prefix = state.sliceDoc(line.from, sourceFrom);
+  return /^\s*$/.test(prefix) ? line.from : sourceFrom;
+}
+
 function getRevealedMathTarget(
   state: EditorState,
   focused: boolean,
@@ -233,7 +244,14 @@ function buildMathItems(
         getDisplayEquationNumber(region, equationNumbersByFrom),
         qedDisplayMathStarts.has(region.from),
       );
-      pushBlockWidgetDecoration(items, widget, region.from, region.to);
+      pushBlockWidgetReplacementDecoration(
+        items,
+        widget,
+        displayMathVisualReplacementFrom(state, region.from),
+        region.to,
+        region.from,
+        region.to,
+      );
     } else if (!disableInlineMathWidgets) {
       const widget = new MathWidget(
         region.latex,
