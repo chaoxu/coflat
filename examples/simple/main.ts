@@ -162,6 +162,12 @@ function updateDocLinkHrefs(): void {
   }
 }
 
+function resetSurfaceScroll(): void {
+  mountedReaderRoot.scrollTop = 0;
+  const editorScroller = mountedEditorRoot.querySelector<HTMLElement>(".cm-scroller");
+  if (editorScroller) editorScroller.scrollTop = 0;
+}
+
 const editor = mountEditor({
   parent: mountedEditorRoot,
   doc: initialDoc,
@@ -227,6 +233,7 @@ function setActiveSurface(id: DemoSurfaceId): void {
   const isReader = id === "reader";
   mountedEditorRoot.hidden = isReader;
   mountedReaderRoot.hidden = !isReader;
+  document.body.dataset.surface = id;
   for (const link of surfaceLinks) {
     setCurrentPageAttribute(link, link.dataset.surfaceId === id);
   }
@@ -236,8 +243,10 @@ function setActiveSurface(id: DemoSurfaceId): void {
   window.history.replaceState(null, "", url);
   if (isReader) {
     renderReaderDoc();
+    resetSurfaceScroll();
   } else {
     editor.setMode(id === "readonly" ? "rich-readonly" : "rich");
+    resetSurfaceScroll();
     editor.focus();
   }
 }
@@ -255,9 +264,10 @@ function setActiveDoc(id: DemoDocId): void {
   const url = new URL(window.location.href);
   url.searchParams.set("doc", id);
   window.history.replaceState(null, "", url);
-  window.scrollTo({ top: 0, left: 0 });
+  resetSurfaceScroll();
   if (currentSurfaceId === "reader") {
     renderReaderDoc();
+    resetSurfaceScroll();
   } else {
     editor.focus();
   }

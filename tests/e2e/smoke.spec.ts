@@ -99,11 +99,25 @@ async function expectTooltipWithinViewport(page: Page, tooltip: Locator): Promis
 }
 
 async function scrollThroughUntil(page: Page, yPositions: readonly number[], locator: Locator): Promise<void> {
+  const editorScroller = page.locator("#editor .cm-scroller");
   for (const y of yPositions) {
-    await page.evaluate((scrollY) => window.scrollTo(0, scrollY), y);
+    if (await editorScroller.isVisible().catch(() => false)) {
+      await editorScroller.evaluate((el, scrollY) => {
+        el.scrollTop = scrollY;
+      }, y);
+    } else {
+      await page.evaluate((scrollY) => window.scrollTo(0, scrollY), y);
+    }
     await page.waitForTimeout(100);
     if (await locator.count() > 0) return;
   }
+}
+
+async function scrollDemoEditorTo(page: Page, scrollTop: number): Promise<void> {
+  await page.locator("#editor .cm-scroller").evaluate((el, y) => {
+    el.scrollTop = y;
+  }, scrollTop);
+  await page.waitForTimeout(100);
 }
 
 async function settleLayout(page: Page): Promise<void> {
@@ -284,7 +298,7 @@ test("rich editor does not reveal heading source while pointer is down", async (
 test("rich editor rerenders a block header after clicking body text", async ({ page }) => {
   await page.goto("/examples/simple/index.html?doc=showcase&surface=editor");
   await expect(page.locator("#editor .cm-editor")).toBeVisible();
-  await page.evaluate(() => window.scrollTo(0, 1900));
+  await scrollDemoEditorTo(page, 1900);
   await settleLayout(page);
 
   const header = page.locator("#editor .cm-line.cf-block-header", {
@@ -311,7 +325,7 @@ test("rich editor rerenders a block header after clicking body text", async ({ p
 test("rich editor rerenders a code header after clicking code body text", async ({ page }) => {
   await page.goto("/examples/simple/index.html?doc=showcase&surface=editor");
   await expect(page.locator("#editor .cm-editor")).toBeVisible();
-  await page.evaluate(() => window.scrollTo(0, 4050));
+  await scrollDemoEditorTo(page, 4050);
   await settleLayout(page);
 
   const language = page.locator("#editor .cf-codeblock-language", { hasText: "haskell" }).first();
@@ -343,7 +357,7 @@ test("rich editor keeps task-list point clicks on the clicked row", async ({ pag
   for (let rowIndex = 0; rowIndex < labels.length; rowIndex += 1) {
     await page.goto("/examples/simple/index.html?doc=showcase&surface=editor");
     await expect(page.locator("#editor .cm-editor")).toBeVisible();
-    await page.evaluate(() => window.scrollTo(0, 3589));
+    await scrollDemoEditorTo(page, 3589);
     await settleLayout(page);
 
     const line = page.locator(".cm-line", { hasText: labels[rowIndex] });
@@ -419,7 +433,7 @@ test("public demo point clicks stay on representative rendered rows", async ({ p
   for (const item of cases) {
     await page.goto("/examples/simple/index.html?doc=showcase&surface=editor");
     await expect(page.locator("#editor .cm-editor")).toBeVisible();
-    await page.evaluate((scrollY) => window.scrollTo(0, scrollY), item.scrollY);
+    await scrollDemoEditorTo(page, item.scrollY);
     await settleLayout(page);
 
     const line = page.locator(".cm-line", { hasText: item.text }).first();
@@ -506,7 +520,7 @@ test("rich editor keeps a usable writing column on narrow viewports", async ({ p
   expect(lineWidth).toBeGreaterThan(240);
 });
 
-test("public demo uses page-level scrolling over the editor", async ({ page }) => {
+test("public demo uses a real editor viewport instead of page-level virtualized scrolling", async ({ page }) => {
   await page.goto("/examples/simple/index.html");
 
   const scroller = page.locator("#editor > .cm-editor > .cm-scroller");
@@ -519,13 +533,15 @@ test("public demo uses page-level scrolling over the editor", async ({ page }) =
       overflowY: style.overflowY,
       overscrollBehaviorY: style.overscrollBehaviorY,
       scrollHeight: el.scrollHeight,
+      windowScrollHeight: document.documentElement.scrollHeight,
+      windowHeight: window.innerHeight,
     };
   });
-  expect(scrollStyles.overflowY).toBe("visible");
-  expect(scrollStyles.overscrollBehaviorY).toBe("auto");
-  expect(scrollStyles.scrollHeight).toBe(scrollStyles.clientHeight);
+  expect(scrollStyles.overflowY).toBe("auto");
+  expect(scrollStyles.overscrollBehaviorY).toBe("contain");
+  expect(scrollStyles.scrollHeight).toBeGreaterThan(scrollStyles.clientHeight);
+  expect(scrollStyles.windowScrollHeight).toBe(scrollStyles.windowHeight);
 
-  await page.evaluate(() => window.scrollTo(0, 0));
   const box = await scroller.boundingBox();
   if (!box) {
     throw new Error("Missing public demo editor scroller");
@@ -539,7 +555,8 @@ test("public demo uses page-level scrolling over the editor", async ({ page }) =
     await page.mouse.wheel(0, 700);
   }
 
-  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(1000);
+  await expect.poll(() => scroller.evaluate((el) => el.scrollTop)).toBeGreaterThan(1000);
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
   await expect
     .poll(() => page.evaluate(() => document.body.innerText.includes("This footnote has bold")))
     .toBe(true);
@@ -846,7 +863,7 @@ test("public demo editor shows matching collapse rails", async ({ page }) => {
   });
   expect(headingAfterHover).toEqual(headingBeforeHover);
 
-  await page.evaluate(() => window.scrollTo(0, 1950));
+  await scrollDemoEditorTo(page, 1950);
   await settleLayout(page);
   await page.mouse.move(10, 10);
 
@@ -1001,7 +1018,7 @@ test("public demo exposes matching section and block disclosure controls", async
   await page.goto("/examples/simple/index.html?doc=showcase&surface=editor");
   await expect(page.locator("#editor .cm-editor")).toBeVisible();
   await settleLayout(page);
-  await page.evaluate(() => window.scrollTo(0, 2400));
+  await scrollDemoEditorTo(page, 2400);
   await settleLayout(page);
 
   await expect.poll(() => page.locator("#editor .cf-fold-block").count()).toBeGreaterThan(0);

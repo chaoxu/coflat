@@ -4,7 +4,9 @@
 
 html,
 body {
+  height: 100%;
   min-height: 100%;
+  overflow: hidden;
 }
 
 body {
@@ -19,7 +21,9 @@ body {
 .demo-shell {
   display: grid;
   grid-template-columns: 232px minmax(0, 1fr);
+  height: 100vh;
   min-height: 100vh;
+  overflow: hidden;
 }
 
 .demo-sidebar {
@@ -103,38 +107,46 @@ body {
 }
 
 .demo-main {
+  height: 100vh;
+  min-height: 0;
   min-width: 0;
+  overflow: hidden;
 }
 
 #editor {
+  height: 100%;
+  min-height: 0;
   min-width: 0;
 }
 
 #reader {
+  height: 100%;
   max-width: var(--cf-content-max-width, 800px);
-  min-height: 100vh;
   margin-left: auto;
   margin-right: max(var(--cf-sidenote-margin-width, 0px), calc((100% - var(--cf-content-max-width, 800px)) / 2));
+  overflow: auto;
   padding: var(--cf-doc-content-padding-block-start, 24px) var(--cf-doc-content-padding-inline, 48px) var(--cf-doc-content-padding-block-end, 24px) var(--cf-doc-content-padding-inline, 48px);
 }
 
 #editor > .cm-editor {
-  height: auto;
-  min-height: 100vh;
-  overflow: visible;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
   border: 0;
 }
 
 #editor > .cm-editor > .cm-scroller {
-  height: auto;
-  min-height: 100vh;
-  overflow: visible;
-  overscroll-behavior: auto;
+  height: 100%;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
 }
 
 @media (max-width: 760px) {
   .demo-shell {
-    display: block;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
   }
 
   .demo-sidebar {
@@ -146,6 +158,12 @@ body {
     padding: 12px;
     border-right: 0;
     border-bottom: 1px solid #dadce0;
+  }
+
+  .demo-main {
+    flex: 1 1 auto;
+    height: auto;
+    min-height: 0;
   }
 
   .demo-brand {
