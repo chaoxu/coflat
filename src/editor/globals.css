@@ -27,16 +27,6 @@ body {
   color: var(--cf-fg);
 }
 
-/* Section numbers — period after number, margin matching blog */
-.cf-section-number {
-  color: var(--cf-fg);
-  margin-right: 0.6em;
-}
-
-.cf-section-number::after {
-  content: '.';
-}
-
 .cf-table-widget mark {
   background: var(--cf-mark-bg, rgba(255, 255, 0, 0.2));
   padding: 0.1em 0.2em;

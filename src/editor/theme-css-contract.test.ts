@@ -5,13 +5,17 @@ import { describe, expect, it } from "vitest";
 import { baseThemeStyles } from "./base-theme";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const DOCUMENT_SURFACE_IMPORT = '@import "../core/document-surface.css";';
 
 function readRepoFile(relativePath: string): string {
   const css = readFileSync(resolve(ROOT, relativePath), "utf8");
   if (relativePath !== "editor/editor-theme.css") return css;
 
   const surfaceCss = readRepoFile("core/document-surface.css").trimEnd();
-  return css.replace('@import "../core/document-surface.css";', surfaceCss);
+  if (!css.includes(DOCUMENT_SURFACE_IMPORT)) {
+    throw new Error(`editor-theme.css must import ${DOCUMENT_SURFACE_IMPORT}`);
+  }
+  return css.replace(DOCUMENT_SURFACE_IMPORT, surfaceCss);
 }
 
 function cssRuleBody(css: string, selector: string): string {
@@ -29,18 +33,23 @@ function cssCustomProperties(ruleBody: string): string[] {
   );
 }
 
+function selectorRulePattern(selector: string): RegExp {
+  const escapedSelector = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(^|})\\s*${escapedSelector}\\s*\\{`, "m");
+}
+
 describe("theme CSS contract", () => {
   it("keeps rendered document surface CSS in the shared source file", () => {
     const editorCss = readFileSync(resolve(ROOT, "editor/editor-theme.css"), "utf8");
     const surfaceCss = readRepoFile("core/document-surface.css");
 
-    expect(editorCss).toContain('@import "../core/document-surface.css";');
+    expect(editorCss).toContain(DOCUMENT_SURFACE_IMPORT);
     expect(editorCss).not.toContain(".cf-reader .cf-doc-heading--h1 {");
     expect(editorCss).not.toContain(".cf-reader .cf-doc-list-item {");
     expect(editorCss).not.toContain(".cf-bibliography-heading {");
-    expect(editorCss).not.toContain(".font-mono");
+    expect(editorCss).not.toMatch(selectorRulePattern(".font-mono"));
     expect(surfaceCss).not.toMatch(/\.cm-/);
-    expect(surfaceCss).not.toContain("\n[data-section-number]::before");
+    expect(surfaceCss).not.toMatch(selectorRulePattern("[data-section-number]::before"));
     expect(surfaceCss).toContain(".cf-reader .cf-doc-heading--h1 {");
     expect(surfaceCss).toContain(".cf-reader .cf-doc-list-item {");
     expect(surfaceCss).toContain(".cf-bibliography-heading {");
@@ -160,7 +169,7 @@ describe("theme CSS contract", () => {
     expect(cssRuleBody(css, ".cf-doc-heading[data-section-number]::before")).toContain(
       'content: attr(data-section-number) ".\\2002";',
     );
-    expect(css).not.toContain("\n[data-section-number]::before");
+    expect(css).not.toMatch(selectorRulePattern("[data-section-number]::before"));
     expect(cssRuleBody(css, ".cf-reader a,\n.cf-reader .cf-doc-link")).toContain("display: inline;");
     expect(cssRuleBody(css, ".cf-reader a,\n.cf-reader .cf-doc-link")).toContain("text-decoration-style: dotted;");
     expect(cssRuleBody(css, ".cf-reader a[data-cf-link-layout=\"flow\"],\n.cf-reader .cf-doc-link[data-cf-link-layout=\"flow\"]")).toContain(

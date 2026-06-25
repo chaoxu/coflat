@@ -17,6 +17,12 @@ function assertIncludes(value, needle, label) {
   }
 }
 
+function assertNotMatches(value, pattern, label) {
+  if (pattern.test(value)) {
+    throw new Error(`${label} matched forbidden pattern ${pattern}`);
+  }
+}
+
 const source = read("tests/fixtures/coflat-showcase.md");
 const css = read("dist/editor.css");
 const surfaceCss = read("dist/document-surface.css");
@@ -67,12 +73,9 @@ assertIncludes(surfaceCss, ".cf-hover-preview-tooltip", "dist/document-surface.c
 assertIncludes(surfaceCss, ".cf-doc-heading[data-section-number]::before", "dist/document-surface.css");
 assertIncludes(surfaceCss, ":root", "dist/document-surface.css");
 assertIncludes(surfaceCss, ".katex-display", "dist/document-surface.css");
-if (/\.cm-/.test(surfaceCss)) {
-  throw new Error("dist/document-surface.css must not contain CM6 selectors");
-}
-if (/\n\.font-mono\b/.test(css) || /\n\[data-section-number\]::before/.test(surfaceCss)) {
-  throw new Error("exported CSS leaked generic host selectors");
-}
+assertNotMatches(surfaceCss, /\.cm-/, "dist/document-surface.css");
+assertNotMatches(css, /(^|})\s*\.font-mono\b/, "dist/editor.css");
+assertNotMatches(surfaceCss, /(^|})\s*\[data-section-number\]::before/, "dist/document-surface.css");
 
 assertIncludes(latexCsl, 'citation-format="numeric"', "dist/latex/csl/ieee.csl");
 assertIncludes(latexFilter, "syntax-manifest.lua", "dist/latex/filter.lua");
