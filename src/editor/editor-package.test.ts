@@ -30,6 +30,7 @@ describe("package editor export", () => {
       ".",
       "./browser-test-utils",
       "./citeproc",
+      "./document-surface.css",
       "./latex",
       "./latex/csl/ieee.csl",
       "./latex/filter.lua",
@@ -147,6 +148,13 @@ describe("package editor export", () => {
     const cssExport = packageJson.exports?.["./style.css"];
 
     expect(cssExport).toBe("./dist/editor.css");
+  });
+
+  it("publishes the shared document surface stylesheet", () => {
+    const packageJson = readPackageJson();
+    const cssExport = packageJson.exports?.["./document-surface.css"];
+
+    expect(cssExport).toBe("./dist/document-surface.css");
   });
 
   it("publishes optional theme stylesheets as explicit subpath exports", () => {

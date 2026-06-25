@@ -1,0 +1,1224 @@
+/* ── Coflat Document Surface ──────────────────────────────────────────────────
+ * Shared rendered document contract for reader, rich-readonly, rich editor
+ * widgets, and non-CM6 preview DOM. Editor-only behavior and CM6 runtime
+ * layout stay in editor-theme.css / CM6 theme modules.
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+/* ── Design tokens ──────────────────────────────────────────────────────────
+ * Minimal black-and-white palette. No gradients, no shadows, borders for depth.
+ * Typography: 12px labels, 14px body, 16px editor. Weights: 400/500/600.
+ * Spacing: 4/8/12/16px increments. Opacity for icon affordance (0.6 → 1.0).
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+:root {
+  --cf-ui-font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --cf-content-font: KaTeX_Main, "Times New Roman", serif;
+  --cf-code-font: Monaco, "DejaVu Sans Mono", Consolas, monospace;
+  --cf-base-font-size: 16px;
+  --cf-line-height: 1.5;
+
+  /* Backgrounds — flat: secondary matches primary */
+  --cf-bg: #ffffff;
+  --cf-bg-secondary: #ffffff;
+
+  /* Text */
+  --cf-fg: #09090b;
+  --cf-muted: #71717a;
+
+  /* Borders — always 1px solid, primary separator */
+  --cf-border: #e4e4e7;
+
+  /* Interactive states — visible enough for 3:1 contrast on white (#fff) */
+  --cf-subtle: rgba(0, 0, 0, 0.04);
+  --cf-hover: rgba(0, 0, 0, 0.08);
+  --cf-active: rgba(0, 0, 0, 0.12);
+
+  /* Highlight (==text==) background — shared between editor and preview surfaces */
+  --cf-mark-bg: rgba(255, 255, 0, 0.2);
+  --cf-math-error-fg: #c00;
+  --cf-math-error-bg: rgba(255, 0, 0, 0.05);
+  --cf-danger: #dc2626;
+  --cf-code-keyword: #9a3412;
+  --cf-code-string: #166534;
+  --cf-code-number: #1d4ed8;
+  --cf-code-symbol: #0f766e;
+  --cf-code-tag: #be123c;
+
+  /* Accent — black, one color */
+  --cf-accent: #18181b;
+  --cf-accent-fg: #ffffff;
+  --cf-color-link: var(--cf-accent);
+  --cf-color-code-bg: var(--cf-hover);
+  --cf-active-shell-border: #dc2626;
+  --cf-active-shell-fill: rgba(220, 38, 38, 0.10);
+  --cf-active-shell-border-width: 2px;
+
+  /* Overlay (semi-transparent background for floating bars) */
+  --cf-bg-overlay: rgba(255, 255, 255, 0.82);
+  --cf-border-overlay: rgba(228, 228, 231, 0.6);
+
+  /* Layer system — inline editor chrome stays below body-level popups. */
+  --cf-layer-inline-chrome: 1;
+  --cf-layer-preview-surface: 1000;
+  --cf-layer-block-picker: 1010;
+
+  /* Theme-owned special surfaces */
+  --cf-block-header-accent: var(--cf-fg);
+  --cf-block-header-border-width: 0px;
+
+  /* Per-block-type accent colors (default to shared fallback).
+   * These tokens match the STYLED_BLOCK_NAMES list derived from
+   * BLOCK_MANIFEST in src/constants/block-manifest.ts. When adding
+   * a new block type, add its entry to the manifest and corresponding
+   * --cf-block-{name}-accent and --cf-block-{name}-style tokens here. */
+  --cf-block-theorem-accent: var(--cf-block-header-accent);
+  --cf-block-lemma-accent: var(--cf-block-header-accent);
+  --cf-block-corollary-accent: var(--cf-block-header-accent);
+  --cf-block-proposition-accent: var(--cf-block-header-accent);
+  --cf-block-conjecture-accent: var(--cf-block-header-accent);
+  --cf-block-definition-accent: var(--cf-block-header-accent);
+  --cf-block-problem-accent: var(--cf-block-header-accent);
+  --cf-block-example-accent: var(--cf-block-header-accent);
+  --cf-block-remark-accent: var(--cf-block-header-accent);
+  --cf-block-proof-accent: var(--cf-block-header-accent);
+  --cf-block-algorithm-accent: var(--cf-block-header-accent);
+  --cf-block-figure-accent: var(--cf-block-header-accent);
+  --cf-block-table-accent: var(--cf-block-header-accent);
+  --cf-block-title-color: var(--cf-fg);
+  --cf-block-title-weight: 700;
+  /* Per-block-type body font style — must match BLOCK_MANIFEST bodyStyle values */
+  --cf-block-theorem-style: italic;
+  --cf-block-lemma-style: italic;
+  --cf-block-corollary-style: italic;
+  --cf-block-proposition-style: italic;
+  --cf-block-conjecture-style: italic;
+  --cf-block-definition-style: normal;
+  --cf-block-problem-style: normal;
+  --cf-block-example-style: normal;
+  --cf-block-remark-style: normal;
+  --cf-block-proof-style: normal;
+  --cf-block-algorithm-style: normal;
+  --cf-block-figure-style: normal;
+  --cf-block-table-style: normal;
+  --cf-block-nest-1: var(--cf-border);
+  --cf-block-nest-2: var(--cf-active);
+  --cf-block-nest-3: var(--cf-muted);
+  --cf-block-nest-4: var(--cf-fg);
+  --cf-proof-marker: "\220E";
+  --cf-proof-marker-color: var(--cf-fg);
+  --cf-proof-marker-size: 1.2em;
+  --cf-blockquote-border: var(--cf-border);
+  --cf-blockquote-color: var(--cf-fg);
+  --cf-block-margin: 0.6em 0;
+  --cf-block-title-display: inline;
+  --cf-block-title-separator: ".\2002\2002";
+  --cf-table-border: var(--cf-border);
+  --cf-table-header-border: var(--cf-border);
+  --cf-table-edit-outline: var(--cf-active);
+  --cf-table-cell-padding: 0.5em 0.75em;
+  --cf-table-font-size: 0.9em;
+  --cf-table-line-height: 1.5;
+
+  /* Border radius */
+  --cf-border-radius: 2px;
+  --cf-border-radius-lg: 4px;
+
+  /* Spacing scale */
+  --cf-spacing-xs: 4px;
+  --cf-spacing-sm: 8px;
+  --cf-spacing-md: 12px;
+  --cf-spacing-lg: 16px;
+
+  /* Preview surfaces */
+  --cf-preview-surface-max-width: 400px;
+  --cf-preview-surface-max-height: 300px;
+  --cf-preview-surface-padding-block: var(--cf-spacing-md);
+  --cf-preview-surface-padding-inline: var(--cf-spacing-lg);
+  --cf-preview-surface-font-size: 0.9em;
+
+  /* UI font sizes */
+  --cf-ui-font-size-sm: 12px;
+  --cf-ui-font-size-base: 14px;
+
+  /* Border widths */
+  --cf-border-width: 1px;
+  --cf-border-width-accent: 2px;
+  --cf-code-block-top-shadow: inset 0 var(--cf-border-width) 0 var(--cf-border), inset var(--cf-border-width) 0 0 var(--cf-border), inset calc(-1 * var(--cf-border-width)) 0 0 var(--cf-border);
+  --cf-code-block-side-shadow: inset var(--cf-border-width) 0 0 var(--cf-border), inset calc(-1 * var(--cf-border-width)) 0 0 var(--cf-border);
+  --cf-code-block-bottom-shadow: inset var(--cf-border-width) 0 0 var(--cf-border), inset calc(-1 * var(--cf-border-width)) 0 0 var(--cf-border), inset 0 calc(-1 * var(--cf-border-width)) 0 var(--cf-border);
+  --cf-code-block-full-shadow: inset 0 var(--cf-border-width) 0 var(--cf-border), inset var(--cf-border-width) 0 0 var(--cf-border), inset calc(-1 * var(--cf-border-width)) 0 0 var(--cf-border), inset 0 calc(-1 * var(--cf-border-width)) 0 var(--cf-border);
+
+  /* Transitions */
+  --cf-transition: 0.15s ease;
+
+  /* Layout */
+  --cf-content-max-width: 800px;
+  --cf-sidenote-width: 224px;
+  --cf-sidenote-margin-width: 0px;
+  --cf-fence-guide-width: 3px;
+  --cf-doc-content-padding-block-start: 24px;
+  --cf-doc-content-padding-block-end: 64px;
+  --cf-doc-content-padding-inline: 48px;
+  --cf-doc-paragraph-margin: 0;
+  --cf-doc-heading-margin: 0;
+  --cf-doc-list-margin: 0.8em 0;
+  --cf-doc-list-item-margin: 0.2em 0;
+  --cf-doc-code-block-margin: 1em 0;
+  --cf-doc-display-math-margin: 0;
+  --cf-doc-blockquote-margin: 1em 0;
+  --cf-h1-size: 1.15em;
+  --cf-h1-weight: 700;
+  --cf-h1-style: normal;
+  --cf-h2-size: 1.15em;
+  --cf-h2-weight: 400;
+  --cf-h2-style: italic;
+  --cf-h3-size: 1.1em;
+  --cf-h3-weight: 600;
+  --cf-h3-style: italic;
+  --cf-h4-size: 1.05em;
+  --cf-h4-weight: 600;
+  --cf-h4-style: normal;
+  --cf-h5-size: 1em;
+  --cf-h5-weight: 600;
+  --cf-h5-style: normal;
+  --cf-h6-size: 0.95em;
+  --cf-h6-weight: 600;
+  --cf-h6-style: normal;
+}
+
+[data-theme="dark"] {
+  --cf-ui-font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --cf-content-font: KaTeX_Main, "Times New Roman", serif;
+  --cf-code-font: Monaco, "DejaVu Sans Mono", Consolas, monospace;
+  --cf-base-font-size: 16px;
+  --cf-line-height: 1.5;
+
+  --cf-bg: #0a0a0a;
+  --cf-bg-secondary: #0a0a0a;
+  --cf-fg: #fafafa;
+  --cf-muted: #a1a1aa;
+  --cf-border: #27272a;
+  --cf-subtle: rgba(255, 255, 255, 0.05);
+  --cf-hover: rgba(255, 255, 255, 0.10);
+  --cf-active: rgba(255, 255, 255, 0.15);
+  --cf-mark-bg: rgba(255, 255, 0, 0.15);
+  --cf-math-error-fg: #fca5a5;
+  --cf-math-error-bg: rgba(239, 68, 68, 0.18);
+  --cf-danger: #f87171;
+  --cf-code-keyword: #fdba74;
+  --cf-code-string: #86efac;
+  --cf-code-number: #93c5fd;
+  --cf-code-symbol: #5eead4;
+  --cf-code-tag: #fda4af;
+  --cf-accent: #fafafa;
+  --cf-accent-fg: #09090b;
+  --cf-color-link: var(--cf-accent);
+  --cf-color-code-bg: var(--cf-hover);
+  --cf-active-shell-border: #ef4444;
+  --cf-active-shell-fill: rgba(239, 68, 68, 0.16);
+  --cf-active-shell-border-width: 2px;
+  --cf-bg-overlay: rgba(10, 10, 10, 0.82);
+  --cf-border-overlay: rgba(63, 63, 70, 0.6);
+
+  --cf-layer-inline-chrome: 1;
+  --cf-layer-preview-surface: 1000;
+  --cf-layer-block-picker: 1010;
+
+  --cf-block-header-accent: var(--cf-fg);
+  --cf-block-header-border-width: 0px;
+  --cf-block-theorem-accent: var(--cf-block-header-accent);
+  --cf-block-lemma-accent: var(--cf-block-header-accent);
+  --cf-block-corollary-accent: var(--cf-block-header-accent);
+  --cf-block-proposition-accent: var(--cf-block-header-accent);
+  --cf-block-conjecture-accent: var(--cf-block-header-accent);
+  --cf-block-definition-accent: var(--cf-block-header-accent);
+  --cf-block-problem-accent: var(--cf-block-header-accent);
+  --cf-block-example-accent: var(--cf-block-header-accent);
+  --cf-block-remark-accent: var(--cf-block-header-accent);
+  --cf-block-proof-accent: var(--cf-block-header-accent);
+  --cf-block-algorithm-accent: var(--cf-block-header-accent);
+  --cf-block-figure-accent: var(--cf-block-header-accent);
+  --cf-block-table-accent: var(--cf-block-header-accent);
+  --cf-block-title-color: var(--cf-fg);
+  --cf-block-title-weight: 700;
+  --cf-block-theorem-style: italic;
+  --cf-block-lemma-style: italic;
+  --cf-block-corollary-style: italic;
+  --cf-block-proposition-style: italic;
+  --cf-block-conjecture-style: italic;
+  --cf-block-definition-style: normal;
+  --cf-block-problem-style: normal;
+  --cf-block-example-style: normal;
+  --cf-block-remark-style: normal;
+  --cf-block-proof-style: normal;
+  --cf-block-algorithm-style: normal;
+  --cf-block-figure-style: normal;
+  --cf-block-table-style: normal;
+  --cf-block-nest-1: var(--cf-border);
+  --cf-block-nest-2: var(--cf-active);
+  --cf-block-nest-3: var(--cf-muted);
+  --cf-block-nest-4: var(--cf-fg);
+  --cf-proof-marker: "\220E";
+  --cf-proof-marker-color: var(--cf-fg);
+  --cf-proof-marker-size: 1.2em;
+  --cf-blockquote-border: var(--cf-border);
+  --cf-blockquote-color: var(--cf-fg);
+  --cf-block-margin: 0.6em 0;
+  --cf-block-title-display: inline;
+  --cf-block-title-separator: ".\2002\2002";
+  --cf-table-border: var(--cf-border);
+  --cf-table-header-border: var(--cf-border);
+  --cf-table-edit-outline: var(--cf-active);
+  --cf-table-cell-padding: 0.5em 0.75em;
+  --cf-table-font-size: 0.9em;
+  --cf-table-line-height: 1.5;
+
+  --cf-border-radius: 2px;
+  --cf-border-radius-lg: 4px;
+  --cf-spacing-xs: 4px;
+  --cf-spacing-sm: 8px;
+  --cf-spacing-md: 12px;
+  --cf-spacing-lg: 16px;
+  --cf-preview-surface-max-width: 400px;
+  --cf-preview-surface-max-height: 300px;
+  --cf-preview-surface-padding-block: var(--cf-spacing-md);
+  --cf-preview-surface-padding-inline: var(--cf-spacing-lg);
+  --cf-preview-surface-font-size: 0.9em;
+  --cf-ui-font-size-sm: 12px;
+  --cf-ui-font-size-base: 14px;
+  --cf-border-width: 1px;
+  --cf-border-width-accent: 2px;
+  --cf-transition: 0.15s ease;
+  --cf-content-max-width: 800px;
+  --cf-sidenote-width: 224px;
+  --cf-sidenote-margin-width: 0px;
+  --cf-fence-guide-width: 3px;
+  --cf-doc-content-padding-block-start: 24px;
+  --cf-doc-content-padding-block-end: 64px;
+  --cf-doc-content-padding-inline: 48px;
+  --cf-doc-paragraph-margin: 0;
+  --cf-doc-heading-margin: 0;
+  --cf-doc-list-margin: 0.8em 0;
+  --cf-doc-list-item-margin: 0.2em 0;
+  --cf-doc-code-block-margin: 1em 0;
+  --cf-doc-display-math-margin: 0;
+  --cf-doc-blockquote-margin: 1em 0;
+  --cf-h1-size: 1.15em;
+  --cf-h1-weight: 700;
+  --cf-h1-style: normal;
+  --cf-h2-size: 1.15em;
+  --cf-h2-weight: 400;
+  --cf-h2-style: italic;
+  --cf-h3-size: 1.1em;
+  --cf-h3-weight: 600;
+  --cf-h3-style: italic;
+  --cf-h4-size: 1.05em;
+  --cf-h4-weight: 600;
+  --cf-h4-style: normal;
+  --cf-h5-size: 1em;
+  --cf-h5-weight: 600;
+  --cf-h5-style: normal;
+  --cf-h6-size: 0.95em;
+  --cf-h6-weight: 600;
+  --cf-h6-style: normal;
+}
+
+/* ── Shared document surface contract ─────────────────────────────────────── */
+
+.cf-doc-surface {
+  color: var(--cf-fg);
+  /* Inherit the embedding context's background instead of painting our own,
+     so the surface matches whatever it's placed on (e.g. chat turns). Standalone
+     readers still get a background from .cf-theme-scope / .cf-reader-shell. */
+  background: transparent;
+}
+
+.cf-doc-flow {
+  color: var(--cf-fg);
+  font-family: var(--cf-content-font, KaTeX_Main, "Times New Roman", serif);
+  font-size: var(--cf-base-font-size, 16px);
+  line-height: var(--cf-line-height, 1.5);
+  text-align: left;
+  -webkit-font-smoothing: antialiased;
+}
+
+.cf-theme-scope {
+  color: var(--cf-fg);
+  background: var(--cf-bg);
+}
+
+.cf-reader-shell,
+.cf-reader-document {
+  box-sizing: border-box;
+  color: var(--cf-fg);
+  background: var(--cf-bg);
+}
+
+.cf-reader {
+  box-sizing: border-box;
+  max-width: var(--cf-content-max-width, 800px);
+  margin-inline: auto;
+  padding: var(--cf-doc-content-padding-block-start, 24px) var(--cf-doc-content-padding-inline, 48px) var(--cf-doc-content-padding-block-end, 64px);
+  counter-reset: cf-reader-h1 cf-reader-h2 cf-reader-h3 cf-reader-h4 cf-reader-h5 cf-reader-h6;
+}
+
+.cf-reader-toc {
+  box-sizing: border-box;
+  color: var(--cf-muted);
+  font-family: var(--cf-ui-font, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif);
+  font-size: var(--cf-ui-font-size-base, 14px);
+}
+
+.cf-reader a,
+.cf-reader .cf-doc-link {
+  display: inline;
+  color: var(--cf-color-link, var(--cf-accent));
+  text-decoration-line: underline;
+  text-decoration-style: dotted;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
+.cf-reader a[data-cf-link-layout="flow"],
+.cf-reader .cf-doc-link[data-cf-link-layout="flow"] {
+  display: inline;
+}
+
+.cf-reader a[data-cf-link-layout="atomic"],
+.cf-reader .cf-doc-link[data-cf-link-layout="atomic"] {
+  display: inline-block;
+}
+
+.cf-reader .cf-doc-heading {
+  margin: var(--cf-doc-heading-margin, 0.8em 0 0.4em);
+  font-family: var(--cf-content-font, KaTeX_Main, "Times New Roman", serif);
+  line-height: 1.3;
+  color: var(--cf-fg);
+}
+
+.cf-reader .cf-doc-heading--h1 {
+  font-size: var(--cf-h1-size, 1.15em);
+  font-style: var(--cf-h1-style, normal);
+  font-weight: var(--cf-h1-weight, 700);
+}
+
+.cf-reader .cf-doc-heading--h2 {
+  font-size: var(--cf-h2-size, 1.15em);
+  font-style: var(--cf-h2-style, italic);
+  font-weight: var(--cf-h2-weight, 400);
+}
+
+.cf-reader .cf-doc-heading--h3 {
+  font-size: var(--cf-h3-size, 1.1em);
+  font-style: var(--cf-h3-style, italic);
+  font-weight: var(--cf-h3-weight, 600);
+  line-height: 1.4;
+}
+
+.cf-reader .cf-doc-heading--h4 {
+  font-size: var(--cf-h4-size, 1.05em);
+  font-style: var(--cf-h4-style, normal);
+  font-weight: var(--cf-h4-weight, 600);
+  line-height: 1.4;
+}
+
+.cf-reader .cf-doc-heading--h5 {
+  font-size: var(--cf-h5-size, 1em);
+  font-style: var(--cf-h5-style, normal);
+  font-weight: var(--cf-h5-weight, 600);
+}
+
+.cf-reader .cf-doc-heading--h6 {
+  font-size: var(--cf-h6-size, 0.95em);
+  font-style: var(--cf-h6-style, normal);
+  font-weight: var(--cf-h6-weight, 600);
+}
+
+.cf-doc-title {
+  font-size: 1.6em;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--cf-fg);
+  margin-bottom: 0.25em;
+  padding-bottom: 0.15em;
+  border-bottom: var(--cf-border-width) solid var(--cf-border);
+  display: block;
+  cursor: text;
+  user-select: text;
+}
+
+.cf-reader .cf-doc-heading:not(.cf-doc-heading--unnumbered)::before {
+  color: var(--cf-fg);
+  font-weight: 400;
+  margin-right: var(--cf-spacing-xs);
+}
+
+.cf-reader .cf-doc-heading--h1:not([data-section-number]):not(.cf-doc-heading--unnumbered)::before {
+  counter-increment: cf-reader-h1;
+  counter-reset: cf-reader-h2 cf-reader-h3 cf-reader-h4 cf-reader-h5 cf-reader-h6;
+  content: counter(cf-reader-h1) ".\2002";
+}
+
+.cf-reader .cf-doc-heading--h2:not([data-section-number]):not(.cf-doc-heading--unnumbered)::before {
+  counter-increment: cf-reader-h2;
+  counter-reset: cf-reader-h3 cf-reader-h4 cf-reader-h5 cf-reader-h6;
+  content: counter(cf-reader-h1) "." counter(cf-reader-h2) ".\2002";
+}
+
+.cf-reader .cf-doc-heading--h3:not([data-section-number]):not(.cf-doc-heading--unnumbered)::before {
+  counter-increment: cf-reader-h3;
+  counter-reset: cf-reader-h4 cf-reader-h5 cf-reader-h6;
+  content: counter(cf-reader-h1) "." counter(cf-reader-h2) "." counter(cf-reader-h3) ".\2002";
+}
+
+.cf-reader .cf-doc-heading--h4:not([data-section-number]):not(.cf-doc-heading--unnumbered)::before {
+  counter-increment: cf-reader-h4;
+  counter-reset: cf-reader-h5 cf-reader-h6;
+  content: counter(cf-reader-h1) "." counter(cf-reader-h2) "." counter(cf-reader-h3) "." counter(cf-reader-h4) ".\2002";
+}
+
+.cf-reader .cf-doc-heading--h5:not([data-section-number]):not(.cf-doc-heading--unnumbered)::before {
+  counter-increment: cf-reader-h5;
+  counter-reset: cf-reader-h6;
+  content: counter(cf-reader-h1) "." counter(cf-reader-h2) "." counter(cf-reader-h3) "." counter(cf-reader-h4) "." counter(cf-reader-h5) ".\2002";
+}
+
+.cf-reader .cf-doc-heading--h6:not([data-section-number]):not(.cf-doc-heading--unnumbered)::before {
+  counter-increment: cf-reader-h6;
+  content: counter(cf-reader-h1) "." counter(cf-reader-h2) "." counter(cf-reader-h3) "." counter(cf-reader-h4) "." counter(cf-reader-h5) "." counter(cf-reader-h6) ".\2002";
+}
+
+[data-section-number]::before {
+  content: attr(data-section-number) ".\2002";
+  color: var(--cf-fg);
+  font-weight: 400;
+  margin-right: var(--cf-spacing-xs);
+}
+
+.cf-reader .cf-doc-paragraph {
+  margin: var(--cf-doc-paragraph-margin, 0.5em 0);
+  white-space: break-spaces;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.cf-reader .cf-doc-list {
+  margin: 0;
+  padding-left: 0;
+}
+
+.cf-reader .cf-doc-list--unordered {
+  list-style: none;
+}
+
+.cf-reader .cf-doc-list--ordered {
+  list-style: none;
+}
+
+.cf-reader .cf-doc-list-item {
+  display: block;
+  margin: 0;
+  white-space: break-spaces;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.cf-reader .cf-doc-list-item > .cf-list-bullet + .cf-doc-paragraph,
+.cf-reader .cf-doc-list-item > .cf-list-number + .cf-doc-paragraph {
+  display: inline;
+}
+
+.cf-list-bullet {
+  color: var(--cf-fg);
+  font-weight: 700;
+  font-family: var(--cf-content-font, KaTeX_Main, "Times New Roman", serif);
+}
+
+.cf-list-number {
+  color: var(--cf-fg);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  font-family: var(--cf-content-font, KaTeX_Main, "Times New Roman", serif);
+}
+
+.cf-reader .cf-doc-code-token {
+  font-family: var(--cf-code-font, Monaco, "DejaVu Sans Mono", Consolas, monospace);
+  font-size: 0.85em;
+  background: var(--cf-color-code-bg, var(--cf-hover));
+  border-radius: var(--cf-border-radius);
+  padding: 0.1em 0.25em;
+}
+
+.cf-reader .cf-doc-code-block {
+  margin: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  font-family: var(--cf-code-font, Monaco, "DejaVu Sans Mono", Consolas, monospace);
+  font-style: normal;
+  padding: 0;
+  line-height: var(--cf-line-height, 1.5);
+}
+
+.cf-reader .cf-doc-code-block > .cf-codeblock-language {
+  display: block;
+  background: var(--cf-subtle);
+  box-shadow: var(--cf-code-block-top-shadow);
+  border-top-left-radius: var(--cf-border-radius-lg);
+  border-top-right-radius: var(--cf-border-radius-lg);
+  color: var(--cf-muted);
+  font-family: var(--cf-code-font, Monaco, "DejaVu Sans Mono", Consolas, monospace);
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.cf-reader .cf-doc-code-block code {
+  display: block;
+  background: var(--cf-subtle);
+  box-shadow: var(--cf-code-block-bottom-shadow);
+  border-bottom-left-radius: var(--cf-border-radius-lg);
+  border-bottom-right-radius: var(--cf-border-radius-lg);
+  font-family: var(--cf-code-font, Monaco, "DejaVu Sans Mono", Consolas, monospace);
+  line-height: inherit;
+}
+
+.cf-reader .cf-doc-code-block:not([data-lang]) code {
+  box-shadow: var(--cf-code-block-full-shadow);
+  border-radius: var(--cf-border-radius-lg);
+}
+
+.cf-reader .cf-doc-blockquote {
+  margin: var(--cf-doc-blockquote-margin, 1em 0);
+  border-left: 3px solid var(--cf-blockquote-border);
+  padding-left: 1em;
+  color: var(--cf-blockquote-color);
+}
+
+.cf-reader .cf-doc-table-block {
+  margin: var(--cf-spacing-sm) 0;
+  border-collapse: collapse;
+  font-size: var(--cf-table-font-size, 0.9em);
+  width: 100%;
+}
+
+.cf-reader .cf-doc-table-cell {
+  border: var(--cf-border-width, 1px) solid var(--cf-table-border);
+  padding: var(--cf-table-cell-padding);
+  line-height: var(--cf-table-line-height, 1.5);
+  text-align: left;
+  vertical-align: top;
+  white-space: break-spaces;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.cf-reader .cf-doc-table-header {
+  border-bottom: var(--cf-border-width-accent, 2px) solid var(--cf-table-header-border);
+  background: transparent;
+  font-weight: 700;
+}
+
+.cf-reader .cf-image {
+  display: inline-block;
+  max-width: 100%;
+  max-height: 400px;
+  vertical-align: middle;
+}
+
+.cf-reader .cf-doc-display-math {
+  margin: var(--cf-doc-display-math-margin, 0);
+  text-align: center;
+}
+
+.cf-reader .cf-doc-list-item--check input[type="checkbox"] {
+  height: 13px;
+  margin: 0 4px 0 0;
+  pointer-events: none;
+  vertical-align: middle;
+  width: 13px;
+}
+
+.cf-bibliography-entry-number {
+  margin-right: 4px;
+}
+
+.cf-footnote-ref,
+.cf-sidenote-ref,
+.cf-bibliography-entry-number {
+  font-size: 0.7em;
+  font-weight: 600;
+  line-height: 1;
+  vertical-align: super;
+}
+
+.cf-footnote-ref a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* ── Bibliography / References section ──────────────────────────────────── */
+
+.cf-bibliography,
+.cf-footnote-section {
+  font-family: var(--cf-content-font, KaTeX_Main, "Times New Roman", serif);
+  font-size: 0.85rem;
+  line-height: 1.4;
+  text-align: left;
+  hyphens: manual;
+  -webkit-hyphens: manual;
+}
+
+.cf-bibliography-heading {
+  margin: var(--cf-doc-heading-margin, 0);
+  color: var(--cf-fg);
+  font-family: var(--cf-content-font, KaTeX_Main, "Times New Roman", serif);
+  font-size: var(--cf-h2-size, 1.15em);
+  font-style: var(--cf-h2-style, italic);
+  font-weight: var(--cf-h2-weight, 400);
+  line-height: 1.3;
+}
+
+.cf-footnote-section {
+  margin-top: 2em;
+}
+
+.cf-footnote-section .cf-bibliography-entry {
+  cursor: pointer;
+  font-size: 0.85em;
+  line-height: 1.6;
+  margin-bottom: 4px;
+}
+
+.cf-bibliography-entry + .cf-bibliography-entry {
+  margin-top: 0.15em;
+}
+
+.cf-bibliography-entry > .csl-entry,
+.cf-bibliography-entry-content > .csl-entry {
+  margin: 0;
+}
+
+.cf-bibliography-entry-content {
+  display: contents;
+}
+
+.cf-bibliography-entry > .csl-entry:has(> .csl-left-margin):has(> .csl-right-inline),
+.cf-bibliography-entry-content > .csl-entry:has(> .csl-left-margin):has(> .csl-right-inline) {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 0.5em;
+  align-items: start;
+}
+
+.cf-bibliography-entry > .csl-entry > .csl-left-margin,
+.cf-bibliography-entry > .csl-entry > .csl-right-inline,
+.cf-bibliography-entry-content > .csl-entry > .csl-left-margin,
+.cf-bibliography-entry-content > .csl-entry > .csl-right-inline {
+  margin: 0;
+}
+
+.cf-bibliography-entry > .csl-entry > .csl-left-margin,
+.cf-bibliography-entry-content > .csl-entry > .csl-left-margin {
+  white-space: nowrap;
+}
+
+.cf-bibliography-entry > .csl-entry > .csl-right-inline,
+.cf-bibliography-entry-content > .csl-entry > .csl-right-inline {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.cf-bibliography-backlinks {
+  margin-left: 0.5em;
+  font-size: 0.9em;
+  white-space: nowrap;
+}
+
+.cf-bibliography-backlink + .cf-bibliography-backlink {
+  margin-left: 0.35em;
+}
+
+.cf-bibliography .cf-bibliography-backlink,
+.cf-footnote-section .cf-footnote-backref {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* ── Math sizing & color: inherit from surrounding context ─────────────── */
+
+.katex {
+  color: inherit;
+}
+
+.cf-math-inline .katex {
+  font-size: inherit;
+}
+
+.cf-katex-small-caps {
+  font-variant: small-caps;
+  font-variant-caps: small-caps;
+}
+
+/* Display math: centered, no extra margin. Shared between CM6 decorations
+ * and read-mode preview surfaces, unscoped so all contexts inherit. */
+.cf-math-display {
+  margin: 0;
+  text-align: center;
+}
+
+.cf-math-display-numbered {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  text-align: initial;
+}
+
+.cf-math-display-content {
+  display: block;
+  width: fit-content;
+  margin-inline: auto;
+}
+
+.cf-math-display-numbered > .cf-math-display-content {
+  grid-column: 2;
+  justify-self: center;
+  margin-inline: 0;
+}
+
+.cf-math-display-number {
+  grid-column: 3;
+  justify-self: end;
+  padding-left: 1rem;
+  white-space: nowrap;
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+}
+
+.cf-math-display .katex-display {
+  font-size: inherit;
+  margin: 0;
+}
+
+.cf-math-display .katex-display > .katex {
+  font-size: inherit;
+}
+
+.cf-preview-surface-body {
+  color: var(--cf-fg);
+  overflow-wrap: break-word;
+}
+
+.cf-preview-surface-body p {
+  margin: 0.25em 0;
+}
+
+.cf-preview-surface-body p:first-child {
+  margin-top: 0;
+}
+
+.cf-preview-surface-body p:last-child {
+  margin-bottom: 0;
+}
+
+.cf-preview-surface-body .cf-doc-display-math {
+  margin: 0;
+  text-align: center;
+}
+
+.cf-preview-surface-body blockquote {
+  border-left: 3px solid var(--cf-blockquote-border);
+  padding-left: 1em;
+  margin-left: 0;
+  color: var(--cf-blockquote-color);
+}
+
+.cf-preview-surface-body ul,
+.cf-preview-surface-body ol {
+  padding-left: 1.5em;
+  margin: 0.8em 0;
+}
+
+.cf-preview-surface-body ul {
+  list-style-type: disc;
+  list-style-position: outside;
+}
+
+.cf-preview-surface-body ol {
+  list-style-type: decimal;
+  list-style-position: outside;
+}
+
+.cf-preview-surface-body li {
+  display: list-item;
+  margin: 0.2em 0;
+}
+
+.cf-preview-surface-body .cf-doc-list {
+  margin: 0;
+  padding-left: 0;
+}
+
+.cf-preview-surface-body .cf-doc-list--unordered,
+.cf-preview-surface-body .cf-doc-list--ordered {
+  list-style: none;
+}
+
+.cf-preview-surface-body .cf-doc-list-item {
+  display: block;
+  margin: 0;
+}
+
+/* ── Fenced div blocks (theorem, proof, etc.) — shared surface DOM ──
+ * Unscoped cf-doc-block--* rules apply to reader output and non-CM6 preview DOM. */
+.cf-doc-block--theorem { font-style: var(--cf-block-theorem-style); border-left-color: var(--cf-block-theorem-accent); }
+.cf-doc-block--lemma { font-style: var(--cf-block-lemma-style); border-left-color: var(--cf-block-lemma-accent); }
+.cf-doc-block--corollary { font-style: var(--cf-block-corollary-style); border-left-color: var(--cf-block-corollary-accent); }
+.cf-doc-block--proposition { font-style: var(--cf-block-proposition-style); border-left-color: var(--cf-block-proposition-accent); }
+.cf-doc-block--conjecture { font-style: var(--cf-block-conjecture-style); border-left-color: var(--cf-block-conjecture-accent); }
+.cf-doc-block--definition { font-style: var(--cf-block-definition-style); border-left-color: var(--cf-block-definition-accent); }
+.cf-doc-block--problem { font-style: var(--cf-block-problem-style); border-left-color: var(--cf-block-problem-accent); }
+.cf-doc-block--example { font-style: var(--cf-block-example-style); border-left-color: var(--cf-block-example-accent); }
+.cf-doc-block--remark,
+.cf-doc-block--note { font-style: var(--cf-block-remark-style); border-left-color: var(--cf-block-remark-accent); }
+.cf-doc-block--proof { font-style: var(--cf-block-proof-style); border-left-color: var(--cf-block-proof-accent); }
+.cf-doc-block--algorithm { font-style: var(--cf-block-algorithm-style); border-left-color: var(--cf-block-algorithm-accent); }
+.cf-doc-block--figure { font-style: var(--cf-block-figure-style); border-left-color: var(--cf-block-figure-accent); }
+.cf-doc-block--table { font-style: var(--cf-block-table-style); border-left-color: var(--cf-block-table-accent); }
+
+.cf-reader .cf-doc-block {
+  border-left: var(--cf-block-header-border-width) solid var(--cf-block-header-accent);
+  margin: 0;
+}
+
+/* Block margin for rendered block wrappers. Editor CM6 line elements reset this in editor-theme.css. */
+.cf-doc-block {
+  margin: var(--cf-block-margin);
+}
+
+.cf-reader .cf-doc-block {
+  margin: 0;
+}
+
+.cf-reader .cf-doc-blank-line {
+  line-height: inherit;
+}
+
+.cf-reader .cf-doc-block-collapsible > .cf-doc-block-heading,
+.cf-reader details.cf-doc-block > .cf-doc-block-heading {
+  display: block;
+  position: relative;
+  list-style: none;
+  cursor: default;
+}
+
+.cf-reader .cf-doc-block-collapsible {
+  position: relative;
+}
+
+.cf-reader .cf-doc-section-heading-collapsible {
+  position: relative;
+}
+
+.cf-reader .cf-doc-block-collapsible > .cf-block-disclosure-body,
+.cf-reader .cf-section-disclosure-body {
+  --cf-block-disclosure-indicator-color: color-mix(in srgb, var(--cf-fg) 45%, transparent);
+  position: relative;
+}
+
+.cf-reader .cf-doc-block-collapsible > .cf-block-disclosure-body::before,
+.cf-reader .cf-section-disclosure-body::before {
+  background: var(--cf-block-disclosure-indicator-color);
+  bottom: 0;
+  content: "";
+  left: calc(-0.5em - var(--cf-spacing-xs));
+  opacity: 0;
+  pointer-events: none;
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  transition: opacity var(--cf-transition, 0.15s ease);
+  width: var(--cf-border-width-accent, 2px);
+}
+
+.cf-reader .cf-doc-block-collapsible:has(> .cf-doc-block-heading > .cf-block-disclosure-toggle:hover) > .cf-block-disclosure-body::before,
+.cf-reader .cf-doc-block-collapsible:has(> .cf-doc-block-heading > .cf-block-disclosure-toggle:focus-visible) > .cf-block-disclosure-body::before {
+  opacity: 1;
+}
+
+.cf-reader .cf-doc-section-heading-collapsible:has(> .cf-section-disclosure-toggle:hover) + .cf-section-disclosure-body::before,
+.cf-reader .cf-doc-section-heading-collapsible:has(> .cf-section-disclosure-toggle:focus-visible) + .cf-section-disclosure-body::before {
+  opacity: 1;
+}
+
+.cf-reader .cf-block-heading-content {
+  min-width: 0;
+}
+
+.cf-reader .cf-block-disclosure-toggle {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  color: var(--cf-border);
+  cursor: pointer;
+  display: block;
+  font: inherit;
+  font-style: normal;
+  line-height: inherit;
+  margin: 0;
+  margin-right: var(--cf-spacing-xs);
+  opacity: 0;
+  padding: 0;
+  position: absolute;
+  right: 100%;
+  top: 0;
+  transition: opacity var(--cf-transition, 0.15s ease);
+  user-select: none;
+}
+
+/* Chevron icon scales with the heading's inherited font size; color via currentColor. */
+.cf-reader .cf-block-disclosure-toggle svg {
+  display: block;
+  width: 1em;
+  height: 1em;
+}
+
+.cf-reader .cf-doc-block-collapsible:hover > .cf-doc-block-heading > .cf-block-disclosure-toggle,
+.cf-reader .cf-doc-block-collapsible:focus-within > .cf-doc-block-heading > .cf-block-disclosure-toggle,
+.cf-reader .cf-doc-section-heading-collapsible:hover > .cf-block-disclosure-toggle,
+.cf-reader .cf-doc-section-heading-collapsible:focus-within > .cf-block-disclosure-toggle {
+  opacity: 1;
+}
+
+.cf-reader .cf-block-disclosure-toggle:hover,
+.cf-reader .cf-block-disclosure-toggle:focus-visible,
+.cf-reader .cf-block-disclosure-toggle-collapsed {
+  opacity: 1;
+  color: var(--cf-fg);
+}
+
+.cf-reader .cf-block-disclosure-toggle:focus-visible {
+  outline: 1px solid currentColor;
+  outline-offset: 2px;
+}
+
+.cf-reader .cf-block-disclosure-body[hidden] {
+  display: none;
+}
+
+.cf-reader .cf-section-disclosure-body[hidden] {
+  display: none;
+}
+
+.cf-reader details.cf-doc-block > .cf-doc-block-heading::marker {
+  content: "";
+}
+
+.cf-reader details.cf-doc-block > .cf-doc-block-heading::-webkit-details-marker {
+  display: none;
+}
+
+.cf-reader .cf-doc-block--proof .cf-doc-block-heading {
+  display: inline;
+}
+
+.cf-reader .cf-doc-block--proof > .cf-doc-block-heading + .cf-doc-paragraph {
+  display: inline;
+}
+
+/* Proof needs position: relative for the ::after tombstone. */
+.cf-doc-block--proof {
+  position: relative;
+}
+
+.cf-block-qed::after {
+  content: var(--cf-proof-marker);
+  float: right;
+  color: var(--cf-proof-marker-color);
+  font-size: var(--cf-proof-marker-size);
+  line-height: 1;
+}
+
+.cf-block-caption {
+  display: block;
+  padding-top: var(--cf-spacing-xs);
+  text-align: center;
+}
+
+.cf-block-caption .cf-block-header-rendered::after {
+  content: var(--cf-block-title-separator);
+}
+
+.cf-doc-block--proof .cf-block-header-rendered {
+  font-style: italic;
+  font-weight: 400;
+}
+
+.cf-doc-block--proof .cf-block-header-rendered::after {
+  content: ". ";
+}
+
+.cf-image-wrapper {
+  display: inline-block;
+  vertical-align: middle;
+  max-width: 100%;
+}
+
+div.cf-image-wrapper:not(.cf-image-loading):not(.cf-image-placeholder) {
+  display: block;
+}
+
+.cf-image-loading,
+.cf-image-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100px;
+  color: var(--cf-muted);
+  font-size: 0.85em;
+  text-align: center;
+}
+
+.cf-image {
+  display: block;
+  max-width: 100%;
+  max-height: 360px;
+}
+
+.cf-doc-block--figure .cf-image-wrapper:not(.cf-image-loading):not(.cf-image-placeholder) {
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  margin: 0 auto;
+}
+
+.cf-doc-block--figure .cf-image-loading,
+.cf-doc-block--figure .cf-image-placeholder {
+  width: auto;
+  margin: 0;
+}
+
+.cf-image-error {
+  display: inline-block;
+  color: var(--cf-fg);
+  font-style: italic;
+  font-size: 0.85em;
+  padding: 2px 6px;
+  border: var(--cf-border-width) solid var(--cf-fg);
+  border-radius: var(--cf-border-radius);
+  vertical-align: middle;
+}
+
+.cf-doc-block--figure img {
+  display: block;
+  margin-inline: auto;
+  max-width: 100%;
+}
+
+.cf-doc-block--table table {
+  width: auto;
+  margin-inline: auto;
+  max-width: 100%;
+}
+
+/* Fenced-div blockquote styling. Bare blockquote stays scoped to hover preview. */
+.cf-doc-block.cf-doc-block--blockquote {
+  border-left: 3px solid var(--cf-blockquote-border);
+  padding-left: 1em;
+  margin-left: 0;
+  font-style: italic;
+}
+
+/* Block header rendered label (e.g. "Theorem 1."): bold, normal style, inline.
+ * Shared class cf-block-header-rendered is used by both CM6 widgets and
+ * preview output. The base font-weight/color is set in block-theme.ts
+ * for CM6; display and font-style reset apply globally. */
+.cf-block-header-rendered {
+  display: var(--cf-block-title-display);
+  font-weight: var(--cf-block-title-weight);
+  color: var(--cf-block-title-color);
+  font-style: normal;
+  line-height: 0;
+}
+
+/* ── Cross-references & citations ──────────────────────────────────────────
+ * These classes are shared between editor (CM6 widgets) and preview DOM.
+ *
+ * Synchronized class pairs (editor <-> preview):
+ *   Editor: cf-crossref           <-> Preview: a.cross-ref
+ *   Editor: cf-crossref-unresolved (no preview equivalent)
+ *   Editor: cf-citation           <-> Preview: span.cf-citation (same class)
+ *   Editor: cf-citation-narrative <-> Preview: narrative cites inline
+ *   Editor: cf-math-error         <-> Preview: .math-error
+ *   Editor: cf-block-header-rendered <-> Preview: strong.cf-block-header-rendered
+ *   Editor: cf-doc-block--{type}  <-> Preview: div.cf-doc-block--{type}
+ *   Editor: cf-doc-display-math   <-> Preview: div.cf-doc-display-math
+ *   Editor: cf-bold               <-> Preview: strong.cf-bold
+ *   Editor: cf-italic             <-> Preview: em.cf-italic
+ *   Editor: cf-strikethrough      <-> Preview: del.cf-strikethrough
+ *   Editor: cf-highlight          <-> Read: mark.cf-highlight
+ *   Editor: cf-inline-code        <-> Read: code.cf-inline-code
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+/* Resolved cross-reference */
+.cf-crossref {
+  font-kerning: none;
+  text-decoration-line: underline;
+  text-decoration-style: dotted;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.cf-citation {
+  font-kerning: none;
+}
+
+/* Unresolved cross-reference — preserve source shape and make breakage visible */
+.cf-crossref-unresolved {
+  color: var(--cf-math-error-fg);
+  background: var(--cf-math-error-bg);
+  border-radius: 0;
+  padding: 0 2px;
+  text-decoration-line: underline;
+  text-decoration-style: dotted;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
+/* cf-citation — citation widget (editor). It inherits surrounding visual
+ * styles; font kerning is disabled above so reader spans and CM6 widgets
+ * shape identically at inline boundaries.
+ * cf-citation-narrative — narrative variant, e.g. "Author (2024)". Also
+ * intentionally unstyled; appears as inline prose. */
+
+/* Math rendering error — theme-provided error colors */
+.cf-math-error {
+  color: var(--cf-math-error-fg);
+  background: var(--cf-math-error-bg);
+  border-radius: var(--cf-border-radius);
+  padding: 1px 4px;
+  font-family: var(--cf-code-font, Monaco, "DejaVu Sans Mono", Consolas, monospace);
+  font-size: 0.85em;
+}
+
+.cf-highlight {
+  background-color: var(--cf-mark-bg, rgba(255, 255, 0, 0.2));
+  color: var(--cf-fg);
+  border-radius: var(--cf-border-radius);
+  padding: 1px 0;
+}
+
+/* Inline code — shared between editor (CM6 mark decoration), preview DOM,
+ * sidenote margin entries, hover previews, and footnote section widgets.
+ * The CM6 theme (typography-theme.ts) applies the same class inside the
+ * editor; this global rule covers all non-CM6 surfaces. */
+.cf-inline-code {
+  font-family: var(--cf-code-font, Monaco, "DejaVu Sans Mono", Consolas, monospace);
+  font-size: 0.85em;
+  background: var(--cf-color-code-bg, var(--cf-hover));
+  border-radius: var(--cf-border-radius);
+  padding: 0.1em 0.25em;
+}

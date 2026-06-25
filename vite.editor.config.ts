@@ -16,8 +16,14 @@ function copyEditorCss(): Plugin {
     name: "copy-editor-css",
     closeBundle() {
       const katexCss = readFileSync("node_modules/katex/dist/katex.min.css", "utf8");
+      const documentSurfaceCss = readFileSync("src/core/document-surface.css", "utf8");
       const editorCss = readFileSync("src/editor/editor-theme.css", "utf8");
-      writeFileSync("dist/editor.css", `${katexCss}\n${editorCss}`);
+      const inlinedEditorCss = editorCss.replace(
+        '@import "../core/document-surface.css";',
+        documentSurfaceCss.trimEnd(),
+      );
+      writeFileSync("dist/document-surface.css", `${katexCss}\n${documentSurfaceCss}`);
+      writeFileSync("dist/editor.css", `${katexCss}\n${inlinedEditorCss}`);
       mkdirSync("dist/themes", { recursive: true });
       cpSync("src/themes/blueprint-book.css", "dist/themes/blueprint-book.css");
       cpSync("node_modules/katex/dist/fonts", "dist/fonts", { recursive: true });

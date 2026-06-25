@@ -7,7 +7,11 @@ import { baseThemeStyles } from "./base-theme";
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 function readRepoFile(relativePath: string): string {
-  return readFileSync(resolve(ROOT, relativePath), "utf8");
+  const css = readFileSync(resolve(ROOT, relativePath), "utf8");
+  if (relativePath !== "editor/editor-theme.css") return css;
+
+  const surfaceCss = readRepoFile("core/document-surface.css").trimEnd();
+  return css.replace('@import "../core/document-surface.css";', surfaceCss);
 }
 
 function cssRuleBody(css: string, selector: string): string {
@@ -26,6 +30,20 @@ function cssCustomProperties(ruleBody: string): string[] {
 }
 
 describe("theme CSS contract", () => {
+  it("keeps rendered document surface CSS in the shared source file", () => {
+    const editorCss = readFileSync(resolve(ROOT, "editor/editor-theme.css"), "utf8");
+    const surfaceCss = readRepoFile("core/document-surface.css");
+
+    expect(editorCss).toContain('@import "../core/document-surface.css";');
+    expect(editorCss).not.toContain(".cf-reader .cf-doc-heading--h1 {");
+    expect(editorCss).not.toContain(".cf-reader .cf-doc-list-item {");
+    expect(editorCss).not.toContain(".cf-bibliography-heading {");
+    expect(surfaceCss).not.toMatch(/\.cm-/);
+    expect(surfaceCss).toContain(".cf-reader .cf-doc-heading--h1 {");
+    expect(surfaceCss).toContain(".cf-reader .cf-doc-list-item {");
+    expect(surfaceCss).toContain(".cf-bibliography-heading {");
+  });
+
   it("lets compact editor padding inherit the document padding token", () => {
     const compact = baseThemeStyles["@media (max-width: 720px)"][".cm-content"];
 
@@ -35,7 +53,7 @@ describe("theme CSS contract", () => {
   });
 
   it("keeps dark mode as a complete token set", () => {
-    const css = readRepoFile("editor/editor-theme.css");
+    const css = readRepoFile("core/document-surface.css");
     const rootTokens = cssCustomProperties(cssRuleBody(css, ":root"));
     const darkTokens = new Set(cssCustomProperties(cssRuleBody(css, "[data-theme=\"dark\"]")));
 
@@ -89,10 +107,18 @@ describe("theme CSS contract", () => {
     expect(cssRuleBody(css, ".cm-line")).toContain("line-height: inherit;");
     expect(cssRuleBody(css, ".cm-line")).toContain("padding: 0;");
     expect(cssRuleBody(css, ".cm-editor .cm-line")).toContain("padding: 0;");
+    expect(cssRuleBody(css, ".cm-line.cf-doc-list")).toContain("margin: 0;");
+    expect(cssRuleBody(css, ".cm-line.cf-doc-list")).toContain("padding-left: 0;");
+    expect(cssRuleBody(css, ".cm-line.cf-doc-list")).toContain("list-style: none;");
+    expect(cssRuleBody(css, ".cm-line.cf-doc-list-item")).toContain("display: block;");
+    expect(cssRuleBody(css, ".cm-line.cf-doc-list-item")).toContain("margin: 0;");
+    expect(cssRuleBody(css, ".cm-line.cf-codeblock-header,\n.cm-line.cf-codeblock-body,\n.cm-line.cf-codeblock-last")).toContain("font-style: normal;");
+    expect(cssRuleBody(css, ".cm-line.cf-doc-block")).toContain("margin: 0;");
+    expect(cssRuleBody(css, ".cm-line.cf-doc-block--blockquote")).toContain("padding-left: 1em;");
   });
 
   it("ships full-document reader defaults for host-rendered documents", () => {
-    const css = readRepoFile("editor/editor-theme.css");
+    const css = readRepoFile("core/document-surface.css");
 
     expect(cssRuleBody(css, ".cf-doc-flow")).toContain("-webkit-font-smoothing: antialiased;");
     expect(cssRuleBody(css, ".cf-doc-title")).toContain("user-select: text;");
@@ -146,11 +172,6 @@ describe("theme CSS contract", () => {
     expect(cssRuleBody(css, ".cf-bibliography-heading")).toContain("font-style: var(--cf-h2-style, italic);");
     expect(cssRuleBody(css, ".cf-bibliography .cf-bibliography-backlink,\n.cf-footnote-section .cf-footnote-backref")).toContain("color: inherit;");
     expect(cssRuleBody(css, ".cf-bibliography .cf-bibliography-backlink,\n.cf-footnote-section .cf-footnote-backref")).toContain("text-decoration: none;");
-    expect(cssRuleBody(css, ".cm-line.cf-doc-list")).toContain("margin: 0;");
-    expect(cssRuleBody(css, ".cm-line.cf-doc-list")).toContain("padding-left: 0;");
-    expect(cssRuleBody(css, ".cm-line.cf-doc-list")).toContain("list-style: none;");
-    expect(cssRuleBody(css, ".cm-line.cf-doc-list-item")).toContain("display: block;");
-    expect(cssRuleBody(css, ".cm-line.cf-doc-list-item")).toContain("margin: 0;");
     const taskCheckboxRule = cssRuleBody(css, ".cf-reader .cf-doc-list-item--check input[type=\"checkbox\"]");
     expect(taskCheckboxRule).toContain("height: 13px;");
     expect(taskCheckboxRule).toContain("margin: 0 4px 0 0;");
@@ -166,7 +187,6 @@ describe("theme CSS contract", () => {
     expect(cssRuleBody(css, ".cf-reader .cf-doc-code-block")).toContain("line-height: var(--cf-line-height, 1.5);");
     expect(cssRuleBody(css, ".cf-reader .cf-doc-code-block > .cf-codeblock-language")).toContain("display: block;");
     expect(cssRuleBody(css, ".cf-reader .cf-doc-code-block code")).toContain("display: block;");
-    expect(cssRuleBody(css, ".cm-line.cf-codeblock-header,\n.cm-line.cf-codeblock-body,\n.cm-line.cf-codeblock-last")).toContain("font-style: normal;");
     expect(cssRuleBody(css, ".cf-reader .cf-doc-display-math")).toContain("text-align: center;");
     expect(cssRuleBody(css, ".cf-math-display-content")).toContain("display: block;");
     expect(cssRuleBody(css, ".cf-math-display-content")).toContain("width: fit-content;");
@@ -188,7 +208,7 @@ describe("theme CSS contract", () => {
     expect(cssRuleBody(css, ".cf-image-error")).toContain("border-radius: var(--cf-border-radius);");
     expect(cssRuleBody(css, ".cf-image-error")).toContain("vertical-align: middle;");
     expect(cssRuleBody(css, ".cf-reader .cf-doc-block")).toContain("margin: 0;");
-    expect(cssRuleBody(css, ".cf-reader .cf-doc-block:not(.cm-line)")).toContain("margin: 0;");
+    expect(cssRuleBody(css, ".cf-doc-block")).toContain("margin: var(--cf-block-margin);");
     expect(cssRuleBody(css, ".cf-reader .cf-doc-blank-line")).toContain("line-height: inherit;");
     const collapsibleHeading = cssRuleBody(css, ".cf-reader .cf-doc-block-collapsible > .cf-doc-block-heading,\n.cf-reader details.cf-doc-block > .cf-doc-block-heading");
     expect(collapsibleHeading).toContain("display: block;");
@@ -239,6 +259,9 @@ describe("theme CSS contract", () => {
     expect(cssRuleBody(css, ".cf-reader .cf-block-disclosure-body[hidden]")).toContain("display: none;");
     expect(cssRuleBody(css, ".cf-reader .cf-section-disclosure-body[hidden]")).toContain("display: none;");
     expect(cssRuleBody(css, ".cf-block-header-rendered")).toContain("line-height: 0;");
+    expect(cssRuleBody(css, ".cf-doc-block.cf-doc-block--blockquote")).toContain(
+      "padding-left: 1em;",
+    );
   });
 
   it("keeps cursor-state block source classes metric-neutral", () => {
@@ -259,7 +282,7 @@ describe("theme CSS contract", () => {
   });
 
   it("keeps shared inline mark styling available outside CM6", () => {
-    const css = readRepoFile("editor/editor-theme.css");
+    const css = readRepoFile("core/document-surface.css");
 
     expect(cssRuleBody(css, ".cf-highlight")).toContain(
       "background-color: var(--cf-mark-bg, rgba(255, 255, 0, 0.2));",
@@ -294,16 +317,15 @@ describe("theme CSS contract", () => {
   });
 
   it("keeps the proof QED marker on the shared line-level class", () => {
-    const css = readRepoFile("editor/editor-theme.css");
+    const css = readRepoFile("core/document-surface.css");
+    const editorCss = readRepoFile("editor/editor-theme.css");
 
-    expect(cssRuleBody(css, ".cf-doc-block--proof:not(.cm-line):not(.cf-block-header-collapsed)::after")).toContain(
+    expect(cssRuleBody(css, ".cf-block-qed::after")).toContain(
       "content: var(--cf-proof-marker);",
-    );
-    expect(cssRuleBody(css, ".cf-reader .cf-doc-block--proof:not(.cm-line)::after")).toContain(
-      "content: none;",
     );
     expect(cssRuleBody(css, ".cf-block-qed::after")).toContain(
       "line-height: 1;",
     );
+    expect(editorCss).not.toContain(".cm-line.cf-doc-block--proof::after");
   });
 });

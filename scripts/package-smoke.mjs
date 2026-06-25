@@ -19,6 +19,7 @@ function assertIncludes(value, needle, label) {
 
 const source = read("tests/fixtures/coflat-showcase.md");
 const css = read("dist/editor.css");
+const surfaceCss = read("dist/document-surface.css");
 const latexCsl = read("dist/latex/csl/ieee.csl");
 const latexFilter = read("dist/latex/filter.lua");
 const latexSyntaxManifest = read("dist/latex/syntax-manifest.lua");
@@ -43,6 +44,15 @@ assertIncludes(css, ".cf-reader .cf-doc-heading--h1", "dist/editor.css");
 assertIncludes(css, "counter-reset: cf-reader-h1 cf-reader-h2", "dist/editor.css");
 assertIncludes(css, ".cf-reader .cf-doc-list--unordered", "dist/editor.css");
 assertIncludes(css, ".cf-reader .cf-doc-display-math", "dist/editor.css");
+assertIncludes(surfaceCss, ".cf-reader .cf-doc-heading--h1", "dist/document-surface.css");
+assertIncludes(surfaceCss, "counter-reset: cf-reader-h1 cf-reader-h2", "dist/document-surface.css");
+assertIncludes(surfaceCss, ".cf-reader .cf-doc-list--unordered", "dist/document-surface.css");
+assertIncludes(surfaceCss, ".cf-reader .cf-doc-display-math", "dist/document-surface.css");
+assertIncludes(surfaceCss, ":root", "dist/document-surface.css");
+assertIncludes(surfaceCss, ".katex-display", "dist/document-surface.css");
+if (/\.cm-/.test(surfaceCss)) {
+  throw new Error("dist/document-surface.css must not contain CM6 selectors");
+}
 
 assertIncludes(latexCsl, 'citation-format="numeric"', "dist/latex/csl/ieee.csl");
 assertIncludes(latexFilter, "syntax-manifest.lua", "dist/latex/filter.lua");

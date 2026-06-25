@@ -33,6 +33,7 @@
       "types": "./dist/reader-worker.d.ts",
       "import": "./dist/reader-worker.mjs"
     },
+    "./document-surface.css": "./dist/document-surface.css",
     "./parse": {
       "types": "./dist/parse.d.ts",
       "import": "./dist/parse.mjs"
