@@ -37,6 +37,24 @@ describe("mountEditor", () => {
     editor.unmount();
   });
 
+  it("applies the requested initial rich-readonly mode without firing mode callbacks", () => {
+    const onModeChange = vi.fn();
+    const parent = document.createElement("div");
+
+    const editor = mountEditor({
+      parent,
+      doc: "# Title",
+      mode: "rich-readonly",
+      onModeChange,
+    });
+
+    expect(editor.getMode()).toBe("rich-readonly");
+    expect(parent.querySelector(".cm-content")?.getAttribute("contenteditable")).toBe("false");
+    expect(onModeChange).not.toHaveBeenCalled();
+
+    editor.unmount();
+  });
+
   it("setDoc replaces fenced content without triggering onChange", () => {
     const onChange = vi.fn();
     const parent = document.createElement("div");
@@ -63,9 +81,10 @@ describe("mountEditor", () => {
     });
 
     editor.setMode("source");
+    editor.setMode("rich-readonly");
     editor.setMode("rich");
 
-    expect(onModeChange.mock.calls).toEqual([["source"], ["rich"]]);
+    expect(onModeChange.mock.calls).toEqual([["source"], ["rich-readonly"], ["rich"]]);
 
     editor.unmount();
   });

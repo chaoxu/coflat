@@ -330,7 +330,7 @@ test("rich editor keeps task-list point clicks on the clicked row", async ({ pag
     await page.evaluate(() => window.scrollTo(0, 3589));
     await settleLayout(page);
 
-    const line = page.locator(".cm-line", { hasText: labels[rowIndex] });
+    const line = page.locator('.cm-line:has(input[type="checkbox"])', { hasText: labels[rowIndex] });
     await expect(line).toHaveCount(1);
     const point = await line.evaluate((el) => {
       const input = el.querySelector('input[type="checkbox"]');
@@ -679,6 +679,16 @@ test("public demo reader resolves internal references without broken math", asyn
       page.locator("#reader .cf-crossref-unresolved, #reader .cf-citation-unresolved"),
     ).toHaveCount(0);
   }
+});
+
+test("public demo reader labels cited entries as a bibliography", async ({ page }) => {
+  await page.goto("/examples/simple/index.html?doc=showcase&surface=reader");
+
+  const bibliography = page.locator("#reader .cf-bibliography");
+  await expect(bibliography).toBeVisible();
+  await expect(bibliography).toHaveAttribute("aria-label", "Bibliography");
+  await expect(bibliography.locator(".cf-bibliography-heading")).toHaveText("Bibliography");
+  await expect(bibliography.locator(".cf-bibliography-entry").first()).toContainText("cormen2009");
 });
 
 test("public demo reader aligns the collapse rail with the disclosure triangle", async ({ page }) => {
@@ -1238,6 +1248,7 @@ test("theme presets keep reader and CM6 rich editor surfaces visually aligned", 
     [".parity-reader .cf-doc-display-math", ".parity-editor .cf-doc-display-math.cf-math-display", ["font-family", "font-size", "line-height", "text-align", "margin-top", "margin-bottom"]],
     [".parity-reader .cf-doc-display-math .katex-display", ".parity-editor .cf-doc-display-math.cf-math-display .katex-display", ["font-size", "margin-top", "margin-bottom", "text-align"]],
     [".parity-reader .cf-doc-display-math .katex-display > .katex", ".parity-editor .cf-doc-display-math.cf-math-display .katex-display > .katex", ["color", "font-size"]],
+    [".parity-reader .cf-doc-blockquote", ".parity-editor .cf-doc-blockquote", ["border-left-color", "border-left-style", "border-left-width", "color", "font-family", "font-size", "line-height", "padding-left"]],
     [".parity-reader .cf-doc-block--theorem", ".parity-editor .cm-line.cf-doc-block--theorem", ["border-left-color", "border-left-style", "border-left-width", "font-style", "padding-left"]],
     [".parity-reader .cf-doc-block--theorem .cf-doc-inline-math .katex", ".parity-editor .cm-line.cf-doc-block--theorem .cf-doc-inline-math .katex", ["color", "font-size", "font-style", "font-weight"]],
     [".parity-reader .cf-doc-block--proof", ".parity-editor .cm-line.cf-doc-block--proof", ["border-left-color", "border-left-style", "border-left-width", "font-style", "padding-left"]],
@@ -1309,16 +1320,108 @@ test("reader and CM6 rich editor keep image and caption surfaces aligned", async
   await expectLoadedSplitContentPixelsMatch(page, "image caption parity");
 });
 
+test("public showcase keeps reader and rich editor aligned while scrolling", async ({ page }) => {
+  const rowLabels = [
+    "Tables",
+    "Tasks",
+    "Code Blocks",
+    "Code Block Click Mapping",
+    "Blockquote with Math",
+    "Links and Images",
+    "Footnotes",
+    "Bibliography",
+  ];
+  const scenarios = [
+    {
+      name: "desktop",
+      scrollTargets: [0, 2400, 4200, 4800, 9999],
+      viewport: { width: 1600, height: 900 },
+    },
+    {
+      name: "mobile",
+      scrollTargets: [0, 2400, 4800, 6200, 9999],
+      viewport: { width: 390, height: 844 },
+    },
+  ];
+
+  async function sample(surface: "reader" | "editor", top: number) {
+    await page.goto(`/examples/simple/index.html?doc=showcase&surface=${surface}`, {
+      waitUntil: "networkidle",
+    });
+    await page.waitForTimeout(100);
+    await page.evaluate((scrollTop) => window.scrollTo(0, scrollTop), top);
+    await page.waitForTimeout(100);
+    return page.evaluate((labels) => {
+      const root = document.querySelector<HTMLElement>("#reader:not([hidden]), #editor:not([hidden])");
+      if (!root) throw new Error("missing active public demo surface");
+      const rowFor = (label: string) => {
+        const rows = Array.from(root.querySelectorAll<HTMLElement>([
+          ".cf-doc-heading",
+          ".cm-line.cf-doc-heading",
+          ".cf-footnotes",
+          ".cf-bibliography",
+        ].join(",")));
+        const row = rows.find((candidate) =>
+          (candidate.textContent ?? "").replace(/\s+/g, " ").includes(label)
+        );
+        if (!row) return null;
+        const rect = row.getBoundingClientRect();
+        return {
+          height: Math.round(rect.height * 1000) / 1000,
+          y: Math.round(rect.y * 1000) / 1000,
+        };
+      };
+      return {
+        maxScroll: document.documentElement.scrollHeight - window.innerHeight,
+        rows: Object.fromEntries(labels.map((label) => [label, rowFor(label)])),
+        scrollHeight: document.documentElement.scrollHeight,
+        scrollY: window.scrollY,
+      };
+    }, rowLabels);
+  }
+
+  for (const scenario of scenarios) {
+    await page.setViewportSize(scenario.viewport);
+    for (const top of scenario.scrollTargets) {
+      const reader = await sample("reader", top);
+      const editor = await sample("editor", top);
+      expect(editor.scrollHeight, `${scenario.name} scroll height at ${top}`).toBe(reader.scrollHeight);
+      expect(editor.maxScroll, `${scenario.name} max scroll at ${top}`).toBe(reader.maxScroll);
+      expect(editor.scrollY, `${scenario.name} scroll offset at ${top}`).toBe(reader.scrollY);
+
+      for (const label of rowLabels) {
+        const readerRow = reader.rows[label];
+        const editorRow = editor.rows[label];
+        expect(editorRow, `${scenario.name} editor row ${label} at ${top}`).not.toBeNull();
+        expect(readerRow, `${scenario.name} reader row ${label} at ${top}`).not.toBeNull();
+        expect(
+          Math.abs((editorRow?.y ?? 0) - (readerRow?.y ?? 0)),
+          `${scenario.name} ${label} y drift at ${top}`,
+        ).toBeLessThanOrEqual(1);
+        expect(
+          Math.abs((editorRow?.height ?? 0) - (readerRow?.height ?? 0)),
+          `${scenario.name} ${label} height drift at ${top}`,
+        ).toBeLessThanOrEqual(1);
+      }
+    }
+  }
+});
+
 test("public showcase keeps reader and CM6 rich editor block geometry aligned", async ({ page }) => {
   await page.setViewportSize({ width: 2560, height: 7200 });
 
   await loadParityPairSurface(page, "default", PUBLIC_SHOWCASE_PARITY_SOURCE);
+  await expect(
+    page.locator("#editor-root .cf-image-loading", { hasText: "Local hover-preview figure" }),
+  ).toHaveCount(0);
   const result = await page.evaluate((sourceEnd) => {
     type Row = {
       readonly className: string;
+      readonly from: number;
       readonly h: number;
       readonly range: string;
       readonly text: string;
+      readonly to: number;
       readonly y: number;
     };
     type EditorViewLike = {
@@ -1353,14 +1456,17 @@ test("public showcase keeps reader and CM6 rich editor block geometry aligned", 
       "#reader-root .cf-doc-display-math",
       "#reader-root .cf-doc-table-block",
       "#reader-root .cf-doc-code-block",
+      "#reader-root .cf-doc-block-heading",
     ].join(","))).flatMap((el): Row[] => {
       const from = Number(el.dataset.sourceFrom);
       const to = Number(el.dataset.sourceTo);
       if (!Number.isFinite(from) || !Number.isFinite(to) || from >= sourceEnd) return [];
       return [{
         className: el.className,
+        from,
         range: `${from}:${to}`,
         text: text(el),
+        to,
         ...rect(el),
       }];
     });
@@ -1369,9 +1475,13 @@ test("public showcase keeps reader and CM6 rich editor block geometry aligned", 
       "#editor-root .cm-line.cf-doc-heading",
       "#editor-root .cm-line.cf-doc-paragraph",
       "#editor-root .cf-paragraph-flow-widget .cf-doc-paragraph",
+      "#editor-root .cm-line.cf-doc-list-item",
+      "#editor-root .cf-doc-blockquote",
       "#editor-root .cf-doc-display-math",
       "#editor-root .cf-table-widget",
-      "#editor-root .cf-doc-code-block",
+      "#editor-root .cm-line.cf-codeblock-header",
+      "#editor-root .cm-line.cf-codeblock-body",
+      "#editor-root .cm-line.cf-codeblock-last",
     ].join(","))).flatMap((el): Row[] => {
       if (el.getBoundingClientRect().height <= 0) return [];
       let from: number | undefined;
@@ -1393,13 +1503,31 @@ test("public showcase keeps reader and CM6 rich editor block geometry aligned", 
       ) return [];
       return [{
         className: el.className,
+        from,
         range: `${from}:${to}`,
         text: text(el),
+        to,
         ...rect(el),
       }];
     });
-    const editorByRange = new Map(editorRows.map((row) => [row.range, row]));
-    const mismatches = readerRows.flatMap((reader) => {
+    const comparableReaderRows = readerRows.filter((row) =>
+      !row.className.includes("cf-doc-code-block") &&
+      !row.className.includes("cf-doc-blockquote")
+    );
+    const comparableEditorRows = editorRows.filter((row) =>
+      !row.className.includes("cf-codeblock-")
+    );
+    const rangesOverlap = (left: Row, right: Row): boolean =>
+      left.from < right.to && right.from < left.to;
+    const editorByRange = new Map(comparableEditorRows.map((row) => [row.range, row]));
+    const missingEditorRows = readerRows.filter((reader) =>
+      !editorRows.some((editor) => rangesOverlap(reader, editor))
+    );
+    const missingReaderRows = editorRows.filter((editor) =>
+      !editor.className.includes("cf-block-header") &&
+      !readerRows.some((reader) => rangesOverlap(editor, reader))
+    );
+    const mismatches = comparableReaderRows.flatMap((reader) => {
       const editor = editorByRange.get(reader.range);
       if (!editor) return [];
       const dy = rounded(editor.y - reader.y);
@@ -1407,9 +1535,18 @@ test("public showcase keeps reader and CM6 rich editor block geometry aligned", 
       if (Math.abs(dy) <= 1 && Math.abs(dh) <= 2.5) return [];
       return [{ dh, dy, editor, reader }];
     });
-    return { compared: readerRows.length, mismatches };
+    return {
+      compared: comparableReaderRows.length - missingEditorRows.length,
+      mismatches,
+      missingEditorRows,
+      missingReaderRows,
+      totalReaderRows: readerRows.length,
+    };
   }, PUBLIC_SHOWCASE_PARITY_END);
 
-  expect(result.compared).toBeGreaterThan(80);
+  expect(result.totalReaderRows).toBeGreaterThan(80);
+  expect(result.missingEditorRows).toEqual([]);
+  expect(result.missingReaderRows).toEqual([]);
+  expect(result.compared).toBeGreaterThan(70);
   expect(result.mismatches).toEqual([]);
 });

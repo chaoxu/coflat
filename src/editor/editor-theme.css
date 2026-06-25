@@ -644,10 +644,23 @@
   border-radius: var(--cf-border-radius-lg);
 }
 
-.cf-reader .cf-doc-blockquote {
+.cf-reader .cf-doc-blockquote,
+.cm-content .cf-doc-blockquote {
   margin: var(--cf-doc-blockquote-margin, 1em 0);
   border-left: 3px solid var(--cf-blockquote-border);
   padding-left: 1em;
+  color: var(--cf-blockquote-color);
+}
+
+.cm-content .cf-doc-blockquote .cf-doc-paragraph {
+  margin: var(--cf-doc-paragraph-margin, 0.5em 0);
+  white-space: break-spaces;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.cm-content .cf-doc-display-math.cf-doc-block--blockquote {
+  margin-left: calc(3px + 1em);
   color: var(--cf-blockquote-color);
 }
 

@@ -1786,18 +1786,21 @@ function walkDocument(
     };
   }
 
-  const references = renderReferencesList(ctx);
-  if (references) {
-    combined = {
-      html: combined.html + references,
-      text: combined.text,
-      hasMath: combined.hasMath,
-    };
-  }
   const footnotes = renderFootnotesList(ctx);
   if (footnotes) {
     combined = {
       html: combined.html + footnotes,
+      text: combined.text,
+      hasMath: combined.hasMath,
+    };
+  }
+  const references = renderReferencesList(ctx);
+  if (references) {
+    const footnoteBibliographySpacer = footnotes
+      ? '<div class="cf-doc-blank-line" aria-hidden="true"><br></div>'
+      : "";
+    combined = {
+      html: combined.html + footnoteBibliographySpacer + references,
       text: combined.text,
       hasMath: combined.hasMath,
     };

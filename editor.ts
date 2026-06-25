@@ -51,7 +51,7 @@ import {
 import { autocompleteSourceExtension } from "./src/editor/autocomplete-source-controller";
 import { sidenotesCollapsedField } from "./src/editor/render";
 
-export type StandaloneEditorMode = "rich" | "source";
+export type StandaloneEditorMode = "rich" | "rich-readonly" | "source";
 
 export interface MountEditorOptions {
   /** DOM element that receives the mounted editor. */
@@ -174,7 +174,8 @@ export interface MountedEditor {
 }
 
 function toStandaloneMode(mode: string | undefined): StandaloneEditorMode {
-  return mode === "source" ? "source" : "rich";
+  if (mode === "source" || mode === "rich-readonly") return mode;
+  return "rich";
 }
 
 function clampRatio(value: number): number {

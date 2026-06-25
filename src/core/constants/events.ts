@@ -79,6 +79,7 @@ export function dispatchNavigateSourcePositionEvent(pos: number): void {
 
 /**
  * Dispatched on `view.dom` (bubbles) when the editor mode cycles.
- * Detail: the new app `EditorMode` string ("cm6-rich" | "source").
+ * Detail: the new app `EditorMode` string
+ * ("cm6-rich" | "cm6-rich-readonly" | "source").
  */
 export const MODE_CHANGE_EVENT = "cf:mode-change";

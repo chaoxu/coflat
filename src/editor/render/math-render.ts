@@ -156,6 +156,31 @@ function getRevealedMathTarget(
     ?? undefined;
 }
 
+function getDisplayMathReplacementFrom(state: EditorState, region: MathSemantics): number {
+  if (!region.isDisplay) return region.from;
+
+  const line = state.doc.lineAt(region.from);
+  if (line.from >= region.from) return region.from;
+
+  const prefix = state.sliceDoc(line.from, region.from);
+  return /^\s*$/.test(prefix) ? line.from : region.from;
+}
+
+function displayMathBlockClassName(
+  analysis: DocumentAnalysis,
+  region: MathSemantics,
+): string {
+  if (!region.isDisplay) return "";
+  const containing = analysis.fencedDivs
+    .filter((div) =>
+      div.primaryClass &&
+      region.from >= div.openFenceTo &&
+      region.to <= div.closeFenceFrom
+    )
+    .sort((left, right) => (right.from - left.from) || (left.to - right.to))[0];
+  return containing?.primaryClass ? `cf-doc-block--${containing.primaryClass}` : "";
+}
+
 /**
  * Build decoration ranges for math nodes, skipping nodes where
  * `shouldSkip(from, to)` returns true.
@@ -214,6 +239,7 @@ function buildMathItems(
           region.contentFrom - region.from,
           getDisplayEquationNumber(region, equationNumbersByFrom),
           qedDisplayMathStarts.has(region.from),
+          displayMathBlockClassName(analysis, region),
         );
         widget.sourceFrom = region.from;
         widget.sourceTo = region.to;
@@ -232,8 +258,15 @@ function buildMathItems(
         region.contentFrom - region.from,
         getDisplayEquationNumber(region, equationNumbersByFrom),
         qedDisplayMathStarts.has(region.from),
+        displayMathBlockClassName(analysis, region),
       );
-      pushBlockWidgetDecoration(items, widget, region.from, region.to);
+      const replaceFrom = getDisplayMathReplacementFrom(state, region);
+      if (replaceFrom === region.from) {
+        pushBlockWidgetDecoration(items, widget, region.from, region.to);
+      } else {
+        widget.updateSourceRange(region.from, region.to);
+        items.push(Decoration.replace({ widget, block: true }).range(replaceFrom, region.to));
+      }
     } else if (!disableInlineMathWidgets) {
       const widget = new MathWidget(
         region.latex,

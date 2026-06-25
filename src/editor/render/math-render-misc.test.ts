@@ -93,6 +93,25 @@ describe("performance", () => {
     const ranges = collectMathRanges(view);
     expect(ranges.length).toBe(50);
   });
+
+  it("hides indentation-only opener rows for display math in lists", () => {
+    const doc = [
+      "1. Display math in list:",
+      "   $$",
+      "   T(n) = 2T(n/2) + O(n)",
+      "   $$",
+    ].join("\n");
+    view = createFullMarkdownMathView(doc);
+
+    const range = collectMathRanges(view).find((item) => item.value.spec.block === true);
+    const widget = range?.value.spec.widget as MathWidget | undefined;
+    const mathFrom = doc.indexOf("$$");
+    const openerLineFrom = doc.indexOf("   $$");
+
+    expect(range?.from).toBe(openerLineFrom);
+    expect(widget?.sourceFrom).toBe(mathFrom);
+    expect(widget?.sourceTo).toBeGreaterThan(mathFrom);
+  });
 });
 
 describe("QED display math markers", () => {

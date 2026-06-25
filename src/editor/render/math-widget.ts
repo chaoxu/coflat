@@ -160,6 +160,7 @@ export class MathWidget extends LazyMacroAwareWidget {
     private readonly contentOffset = 0,
     private readonly equationNumber?: number,
     private readonly hasQedMarker = false,
+    private readonly displayClassName = "",
   ) {
     super(macros);
     this.inlineDomCacheKey = [
@@ -171,6 +172,7 @@ export class MathWidget extends LazyMacroAwareWidget {
       this.macrosKey,
       this.equationNumber === undefined ? "" : String(this.equationNumber),
       this.hasQedMarker ? "qed" : "",
+      this.displayClassName,
     ].join("\u0001");
     this.displayDomCacheKey = [
       this.latex,
@@ -178,6 +180,7 @@ export class MathWidget extends LazyMacroAwareWidget {
       this.macrosKey,
       this.equationNumber === undefined ? "" : String(this.equationNumber),
       this.hasQedMarker ? "qed" : "",
+      this.displayClassName,
     ].join("\u0001");
   }
 
@@ -258,6 +261,13 @@ export class MathWidget extends LazyMacroAwareWidget {
     return el;
   }
 
+  private syncDisplayClasses(el: HTMLElement): void {
+    if (!this.displayClassName) return;
+    for (const className of this.displayClassName.split(/\s+/)) {
+      if (className) el.classList.add(className);
+    }
+  }
+
   private createSharedInlineDOM(): HTMLElement {
     const cached = inlineMathDomCache.get(this.inlineDomCacheKey);
     if (cached) {
@@ -273,7 +283,9 @@ export class MathWidget extends LazyMacroAwareWidget {
   createDOM(): HTMLElement {
     return this.createCachedDOM(() => {
       if (this.isDisplay) {
-        return this.createSharedDisplayDOM();
+        const el = this.createSharedDisplayDOM();
+        this.syncDisplayClasses(el);
+        return el;
       }
       return this.createSharedInlineDOM();
     });
@@ -323,7 +335,8 @@ export class MathWidget extends LazyMacroAwareWidget {
       this.isDisplay === other.isDisplay &&
       this.macrosKey === other.macrosKey &&
       this.equationNumber === other.equationNumber &&
-      this.hasQedMarker === other.hasQedMarker
+      this.hasQedMarker === other.hasQedMarker &&
+      this.displayClassName === other.displayClassName
     );
   }
 
@@ -337,6 +350,7 @@ export class MathWidget extends LazyMacroAwareWidget {
 
     if (this.isDisplay) {
       dom.className = mathSurfaceClassNames(true, this.hasQedMarker && CSS.blockQed);
+      this.syncDisplayClasses(dom);
       dom.setAttribute("role", "img");
       dom.setAttribute("aria-label", this.latex);
     } else {

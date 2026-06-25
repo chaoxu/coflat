@@ -18,6 +18,10 @@ and [@external-page].
 
 3. ordered item
 
+> Standard blockquotes should render through the same document surface.
+>
+> They can include **bold text**, $q$, and [a link](https://quote.example).
+
 | Name | Value |
 | --- | ---: |
 | Alpha | 1 |

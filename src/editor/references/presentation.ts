@@ -186,6 +186,13 @@ function getDocumentContextCitationPreview(
   return entry ? plainTextFromCslHtml(entry.html) : undefined;
 }
 
+function meaningfulCitationPreview(preview: string | undefined): string | undefined {
+  if (!preview || !/[A-Za-z0-9]/.test(preview)) {
+    return undefined;
+  }
+  return preview;
+}
+
 export function resolveCatalogCrossref(
   catalog: DocumentReferenceCatalog,
   id: string,
@@ -262,8 +269,10 @@ function createReferencePresentationController(
 
     getPreviewText(id) {
       return options.getCitationPreview?.(id)
-        ?? getDocumentContextCitationPreview(options.documentContext, id)
-        ?? getCachedCitationFormat(citationEntries, options.bibliography, id)?.preview;
+        ?? meaningfulCitationPreview(
+          getCachedCitationFormat(citationEntries, options.bibliography, id)?.preview,
+        )
+        ?? getDocumentContextCitationPreview(options.documentContext, id);
     },
 
     planReference(input) {

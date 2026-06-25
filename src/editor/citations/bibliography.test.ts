@@ -206,7 +206,7 @@ describe("BibliographyWidget", () => {
 
     const heading = el.querySelector("h2");
     expect(heading).not.toBeNull();
-    expect(heading?.textContent).toBe("References");
+    expect(heading?.textContent).toBe("Bibliography");
 
     const items = el.querySelectorAll(`.${CSS.bibliographyEntry}`);
     expect(items).toHaveLength(2);

@@ -25,8 +25,8 @@ export function renderBibliographySectionHtml(
     `<div class="${CSS.bibliographyEntry}" id="${escapeHtml(bibliographyEntryId(entry.id))}">${entry.html}</div>`
   );
   return (
-    `<div class="${CSS.bibliography}" aria-label="References">` +
-    `<h2 class="${CSS.bibliographyHeading}">References</h2>` +
+    `<div class="${CSS.bibliography}" aria-label="Bibliography">` +
+    `<h2 class="${CSS.bibliographyHeading}">Bibliography</h2>` +
     `<div class="${CSS.bibliographyList}">${items.join("")}</div>` +
     `</div>`
   );
@@ -37,11 +37,11 @@ export function createBibliographySectionElement(
 ): HTMLDivElement {
   const section = ownerDocument.createElement("div");
   section.className = CSS.bibliography;
-  section.setAttribute("aria-label", "References");
+  section.setAttribute("aria-label", "Bibliography");
 
   const heading = ownerDocument.createElement("h2");
   heading.className = CSS.bibliographyHeading;
-  heading.textContent = "References";
+  heading.textContent = "Bibliography";
   section.appendChild(heading);
 
   section.appendChild(createBibliographyListElement(ownerDocument));

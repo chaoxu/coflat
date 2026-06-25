@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { undoDepth } from "@codemirror/commands";
+import { insertNewline, undoDepth } from "@codemirror/commands";
+import { EditorState } from "@codemirror/state";
 import {
   captureEditorHistoryState,
   createEditor,
@@ -77,6 +78,9 @@ describe("editorModeField", () => {
     setEditorMode(view, "source");
     expect(view.state.field(editorModeField)).toBe("source");
 
+    setEditorMode(view, "rich-readonly");
+    expect(view.state.field(editorModeField)).toBe("rich-readonly");
+
     setEditorMode(view, "rich");
     expect(view.state.field(editorModeField)).toBe("rich");
 
@@ -122,11 +126,36 @@ describe("extension bundle composition", () => {
     const parent = document.createElement("div");
     const view = createEditor({ parent, doc: "# Hello\n" });
 
-    // Cycle through both CM6 modes — proves compartments are wired correctly
-    for (const mode of ["source", "rich"] as const) {
+    // Cycle through all CM6 modes — proves compartments are wired correctly
+    for (const mode of ["source", "rich-readonly", "rich"] as const) {
       setEditorMode(view, mode);
       expect(view.state.field(editorModeField)).toBe(mode);
     }
+
+    view.destroy();
+  });
+
+  it("makes rich-readonly mode focusable but not editable by user commands", () => {
+    const parent = document.createElement("div");
+    const view = createEditor({ parent, doc: "# Hello" });
+
+    setEditorMode(view, "rich-readonly");
+
+    expect(view.state.field(editorModeField)).toBe("rich-readonly");
+    expect(view.state.facet(EditorState.readOnly)).toBe(true);
+    expect(view.contentDOM.getAttribute("contenteditable")).toBe("false");
+    expect(view.contentDOM.getAttribute("tabindex")).toBe("0");
+
+    const before = view.state.doc.toString();
+    insertNewline(view);
+    expect(view.state.doc.toString()).toBe(before);
+
+    view.dispatch({ changes: { from: 0, insert: "mutated" } });
+    expect(view.state.doc.toString()).toBe(before);
+
+    setEditorMode(view, "rich");
+    expect(view.state.facet(EditorState.readOnly)).toBe(false);
+    expect(view.contentDOM.getAttribute("contenteditable")).toBe("true");
 
     view.destroy();
   });
@@ -156,6 +185,6 @@ describe("extension bundle composition", () => {
 
 describe("markdownEditorModes", () => {
   it("exposes the CM6 modes", () => {
-    expect(markdownEditorModes).toEqual(["rich", "source"]);
+    expect(markdownEditorModes).toEqual(["rich", "rich-readonly", "source"]);
   });
 });

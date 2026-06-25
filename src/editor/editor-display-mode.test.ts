@@ -10,7 +10,7 @@ import {
 describe("app editor display modes", () => {
   it("exposes all runtime editor surfaces", () => {
     expect(defaultEditorMode).toBe("cm6-rich");
-    expect(markdownEditorModes).toEqual(["cm6-rich", "source"]);
+    expect(markdownEditorModes).toEqual(["cm6-rich", "cm6-rich-readonly", "source"]);
   });
 
   it("normalizes legacy mode names to CM6 rich mode", () => {
@@ -21,6 +21,7 @@ describe("app editor display modes", () => {
 
   it("forces non-markdown files into source mode", () => {
     expect(normalizeEditorMode("cm6-rich", false)).toBe("source");
+    expect(normalizeEditorMode("cm6-rich-readonly", false)).toBe("source");
     expect(normalizeEditorMode("lexical", false)).toBe("source");
   });
 });

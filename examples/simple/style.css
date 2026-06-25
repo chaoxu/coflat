@@ -178,4 +178,11 @@ body {
     margin: 0;
     padding: 24px;
   }
+
+  #editor > .cm-editor .cm-content {
+    max-width: none;
+    margin: 0;
+    overflow-x: clip;
+    padding: 24px;
+  }
 }

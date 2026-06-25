@@ -93,6 +93,16 @@ describe("resolveLocalMediaPreview", () => {
       if (result?.kind === "loading") expect(result?.isPdf).toBe(false);
     });
 
+    it("renders root-relative browser images directly without a filesystem", () => {
+      const view = createMockView();
+      const result = resolveLocalMediaPreview(view, "/showcase/figure.svg");
+      expect(result).toEqual({
+        kind: "image",
+        resolvedPath: "showcase/figure.svg",
+        dataUrl: "/showcase/figure.svg",
+      });
+    });
+
     it("returns a loading result for a fresh relative PDF", () => {
       const view = createMockView(createMockFs());
       const result = resolveLocalMediaPreview(view, "diagram.pdf");

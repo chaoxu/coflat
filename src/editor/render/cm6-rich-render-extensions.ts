@@ -1,5 +1,6 @@
 import type { Extension } from "@codemirror/state";
 import { bibliographyPlugin } from "./bibliography-render";
+import { blockquoteRenderPlugin } from "./blockquote-render";
 import { checkboxRenderPlugin } from "./checkbox-render";
 import { codeBlockRenderPlugin, codeBlockStructureField } from "./code-block-render";
 import { containerAttributesPlugin } from "./container-attributes";
@@ -32,6 +33,7 @@ export const cm6RichRenderExtensions: Extension[] = [
   blockRenderPlugin,
   referenceRenderPlugin,
   hoverPreviewExtension,
+  blockquoteRenderPlugin,
   paragraphFlowRenderPlugin,
   codeBlockRenderPlugin,
   bibliographyPlugin,

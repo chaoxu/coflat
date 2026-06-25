@@ -1,5 +1,5 @@
 import "katex/dist/katex.min.css";
-import { ViewPlugin } from "@codemirror/view";
+import { ViewPlugin, type EditorView, type PluginValue, type ViewUpdate } from "@codemirror/view";
 import "../../src/editor/editor-theme.css";
 import { mountEditor } from "../../editor";
 import {
@@ -42,7 +42,7 @@ const docs = {
   },
 } as const;
 type DemoDocId = keyof typeof docs;
-type DemoSurfaceId = "editor" | "reader";
+type DemoSurfaceId = "editor" | "readonly" | "reader";
 let currentDocId: DemoDocId = "showcase";
 let currentSurfaceId: DemoSurfaceId = "editor";
 let cleanupReaderHover: (() => void) | null = null;
@@ -96,6 +96,7 @@ const publicFileSystem: FileSystem = {
 const bibliographyText = await publicFileSystem.readFile("reference.bib");
 const bibliographyItems = parseBibTeX(bibliographyText);
 const bibliographyStore: BibStore = new Map(bibliographyItems.map((item) => [item.id, item]));
+const citationKeys = new Set(bibliographyStore.keys());
 const citationFormatter = createNumericCitationFormatter(bibliographyItems);
 const referenceCatalogs = new Map<DemoDocId, ReturnType<typeof buildReferenceCatalog>>();
 
@@ -123,6 +124,8 @@ const demoRefResolver: RefResolver = {
   },
 };
 const documentContext = {
+  citationFormatter,
+  citationKeys,
   fileSystem: publicFileSystem,
   refResolver: demoRefResolver,
 } satisfies DocumentContext;
@@ -137,6 +140,44 @@ const bibliographyBootstrap = ViewPlugin.define((view) => {
     });
   });
   return {};
+});
+type FullDocumentEditorView = EditorView & {
+  viewState?: {
+    printing?: boolean;
+  };
+  measure?: () => void;
+};
+const fullDocumentViewportPlugin = ViewPlugin.fromClass(class implements PluginValue {
+  private destroyed = false;
+
+  constructor(private readonly view: EditorView) {
+    this.enable();
+  }
+
+  update(_update: ViewUpdate): void {
+    this.enable();
+  }
+
+  destroy(): void {
+    this.destroyed = true;
+    const view = this.view as FullDocumentEditorView;
+    if (view.viewState) {
+      view.viewState.printing = false;
+    }
+    view.requestMeasure();
+  }
+
+  private enable(): void {
+    const view = this.view as FullDocumentEditorView;
+    if (!view.viewState) return;
+    view.viewState.printing = true;
+    view.requestMeasure();
+    queueMicrotask(() => {
+      if (!this.destroyed) {
+        view.measure?.();
+      }
+    });
+  }
 });
 
 function setCurrentPageAttribute(el: HTMLElement, active: boolean): void {
@@ -160,12 +201,19 @@ function updateDocLinkHrefs(): void {
   }
 }
 
+function focusEditorForKeyboardInput(): void {
+  if (window.matchMedia("(max-width: 760px), (pointer: coarse)").matches) return;
+  editor.focus();
+}
+
 const editor = mountEditor({
   parent: mountedEditorRoot,
   doc: initialDoc,
   mode: "rich",
+  sidenotesCollapsed: true,
   context: documentContext,
   extensions: [
+    fullDocumentViewportPlugin,
     fileSystemFacet.of(publicFileSystem),
     bibliographyBootstrap,
   ],
@@ -176,7 +224,7 @@ function isDemoDocId(value: string | null): value is DemoDocId {
 }
 
 function isDemoSurfaceId(value: string | null): value is DemoSurfaceId {
-  return value === "editor" || value === "reader";
+  return value === "editor" || value === "readonly" || value === "reader";
 }
 
 function formatBibliographyPreview(key: string): string | null {
@@ -219,9 +267,9 @@ function renderReaderDoc(): void {
 
 function setActiveSurface(id: DemoSurfaceId): void {
   currentSurfaceId = id;
-  const isEditor = id === "editor";
-  mountedEditorRoot.hidden = !isEditor;
-  mountedReaderRoot.hidden = isEditor;
+  const isReader = id === "reader";
+  mountedEditorRoot.hidden = isReader;
+  mountedReaderRoot.hidden = !isReader;
   for (const link of surfaceLinks) {
     setCurrentPageAttribute(link, link.dataset.surfaceId === id);
   }
@@ -229,10 +277,11 @@ function setActiveSurface(id: DemoSurfaceId): void {
   const url = new URL(window.location.href);
   url.searchParams.set("surface", id);
   window.history.replaceState(null, "", url);
-  if (isEditor) {
-    editor.focus();
-  } else {
+  if (isReader) {
     renderReaderDoc();
+  } else {
+    editor.setMode(id === "readonly" ? "rich-readonly" : "rich");
+    focusEditorForKeyboardInput();
   }
 }
 
@@ -240,7 +289,7 @@ function setActiveDoc(id: DemoDocId): void {
   currentDocId = id;
   const doc = docs[id];
   editor.setDoc(doc.source);
-  editor.setMode("rich");
+  editor.setMode(currentSurfaceId === "readonly" ? "rich-readonly" : "rich");
   document.title = doc.title;
   for (const link of docLinks) {
     const isActive = link.dataset.docId === id;
@@ -253,7 +302,7 @@ function setActiveDoc(id: DemoDocId): void {
   if (currentSurfaceId === "reader") {
     renderReaderDoc();
   } else {
-    editor.focus();
+    focusEditorForKeyboardInput();
   }
 }
 
