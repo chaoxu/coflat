@@ -46,6 +46,21 @@ const IMAGE_CAPTION_PARITY_SOURCE = `# Media Caption
 
 ![Loading alt](relative/figure.png)
 `;
+const INDENTED_DISPLAY_MATH_PARITY_SOURCE = `# Math List
+
+1. First item
+2. Display math in list:
+   $$
+   T(n) = 2T(n/2) + O(n)
+   $$
+3. Final item
+`;
+const INDENTED_DISPLAY_MATH_FINAL_ITEM_FROM =
+  INDENTED_DISPLAY_MATH_PARITY_SOURCE.indexOf("3. Final item");
+const ROOT_IMAGE_PARITY_SOURCE = `# Root Image
+
+![Local hover-preview figure](/showcase/hover-preview-figure.svg) should render as an inline image without a filesystem.
+`;
 
 async function setEditorDoc(page: Page, doc: string, mode: "rich" | "source" = "rich") {
   await page.evaluate(({ doc, mode }) => {
@@ -1347,6 +1362,100 @@ test("reader and CM6 rich editor keep image and caption surfaces aligned", async
   }
 
   await expectLoadedSplitContentPixelsMatch(page, "image caption parity");
+});
+
+test("reader and CM6 rich editor keep indented display math in lists aligned", async ({ page }) => {
+  await page.setViewportSize({ width: 2560, height: 1600 });
+  await loadParityPairSurface(page, "default", INDENTED_DISPLAY_MATH_PARITY_SOURCE);
+
+  const result = await page.evaluate((finalItemFrom) => {
+    const rounded = (value: number) => Math.round(value * 100) / 100;
+    const snap = (selector: string) => {
+      const el = document.querySelector(selector);
+      if (!(el instanceof HTMLElement)) throw new Error(`missing ${selector}`);
+      const rect = el.getBoundingClientRect();
+      return {
+        height: rounded(rect.height),
+        text: (el.textContent ?? "").replace(/\s+/g, " ").trim(),
+        top: rounded(rect.top),
+      };
+    };
+    return {
+      displayMath: {
+        reader: snap("#reader-root .cf-doc-display-math"),
+        editor: snap("#editor-root .cf-doc-display-math"),
+      },
+      finalItem: {
+        reader: snap(`#reader-root .cf-doc-list-item[data-source-from='${finalItemFrom}']`),
+        editor: snap(`#editor-root .cm-line[data-source-from='${finalItemFrom}']`),
+      },
+    };
+  }, INDENTED_DISPLAY_MATH_FINAL_ITEM_FROM);
+
+  expect(result.displayMath.editor.text).toBe(result.displayMath.reader.text);
+  expect(result.displayMath.editor.height).toBe(result.displayMath.reader.height);
+  expect(result.displayMath.editor.top).toBe(result.displayMath.reader.top);
+  expect(result.finalItem.editor.top).toBe(result.finalItem.reader.top);
+  await expectLoadedSelectorsPixelsMatch(page, "indented display math in list", {
+    reader: "#reader-root .cf-doc-display-math",
+    editor: "#editor-root .cf-doc-display-math",
+  });
+});
+
+test("reader and CM6 rich editor render root-relative browser images the same way", async ({ page }) => {
+  await page.setViewportSize({ width: 2560, height: 1600 });
+  await loadParityPairSurface(page, "default", ROOT_IMAGE_PARITY_SOURCE);
+
+  const result = await page.evaluate(() => {
+    const rounded = (value: number) => Math.round(value * 100) / 100;
+    const snapImage = (selector: string) => {
+      const img = document.querySelector(selector);
+      if (!(img instanceof HTMLImageElement)) throw new Error(`missing ${selector}`);
+      const rect = img.getBoundingClientRect();
+      return {
+        complete: img.complete,
+        height: rounded(rect.height),
+        naturalHeight: img.naturalHeight,
+        naturalWidth: img.naturalWidth,
+        src: img.getAttribute("src") ?? "",
+        width: rounded(rect.width),
+      };
+    };
+    const snapParagraph = (selector: string) => {
+      const el = document.querySelector(selector);
+      if (!(el instanceof HTMLElement)) throw new Error(`missing ${selector}`);
+      const rect = el.getBoundingClientRect();
+      return {
+        height: rounded(rect.height),
+        text: (el.textContent ?? "").replace(/\s+/g, " ").trim(),
+        width: rounded(rect.width),
+      };
+    };
+    return {
+      images: {
+        reader: snapImage("#reader-root img.cf-image"),
+        editor: snapImage("#editor-root img.cf-image"),
+      },
+      paragraphs: {
+        reader: snapParagraph("#reader-root .cf-doc-paragraph"),
+        editor: snapParagraph("#editor-root .cm-line.cf-doc-paragraph"),
+      },
+    };
+  });
+
+  expect(result.images.reader.complete).toBe(true);
+  expect(result.images.editor.complete).toBe(true);
+  expect(result.images.editor.src).toBe(result.images.reader.src);
+  expect(result.images.editor.naturalWidth).toBe(result.images.reader.naturalWidth);
+  expect(result.images.editor.naturalHeight).toBe(result.images.reader.naturalHeight);
+  expect(result.images.editor.width).toBe(result.images.reader.width);
+  expect(result.images.editor.height).toBe(result.images.reader.height);
+  expect(result.paragraphs.editor.text).toBe(result.paragraphs.reader.text);
+  expect(result.paragraphs.editor.height).toBe(result.paragraphs.reader.height);
+  await expectLoadedSelectorsPixelsMatch(page, "root-relative inline image paragraph", {
+    reader: "#reader-root .cf-doc-paragraph",
+    editor: "#editor-root .cm-line.cf-doc-paragraph",
+  });
 });
 
 test("public showcase keeps reader and CM6 rich editor block geometry aligned", async ({ page }) => {

@@ -1813,6 +1813,8 @@ div.cf-image-wrapper:not(.cf-image-loading):not(.cf-image-placeholder) {
   font-size: 0.85em;
   padding: 2px 6px;
   border: var(--cf-border-width) solid var(--cf-fg);
+  border-radius: var(--cf-border-radius);
+  vertical-align: middle;
 }
 
 .cf-doc-block--figure img {

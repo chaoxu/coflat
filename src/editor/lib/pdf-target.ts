@@ -1,5 +1,5 @@
 /** Protocols that indicate an absolute URL (not a relative file path). */
-const ABSOLUTE_URL_RE = /^(?:https?:|data:|blob:)/i;
+const ABSOLUTE_URL_RE = /^(?:(?:https?|data|blob):|\/\/)/i;
 
 /**
  * Returns true when `src` is a relative file path — not an absolute URL

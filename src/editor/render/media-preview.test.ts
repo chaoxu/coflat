@@ -79,6 +79,11 @@ describe("resolveLocalMediaPreview", () => {
       expect(resolveLocalMediaPreview(view, "https://example.com/img.png")).toBeNull();
     });
 
+    it("returns null for protocol-relative URLs even when a filesystem is mounted", () => {
+      const view = createMockView(createMockFs());
+      expect(resolveLocalMediaPreview(view, "//cdn.example.com/img.png")).toBeNull();
+    });
+
     it("returns null for data URIs", () => {
       const view = createMockView();
       expect(resolveLocalMediaPreview(view, "data:image/png;base64,ABC")).toBeNull();

@@ -185,6 +185,8 @@ describe("theme CSS contract", () => {
     expect(cssRuleBody(css, ".cf-reader .cf-doc-list-item")).toContain("overflow-wrap: anywhere;");
     expect(cssRuleBody(css, ".cf-reader .cf-doc-table-header")).toContain("background: transparent;");
     expect(cssRuleBody(css, ".cf-reader .cf-doc-table-header")).toContain("font-weight: 700;");
+    expect(cssRuleBody(css, ".cf-image-error")).toContain("border-radius: var(--cf-border-radius);");
+    expect(cssRuleBody(css, ".cf-image-error")).toContain("vertical-align: middle;");
     expect(cssRuleBody(css, ".cf-reader .cf-doc-block")).toContain("margin: 0;");
     expect(cssRuleBody(css, ".cf-reader .cf-doc-block:not(.cm-line)")).toContain("margin: 0;");
     expect(cssRuleBody(css, ".cf-reader .cf-doc-blank-line")).toContain("line-height: inherit;");

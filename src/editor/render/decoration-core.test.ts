@@ -210,6 +210,16 @@ describe("pushBlockWidgetReplacementDecoration", () => {
     expect(items[0].value.spec.widget).toBe(widget);
     expect(widget.sourceFrom).toBe(8);
     expect(widget.sourceTo).toBe(20);
+    expect(widget.useLiveSourceRange).toBe(false);
+  });
+
+  it("keeps live source ranges enabled when replacement and source ranges match", () => {
+    const items: Range<Decoration>[] = [];
+    const widget = new TestWidget("w");
+    pushBlockWidgetReplacementDecoration(items, widget, 5, 20, 5, 20);
+
+    expect(items).toHaveLength(1);
+    expect(widget.useLiveSourceRange).toBe(true);
   });
 
   it("skips invalid replacement and source ranges", () => {
@@ -218,6 +228,8 @@ describe("pushBlockWidgetReplacementDecoration", () => {
 
     pushBlockWidgetReplacementDecoration(items, widget, 5, 5, 8, 20);
     pushBlockWidgetReplacementDecoration(items, widget, 5, 20, 8, 8);
+    pushBlockWidgetReplacementDecoration(items, widget, 5, 20, 4, 20);
+    pushBlockWidgetReplacementDecoration(items, widget, 5, 20, 8, 21);
 
     expect(items).toHaveLength(0);
     expect(widget.sourceFrom).toBe(-1);

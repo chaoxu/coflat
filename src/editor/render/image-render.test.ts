@@ -292,6 +292,10 @@ describe("isRelativeFilePath", () => {
     expect(isRelativeFilePath("HTTP://example.com/img.jpg")).toBe(false);
   });
 
+  it("returns false for protocol-relative URLs", () => {
+    expect(isRelativeFilePath("//cdn.example.com/img.png")).toBe(false);
+  });
+
   it("returns false for data: URLs", () => {
     expect(isRelativeFilePath("data:image/png;base64,ABC")).toBe(false);
   });

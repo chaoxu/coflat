@@ -134,10 +134,13 @@ export function pushBlockWidgetReplacementDecoration(
     !Number.isFinite(sourceFrom) ||
     !Number.isFinite(sourceTo) ||
     sourceFrom < 0 ||
-    sourceFrom >= sourceTo
+    sourceFrom >= sourceTo ||
+    sourceFrom < replacementFrom ||
+    sourceTo > replacementTo
   ) {
     return;
   }
   widget.updateSourceRange(sourceFrom, sourceTo);
+  widget.useLiveSourceRange = replacementFrom === sourceFrom && replacementTo === sourceTo;
   items.push(Decoration.replace({ widget, block: true }).range(replacementFrom, replacementTo));
 }
