@@ -7,6 +7,7 @@ export interface SourcePosition {
   readonly pos: number;
   readonly line?: number;
   readonly viewportRatio?: number;
+  readonly viewportY?: number;
 }
 
 export interface SourcePositionScrollOptions {
@@ -141,7 +142,7 @@ export function visibleSourcePositionInScroller(
   if (rect.height <= 0) return null;
   const sampleRatio = clampViewportRatio(options.viewportRatio ?? 0.5);
   const sampleY = rect.top + rect.height * sampleRatio;
-  let best: { range: SourceRange; distance: number; height: number; viewportRatio: number } | null = null;
+  let best: { range: SourceRange; distance: number; height: number; viewportRatio: number; viewportY: number } | null = null;
   for (const element of scroller.querySelectorAll<HTMLElement>(SOURCE_RANGE_CARRIER_SELECTOR)) {
     const elementRect = element.getBoundingClientRect();
     if (elementRect.bottom < rect.top || elementRect.top > rect.bottom) continue;
@@ -154,11 +155,11 @@ export function visibleSourcePositionInScroller(
     const height = Math.max(0, elementRect.height);
     const viewportRatio = clampViewportRatio((elementRect.top - rect.top) / rect.height);
     if (!best || distance < best.distance || (distance === best.distance && height > best.height)) {
-      best = { range, distance, height, viewportRatio };
+      best = { range, distance, height, viewportRatio, viewportY: elementRect.top };
     }
   }
   if (!best) return null;
-  return { pos: Math.max(0, best.range.from), viewportRatio: sampleRatio };
+  return { pos: Math.max(0, best.range.from), viewportRatio: best.viewportRatio, viewportY: best.viewportY };
 }
 
 /**
@@ -214,6 +215,15 @@ export function scrollReaderToSourcePosition(
 ): boolean {
   const element = sourceElementAtPosition(container, position);
   if (!element) return false;
+  const viewportY = typeof position === "number" ? undefined : position.viewportY;
+  if (typeof viewportY === "number" && Number.isFinite(viewportY)) {
+    const scroller = container instanceof HTMLElement ? container : element.parentElement;
+    if (scroller) {
+      const elementRect = element.getBoundingClientRect();
+      scroller.scrollTop += elementRect.top - viewportY;
+      return true;
+    }
+  }
   const viewportRatio = options.viewportRatio ?? (typeof position === "number" ? undefined : position.viewportRatio);
   if (typeof viewportRatio === "number") {
     const scroller = container instanceof HTMLElement ? container : element.parentElement;

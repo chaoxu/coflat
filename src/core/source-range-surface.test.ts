@@ -9,6 +9,7 @@ import {
   sourceRangeFromDataset,
   sourceRangeFromElement,
   sourceRangeFromValues,
+  visibleSourcePositionInScroller,
 } from "./source-range-surface";
 
 describe("source range surface", () => {
@@ -91,6 +92,42 @@ describe("source range surface", () => {
     math.append(child);
 
     expect(closestMathSourceCarrier(child)).toBe(math);
+  });
+
+  it("returns the visible carrier's viewport ratio when sampling the scroller", () => {
+    const scroller = document.createElement("div");
+    const block = document.createElement("p");
+    block.dataset.sourceFrom = "20";
+    block.dataset.sourceTo = "40";
+    scroller.append(block);
+    scroller.getBoundingClientRect = () => ({
+      top: 100,
+      bottom: 500,
+      left: 0,
+      right: 300,
+      width: 300,
+      height: 400,
+      x: 0,
+      y: 100,
+      toJSON: () => ({}),
+    });
+    block.getBoundingClientRect = () => ({
+      top: 180,
+      bottom: 260,
+      left: 0,
+      right: 300,
+      width: 300,
+      height: 80,
+      x: 0,
+      y: 180,
+      toJSON: () => ({}),
+    });
+
+    expect(visibleSourcePositionInScroller(scroller, { viewportRatio: 0.3 })).toEqual({
+      pos: 20,
+      viewportRatio: 0.2,
+      viewportY: 180,
+    });
   });
 
   it("maps DOM ranges to source offsets from shared source carriers", () => {

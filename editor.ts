@@ -127,6 +127,8 @@ export interface EditorSourcePosition {
   readonly line: number;
   /** Vertical viewport ratio of the rendered source carrier, when available. */
   readonly viewportRatio?: number;
+  /** Absolute viewport y coordinate of the rendered source carrier, when available. */
+  readonly viewportY?: number;
 }
 
 export interface VisibleSourcePositionOptions {
@@ -145,6 +147,7 @@ export interface ScrollToSourcePositionOptions extends ScrollToPositionOptions {
   readonly pos?: number;
   readonly line?: number;
   readonly viewportRatio?: number;
+  readonly viewportY?: number;
 }
 
 export interface MountedEditor {
@@ -189,6 +192,7 @@ function getVisibleSourcePosition(
         pos,
         line: view.state.doc.lineAt(pos).number,
         viewportRatio: renderedPosition.viewportRatio,
+        viewportY: renderedPosition.viewportY,
       };
     }
   }
@@ -346,16 +350,18 @@ export function mountEditor(options: MountEditorOptions): MountedEditor {
         effects: center ? EditorView.scrollIntoView(target, { y: "center" }) : undefined,
         scrollIntoView: !center,
       });
+      const viewportY = "viewportY" in position ? position.viewportY : undefined;
       const viewportRatio = "viewportRatio" in position ? position.viewportRatio : undefined;
       if (typeof viewportRatio === "number") {
         const ratio = clampRatio(viewportRatio);
         const align = () => {
           if (!view) return;
+          const targetY = typeof viewportY === "number" && Number.isFinite(viewportY) ? viewportY : undefined;
           const element = sourceElementAtPosition(view.scrollDOM, target);
           if (element) {
             const rect = view.scrollDOM.getBoundingClientRect();
             const elementRect = element.getBoundingClientRect();
-            view.scrollDOM.scrollTop += elementRect.top - (rect.top + rect.height * ratio);
+            view.scrollDOM.scrollTop += elementRect.top - (targetY ?? (rect.top + rect.height * ratio));
             return;
           }
           let coords: ReturnType<EditorView["coordsAtPos"]>;
@@ -366,7 +372,7 @@ export function mountEditor(options: MountEditorOptions): MountedEditor {
           }
           if (!coords) return;
           const rect = view.scrollDOM.getBoundingClientRect();
-          view.scrollDOM.scrollTop += coords.top - (rect.top + rect.height * ratio);
+          view.scrollDOM.scrollTop += coords.top - (targetY ?? (rect.top + rect.height * ratio));
         };
         let frames = 0;
         const alignFrame = () => {
