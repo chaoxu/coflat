@@ -105,6 +105,23 @@ describe("mountEditor", () => {
     editor.unmount();
   });
 
+  it("reports a visible source position for host read/edit mapping", () => {
+    const parent = document.createElement("div");
+    const editor = mountEditor({
+      parent,
+      doc: "# Intro\n\nBody\n\nTail",
+    });
+
+    const position = editor.getVisibleSourcePosition({ viewportRatio: 0 });
+
+    expect(position).not.toBeNull();
+    expect(position?.pos).toBeGreaterThanOrEqual(0);
+    expect(position?.line).toBeGreaterThanOrEqual(1);
+
+    editor.unmount();
+    expect(editor.getVisibleSourcePosition()).toBeNull();
+  });
+
   it("publishes headless outline updates without rendering panel DOM", () => {
     const parent = document.createElement("div");
     const editor = mountEditor({

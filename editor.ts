@@ -116,12 +116,32 @@ export interface MountedDocumentChange {
   changes: ChangeSet;
 }
 
+export interface EditorSourcePosition {
+  /** Absolute UTF-16 source offset in the current document. */
+  readonly pos: number;
+  /** 1-based source line containing `pos`. */
+  readonly line: number;
+}
+
+export interface VisibleSourcePositionOptions {
+  /**
+   * Vertical viewport ratio to sample inside the editor scroller. Defaults to
+   * 0.5 so hosts can map "the content I am looking at" across read/edit modes.
+   */
+  readonly viewportRatio?: number;
+  /** Absolute viewport x coordinate. Defaults to the editor scroller center. */
+  readonly x?: number;
+  /** Absolute viewport y coordinate. Overrides `viewportRatio` when supplied. */
+  readonly y?: number;
+}
+
 export interface MountedEditor {
   getDoc: () => string;
   setDoc: (doc: string) => void;
   setContext: (context: DocumentContext) => void;
   getMode: () => StandaloneEditorMode;
   setMode: (mode: StandaloneEditorMode) => void;
+  getVisibleSourcePosition: (opts?: VisibleSourcePositionOptions) => EditorSourcePosition | null;
   outline: HeadlessPanelStore<readonly OutlineEntry[]>;
   counts: HeadlessPanelStore<Counts>;
   cursorContext: HeadlessPanelStore<CursorContext>;
@@ -137,6 +157,32 @@ export interface MountedEditor {
 
 function toStandaloneMode(mode: string | undefined): StandaloneEditorMode {
   return mode === "source" ? "source" : "rich";
+}
+
+function clampRatio(value: number): number {
+  if (!Number.isFinite(value)) return 0.5;
+  return Math.max(0, Math.min(1, value));
+}
+
+function getVisibleSourcePosition(
+  view: EditorView,
+  opts: VisibleSourcePositionOptions = {},
+): EditorSourcePosition | null {
+  const rect = view.scrollDOM.getBoundingClientRect();
+  const x = opts.x ?? rect.left + Math.max(1, rect.width / 2);
+  const y = opts.y ?? rect.top + rect.height * clampRatio(opts.viewportRatio ?? 0.5);
+  let rawPos = view.viewport.from;
+  try {
+    rawPos = view.posAtCoords({ x, y }, false) ?? view.viewport.from;
+  } catch (_error) {
+    rawPos = view.viewport.from;
+  }
+  if (!Number.isFinite(rawPos)) return null;
+  const pos = Math.max(0, Math.min(view.state.doc.length, rawPos));
+  return {
+    pos,
+    line: view.state.doc.lineAt(pos).number,
+  };
 }
 
 export function mountEditor(options: MountEditorOptions): MountedEditor {
@@ -256,6 +302,10 @@ export function mountEditor(options: MountEditorOptions): MountedEditor {
         return;
       }
       setEditorMode(view, mode);
+    },
+
+    getVisibleSourcePosition(opts) {
+      return view ? getVisibleSourcePosition(view, opts) : null;
     },
 
     outline: panelApi.outline,

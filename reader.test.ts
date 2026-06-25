@@ -7,9 +7,11 @@ import {
   isSourceRangeCarrier,
   parseSourceOffset,
   sourceRangeAttrs,
+  sourceElementAtPosition,
   sourceRangeFromDataset,
   sourceRangeFromElement,
   sourceRangeFromValues,
+  scrollReaderToSourcePosition,
   type SourceRange,
 } from "./reader";
 
@@ -60,5 +62,35 @@ describe("@chaoxu/coflat/reader public source-range helpers", () => {
     math.append(child);
 
     expect(closestMathSourceCarrier(child)).toBe(math);
+  });
+
+  it("finds the smallest rendered element for a source position", () => {
+    const container = document.createElement("div");
+    container.innerHTML = `
+      <section data-source-from="0" data-source-to="40">
+        <p data-source-from="10" data-source-to="20">
+          <span data-source-from="12" data-source-to="16">body</span>
+        </p>
+      </section>
+      <p data-source-from="50" data-source-to="60">tail</p>
+    `;
+
+    expect(sourceElementAtPosition(container, 13)?.tagName).toBe("SPAN");
+    expect(sourceElementAtPosition(container, 45)?.textContent?.trim()).toBe("tail");
+  });
+
+  it("scrolls to a rendered source position when source positions are present", () => {
+    const container = document.createElement("div");
+    container.innerHTML = '<p data-source-from="10" data-source-to="20">target</p>';
+    const target = container.querySelector<HTMLElement>("p");
+    if (!target) throw new Error("missing test target");
+    let called = false;
+    target.scrollIntoView = () => {
+      called = true;
+    };
+
+    expect(scrollReaderToSourcePosition(container, { pos: 12 })).toBe(true);
+    expect(called).toBe(true);
+    expect(scrollReaderToSourcePosition(document.createElement("div"), 12)).toBe(false);
   });
 });

@@ -225,6 +225,14 @@ export {
   type SourceRangeAttrsOptions,
   type SourceRangeCarrierOptions,
 } from "../core/source-range-surface";
+export {
+  scrollReaderToSourcePosition,
+  sourceElementAtPosition,
+} from "../core/source-range-surface";
+export type {
+  SourcePosition,
+  SourcePositionScrollOptions,
+} from "../core/source-range-surface";
 import type {
   CitationFormatter,
   DocumentContext,

@@ -3,6 +3,17 @@ export interface SourceRange {
   readonly to: number;
 }
 
+export interface SourcePosition {
+  readonly pos: number;
+  readonly line?: number;
+}
+
+export interface SourcePositionScrollOptions {
+  readonly block?: ScrollLogicalPosition;
+  readonly inline?: ScrollLogicalPosition;
+  readonly behavior?: ScrollBehavior;
+}
+
 export interface SourceRangeAttrsOptions {
   readonly sourceRange?: SourceRange | null;
   readonly sourceLine?: number | null;
@@ -86,6 +97,77 @@ export function closestSourceRangeCarrier(
 
 export function closestMathSourceCarrier(element: Element | null): Element | null {
   return element?.closest(MATH_SOURCE_CARRIER_SELECTOR) ?? null;
+}
+
+function sourcePositionValue(position: number | SourcePosition): number {
+  return typeof position === "number" ? position : position.pos;
+}
+
+function sourceRangeDistance(range: SourceRange, pos: number): number {
+  if (pos < range.from) return range.from - pos;
+  if (pos > range.to) return pos - range.to;
+  return 0;
+}
+
+function sourceRangeSpan(range: SourceRange): number {
+  return Math.max(0, range.to - range.from);
+}
+
+/**
+ * Find the rendered source carrier that best corresponds to a source offset.
+ *
+ * `renderToHtml(..., { sourcePositions: true })` emits
+ * `data-source-from`/`data-source-to` on block and inline carriers. This helper
+ * picks the smallest carrier containing `position`, or the nearest carrier when
+ * no range contains it. Hosts use it to keep read/edit mode switches anchored
+ * to the same source location instead of guessing by scroll percentage.
+ */
+export function sourceElementAtPosition(
+  container: ParentNode,
+  position: number | SourcePosition,
+): HTMLElement | null {
+  const pos = sourcePositionValue(position);
+  if (!Number.isFinite(pos)) return null;
+
+  let best: { element: HTMLElement; range: SourceRange; distance: number } | null = null;
+  for (const element of container.querySelectorAll<HTMLElement>(SOURCE_RANGE_CARRIER_SELECTOR)) {
+    const range = sourceRangeFromElement(element);
+    if (!range) continue;
+    const distance = sourceRangeDistance(range, pos);
+    if (!best) {
+      best = { element, range, distance };
+      continue;
+    }
+    if (distance < best.distance) {
+      best = { element, range, distance };
+      continue;
+    }
+    if (distance === best.distance && sourceRangeSpan(range) < sourceRangeSpan(best.range)) {
+      best = { element, range, distance };
+    }
+  }
+  return best?.element ?? null;
+}
+
+/**
+ * Scroll a rendered reader container to a source offset.
+ *
+ * Returns `true` when a source-positioned element was found. The host must render
+ * with `sourcePositions: true`; otherwise there are no carriers to target.
+ */
+export function scrollReaderToSourcePosition(
+  container: ParentNode,
+  position: number | SourcePosition,
+  options: SourcePositionScrollOptions = {},
+): boolean {
+  const element = sourceElementAtPosition(container, position);
+  if (!element) return false;
+  element.scrollIntoView({
+    block: options.block ?? "start",
+    inline: options.inline ?? "nearest",
+    behavior: options.behavior ?? "auto",
+  });
+  return true;
 }
 
 /**
