@@ -1,5 +1,5 @@
 import { EditorState } from "@codemirror/state";
-import type { EditorView } from "@codemirror/view";
+import { EditorView } from "@codemirror/view";
 import { CSS } from "../../core/constants/css-classes";
 import {
   applyTableCellSurface,
@@ -75,7 +75,8 @@ interface OpenCellEditorOptions {
 
 function isEditorReadOnly(view: EditorView | null): boolean {
   try {
-    return view?.state.facet(EditorState.readOnly) === true;
+    return view?.state.facet(EditorState.readOnly) === true ||
+      view?.state.facet(EditorView.editable) === false;
   } catch (_error) {
     return false;
   }

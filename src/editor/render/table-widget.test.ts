@@ -1,6 +1,6 @@
 import { markdown } from "@codemirror/lang-markdown";
 import { EditorState, StateEffect } from "@codemirror/state";
-import type { EditorView } from "@codemirror/view";
+import { EditorView } from "@codemirror/view";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { frontmatterField } from "../state/frontmatter-state";
 import { markdownExtensions } from "../../core/parser";
@@ -66,6 +66,14 @@ function makeReadOnlyStubView(): EditorView {
   return createMockEditorView({
     state: {
       facet: (facet: unknown) => facet === EditorState.readOnly,
+    },
+  });
+}
+
+function makeNonEditableStubView(): EditorView {
+  return createMockEditorView({
+    state: {
+      facet: (facet: unknown) => facet !== EditorView.editable,
     },
   });
 }
@@ -421,30 +429,32 @@ describe("TableWidget source range attributes", () => {
   });
 
   it("does not open inline cell editors when the root editor is read-only", () => {
-    const widget = new TableWidget(makeTable(), "| A | B |\n|---|---|\n| 1 | 2 |", 0, {});
-    const dom = widget.toDOM(makeReadOnlyStubView());
-    const bodyCell = dom.querySelector<HTMLElement>("tbody td");
-    expect(bodyCell).not.toBeNull();
-    if (!bodyCell) {
-      throw new Error("expected body table cell");
+    for (const rootView of [makeReadOnlyStubView(), makeNonEditableStubView()]) {
+      const widget = new TableWidget(makeTable(), "| A | B |\n|---|---|\n| 1 | 2 |", 0, {});
+      const dom = widget.toDOM(rootView);
+      const bodyCell = dom.querySelector<HTMLElement>("tbody td");
+      expect(bodyCell).not.toBeNull();
+      if (!bodyCell) {
+        throw new Error("expected body table cell");
+      }
+
+      const down = new MouseEvent("mousedown", {
+        bubbles: true,
+        cancelable: true,
+      });
+      bodyCell.dispatchEvent(down);
+
+      expect(down.defaultPrevented).toBe(false);
+      expect(bodyCell.classList.contains("cf-table-cell-editing")).toBe(false);
+      expect(bodyCell.querySelector(".cm-editor")).toBeNull();
+
+      const contextmenu = new MouseEvent("contextmenu", {
+        bubbles: true,
+        cancelable: true,
+      });
+      bodyCell.dispatchEvent(contextmenu);
+      expect(contextmenu.defaultPrevented).toBe(false);
     }
-
-    const down = new MouseEvent("mousedown", {
-      bubbles: true,
-      cancelable: true,
-    });
-    bodyCell.dispatchEvent(down);
-
-    expect(down.defaultPrevented).toBe(false);
-    expect(bodyCell.classList.contains("cf-table-cell-editing")).toBe(false);
-    expect(bodyCell.querySelector(".cm-editor")).toBeNull();
-
-    const contextmenu = new MouseEvent("contextmenu", {
-      bubbles: true,
-      cancelable: true,
-    });
-    bodyCell.dispatchEvent(contextmenu);
-    expect(contextmenu.defaultPrevented).toBe(false);
   });
 });
 

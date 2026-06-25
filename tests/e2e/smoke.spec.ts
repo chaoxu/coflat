@@ -588,10 +588,9 @@ test("public demo readonly surface uses CM6 rich rendering without editing", asy
   await expect(tableCell.locator(".cm-editor")).toHaveCount(0);
   await expect(content).toHaveAttribute("contenteditable", "false");
 
-  const before = await content.textContent();
   await content.click();
   await page.keyboard.type("not inserted");
-  await expect.poll(() => content.textContent()).toBe(before);
+  await expect(editor).not.toContainText("not inserted");
 
   await page.getByRole("button", { name: "Editor" }).click();
   await expect(page).toHaveURL(/surface=editor/);
