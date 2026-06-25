@@ -1,9 +1,11 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { EditorState } from "@codemirror/state";
+import { EditorView } from "@codemirror/view";
 import { markdown } from "@codemirror/lang-markdown";
 
 import {
   BibliographyWidget,
+  bibliographyPlugin,
   bibliographyDependenciesChanged,
   buildBibliographyDecorations,
 } from "./bibliography-render";
@@ -163,6 +165,36 @@ describe("buildBibliographyDecorations", () => {
     expect(cursor.to).toBe(state.doc.length);
     cursor.next();
     expect(cursor.value).toBeNull();
+  });
+});
+
+describe("bibliographyPlugin", () => {
+  it("renders references for citations that only appear inside footnote definitions", () => {
+    const parent = document.body.appendChild(document.createElement("div"));
+    const state = EditorState.create({
+      doc: [
+        "Body with a note[^n].",
+        "",
+        "[^n]: Footnote cites [@karger2000].",
+      ].join("\n"),
+      extensions: [
+        markdown({ extensions: markdownExtensions }),
+        documentAnalysisField,
+        bibDataField,
+        bibliographyPlugin,
+      ],
+    });
+    const view = new EditorView({ state, parent });
+    view.dispatch({
+      effects: bibDataEffect.of({
+        store: makeBibStore([karger]),
+        formatter: new CslProcessor([karger]),
+      }),
+    });
+
+    expect(parent.querySelector(`.${CSS.bibliography}`)?.textContent).toContain("References");
+    expect(parent.querySelector(`.${CSS.bibliographyEntry}`)?.textContent).toContain("Karger");
+    view.destroy();
   });
 });
 

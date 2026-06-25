@@ -20,11 +20,16 @@ import { formatBibEntry, sortBibEntries } from "../citations/bibliography";
 import {
   type CitationBacklink,
   collectCitationBacklinksFromAnalysis,
+  collectCitationBacklinksFromTokens,
+  collectCitationClusters,
   collectCitationMatchesFromAnalysis,
   collectCitedIdsFromReferenceIndex,
+  collectCitedIdsFromClusters,
+  createReferenceIndexLocalTargetLookup,
   getAnalysisCitationBacklinkKey,
   getAnalysisCitationRegistrationKey,
   getCitationRegistrationKey,
+  type CitationReferenceToken,
 } from "../citations/citation-matching";
 import type { CitationFormatter } from "../../core/document-context-types";
 import { type CslJsonItem } from "../../core/citations/csl-json";
@@ -40,6 +45,8 @@ import { type BibStore, bibDataEffect, bibDataField } from "../state/bib-data";
 import {
   documentAnalysisField,
 } from "../state/document-analysis";
+import type { FootnoteSemantics } from "../semantics/document";
+import { scanReferenceTokens } from "../lib/reference-tokens";
 import { mathMacrosField } from "../state/math-macros";
 import { HOVER_DELAY_MS } from "../../core/constants";
 import { createPreviewSurfaceBody } from "../../core/preview-surface";
@@ -317,12 +324,52 @@ function getCitedIdsKey(citedIds: readonly string[]): string {
   return citedIds.join("\0");
 }
 
+function footnoteCitationTokens(footnotes: FootnoteSemantics): CitationReferenceToken[] {
+  const tokens: CitationReferenceToken[] = [];
+  for (const def of footnotes.defs.values()) {
+    for (const token of scanReferenceTokens(def.content)) {
+      tokens.push({
+        id: token.id,
+        clusterFrom: def.bodyFrom + token.clusterFrom,
+        clusterTo: def.bodyFrom + token.clusterTo,
+        clusterIndex: token.clusterIndex,
+        locator: token.locator,
+      });
+    }
+  }
+  return tokens;
+}
+
+function appendUnique<T>(target: T[], values: readonly T[]): void {
+  for (const value of values) {
+    if (!target.includes(value)) target.push(value);
+  }
+}
+
+function mergeBacklinks(
+  left: ReadonlyMap<string, readonly CitationBacklink[]>,
+  right: ReadonlyMap<string, readonly CitationBacklink[]>,
+): ReadonlyMap<string, readonly CitationBacklink[]> {
+  if (right.size === 0) return left;
+  if (left.size === 0) return right;
+  const merged = new Map<string, CitationBacklink[]>();
+  for (const [id, backlinks] of left) merged.set(id, [...backlinks]);
+  for (const [id, backlinks] of right) {
+    const bucket = merged.get(id);
+    if (bucket) bucket.push(...backlinks);
+    else merged.set(id, [...backlinks]);
+  }
+  return merged;
+}
+
 function getBibliographyDependencyKey(state: EditorState): string {
   const { store } = state.field(bibDataField);
   const analysis = state.field(documentAnalysisField);
+  const footnoteTokens = footnoteCitationTokens(analysis.footnotes);
   return [
     getAnalysisCitationRegistrationKey(analysis, store),
     getAnalysisCitationBacklinkKey(analysis, store),
+    footnoteTokens.map((token) => `${token.id}\0${token.clusterFrom}\0${token.clusterTo}\0${token.clusterIndex}\0${token.locator ?? ""}`).join("\u0002"),
   ].join("\u0003");
 }
 
@@ -357,9 +404,18 @@ function buildBibliographyDecorationsFromState(state: EditorState): DecorationSe
   // Use the incrementally-maintained document analysis instead of
   // re-parsing the entire document from scratch (#514).
   const analysis = state.field(documentAnalysisField);
+  const footnoteTokens = footnoteCitationTokens(analysis.footnotes);
   const citedIds = collectCitedIdsFromReferenceIndex(analysis.referenceIndex, store);
+  appendUnique(citedIds, collectCitedIdsFromClusters(collectCitationClusters(footnoteTokens, store, {
+    isLocalTarget: createReferenceIndexLocalTargetLookup(analysis.referenceIndex),
+  })));
   if (citedIds.length === 0) return Decoration.none;
-  const backlinks = collectCitationBacklinksFromAnalysis(analysis, store);
+  const backlinks = mergeBacklinks(
+    collectCitationBacklinksFromAnalysis(analysis, store),
+    collectCitationBacklinksFromTokens(footnoteTokens, store, {
+      isLocalTarget: createReferenceIndexLocalTargetLookup(analysis.referenceIndex),
+    }),
+  );
 
   let cslEntries: readonly { readonly id: string; readonly html: string }[] = [];
   if (formatter) {

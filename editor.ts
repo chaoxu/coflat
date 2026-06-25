@@ -31,6 +31,7 @@ import {
   type Command,
 } from "./src/editor/command-registry";
 import type { DocumentContext } from "./src/core/document-context-types";
+import type { CslJsonItem } from "./src/core/citations/csl-json";
 import type { FileSystem } from "./src/core/lib/file-system-types";
 import {
   sourceElementAtPosition,
@@ -41,6 +42,7 @@ import {
   setDocumentContext,
 } from "./src/editor/document-context";
 import { documentPathFacet, fileSystemFacet } from "./src/editor/lib/types";
+import { bibDataEffect, type BibData } from "./src/editor/state/bib-data";
 import { createSaveController, saveExtension } from "./src/editor/save-handler";
 import {
   assetUploaderExtension,
@@ -180,6 +182,23 @@ function clampRatio(value: number): number {
   return Math.max(0, Math.min(1, value));
 }
 
+function bibDataFromDocumentContext(context: DocumentContext | undefined): BibData | null {
+  if (!context?.citationFormatter || !context.citationKeys || context.citationKeys.size === 0) {
+    return null;
+  }
+  const store = new Map<string, CslJsonItem>();
+  for (const id of context.citationKeys) {
+    store.set(id, { id, type: "article" });
+  }
+  return { store, formatter: context.citationFormatter };
+}
+
+function applyDocumentContext(view: EditorView, context: DocumentContext): void {
+  setDocumentContext(view, context);
+  const bibData = bibDataFromDocumentContext(context);
+  if (bibData) view.dispatch({ effects: bibDataEffect.of(bibData) });
+}
+
 function getVisibleSourcePosition(
   view: EditorView,
   opts: VisibleSourcePositionOptions = {},
@@ -281,6 +300,8 @@ export function mountEditor(options: MountEditorOptions): MountedEditor {
     ],
   });
   panelApi.attach(view);
+  const initialBibData = bibDataFromDocumentContext(options.context);
+  if (initialBibData) view.dispatch({ effects: bibDataEffect.of(initialBibData) });
 
   if (initialMode !== "rich") {
     suppressModeCallback = true;
@@ -317,7 +338,7 @@ export function mountEditor(options: MountEditorOptions): MountedEditor {
 
     setContext(context) {
       if (!view) return;
-      setDocumentContext(view, context);
+      applyDocumentContext(view, context);
     },
 
     getMode() {

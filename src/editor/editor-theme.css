@@ -566,6 +566,11 @@
   overflow-wrap: anywhere;
 }
 
+.cf-reader .cf-doc-list-item > .cf-list-bullet + .cf-doc-paragraph,
+.cf-reader .cf-doc-list-item > .cf-list-number + .cf-doc-paragraph {
+  display: inline;
+}
+
 .cf-list-bullet {
   color: var(--cf-fg);
   font-weight: 700;
@@ -683,9 +688,11 @@
 }
 
 .cf-reader .cf-doc-list-item--check input[type="checkbox"] {
-  margin-right: 4px;
+  height: 13px;
+  margin: 0 4px 0 0;
   pointer-events: none;
   vertical-align: middle;
+  width: 13px;
 }
 
 /* ── CodeMirror 6 static runtime contract ─────────────────────────────────────
@@ -834,6 +841,24 @@
   margin-right: 2px;
 }
 
+.cf-bibliography-entry-number {
+  margin-right: 4px;
+}
+
+.cf-footnote-ref,
+.cf-sidenote-ref,
+.cf-bibliography-entry-number {
+  font-size: 0.7em;
+  font-weight: 600;
+  line-height: 1;
+  vertical-align: super;
+}
+
+.cf-footnote-ref a {
+  color: inherit;
+  text-decoration: none;
+}
+
 /* ── Bibliography / References section ──────────────────────────────────── */
 
 .cf-bibliography,
@@ -846,6 +871,16 @@
   -webkit-hyphens: manual;
 }
 
+.cf-bibliography-heading {
+  margin: var(--cf-doc-heading-margin, 0);
+  color: var(--cf-fg);
+  font-family: var(--cf-content-font, KaTeX_Main, "Times New Roman", serif);
+  font-size: var(--cf-h2-size, 1.15em);
+  font-style: var(--cf-h2-style, italic);
+  font-weight: var(--cf-h2-weight, 400);
+  line-height: 1.3;
+}
+
 .cf-footnote-section {
   margin-top: 2em;
 }
@@ -855,11 +890,6 @@
   font-size: 0.85em;
   line-height: 1.6;
   margin-bottom: 4px;
-}
-
-.cf-bibliography-entry-number {
-  font-weight: 600;
-  margin-right: 4px;
 }
 
 .cf-bibliography-entry + .cf-bibliography-entry {

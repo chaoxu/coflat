@@ -21,6 +21,7 @@ import {
   store,
 } from "./render/reference-render-test-utils";
 import { bibDataEffect, bibDataField } from "./state/bib-data";
+import { mountEditor } from "../../editor";
 
 /**
  * DocumentContext wiring: with no host resolver, behavior is unchanged
@@ -102,6 +103,36 @@ describe("documentContextFacet — LinkResolver wiring", () => {
     expect(r?.className).toBe("host-link");
     expect(r?.title).toBe("tip");
     expect(calls[0]).toEqual({ href: "./other.md", text: "docs", from: "posts/note.md" });
+  });
+});
+
+describe("mountEditor document context bibliography bridge", () => {
+  it("renders editor References from host citation context", () => {
+    const parent = document.body.appendChild(document.createElement("div"));
+    const formatter = fakeNumericFormatter(["karger2000"]);
+    const editor = mountEditor({
+      parent,
+      doc: [
+        "Body with a note[^n].",
+        "",
+        "[^n]: Footnote cites [@karger2000].",
+      ].join("\n"),
+      context: {
+        citationKeys: new Set(["karger2000"]),
+        citationFormatter: {
+          ...formatter,
+          bibliographyEntries: () => [{
+            id: "karger2000",
+            html: "<div>Karger paper.</div>",
+          }],
+        },
+      },
+      sidenotesCollapsed: true,
+    });
+
+    expect(parent.querySelector(".cf-bibliography")?.textContent).toContain("References");
+    expect(parent.querySelector(".cf-bibliography")?.textContent).toContain("Karger paper.");
+    editor.unmount();
   });
 });
 
