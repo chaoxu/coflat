@@ -58,6 +58,7 @@ export abstract class ReferenceWidget extends RenderWidget {
     protected readonly rootSpec: ReferenceRootSpec,
   ) {
     super();
+    this.useLiveSourceRange = false;
     this.rootKey = serializeReferenceRootSpec(rootSpec);
   }
 

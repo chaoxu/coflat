@@ -262,8 +262,8 @@ function createReferencePresentationController(
 
     getPreviewText(id) {
       return options.getCitationPreview?.(id)
-        ?? getCachedCitationFormat(citationEntries, options.bibliography, id)?.preview
-        ?? getDocumentContextCitationPreview(options.documentContext, id);
+        ?? getDocumentContextCitationPreview(options.documentContext, id)
+        ?? getCachedCitationFormat(citationEntries, options.bibliography, id)?.preview;
     },
 
     planReference(input) {
@@ -438,6 +438,7 @@ function createReferencePresentationModel(
 
 function referencePresentationDependenciesChanged(tr: Transaction): boolean {
   return tr.docChanged
+    || tr.reconfigured
     || tr.startState.field(documentReferenceCatalogField, false)
       !== tr.state.field(documentReferenceCatalogField, false)
     || tr.startState.field(bibDataField, false) !== tr.state.field(bibDataField, false)
