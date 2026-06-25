@@ -32,6 +32,7 @@ import {
 } from "./src/editor/command-registry";
 import type { DocumentContext } from "./src/core/document-context-types";
 import type { FileSystem } from "./src/core/lib/file-system-types";
+import { visibleSourcePositionInScroller } from "./src/core/source-range-surface";
 import {
   documentContextExtension,
   setDocumentContext,
@@ -121,6 +122,8 @@ export interface EditorSourcePosition {
   readonly pos: number;
   /** 1-based source line containing `pos`. */
   readonly line: number;
+  /** Vertical viewport ratio of the rendered source carrier, when available. */
+  readonly viewportRatio?: number;
 }
 
 export interface VisibleSourcePositionOptions {
@@ -135,6 +138,12 @@ export interface VisibleSourcePositionOptions {
   readonly y?: number;
 }
 
+export interface ScrollToSourcePositionOptions extends ScrollToPositionOptions {
+  readonly pos?: number;
+  readonly line?: number;
+  readonly viewportRatio?: number;
+}
+
 export interface MountedEditor {
   getDoc: () => string;
   setDoc: (doc: string) => void;
@@ -142,6 +151,7 @@ export interface MountedEditor {
   getMode: () => StandaloneEditorMode;
   setMode: (mode: StandaloneEditorMode) => void;
   getVisibleSourcePosition: (opts?: VisibleSourcePositionOptions) => EditorSourcePosition | null;
+  scrollToSourcePosition: (position: EditorSourcePosition | ScrollToSourcePositionOptions) => void;
   outline: HeadlessPanelStore<readonly OutlineEntry[]>;
   counts: HeadlessPanelStore<Counts>;
   cursorContext: HeadlessPanelStore<CursorContext>;
@@ -168,6 +178,17 @@ function getVisibleSourcePosition(
   view: EditorView,
   opts: VisibleSourcePositionOptions = {},
 ): EditorSourcePosition | null {
+  if (opts.x === undefined && opts.y === undefined) {
+    const renderedPosition = visibleSourcePositionInScroller(view.scrollDOM, { viewportRatio: opts.viewportRatio });
+    if (renderedPosition) {
+      const pos = Math.max(0, Math.min(view.state.doc.length, renderedPosition.pos));
+      return {
+        pos,
+        line: view.state.doc.lineAt(pos).number,
+        viewportRatio: renderedPosition.viewportRatio,
+      };
+    }
+  }
   const rect = view.scrollDOM.getBoundingClientRect();
   const x = opts.x ?? rect.left + Math.max(1, rect.width / 2);
   const y = opts.y ?? rect.top + rect.height * clampRatio(opts.viewportRatio ?? 0.5);
@@ -306,6 +327,42 @@ export function mountEditor(options: MountEditorOptions): MountedEditor {
 
     getVisibleSourcePosition(opts) {
       return view ? getVisibleSourcePosition(view, opts) : null;
+    },
+
+    scrollToSourcePosition(position) {
+      if (!view) return;
+      const pos = typeof position.pos === "number"
+        ? position.pos
+        : typeof position.line === "number"
+          ? view.state.doc.line(Math.max(1, Math.min(view.state.doc.lines, position.line))).from
+          : 0;
+      const center = "center" in position ? position.center : true;
+      const target = Math.max(0, Math.min(view.state.doc.length, pos));
+      view.dispatch({
+        selection: { anchor: target },
+        effects: center ? EditorView.scrollIntoView(target, { y: "center" }) : undefined,
+        scrollIntoView: !center,
+      });
+      const viewportRatio = "viewportRatio" in position ? position.viewportRatio : undefined;
+      if (typeof viewportRatio === "number") {
+        const ratio = clampRatio(viewportRatio);
+        const align = () => {
+          if (!view) return;
+          let coords: ReturnType<EditorView["coordsAtPos"]>;
+          try {
+            coords = view.coordsAtPos(target);
+          } catch (_error) {
+            return;
+          }
+          if (!coords) return;
+          const rect = view.scrollDOM.getBoundingClientRect();
+          view.scrollDOM.scrollTop += coords.top - (rect.top + rect.height * ratio);
+        };
+        requestAnimationFrame(() => {
+          align();
+          requestAnimationFrame(align);
+        });
+      }
     },
 
     outline: panelApi.outline,

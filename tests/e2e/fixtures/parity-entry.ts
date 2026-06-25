@@ -4,6 +4,7 @@ import { EditorView } from "@codemirror/view";
 import { applyThemePreset, mountEditor, themePresets } from "../../../editor";
 import {
   hydrateMath,
+  hydrateMedia,
   hydrateReaderDisclosures,
   renderToHtml,
 } from "../../../reader";
@@ -45,6 +46,7 @@ const editorRoot = requiredHTMLElement("editor-root");
 
 readerRoot.innerHTML = renderToHtml(source, context, { sourcePositions: true }).html;
 hydrateReaderDisclosures(readerRoot);
+hydrateMedia(readerRoot);
 for (const textSpan of Array.from(readerRoot.querySelectorAll("span.cf-text"))) {
   textSpan.replaceWith(document.createTextNode(textSpan.textContent ?? ""));
 }

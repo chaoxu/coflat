@@ -5,6 +5,7 @@ import { mountEditor } from "../../editor";
 import {
   hydrateReaderDisclosures,
   hydrateMath,
+  hydrateMedia,
   hydrateReaderHoverPreviews,
   hydrateReferences,
   renderToHtml,
@@ -198,6 +199,7 @@ function renderReaderDoc(): void {
   const result = renderToHtml(doc.source, documentContext, { sourcePositions: true });
   mountedReaderRoot.innerHTML = result.html;
   hydrateReaderDisclosures(mountedReaderRoot);
+  hydrateMedia(mountedReaderRoot);
   hydrateReferences(mountedReaderRoot, documentContext, { source: doc.source });
   // Forward the document's frontmatter `math:` macros so custom definitions
   // render in the title and body, matching the editor surface.

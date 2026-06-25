@@ -3,6 +3,7 @@ import { KATEX_TEXTSC_CLASS } from "../core/lib/katex-options";
 import {
   hydrateBlockDisclosures,
   hydrateMath,
+  hydrateMedia,
   hydrateReaderHoverPreviews,
   hydrateReaderDisclosures,
   renderToHtml,
@@ -24,6 +25,25 @@ function requireMathPlaceholder(root: HTMLElement): HTMLElement {
   if (!placeholder) throw new Error("expected math placeholder");
   return placeholder;
 }
+
+describe("hydrateMedia", () => {
+  it("syncs inline reader images to their natural size", () => {
+    const root = makeRoot('<p><span class="cf-image-wrapper"><img class="cf-image" src="figure.svg" alt="Figure"></span></p>');
+    const img = root.querySelector<HTMLImageElement>("img.cf-image");
+    expect(img).not.toBeNull();
+    Object.defineProperties(img, {
+      complete: { configurable: true, value: true },
+      naturalWidth: { configurable: true, value: 257 },
+      naturalHeight: { configurable: true, value: 150 },
+    });
+
+    hydrateMedia(root);
+
+    const wrapper = root.querySelector<HTMLElement>("span.cf-image-wrapper");
+    expect(wrapper?.getAttribute("style")).toBe("width: 257px; height: 150px;");
+    expect(img?.getAttribute("style")).toBe("width: 100%; height: 100%;");
+  });
+});
 
 async function hoverReference(
   root: HTMLElement,

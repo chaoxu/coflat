@@ -177,6 +177,7 @@ import {
   isUnresolvedLocalMediaUrl,
   renderImageSurfaceHtml,
   renderMediaLoadingHtml,
+  syncInlineImageSizeOnLoad,
 } from "../core/media-surface";
 import { renderParagraphHtml } from "../core/paragraph-surface";
 import {
@@ -219,11 +220,13 @@ export {
   sourceRangeFromDataset,
   sourceRangeFromElement,
   sourceRangeFromValues,
+  visibleSourcePositionInScroller,
   type ElementSourceRangeOptions,
   type ParseSourceRangeOptions,
   type SourceRange,
   type SourceRangeAttrsOptions,
   type SourceRangeCarrierOptions,
+  type VisibleSourcePositionOptions,
 } from "../core/source-range-surface";
 export {
   scrollReaderToSourcePosition,
@@ -2253,6 +2256,20 @@ export function hydrateReaderDisclosures(root: HTMLElement): void {
  */
 export function hydrateBlockDisclosures(root: HTMLElement): void {
   hydrateReaderDisclosures(root);
+}
+
+export function hydrateMedia(root: HTMLElement): void {
+  for (const wrapper of Array.from(root.querySelectorAll<HTMLElement>(`span.${CSS.imageWrapper}`))) {
+    if (
+      wrapper.classList.contains(CSS.imageLoading) ||
+      wrapper.classList.contains(CSS.imagePlaceholder)
+    ) {
+      continue;
+    }
+    const img = wrapper.querySelector<HTMLImageElement>(`img.${CSS.image}`);
+    if (!img) continue;
+    syncInlineImageSizeOnLoad(wrapper, img);
+  }
 }
 
 // ---------------------------------------------------------------------------

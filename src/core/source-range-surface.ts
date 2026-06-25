@@ -6,12 +6,18 @@ export interface SourceRange {
 export interface SourcePosition {
   readonly pos: number;
   readonly line?: number;
+  readonly viewportRatio?: number;
 }
 
 export interface SourcePositionScrollOptions {
   readonly block?: ScrollLogicalPosition;
   readonly inline?: ScrollLogicalPosition;
   readonly behavior?: ScrollBehavior;
+  readonly viewportRatio?: number;
+}
+
+export interface VisibleSourcePositionOptions {
+  readonly viewportRatio?: number;
 }
 
 export interface SourceRangeAttrsOptions {
@@ -113,6 +119,42 @@ function sourceRangeSpan(range: SourceRange): number {
   return Math.max(0, range.to - range.from);
 }
 
+function clampViewportRatio(value: number): number {
+  if (!Number.isFinite(value)) return 0.5;
+  return Math.max(0, Math.min(1, value));
+}
+
+/**
+ * Pick the source-positioned rendered element nearest to the requested vertical
+ * viewport ratio. This keeps mode switches anchored to the rendered object the
+ * user is looking at, instead of depending on editor-specific coordinate maps.
+ */
+export function visibleSourcePositionInScroller(
+  scroller: HTMLElement,
+  options: VisibleSourcePositionOptions = {},
+): SourcePosition | null {
+  const rect = scroller.getBoundingClientRect();
+  if (rect.height <= 0) return null;
+  const sampleY = rect.top + rect.height * clampViewportRatio(options.viewportRatio ?? 0.5);
+  let best: { range: SourceRange; distance: number; height: number; viewportRatio: number } | null = null;
+  for (const element of scroller.querySelectorAll<HTMLElement>(SOURCE_RANGE_CARRIER_SELECTOR)) {
+    const elementRect = element.getBoundingClientRect();
+    if (elementRect.bottom < rect.top || elementRect.top > rect.bottom) continue;
+    const range = sourceRangeFromElement(element);
+    if (!range) continue;
+    const distance = elementRect.top <= sampleY && elementRect.bottom >= sampleY
+      ? 0
+      : Math.min(Math.abs(elementRect.top - sampleY), Math.abs(elementRect.bottom - sampleY));
+    const height = Math.max(0, elementRect.height);
+    const viewportRatio = clampViewportRatio((elementRect.top - rect.top) / rect.height);
+    if (!best || distance < best.distance || (distance === best.distance && height > best.height)) {
+      best = { range, distance, height, viewportRatio };
+    }
+  }
+  if (!best) return null;
+  return { pos: Math.max(0, best.range.from), viewportRatio: best.viewportRatio };
+}
+
 /**
  * Find the rendered source carrier that best corresponds to a source offset.
  *
@@ -162,11 +204,20 @@ export function scrollReaderToSourcePosition(
 ): boolean {
   const element = sourceElementAtPosition(container, position);
   if (!element) return false;
+  const viewportRatio = options.viewportRatio ?? (typeof position === "number" ? undefined : position.viewportRatio);
   element.scrollIntoView({
     block: options.block ?? "start",
     inline: options.inline ?? "nearest",
     behavior: options.behavior ?? "auto",
   });
+  if (typeof viewportRatio === "number") {
+    const scroller = container instanceof HTMLElement ? container : element.parentElement;
+    if (scroller) {
+      const rect = scroller.getBoundingClientRect();
+      const elementRect = element.getBoundingClientRect();
+      scroller.scrollTop += elementRect.top - (rect.top + rect.height * clampViewportRatio(viewportRatio));
+    }
+  }
   return true;
 }
 
