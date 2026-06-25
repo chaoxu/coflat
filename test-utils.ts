@@ -5,4 +5,4 @@
  * of the main editor entry because they import Vitest and test-only DOM setup
  * helpers.
  */
-export * from "./src/editor/test-utils";
+export * from "./src/editor/test-utils.js";

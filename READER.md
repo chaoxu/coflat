@@ -178,10 +178,11 @@ editor's rich document view.
 </div>
 ```
 
-With `@chaoxu/coflat/style.css` imported, this surface owns document
+With `@chaoxu/coflat/document-surface.css` imported, this surface owns document
 width, padding, content font, line height, headings, paragraph/list rhythm,
-code blocks, tables, blockquotes, math placeholders, and H1/H2 section
-numbering.
+code blocks, tables, blockquotes, math placeholders, hover preview surfaces,
+KaTeX CSS, and H1/H2 section numbering. Use `@chaoxu/coflat/style.css` only
+when mounting the full editor bundle.
 
 Call `hydrateBlockDisclosures` after inserting full reader HTML when theorem
 and definition blocks should be collapsible. The static output keeps header

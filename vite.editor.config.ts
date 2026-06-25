@@ -11,6 +11,19 @@ import {
   packageNameFromSpecifier,
 } from "./scripts/editor-package-manifest.mjs";
 
+const DOCUMENT_SURFACE_IMPORT = '@import "../core/document-surface.css";';
+
+function inlineDocumentSurface(editorCss: string, documentSurfaceCss: string): string {
+  if (!editorCss.includes(DOCUMENT_SURFACE_IMPORT)) {
+    throw new Error(`src/editor/editor-theme.css must import ${DOCUMENT_SURFACE_IMPORT}`);
+  }
+  const inlined = editorCss.replace(DOCUMENT_SURFACE_IMPORT, documentSurfaceCss.trimEnd());
+  if (inlined.includes(DOCUMENT_SURFACE_IMPORT)) {
+    throw new Error("document surface CSS import was not fully inlined");
+  }
+  return inlined;
+}
+
 function copyEditorCss(): Plugin {
   return {
     name: "copy-editor-css",
@@ -18,10 +31,7 @@ function copyEditorCss(): Plugin {
       const katexCss = readFileSync("node_modules/katex/dist/katex.min.css", "utf8");
       const documentSurfaceCss = readFileSync("src/core/document-surface.css", "utf8");
       const editorCss = readFileSync("src/editor/editor-theme.css", "utf8");
-      const inlinedEditorCss = editorCss.replace(
-        '@import "../core/document-surface.css";',
-        documentSurfaceCss.trimEnd(),
-      );
+      const inlinedEditorCss = inlineDocumentSurface(editorCss, documentSurfaceCss);
       writeFileSync("dist/document-surface.css", `${katexCss}\n${documentSurfaceCss}`);
       writeFileSync("dist/editor.css", `${katexCss}\n${inlinedEditorCss}`);
       mkdirSync("dist/themes", { recursive: true });

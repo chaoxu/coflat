@@ -174,7 +174,7 @@ export const typographyThemeStyles = {
 
   /* Section numbers (rendered via ::before when cursor is outside).
    * Period after number matches blog's .header-section-number:after style. */
-  "[data-section-number]::before": {
+  ".cm-line.cf-doc-heading[data-section-number]::before": {
     content: "attr(data-section-number) '.\\2002'",
     color: "var(--cf-fg)",
     fontWeight: "400",

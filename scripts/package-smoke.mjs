@@ -23,6 +23,20 @@ const surfaceCss = read("dist/document-surface.css");
 const latexCsl = read("dist/latex/csl/ieee.csl");
 const latexFilter = read("dist/latex/filter.lua");
 const latexSyntaxManifest = read("dist/latex/syntax-manifest.lua");
+const jsExports = [
+  "../dist/editor.mjs",
+  "../dist/reader.mjs",
+  "../dist/reader-worker.mjs",
+  "../dist/parse.mjs",
+  "../dist/citeproc.mjs",
+  "../dist/numeric.mjs",
+  "../dist/latex.mjs",
+  "../dist/test-utils.js",
+  "../dist/browser-test-utils.js",
+];
+for (const entry of jsExports) {
+  await import(entry);
+}
 const { renderToHtml } = await import("../dist/reader.mjs");
 const rendered = renderToHtml(source, undefined, { sourceLineAttribution: true });
 
@@ -48,10 +62,16 @@ assertIncludes(surfaceCss, ".cf-reader .cf-doc-heading--h1", "dist/document-surf
 assertIncludes(surfaceCss, "counter-reset: cf-reader-h1 cf-reader-h2", "dist/document-surface.css");
 assertIncludes(surfaceCss, ".cf-reader .cf-doc-list--unordered", "dist/document-surface.css");
 assertIncludes(surfaceCss, ".cf-reader .cf-doc-display-math", "dist/document-surface.css");
+assertIncludes(surfaceCss, ".cf-preview-surface-shell", "dist/document-surface.css");
+assertIncludes(surfaceCss, ".cf-hover-preview-tooltip", "dist/document-surface.css");
+assertIncludes(surfaceCss, ".cf-doc-heading[data-section-number]::before", "dist/document-surface.css");
 assertIncludes(surfaceCss, ":root", "dist/document-surface.css");
 assertIncludes(surfaceCss, ".katex-display", "dist/document-surface.css");
 if (/\.cm-/.test(surfaceCss)) {
   throw new Error("dist/document-surface.css must not contain CM6 selectors");
+}
+if (/\n\.font-mono\b/.test(css) || /\n\[data-section-number\]::before/.test(surfaceCss)) {
+  throw new Error("exported CSS leaked generic host selectors");
 }
 
 assertIncludes(latexCsl, 'citation-format="numeric"', "dist/latex/csl/ieee.csl");

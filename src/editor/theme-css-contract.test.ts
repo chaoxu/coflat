@@ -38,7 +38,9 @@ describe("theme CSS contract", () => {
     expect(editorCss).not.toContain(".cf-reader .cf-doc-heading--h1 {");
     expect(editorCss).not.toContain(".cf-reader .cf-doc-list-item {");
     expect(editorCss).not.toContain(".cf-bibliography-heading {");
+    expect(editorCss).not.toContain(".font-mono");
     expect(surfaceCss).not.toMatch(/\.cm-/);
+    expect(surfaceCss).not.toContain("\n[data-section-number]::before");
     expect(surfaceCss).toContain(".cf-reader .cf-doc-heading--h1 {");
     expect(surfaceCss).toContain(".cf-reader .cf-doc-list-item {");
     expect(surfaceCss).toContain(".cf-bibliography-heading {");
@@ -52,12 +54,16 @@ describe("theme CSS contract", () => {
     );
   });
 
-  it("keeps dark mode as a complete token set", () => {
+  it("keeps dark mode as overrides of root tokens", () => {
     const css = readRepoFile("core/document-surface.css");
-    const rootTokens = cssCustomProperties(cssRuleBody(css, ":root"));
-    const darkTokens = new Set(cssCustomProperties(cssRuleBody(css, "[data-theme=\"dark\"]")));
+    const rootTokens = new Set(cssCustomProperties(cssRuleBody(css, ":root")));
+    const darkTokens = cssCustomProperties(cssRuleBody(css, "[data-theme=\"dark\"]"));
 
-    expect(rootTokens.filter((token) => !darkTokens.has(token))).toEqual([]);
+    expect(darkTokens.filter((token) => !rootTokens.has(token))).toEqual([]);
+    expect(darkTokens).toContain("--cf-bg");
+    expect(darkTokens).toContain("--cf-fg");
+    expect(darkTokens).toContain("--cf-border");
+    expect(darkTokens).toContain("--cf-accent");
   });
 
   it("keeps preview and citation hover surfaces on shared foreground tokens", () => {
@@ -65,6 +71,18 @@ describe("theme CSS contract", () => {
 
     expect(cssRuleBody(css, ".cf-preview-surface-body")).toContain(
       "color: var(--cf-fg);",
+    );
+    expect(cssRuleBody(css, ".cf-preview-surface-shell")).toContain(
+      "position: fixed;",
+    );
+    expect(cssRuleBody(css, ".cf-preview-surface-content")).toContain(
+      "font-family: var(--cf-content-font, KaTeX_Main, \"Times New Roman\", serif);",
+    );
+    expect(cssRuleBody(css, ".cf-preview-surface-header")).toContain(
+      "font-weight: 700;",
+    );
+    expect(cssRuleBody(css, ".cf-hover-preview-tooltip")).toContain(
+      "pointer-events: none;",
     );
     expect(cssRuleBody(css, ".cf-hover-preview-citation")).toContain(
       "color: var(--cf-fg);",
@@ -139,9 +157,10 @@ describe("theme CSS contract", () => {
     expect(cssRuleBody(css, ".cf-reader .cf-doc-heading--h3:not([data-section-number]):not(.cf-doc-heading--unnumbered)::before")).toContain(
       "counter-increment: cf-reader-h3;",
     );
-    expect(cssRuleBody(css, "[data-section-number]::before")).toContain(
+    expect(cssRuleBody(css, ".cf-doc-heading[data-section-number]::before")).toContain(
       'content: attr(data-section-number) ".\\2002";',
     );
+    expect(css).not.toContain("\n[data-section-number]::before");
     expect(cssRuleBody(css, ".cf-reader a,\n.cf-reader .cf-doc-link")).toContain("display: inline;");
     expect(cssRuleBody(css, ".cf-reader a,\n.cf-reader .cf-doc-link")).toContain("text-decoration-style: dotted;");
     expect(cssRuleBody(css, ".cf-reader a[data-cf-link-layout=\"flow\"],\n.cf-reader .cf-doc-link[data-cf-link-layout=\"flow\"]")).toContain(
@@ -259,6 +278,7 @@ describe("theme CSS contract", () => {
     expect(cssRuleBody(css, ".cf-reader .cf-block-disclosure-body[hidden]")).toContain("display: none;");
     expect(cssRuleBody(css, ".cf-reader .cf-section-disclosure-body[hidden]")).toContain("display: none;");
     expect(cssRuleBody(css, ".cf-block-header-rendered")).toContain("line-height: 0;");
+    expect(readRepoFile("editor/editor-theme.css")).not.toContain(".cm-line .cf-block-header-rendered");
     expect(cssRuleBody(css, ".cf-doc-block.cf-doc-block--blockquote")).toContain(
       "padding-left: 1em;",
     );
