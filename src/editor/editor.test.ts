@@ -16,6 +16,7 @@ import { bibDataField } from "./state/bib-data";
 import { documentLabelGraphField } from "./state/document-label-graph";
 import { imageUrlField } from "./state/image-url";
 import { pdfPreviewField } from "./state/pdf-preview";
+import { sidenotesCollapsedField } from "./render";
 
 describe("createEditor", () => {
   it("creates an editor view attached to the given parent", () => {
@@ -156,6 +157,19 @@ describe("extension bundle composition", () => {
     setEditorMode(view, "rich");
     expect(view.state.facet(EditorState.readOnly)).toBe(false);
     expect(view.contentDOM.getAttribute("contenteditable")).toBe("true");
+
+    view.destroy();
+  });
+
+  it("uses reader-like footnote layout in rich-readonly mode", () => {
+    const parent = document.createElement("div");
+    const view = createEditor({ parent, doc: "Text[^1].\n\n[^1]: Footnote." });
+
+    expect(view.state.field(sidenotesCollapsedField)).toBe(false);
+    setEditorMode(view, "rich-readonly");
+    expect(view.state.field(sidenotesCollapsedField)).toBe(true);
+    setEditorMode(view, "rich");
+    expect(view.state.field(sidenotesCollapsedField)).toBe(true);
 
     view.destroy();
   });

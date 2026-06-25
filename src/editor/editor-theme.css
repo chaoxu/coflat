@@ -941,6 +941,12 @@
   margin-left: 0.35em;
 }
 
+.cf-bibliography .cf-bibliography-backlink,
+.cf-footnote-section .cf-footnote-backref {
+  color: inherit;
+  text-decoration: none;
+}
+
 /* No heading math size hacks needed — font-size is on .cm-line via
  * Decoration.line (.cf-heading-line-N), so all children inherit it. */
 

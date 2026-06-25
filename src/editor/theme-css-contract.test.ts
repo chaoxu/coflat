@@ -144,6 +144,8 @@ describe("theme CSS contract", () => {
     expect(cssRuleBody(css, ".cf-bibliography-entry-number")).toContain("margin-right: 4px;");
     expect(cssRuleBody(css, ".cf-bibliography-heading")).toContain("font-size: var(--cf-h2-size, 1.15em);");
     expect(cssRuleBody(css, ".cf-bibliography-heading")).toContain("font-style: var(--cf-h2-style, italic);");
+    expect(cssRuleBody(css, ".cf-bibliography .cf-bibliography-backlink,\n.cf-footnote-section .cf-footnote-backref")).toContain("color: inherit;");
+    expect(cssRuleBody(css, ".cf-bibliography .cf-bibliography-backlink,\n.cf-footnote-section .cf-footnote-backref")).toContain("text-decoration: none;");
     expect(cssRuleBody(css, ".cm-line.cf-doc-list")).toContain("margin: 0;");
     expect(cssRuleBody(css, ".cm-line.cf-doc-list")).toContain("padding-left: 0;");
     expect(cssRuleBody(css, ".cm-line.cf-doc-list")).toContain("list-style: none;");

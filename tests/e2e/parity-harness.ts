@@ -404,6 +404,63 @@ export async function expectLoadedSplitContentPixelsMatch(
   ).toBeLessThanOrEqual(residualBudget);
 }
 
+export async function expectLoadedSelectorsPixelsMatch(
+  page: Page,
+  label: string,
+  selectors: { readonly reader: string; readonly editor: string },
+) {
+  const clip = await page.evaluate((selectors) => {
+    const readerElement = document.querySelector(selectors.reader);
+    const editorElement = document.querySelector(selectors.editor);
+    if (!(readerElement instanceof HTMLElement) || !(editorElement instanceof HTMLElement)) {
+      throw new Error(`missing comparison selectors: ${JSON.stringify(selectors)}`);
+    }
+    const readerBounds = readerElement.getBoundingClientRect();
+    const editorBounds = editorElement.getBoundingClientRect();
+    const x = Math.floor(Math.min(readerBounds.left, editorBounds.left));
+    const y = Math.floor(Math.min(readerBounds.top, editorBounds.top));
+    const right = Math.ceil(Math.max(readerBounds.right, editorBounds.right));
+    const bottom = Math.ceil(Math.max(readerBounds.bottom, editorBounds.bottom));
+    const toRect = (bounds: DOMRect) => ({
+      height: Math.ceil(bounds.height),
+      width: Math.ceil(bounds.width),
+      x: Math.floor(bounds.left) - x,
+      y: Math.floor(bounds.top) - y,
+    });
+    return {
+      height: bottom - y,
+      reader: toRect(readerBounds),
+      editor: toRect(editorBounds),
+      width: right - x,
+      x,
+      y,
+    };
+  }, selectors);
+  const image = await page.screenshot({
+    clip: {
+      x: clip.x,
+      y: clip.y,
+      width: clip.width,
+      height: clip.height,
+    },
+  });
+  const diff = await compareSplitPngSignificant(page, image, {
+    reader: clip.reader,
+    editor: clip.editor,
+  });
+
+  expect(diff.leftWidth, `${label} reader width`).toBe(diff.rightWidth);
+  expect(diff.leftHeight, `${label} reader height`).toBe(diff.rightHeight);
+  const residualBudget = Math.min(
+    MAX_RESIDUAL_SIGNIFICANT_PIXELS,
+    Math.ceil(diff.width * diff.height * MAX_RESIDUAL_SIGNIFICANT_RATIO),
+  );
+  expect(
+    diff.different,
+    `${label} selector pixel diff (exact=${diff.exactDifferent}, antialias=${diff.antialiasDifferent}, budget=${residualBudget})`,
+  ).toBeLessThanOrEqual(residualBudget);
+}
+
 async function parityPairContentClip(
   page: Page,
   sourceRange?: { readonly from: number; readonly to: number },

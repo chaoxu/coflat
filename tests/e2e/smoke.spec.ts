@@ -2,6 +2,7 @@ import { expect, type Locator, type Page, test } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
+  expectLoadedSelectorsPixelsMatch,
   expectLoadedSplitContentPixelsMatch,
   loadParityPairSurface,
   loadParitySurface,
@@ -1451,4 +1452,82 @@ test("public showcase keeps reader and CM6 rich editor block geometry aligned", 
 
   expect(result.compared).toBeGreaterThan(80);
   expect(result.mismatches).toEqual([]);
+});
+
+test("public showcase keeps reader and rich-readonly footnote sections aligned", async ({ page }) => {
+  await page.setViewportSize({ width: 2560, height: 7200 });
+  await loadParityPairSurface(page, "default", PUBLIC_SHOWCASE_PARITY_SOURCE);
+  await page.evaluate(async () => {
+    const mounted = (
+      window as typeof window & {
+        __coflatEditor?: { setMode?: (mode: "rich-readonly") => void };
+      }
+    ).__coflatEditor;
+    mounted?.setMode?.("rich-readonly");
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+  });
+
+  const result = await page.evaluate(() => {
+    const properties = [
+      "color",
+      "cursor",
+      "display",
+      "font-family",
+      "font-size",
+      "font-style",
+      "font-weight",
+      "line-height",
+      "margin-bottom",
+      "margin-top",
+      "padding-left",
+      "padding-right",
+      "text-align",
+      "vertical-align",
+    ] as const;
+    const rounded = (value: number) => Math.round(value * 100) / 100;
+    const style = (el: Element) => {
+      const computed = getComputedStyle(el);
+      return Object.fromEntries(properties.map((property) => [
+        property,
+        computed.getPropertyValue(property),
+      ]));
+    };
+    const box = (el: Element) => {
+      const rect = el.getBoundingClientRect();
+      return { height: rounded(rect.height), width: rounded(rect.width) };
+    };
+    const snap = (selector: string) => {
+      const el = document.querySelector(selector);
+      if (!(el instanceof HTMLElement)) throw new Error(`missing ${selector}`);
+      return {
+        box: box(el),
+        style: style(el),
+        text: (el.textContent ?? "").replace(/\s+/g, " ").trim(),
+      };
+    };
+    const pairs = [
+      ["section", "#reader-root .cf-footnote-section", "#editor-root .cf-footnote-section"],
+      ["heading", "#reader-root .cf-footnote-section .cf-bibliography-heading", "#editor-root .cf-footnote-section .cf-bibliography-heading"],
+      ["entry", "#reader-root .cf-footnote-section .cf-bibliography-entry", "#editor-root .cf-footnote-section .cf-bibliography-entry"],
+      ["number", "#reader-root .cf-footnote-section .cf-bibliography-entry-number", "#editor-root .cf-footnote-section .cf-bibliography-entry-number"],
+      ["content", "#reader-root .cf-footnote-section .cf-bibliography-entry span", "#editor-root .cf-footnote-section .cf-bibliography-entry span"],
+      ["backref", "#reader-root .cf-footnote-section .cf-footnote-backref", "#editor-root .cf-footnote-section .cf-footnote-backref"],
+    ] as const;
+    return Object.fromEntries(pairs.map(([name, readerSelector, editorSelector]) => [
+      name,
+      { reader: snap(readerSelector), editor: snap(editorSelector) },
+    ]));
+  });
+
+  for (const [name, pair] of Object.entries(result)) {
+    expect(pair.editor.text, `${name} text`).toBe(pair.reader.text);
+    expect(pair.editor.box, `${name} box`).toEqual(pair.reader.box);
+    expect(pair.editor.style, `${name} style`).toEqual(pair.reader.style);
+  }
+
+  await expectLoadedSelectorsPixelsMatch(page, "showcase footnote section rich-readonly", {
+    reader: "#reader-root .cf-footnote-section",
+    editor: "#editor-root .cf-footnote-section",
+  });
 });

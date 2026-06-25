@@ -1,10 +1,6 @@
 import { afterEach, describe, it, expect, vi } from "vitest";
 import { EditorState } from "@codemirror/state";
-import {
-  type DecorationSet,
-  EditorView,
-  type ViewPlugin,
-} from "@codemirror/view";
+import { type DecorationSet, EditorView } from "@codemirror/view";
 import { CSS } from "../../core/constants/css-classes";
 import { markdown } from "@codemirror/lang-markdown";
 import { footnoteExtension } from "../../core/parser/footnote";
@@ -114,10 +110,6 @@ function activateFootnoteLabel(state: EditorState, pos: number): EditorState {
   }).state;
 }
 
-interface FootnoteSectionPluginValue {
-  decorations: DecorationSet;
-}
-
 let pluginView: EditorView | undefined;
 
 afterEach(() => {
@@ -140,15 +132,11 @@ function createFootnoteSectionView(doc: string): EditorView {
   return pluginView;
 }
 
-function getFootnoteSectionPlugin(v: EditorView): FootnoteSectionPluginValue {
-  const plugin = v.plugin(
-    footnoteSectionPlugin as unknown as ViewPlugin<FootnoteSectionPluginValue>,
-  );
-  expect(plugin).toBeDefined();
-  if (!plugin) {
-    throw new Error("footnoteSectionPlugin is not installed");
-  }
-  return plugin;
+function getFootnoteSectionDecorations(v: EditorView): DecorationSet {
+  const decorations = v.state.field(footnoteSectionPlugin, false);
+  expect(decorations).toBeDefined();
+  if (!decorations) throw new Error("footnote section decorations field is not installed");
+  return decorations;
 }
 
 describe("computeSidenoteOffsets", () => {
@@ -581,7 +569,6 @@ describe("footnote section invalidation", () => {
     const v = createFootnoteSectionView(doc);
     v.dispatch({ effects: sidenotesCollapsedEffect.of(true) });
     const beforeAnalysis = v.state.field(documentAnalysisField);
-    const beforeDecorations = getFootnoteSectionPlugin(v).decorations;
     const headingText = doc.indexOf("Old");
 
     v.dispatch({
@@ -596,14 +583,19 @@ describe("footnote section invalidation", () => {
     expect(getDocumentAnalysisSliceRevision(afterAnalysis, "footnotes")).toBe(
       getDocumentAnalysisSliceRevision(beforeAnalysis, "footnotes"),
     );
-    expect(getFootnoteSectionPlugin(v).decorations).toBe(beforeDecorations);
+    expect(getDecorationSpecs(getFootnoteSectionDecorations(v))).toContainEqual(expect.objectContaining({
+      from: v.state.doc.length,
+      to: v.state.doc.length,
+      widgetClass: "FootnoteSectionWidget",
+      block: true,
+    }));
   });
 
   it("rebuilds when the footnote slice changes while collapsed", () => {
     const doc = "Text [^1] end\n\n[^1]: Note";
     const v = createFootnoteSectionView(doc);
     v.dispatch({ effects: sidenotesCollapsedEffect.of(true) });
-    const beforeDecorations = getFootnoteSectionPlugin(v).decorations;
+    const beforeDecorations = getFootnoteSectionDecorations(v);
     const noteText = doc.indexOf("Note");
 
     v.dispatch({
@@ -614,7 +606,7 @@ describe("footnote section invalidation", () => {
       },
     });
 
-    expect(getFootnoteSectionPlugin(v).decorations).not.toBe(beforeDecorations);
+    expect(getFootnoteSectionDecorations(v)).not.toBe(beforeDecorations);
   });
 
   it("rebuilds when footnote macros change while collapsed", () => {
@@ -630,7 +622,7 @@ describe("footnote section invalidation", () => {
     ].join("\n");
     const v = createFootnoteSectionView(doc);
     v.dispatch({ effects: sidenotesCollapsedEffect.of(true) });
-    const beforeDecorations = getFootnoteSectionPlugin(v).decorations;
+    const beforeDecorations = getFootnoteSectionDecorations(v);
     const macroText = doc.indexOf("alpha");
 
     v.dispatch({
@@ -641,7 +633,7 @@ describe("footnote section invalidation", () => {
       },
     });
 
-    expect(getFootnoteSectionPlugin(v).decorations).not.toBe(beforeDecorations);
+    expect(getFootnoteSectionDecorations(v)).not.toBe(beforeDecorations);
   });
 });
 
@@ -709,6 +701,19 @@ describe("FootnoteSectionWidget", () => {
     const backref = widget.createDOM().querySelector<HTMLAnchorElement>(`.${CSS.footnoteBackref}`);
     expect(backref?.getAttribute("href")).toBe("#fnref-note-1");
     expect(backref?.textContent).toBe("↩");
+  });
+
+  it("places the collapsed footnote section as a block widget", () => {
+    const view = createFootnoteSectionView("Text[^1].\n\n[^1]: Body");
+    view.dispatch({ effects: sidenotesCollapsedEffect.of(true) });
+
+    const specs = getDecorationSpecs(getFootnoteSectionDecorations(view));
+    expect(specs).toContainEqual(expect.objectContaining({
+      from: view.state.doc.length,
+      to: view.state.doc.length,
+      widgetClass: "FootnoteSectionWidget",
+      block: true,
+    }));
   });
 });
 

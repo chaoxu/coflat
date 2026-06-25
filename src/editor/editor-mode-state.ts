@@ -4,6 +4,7 @@ import { EditorView } from "@codemirror/view";
 import { classHighlighter } from "@lezer/highlight";
 import { CSS } from "../core/constants/css-classes";
 import { cm6RichRenderExtensions } from "./render/cm6-rich-render-extensions";
+import { sidenotesCollapsedEffect } from "./render/sidenote-state";
 import {
   editableCompartment,
   modeClassCompartment,
@@ -50,6 +51,7 @@ export function setEditorMode(view: EditorView, mode: EditorMode): void {
       effects.push(syntaxHighlightCompartment.reconfigure([]));
       break;
     case "rich-readonly":
+      effects.push(sidenotesCollapsedEffect.of(true));
       effects.push(renderCompartment.reconfigure(cm6RichRenderExtensions));
       effects.push(editableCompartment.reconfigure([
         EditorState.readOnly.of(true),
