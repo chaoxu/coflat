@@ -1,5 +1,5 @@
 import { markdown } from "@codemirror/lang-markdown";
-import { StateEffect, type EditorState } from "@codemirror/state";
+import { EditorState, StateEffect } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { frontmatterField } from "../state/frontmatter-state";
@@ -60,6 +60,14 @@ function makeTable(): ParsedTable {
 /** Stub EditorView with just enough shape for toDOM(). */
 function makeStubView(): EditorView {
   return createMockEditorView();
+}
+
+function makeReadOnlyStubView(): EditorView {
+  return createMockEditorView({
+    state: {
+      facet: (facet: unknown) => facet === EditorState.readOnly,
+    },
+  });
 }
 
 function makeMeasureAwareView() {
@@ -410,6 +418,33 @@ describe("TableWidget source range attributes", () => {
     expect(bodyCell.style.minWidth).toBe("");
     expect(bodyCell.style.maxWidth).toBe("");
     expect(bodyCell.style.minHeight).toBe("");
+  });
+
+  it("does not open inline cell editors when the root editor is read-only", () => {
+    const widget = new TableWidget(makeTable(), "| A | B |\n|---|---|\n| 1 | 2 |", 0, {});
+    const dom = widget.toDOM(makeReadOnlyStubView());
+    const bodyCell = dom.querySelector<HTMLElement>("tbody td");
+    expect(bodyCell).not.toBeNull();
+    if (!bodyCell) {
+      throw new Error("expected body table cell");
+    }
+
+    const down = new MouseEvent("mousedown", {
+      bubbles: true,
+      cancelable: true,
+    });
+    bodyCell.dispatchEvent(down);
+
+    expect(down.defaultPrevented).toBe(false);
+    expect(bodyCell.classList.contains("cf-table-cell-editing")).toBe(false);
+    expect(bodyCell.querySelector(".cm-editor")).toBeNull();
+
+    const contextmenu = new MouseEvent("contextmenu", {
+      bubbles: true,
+      cancelable: true,
+    });
+    bodyCell.dispatchEvent(contextmenu);
+    expect(contextmenu.defaultPrevented).toBe(false);
   });
 });
 

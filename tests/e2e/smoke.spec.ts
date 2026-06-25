@@ -578,6 +578,16 @@ test("public demo readonly surface uses CM6 rich rendering without editing", asy
   await expect(content).toHaveAttribute("contenteditable", "false");
   await expect(content).toContainText("Coflat Feature Showcase");
 
+  const tableCell = page.locator("#editor .cf-table-widget td", {
+    hasText: "Edit this cell",
+  }).first();
+  await scrollThroughUntil(page, [2500, 3000, 3500, 4000, 4500], tableCell);
+  await tableCell.scrollIntoViewIfNeeded();
+  await tableCell.click();
+  await expect(page.locator("#editor .cf-table-cell-editing")).toHaveCount(0);
+  await expect(tableCell.locator(".cm-editor")).toHaveCount(0);
+  await expect(content).toHaveAttribute("contenteditable", "false");
+
   const before = await content.textContent();
   await content.click();
   await page.keyboard.type("not inserted");
