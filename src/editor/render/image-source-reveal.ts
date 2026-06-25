@@ -8,8 +8,6 @@ import type { Decoration } from "@codemirror/view";
 import type { SyntaxNode } from "@lezer/common";
 import { editorFocusField } from "./focus-state";
 import { addInlineRevealSourceMetricsInSubtree } from "./markdown-inline-source";
-import { isStandaloneImageLine } from "../state/markdown-image";
-export { isStandaloneImageLine } from "../state/markdown-image";
 
 export interface ActiveImageSourceTarget {
   readonly from: number;
@@ -73,7 +71,7 @@ export function getActiveImageSourceTarget(
   if (!focused) return null;
 
   const node = findSelectionImageNode(state);
-  if (!node || !isStandaloneImageLine(state, node.from, node.to)) return null;
+  if (!node) return null;
   return { from: node.from, to: node.to };
 }
 

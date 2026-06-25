@@ -733,7 +733,7 @@ describe("imageRenderPlugin block ownership", () => {
     view.destroy();
   });
 
-  it("keeps inline images as inline replacements", () => {
+  it("keeps unfocused inline images as inline replacements", () => {
     const view = createTestView("prefix ![](figure.png) suffix", {
       extensions: [markdown(), imageUrlField, pdfPreviewField, imageRenderPlugin],
     });
@@ -745,7 +745,7 @@ describe("imageRenderPlugin block ownership", () => {
     view.destroy();
   });
 
-  it("does not promote focused inline images into block source editing", () => {
+  it("reveals focused inline image source in rich mode", () => {
     const doc = "prefix ![diagram](figure.png) suffix";
     const imageFrom = doc.indexOf("![diagram]");
     const imageTo = imageFrom + "![diagram](figure.png)".length;
@@ -758,15 +758,24 @@ describe("imageRenderPlugin block ownership", () => {
       view.state.field(_imageDecorationFieldForTest).decorations,
     );
 
+    expect(specs.some((spec) => spec.widgetClass === "ImagePreviewWidget")).toBe(false);
+    expect(specs.filter((spec) => spec.class === CSS.sourceDelimiter)).toHaveLength(4);
+    expect(specs.filter((spec) => spec.class === CSS.inlineSource)).toHaveLength(1);
+    expect(view.contentDOM.textContent).toContain("![diagram](figure.png)");
+
+    view.dispatch({ selection: { anchor: imageTo + " suffix".length } });
+
+    const blurredSpecs = getDecorationSpecs(
+      view.state.field(_imageDecorationFieldForTest).decorations,
+    );
     expect(
-      specs.some((spec) =>
+      blurredSpecs.some((spec) =>
         spec.widgetClass === "ImagePreviewWidget" &&
         spec.block !== true &&
         spec.from === imageFrom &&
         spec.to === imageTo
       ),
     ).toBe(true);
-    expect(specs.some((spec) => spec.block === true && spec.widgetClass === "ImagePreviewWidget")).toBe(false);
     view.destroy();
   });
 });
