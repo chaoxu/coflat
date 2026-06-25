@@ -39,4 +39,19 @@ describe("lightweight numeric citation helpers", () => {
         },
       ]);
   });
+
+  it("uses available BibTeX metadata in lightweight bibliography entries", () => {
+    const formatter = createNumericCitationFormatter([{
+      id: "cormen2009",
+      title: "Introduction to Algorithms",
+      publisher: "MIT Press",
+      author: [{ family: "Cormen", given: "Thomas H." }],
+      issued: { "date-parts": [[2009]] },
+    }]);
+
+    formatter.registerCitations([{ ids: ["cormen2009"] }]);
+
+    expect(formatter.bibliographyEntries(["cormen2009"])[0]?.html)
+      .toContain("Cormen, Thomas H. Introduction to Algorithms. MIT Press. 2009.");
+  });
 });

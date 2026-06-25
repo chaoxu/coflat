@@ -125,6 +125,8 @@ const demoRefResolver: RefResolver = {
 const documentContext = {
   fileSystem: publicFileSystem,
   refResolver: demoRefResolver,
+  citationFormatter,
+  citationKeys: new Set(bibliographyStore.keys()),
 } satisfies DocumentContext;
 const bibliographyBootstrap = ViewPlugin.define((view) => {
   queueMicrotask(() => {
@@ -196,7 +198,10 @@ function formatBibliographyPreview(key: string): string | null {
 function renderReaderDoc(): void {
   const doc = docs[currentDocId];
   cleanupReaderHover?.();
-  const result = renderToHtml(doc.source, documentContext, { sourcePositions: true });
+  const result = renderToHtml(doc.source, documentContext, {
+    resolveReferences: true,
+    sourcePositions: true,
+  });
   mountedReaderRoot.innerHTML = result.html;
   hydrateReaderDisclosures(mountedReaderRoot);
   hydrateMedia(mountedReaderRoot);

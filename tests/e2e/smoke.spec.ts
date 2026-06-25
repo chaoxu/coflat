@@ -1050,10 +1050,10 @@ test("public demo hydrates bibliography citations", async ({ page }) => {
   await page.goto("/examples/simple/index.html");
 
   await expect.poll(() =>
-    page.locator('[data-ref-key="cormen2009"]').count()
+    page.locator('.cf-citation[aria-label="cormen2009"], [data-ref-key="cormen2009"]').count()
   ).toBeGreaterThan(0);
 
-  const firstCitation = page.locator('[data-ref-key="cormen2009"]').first();
+  const firstCitation = page.locator('.cf-citation[aria-label="cormen2009"], [data-ref-key="cormen2009"]').first();
   await expect(firstCitation).toContainText("[1]");
   await expect(firstCitation).toHaveClass(/cf-citation/);
   await expect(firstCitation).not.toHaveClass(/cf-crossref-unresolved/);
@@ -1063,6 +1063,11 @@ test("public demo hydrates bibliography citations", async ({ page }) => {
   await expect(tooltip).toContainText("Introduction to Algorithms");
   await expect(tooltip).toContainText("Cormen");
   await expectTooltipWithinViewport(page, tooltip);
+
+  await page.getByRole("button", { name: "Reader" }).click();
+  const reader = page.locator("#reader");
+  await expect(reader.locator(".cf-bibliography")).toContainText("References");
+  await expect(reader.locator(".cf-bibliography-entry").first()).toContainText("Introduction to Algorithms");
 });
 
 test("public demo shows hover panels for cross-references", async ({ page }) => {

@@ -1,8 +1,14 @@
 import type { CitationFormatter } from "../document-context-types";
+import { type CslJsonItem, formatCslAuthors } from "./csl-json";
 import { escapeHtml } from "../lib/html-escape";
 
 export interface NumericCitationEntry {
   readonly id: string;
+  readonly author?: CslJsonItem["author"];
+  readonly title?: string;
+  readonly "container-title"?: string;
+  readonly publisher?: string;
+  readonly issued?: CslJsonItem["issued"];
 }
 
 const BIB_ENTRY_RE = /@([A-Za-z]+)\s*[{(]\s*([^,\s{}()]+)\s*,/g;
@@ -23,6 +29,24 @@ function unique(values: readonly string[]): string[] {
     out.push(value);
   }
   return out;
+}
+
+function numericBibliographyEntryText(entry: NumericCitationEntry | undefined, fallbackId: string): string {
+  if (!entry) return fallbackId;
+  const year = entry.issued?.["date-parts"]?.[0]?.[0];
+  const parts = [
+    formatCslAuthors(entry.author),
+    entry.title,
+    entry["container-title"],
+    entry.publisher,
+    year == null ? undefined : String(year),
+  ].map((part) => part?.trim()).filter((part): part is string => Boolean(part));
+  if (parts.length === 0) return fallbackId;
+  const text = parts.reduce((joined, part) => {
+    if (!joined) return part;
+    return /[.!?]$/.test(joined) ? `${joined} ${part}` : `${joined}. ${part}`;
+  }, "");
+  return /[.!?]$/.test(text) ? text : `${text}.`;
 }
 
 /**
@@ -51,6 +75,10 @@ export function createNumericCitationFormatter(
   entries: readonly string[] | readonly NumericCitationEntry[] = [],
 ): CitationFormatter {
   const known = normalizeEntries(entries);
+  const entryById = new Map<string, NumericCitationEntry>();
+  for (const entry of entries) {
+    if (typeof entry !== "string") entryById.set(entry.id, entry);
+  }
   const labels = new Map<string, number>();
   known.forEach((id, index) => {
     if (id && !labels.has(id)) labels.set(id, index + 1);
@@ -84,7 +112,7 @@ export function createNumericCitationFormatter(
     bibliographyEntries(ids) {
       return unique([...ids, ...citedIds]).map((id) => ({
         id,
-        html: `<span class="csl-left-margin">[${labelFor(id)}]</span> <span class="csl-right-inline">${escapeHtml(id)}</span>`,
+        html: `<span class="csl-left-margin">[${labelFor(id)}]</span> <span class="csl-right-inline">${escapeHtml(numericBibliographyEntryText(entryById.get(id), id))}</span>`,
       }));
     },
 
