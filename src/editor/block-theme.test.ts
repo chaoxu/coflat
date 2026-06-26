@@ -81,6 +81,7 @@ describe("blockThemeStyles", () => {
 
     expect(blockThemeStyles[".cf-table-widget table"]).toEqual({
       borderCollapse: "collapse",
+      margin: "0",
       width: "100%",
       fontSize: "var(--cf-table-font-size, 0.9em)",
     });

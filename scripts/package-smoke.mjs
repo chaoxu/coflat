@@ -60,14 +60,14 @@ if (!rendered.hasMath) {
   throw new Error("reader html did not report math for the showcase fixture");
 }
 
-assertIncludes(css, ".cf-reader .cf-doc-heading--h1", "dist/editor.css");
+assertIncludes(css, ".cf-doc-flow .cf-doc-heading--h1", "dist/editor.css");
 assertIncludes(css, "counter-reset: cf-reader-h1 cf-reader-h2", "dist/editor.css");
-assertIncludes(css, ".cf-reader .cf-doc-list--unordered", "dist/editor.css");
-assertIncludes(css, ".cf-reader .cf-doc-display-math", "dist/editor.css");
-assertIncludes(surfaceCss, ".cf-reader .cf-doc-heading--h1", "dist/document-surface.css");
+assertIncludes(css, ".cf-doc-flow .cf-doc-list--unordered", "dist/editor.css");
+assertIncludes(css, ".cf-doc-flow .cf-doc-display-math", "dist/editor.css");
+assertIncludes(surfaceCss, ".cf-doc-flow .cf-doc-heading--h1", "dist/document-surface.css");
 assertIncludes(surfaceCss, "counter-reset: cf-reader-h1 cf-reader-h2", "dist/document-surface.css");
-assertIncludes(surfaceCss, ".cf-reader .cf-doc-list--unordered", "dist/document-surface.css");
-assertIncludes(surfaceCss, ".cf-reader .cf-doc-display-math", "dist/document-surface.css");
+assertIncludes(surfaceCss, ".cf-doc-flow .cf-doc-list--unordered", "dist/document-surface.css");
+assertIncludes(surfaceCss, ".cf-doc-flow .cf-doc-display-math", "dist/document-surface.css");
 assertIncludes(surfaceCss, ".cf-preview-surface-shell", "dist/document-surface.css");
 assertIncludes(surfaceCss, ".cf-hover-preview-tooltip", "dist/document-surface.css");
 assertIncludes(surfaceCss, ".cf-doc-heading[data-section-number]::before", "dist/document-surface.css");

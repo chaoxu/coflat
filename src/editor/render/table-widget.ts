@@ -1,6 +1,5 @@
 import { EditorView } from "@codemirror/view";
 import {
-  DOCUMENT_SURFACE_CLASS,
   documentSurfaceClassNames,
 } from "../../core/document-surface-classes";
 import { documentSurfacePolicy } from "../../core/document-surface-policy";
@@ -180,10 +179,7 @@ export class TableWidget extends ShellWidget implements
 
   private syncContainerAttrs(container: HTMLElement): void {
     this.ensureSourceRange();
-    container.className = documentSurfaceClassNames(
-      DOCUMENT_SURFACE_CLASS.tableBlock,
-      CSS.tableWidget,
-    );
+    container.className = documentSurfaceClassNames(CSS.tableWidget);
     container.dataset.tableTextHash = this.tableText;
     container.dataset.tableFrom = String(this.tableFrom);
     this.syncWidgetAttrs(container, this.editorView ?? undefined);

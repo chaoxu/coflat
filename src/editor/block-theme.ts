@@ -194,6 +194,7 @@ export const blockThemeStyles: Record<string, Record<string, string>> = {
 
   ".cf-table-widget table": {
     borderCollapse: "collapse",
+    margin: "0",
     width: "100%",
     fontSize: "var(--cf-table-font-size, 0.9em)",
   },
