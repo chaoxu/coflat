@@ -37,6 +37,7 @@ const latexSyntaxManifest = read("dist/latex/syntax-manifest.lua");
 const jsExports = [
   "../dist/editor.mjs",
   "../dist/editor-lazy.mjs",
+  "../dist/inline-render.mjs",
   "../dist/reader.mjs",
   "../dist/rich-readonly.mjs",
   "../dist/reader-worker.mjs",

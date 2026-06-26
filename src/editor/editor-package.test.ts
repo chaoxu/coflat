@@ -32,6 +32,7 @@ describe("package editor export", () => {
       "./citeproc",
       "./document-surface.css",
       "./editor-lazy",
+      "./inline-render",
       "./latex",
       "./latex/csl/ieee.csl",
       "./latex/filter.lua",
@@ -97,6 +98,16 @@ describe("package editor export", () => {
     expect(parseExport).toEqual({
       types: "./dist/parse.d.ts",
       import: "./dist/parse.mjs",
+    });
+  });
+
+  it("publishes the dependency-light inline render sub-entry from generated dist output", () => {
+    const packageJson = readPackageJson();
+    const inlineRenderExport = packageJson.exports?.["./inline-render"];
+
+    expect(inlineRenderExport).toEqual({
+      types: "./dist/inline-render.d.ts",
+      import: "./dist/inline-render.mjs",
     });
   });
 

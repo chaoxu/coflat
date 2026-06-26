@@ -21,7 +21,17 @@ import type {
   EditorPluginLifecycleEvent,
 } from "./src/editor/editor-plugin";
 import type { EditorPluginPresetName } from "./src/editor/editor-plugin-presets";
+import {
+  createPerFilePanelApi,
+  type Counts,
+  type CursorContext,
+  type HeadlessPanelStore,
+  type OutlineEntry,
+  type ScrollToLineOptions,
+  type ScrollToPositionOptions,
+} from "./src/editor/headless/per-file-panels";
 import type { DocumentContext } from "./src/core/document-context-types";
+import type { CslJsonItem } from "./src/core/citations/csl-json";
 import type { FileSystem } from "./src/core/lib/file-system-types";
 import {
   sourceElementAtPosition,
@@ -31,8 +41,26 @@ import {
   documentContextExtension,
   setDocumentContext,
 } from "./src/editor/document-context";
+import {
+  autocompleteSourcesFacet,
+  requestHandlerFacet,
+  saveHandlerFacet,
+  statusEventsFacet,
+  type AutocompleteSource,
+  type RequestHandler,
+  type SaveHandler,
+  type StatusEvents,
+} from "./src/editor/editor-host-api";
+import {
+  assetUploaderExtension,
+  formatUploadedAssetMarkdown,
+  type AssetUploader,
+} from "./src/editor/asset-uploader";
+import { autocompleteSourceExtension } from "./src/editor/autocomplete-source-controller";
 import { documentPathFacet, fileSystemFacet } from "./src/editor/lib/types";
 import { programmaticDocumentChangeAnnotation } from "./src/editor/state/programmatic-document-change";
+import { bibDataEffect, type BibData } from "./src/editor/state/bib-data";
+import { createSaveController, saveExtension } from "./src/editor/save-handler";
 import { sidenotesCollapsedField } from "./src/editor/render";
 
 export type LazyEditorMode = "rich" | "rich-readonly" | "source";
@@ -47,6 +75,11 @@ export interface MountLazyEditorOptions {
   readonly extensions?: readonly Extension[];
   readonly pluginPreset?: EditorPluginPresetName;
   readonly plugins?: readonly EditorPlugin[];
+  readonly requestHandler?: RequestHandler;
+  readonly statusEvents?: StatusEvents;
+  readonly saveHandler?: SaveHandler;
+  readonly assetUploader?: AssetUploader;
+  readonly autocompleteSources?: readonly AutocompleteSource[];
   readonly sidenotesCollapsed?: boolean;
   readonly onChange?: (doc: string) => void;
   readonly onDocumentChange?: (change: LazyEditorDocumentChange) => void;
@@ -82,7 +115,6 @@ export interface LazyEditorScrollToSourcePositionOptions {
 }
 
 export interface MountedLazyEditor {
-  readonly view: EditorView;
   getDoc(): string;
   setDoc(doc: string): void;
   setContext(context: DocumentContext): void;
@@ -90,7 +122,14 @@ export interface MountedLazyEditor {
   setMode(mode: LazyEditorMode): void;
   getVisibleSourcePosition(opts?: LazyEditorVisibleSourcePositionOptions): LazyEditorSourcePosition | null;
   scrollToSourcePosition(position: LazyEditorSourcePosition | LazyEditorScrollToSourcePositionOptions): void;
+  readonly outline: HeadlessPanelStore<readonly OutlineEntry[]>;
+  readonly counts: HeadlessPanelStore<Counts>;
+  readonly cursorContext: HeadlessPanelStore<CursorContext>;
+  scrollToLine(line: number, opts?: ScrollToLineOptions): void;
+  scrollToPosition(from: number, opts?: ScrollToPositionOptions): void;
   focus(): void;
+  isSaved(): boolean;
+  triggerSave(reason?: "manual" | "command"): Promise<void>;
   unmount(): void;
 }
 
@@ -140,6 +179,23 @@ function getVisibleSourcePosition(
   };
 }
 
+function bibDataFromDocumentContext(context: DocumentContext | undefined): BibData | null {
+  if (!context?.citationFormatter || !context.citationKeys || context.citationKeys.size === 0) {
+    return null;
+  }
+  const store = new Map<string, CslJsonItem>();
+  for (const id of context.citationKeys) {
+    store.set(id, { id, type: "article" });
+  }
+  return { store, formatter: context.citationFormatter };
+}
+
+function applyDocumentContext(view: EditorView, context: DocumentContext): void {
+  setDocumentContext(view, context);
+  const bibData = bibDataFromDocumentContext(context);
+  if (bibData) view.dispatch({ effects: bibDataEffect.of(bibData) });
+}
+
 export function mountLazyEditor(options: MountLazyEditorOptions): MountedLazyEditor {
   const initialDoc = options.doc ?? "";
   const initialMode = options.mode ?? "rich";
@@ -147,6 +203,7 @@ export function mountLazyEditor(options: MountLazyEditorOptions): MountedLazyEdi
   let currentDoc = initialDoc;
   let currentMode: LazyEditorMode = "rich";
   let suppressModeCallback = false;
+  const panelApi = createPerFilePanelApi();
 
   options.parent.replaceChildren();
 
@@ -181,6 +238,26 @@ export function mountLazyEditor(options: MountLazyEditorOptions): MountedLazyEdi
     onPluginReady: options.onPluginReady,
     extensions: [
       updateListener,
+      panelApi.extension,
+      ...(options.requestHandler
+        ? [requestHandlerFacet.of(options.requestHandler)]
+        : []),
+      ...(options.statusEvents
+        ? [statusEventsFacet.of(options.statusEvents)]
+        : []),
+      ...(options.saveHandler
+        ? [saveHandlerFacet.of(options.saveHandler)]
+        : []),
+      saveExtension(),
+      ...(options.assetUploader
+        ? [assetUploaderExtension(options.assetUploader)]
+        : []),
+      ...(options.autocompleteSources && options.autocompleteSources.length > 0
+        ? [
+            autocompleteSourcesFacet.of(options.autocompleteSources),
+            autocompleteSourceExtension({ from: options.from }),
+          ]
+        : []),
       ...(options.from ? [documentPathFacet.of(options.from)] : []),
       ...(options.fileSystem ? [fileSystemFacet.of(options.fileSystem)] : []),
       [sidenotesCollapsedField.init(() => initialSidenotesCollapsed)],
@@ -189,6 +266,9 @@ export function mountLazyEditor(options: MountLazyEditorOptions): MountedLazyEdi
     ],
   };
   let view: EditorView | null = createEditor(editorConfig);
+  panelApi.attach(view);
+  const initialBibData = bibDataFromDocumentContext(options.context);
+  if (initialBibData) view.dispatch({ effects: bibDataEffect.of(initialBibData) });
 
   if (initialMode !== "rich") {
     suppressModeCallback = true;
@@ -197,10 +277,9 @@ export function mountLazyEditor(options: MountLazyEditorOptions): MountedLazyEdi
   }
 
   currentMode = toLazyMode(view.state.field(editorModeField, false));
+  const saveController = createSaveController(view);
 
   return {
-    view,
-
     getDoc() {
       return currentDoc;
     },
@@ -222,7 +301,7 @@ export function mountLazyEditor(options: MountLazyEditorOptions): MountedLazyEdi
 
     setContext(context) {
       if (!view) return;
-      setDocumentContext(view, context);
+      applyDocumentContext(view, context);
     },
 
     getMode() {
@@ -293,14 +372,38 @@ export function mountLazyEditor(options: MountLazyEditorOptions): MountedLazyEdi
       requestAnimationFrame(alignFrame);
     },
 
+    outline: panelApi.outline,
+
+    counts: panelApi.counts,
+
+    cursorContext: panelApi.cursorContext,
+
+    scrollToLine(line, opts) {
+      panelApi.scrollToLine(line, opts);
+    },
+
+    scrollToPosition(from, opts) {
+      panelApi.scrollToPosition(from, opts);
+    },
+
     focus() {
       view?.focus();
+    },
+
+    isSaved() {
+      return view ? saveController.isSaved() : true;
+    },
+
+    async triggerSave(reason: "manual" | "command" = "manual") {
+      if (!view) return;
+      await saveController.triggerSave(reason);
     },
 
     unmount() {
       if (!view) return;
       const mountedView = view;
       view = null;
+      panelApi.detach();
       mountedView.destroy();
       options.parent.replaceChildren();
     },
@@ -313,4 +416,17 @@ export type {
   EditorPlugin,
   EditorPluginLifecycleEvent,
   EditorPluginPresetName,
+  AutocompleteSource,
+  AssetUploader,
+  Counts,
+  CursorContext,
+  HeadlessPanelStore,
+  OutlineEntry,
+  RequestHandler,
+  SaveHandler,
+  ScrollToLineOptions,
+  ScrollToPositionOptions,
+  StatusEvents,
 };
+
+export { formatUploadedAssetMarkdown };
