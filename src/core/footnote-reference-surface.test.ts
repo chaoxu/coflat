@@ -31,7 +31,9 @@ describe("footnote reference surface", () => {
   it("creates editor footnote reference DOM", () => {
     const el = createEditorFootnoteReferenceElement(document, 3, "note:1");
     expect(el.outerHTML).toBe(
-      '<sup class="cf-sidenote-ref" data-footnote-id="note:1" aria-label="Footnote note:1">3</sup>',
+      '<sup class="cf-footnote-ref cf-sidenote-ref" data-footnote-id="note:1" aria-label="Footnote note:1">' +
+        '<a href="#fn-note%3A1">3</a>' +
+        "</sup>",
     );
   });
 });

@@ -61,6 +61,10 @@ const ROOT_IMAGE_PARITY_SOURCE = `# Root Image
 
 ![Local hover-preview figure](/showcase/hover-preview-figure.svg) should render as an inline image without a filesystem.
 `;
+const TALL_IMAGE_PARITY_SOURCE = `# Tall Image
+
+![Tall image](/showcase/tall-parity.svg) should use the shared image cap.
+`;
 const BLOCKQUOTE_DISPLAY_MATH_PARITY_SOURCE = `# Blockquote Math
 
 ::: Blockquote
@@ -1690,7 +1694,7 @@ test("theme presets keep reader and CM6 rich editor surfaces visually aligned", 
     [".parity-reader .cf-doc-list--ordered .cf-doc-list-item", ".parity-editor .cf-doc-list--ordered.cf-doc-list-item", ["font-family", "font-size", "line-height"]],
     [".parity-reader .cf-list-bullet", ".parity-editor .cf-list-bullet", ["color", "font-family", "font-weight"]],
     [".parity-reader .cf-list-number", ".parity-editor .cf-list-number", ["color", "font-family", "font-weight", "font-variant-numeric"]],
-    [".parity-reader input[type='checkbox']", ".parity-editor input[type='checkbox']", ["vertical-align", "margin-right"]],
+    [".parity-reader input[type='checkbox']", ".parity-editor input[type='checkbox']", ["height", "margin-right", "vertical-align", "width"]],
     [".parity-reader .cf-doc-code-block code", ".parity-editor .cf-codeblock-last", ["background-color", "font-family", "font-size", "line-height", "white-space", "word-break", "overflow-wrap"]],
     [".parity-reader .cf-doc-table-block", ".parity-editor .cf-table-widget table", ["border-collapse", "font-size"]],
     [".parity-reader .cf-doc-table-header", ".parity-editor .cf-doc-table-header", ["border-bottom-color", "border-bottom-style", "border-bottom-width", "font-weight", "line-height", "padding-left", "padding-right"]],
@@ -1807,6 +1811,24 @@ test("reader and CM6 rich editor keep indented display math in lists aligned", a
   });
 });
 
+test("parity fixture applies initial editor mode from the URL", async ({ page }) => {
+  await page.setViewportSize({ width: 2560, height: 7200 });
+
+  await loadParityPairSurface(page, "default", PUBLIC_SHOWCASE_PARITY_SOURCE, "rich-readonly");
+  await expect(page.locator("#editor-root .cm-content")).toHaveAttribute("contenteditable", "false");
+  await expect(page.locator("#editor-root .cf-footnote-section")).toBeVisible();
+  await expect(page.locator("#editor-root .cf-sidenote-def-line")).toHaveCount(2);
+
+  await loadParitySurface(page, "default", "editor", "# Source Mode\n\n| A | B |\n|---|---|\n| 1 | 2 |\n", "source");
+  await expect(page.locator("#editor-root .cm-editor")).toHaveClass(/cf-source-mode/);
+  await expect(page.locator("#editor-root .cm-content")).toContainText("| A | B |");
+
+  await setParitySource(page, "# Invalid Mode\n\nBody");
+  await page.goto("/tests/e2e/fixtures/parity.html?surface=editor&mode=invalid");
+  await expect(page.locator("#editor-root .cm-editor")).not.toHaveClass(/cf-source-mode/);
+  await expect(page.locator("#editor-root .cm-content")).toHaveAttribute("contenteditable", "true");
+});
+
 test("reader and CM6 rich editor keep blockquote display math aligned", async ({ page }) => {
   await page.setViewportSize({ width: 2560, height: 1600 });
   await loadParityPairSurface(page, "default", BLOCKQUOTE_DISPLAY_MATH_PARITY_SOURCE);
@@ -1848,6 +1870,12 @@ test("reader and CM6 rich editor keep blockquote display math aligned", async ({
   await expectLoadedSelectorsPixelsMatch(page, "fenced blockquote display math", {
     reader: "#reader-root .cf-doc-display-math",
     editor: "#editor-root .cf-doc-display-math",
+  });
+  await expectLoadedSelectorsPixelsMatch(page, "standard blockquote display math", {
+    reader: "#reader-root .cf-doc-display-math",
+    editor: "#editor-root .cf-doc-display-math",
+    readerIndex: 1,
+    editorIndex: 1,
   });
 });
 
@@ -1902,6 +1930,39 @@ test("reader and CM6 rich editor render root-relative browser images the same wa
   expect(result.paragraphs.editor.text).toBe(result.paragraphs.reader.text);
   expect(result.paragraphs.editor.height).toBe(result.paragraphs.reader.height);
   await expectLoadedSelectorsPixelsMatch(page, "root-relative inline image paragraph", {
+    reader: "#reader-root .cf-doc-paragraph",
+    editor: "#editor-root .cm-line.cf-doc-paragraph",
+  });
+});
+
+test("reader and CM6 rich editor share tall inline image metrics", async ({ page }) => {
+  await page.setViewportSize({ width: 2560, height: 1600 });
+  await loadParityPairSurface(page, "default", TALL_IMAGE_PARITY_SOURCE);
+
+  const result = await page.evaluate(() => {
+    const rounded = (value: number) => Math.round(value * 100) / 100;
+    const snapImage = (selector: string) => {
+      const img = document.querySelector(selector);
+      if (!(img instanceof HTMLImageElement)) throw new Error(`missing ${selector}`);
+      const rect = img.getBoundingClientRect();
+      return {
+        display: getComputedStyle(img).display,
+        height: rounded(rect.height),
+        maxHeight: getComputedStyle(img).maxHeight,
+        naturalHeight: img.naturalHeight,
+        naturalWidth: img.naturalWidth,
+        width: rounded(rect.width),
+      };
+    };
+    return {
+      reader: snapImage("#reader-root img.cf-image"),
+      editor: snapImage("#editor-root img.cf-image"),
+    };
+  });
+
+  expect(result.editor).toEqual(result.reader);
+  expect(result.reader.height).toBe(400);
+  await expectLoadedSelectorsPixelsMatch(page, "tall inline image paragraph", {
     reader: "#reader-root .cf-doc-paragraph",
     editor: "#editor-root .cm-line.cf-doc-paragraph",
   });

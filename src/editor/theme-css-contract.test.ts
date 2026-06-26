@@ -144,9 +144,7 @@ describe("theme CSS contract", () => {
     expect(cssRuleBody(css, ".cm-line.cf-doc-block--blockquote")).toContain(
       "padding-left: var(--cf-doc-blockquote-padding-left, 1em);",
     );
-    expect(cssRuleBody(css, ".cf-editor-virtual-blockquote-display-math")).toContain(
-      "var(--cf-doc-blockquote-padding-left, 1em)",
-    );
+    expect(css).not.toContain(".cf-editor-virtual-blockquote-display-math");
   });
 
   it("ships full-document reader defaults for host-rendered documents", () => {
@@ -213,11 +211,13 @@ describe("theme CSS contract", () => {
     expect(cssRuleBody(css, ".cf-bibliography,\n.cf-footnote-section")).toContain("white-space: normal;");
     expect(cssRuleBody(css, ".cf-bibliography .cf-bibliography-backlink,\n.cf-footnote-section .cf-footnote-backref")).toContain("color: inherit;");
     expect(cssRuleBody(css, ".cf-bibliography .cf-bibliography-backlink,\n.cf-footnote-section .cf-footnote-backref")).toContain("text-decoration: none;");
-    const taskCheckboxRule = cssRuleBody(css, ".cf-reader .cf-doc-list-item--check input[type=\"checkbox\"]");
+    const taskCheckboxRule = cssRuleBody(css, ".cf-doc-list-item--check input[type=\"checkbox\"]");
     expect(taskCheckboxRule).toContain("height: 13px;");
     expect(taskCheckboxRule).toContain("margin: 0 4px 0 0;");
-    expect(taskCheckboxRule).toContain("pointer-events: none;");
     expect(taskCheckboxRule).toContain("width: 13px;");
+    expect(cssRuleBody(css, ".cf-reader .cf-doc-list-item--check input[type=\"checkbox\"]")).toContain(
+      "pointer-events: none;",
+    );
     expect(cssRuleBody(css, ".cf-reader .cf-doc-code-block")).toContain("margin: 0;");
     expect(cssRuleBody(css, ".cf-reader .cf-doc-code-block")).toContain("overflow-x: auto;");
     expect(cssRuleBody(css, ".cf-reader .cf-doc-code-block")).toContain("overflow-y: hidden;");
@@ -246,6 +246,17 @@ describe("theme CSS contract", () => {
     expect(cssRuleBody(css, ".cf-reader .cf-doc-list-item")).toContain("overflow-wrap: anywhere;");
     expect(cssRuleBody(css, ".cf-reader .cf-doc-table-header")).toContain("background: transparent;");
     expect(cssRuleBody(css, ".cf-reader .cf-doc-table-header")).toContain("font-weight: 700;");
+    expect(css).not.toContain(".cf-reader .cf-image");
+    const blockquoteMathRule = cssRuleBody(css, ".cf-doc-flow .cf-doc-blockquote-display-math");
+    expect(blockquoteMathRule).toContain(
+      "var(--cf-doc-blockquote-padding-left, 1em)",
+    );
+    expect(blockquoteMathRule).toContain("position: relative;");
+    const blockquoteMathBeforeRule = cssRuleBody(css, ".cf-doc-flow .cf-doc-blockquote-display-math::before");
+    expect(blockquoteMathBeforeRule).toContain(
+      "border-left: var(--cf-doc-blockquote-border-width, 3px) solid var(--cf-blockquote-border);",
+    );
+    expect(blockquoteMathBeforeRule).toContain("position: absolute;");
     expect(cssRuleBody(css, ".cf-image-error")).toContain("border-radius: var(--cf-border-radius);");
     expect(cssRuleBody(css, ".cf-image-error")).toContain("vertical-align: middle;");
     expect(cssRuleBody(css, ".cf-reader .cf-doc-block")).toContain("margin: 0;");

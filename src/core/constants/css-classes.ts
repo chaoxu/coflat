@@ -116,7 +116,7 @@ export const CSS = {
   mathDisplayNumbered: "cf-math-display-numbered",
   mathDisplayContent: "cf-math-display-content",
   mathDisplayNumber: "cf-math-display-number",
-  editorVirtualBlockquoteDisplayMath: "cf-editor-virtual-blockquote-display-math",
+  blockquoteDisplayMath: "cf-doc-blockquote-display-math",
 
   /** Code block decorations. */
   codeblockHeader: "cf-codeblock-header",

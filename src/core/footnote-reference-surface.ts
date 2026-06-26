@@ -28,12 +28,24 @@ export function createReaderFootnoteReferenceElement(
   label: string,
   id: string,
 ): HTMLElement {
+  return createFootnoteReferenceElement(ownerDocument, label, id, CSS.footnoteRef);
+}
+
+function createFootnoteReferenceElement(
+  ownerDocument: Document,
+  label: string,
+  id: string,
+  className: string,
+  options: { readonly includeAnchorId?: boolean } = {},
+): HTMLElement {
   const sup = ownerDocument.createElement("sup");
-  sup.className = CSS.footnoteRef;
+  sup.className = className;
 
   const anchor = ownerDocument.createElement("a");
   anchor.href = `#${footnoteAnchorId(id)}`;
-  anchor.id = footnoteReferenceAnchorId(id);
+  if (options.includeAnchorId ?? true) {
+    anchor.id = footnoteReferenceAnchorId(id);
+  }
   anchor.textContent = label;
   sup.appendChild(anchor);
 
@@ -45,9 +57,13 @@ export function createEditorFootnoteReferenceElement(
   number: number,
   id: string,
 ): HTMLElement {
-  const el = ownerDocument.createElement("sup");
-  el.className = CSS.sidenoteRef;
-  el.textContent = String(number);
+  const el = createFootnoteReferenceElement(
+    ownerDocument,
+    String(number),
+    id,
+    `${CSS.footnoteRef} ${CSS.sidenoteRef}`,
+    { includeAnchorId: false },
+  );
   el.setAttribute("data-footnote-id", id);
   el.setAttribute("aria-label", `Footnote ${id}`);
   return el;

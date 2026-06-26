@@ -516,24 +516,44 @@
   font-weight: 700;
 }
 
-.cf-reader .cf-image {
-  display: inline-block;
-  max-width: 100%;
-  max-height: 400px;
-  vertical-align: middle;
-}
-
 .cf-reader .cf-doc-display-math {
   margin: var(--cf-doc-display-math-margin, 0);
   text-align: center;
 }
 
-.cf-reader .cf-doc-list-item--check input[type="checkbox"] {
+.cf-doc-flow .cf-doc-blockquote-display-math {
+  color: var(--cf-blockquote-color);
+  margin-inline-start: calc(
+    var(--cf-doc-blockquote-border-width, 3px) + var(--cf-doc-blockquote-padding-left, 1em)
+  );
+  position: relative;
+  width: calc(
+    100% - var(--cf-doc-blockquote-border-width, 3px) - var(--cf-doc-blockquote-padding-left, 1em)
+  );
+}
+
+.cf-doc-flow .cf-doc-blockquote-display-math::before {
+  border-left: var(--cf-doc-blockquote-border-width, 3px) solid var(--cf-blockquote-border);
+  bottom: 0;
+  content: "";
+  inset-inline-start: calc(
+    -1 * (
+      var(--cf-doc-blockquote-border-width, 3px) + var(--cf-doc-blockquote-padding-left, 1em)
+    )
+  );
+  position: absolute;
+  top: 0;
+}
+
+.cf-doc-list-item--check input[type="checkbox"] {
   height: 13px;
   margin: 0 4px 0 0;
-  pointer-events: none;
   vertical-align: middle;
   width: 13px;
+}
+
+.cf-reader .cf-doc-list-item--check input[type="checkbox"] {
+  pointer-events: none;
 }
 
 .cf-bibliography-entry-number {
@@ -1026,7 +1046,7 @@ div.cf-image-wrapper:not(.cf-image-loading):not(.cf-image-placeholder) {
 .cf-image {
   display: block;
   max-width: 100%;
-  max-height: 360px;
+  max-height: 400px;
 }
 
 .cf-doc-block--figure .cf-image-wrapper:not(.cf-image-loading):not(.cf-image-placeholder) {

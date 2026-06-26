@@ -12,12 +12,8 @@ import {
 export const marginThemeStyles = {
   /* Sidenote reference: superscript number */
   ".cf-sidenote-ref": {
-    fontSize: "0.75em",
     color: "var(--cf-fg)",
     cursor: "pointer",
-    verticalAlign: "super",
-    lineHeight: "0",
-    fontWeight: "600",
   },
 
   /* Sidenote definition rendered in the right margin */

@@ -17,6 +17,7 @@ import {
 
 export type ParitySurface = "reader" | "editor";
 export type ParityPreset = "default" | string;
+export type ParityEditorMode = "rich" | "rich-readonly" | "source";
 
 const FULL_SURFACE_SIGNIFICANT_DELTA = 32;
 const ANTIALIAS_EDGE_DELTA = 2;
@@ -292,13 +293,15 @@ export async function loadParitySurface(
   preset: ParityPreset,
   surface: ParitySurface,
   source?: string,
+  mode?: ParityEditorMode,
 ) {
   await setParitySource(page, source);
   const params = new URLSearchParams({ surface });
   if (preset !== "default") params.set("preset", preset);
+  if (mode && mode !== "rich") params.set("mode", mode);
   await gotoParityFixture(page, `/tests/e2e/fixtures/parity.html?${params.toString()}`);
   await disableParityMotion(page);
-  if (surface === "editor") {
+  if (surface === "editor" && mode !== "source") {
     await waitForParityEditorVisibleTables(page);
   }
   await waitForParityRenderStable(page, surface);
@@ -309,14 +312,18 @@ export async function loadParityPairSurface(
   page: Page,
   preset: ParityPreset,
   source?: string,
+  mode?: ParityEditorMode,
 ) {
   await setParitySource(page, source);
   const params = new URLSearchParams();
   if (preset !== "default") params.set("preset", preset);
+  if (mode && mode !== "rich") params.set("mode", mode);
   const query = params.toString();
   await gotoParityFixture(page, `/tests/e2e/fixtures/parity.html${query ? `?${query}` : ""}`);
   await disableParityMotion(page);
-  await waitForParityEditorVisibleTables(page);
+  if (mode !== "source") {
+    await waitForParityEditorVisibleTables(page);
+  }
   await waitForParityRenderStable(page, "reader");
   await waitForParityRenderStable(page, "editor");
   await page.mouse.move(0, 0);
@@ -407,11 +414,16 @@ export async function expectLoadedSplitContentPixelsMatch(
 export async function expectLoadedSelectorsPixelsMatch(
   page: Page,
   label: string,
-  selectors: { readonly reader: string; readonly editor: string },
+  selectors: {
+    readonly reader: string;
+    readonly editor: string;
+    readonly readerIndex?: number;
+    readonly editorIndex?: number;
+  },
 ) {
   const clip = await page.evaluate((selectors) => {
-    const readerElement = document.querySelector(selectors.reader);
-    const editorElement = document.querySelector(selectors.editor);
+    const readerElement = document.querySelectorAll(selectors.reader)[selectors.readerIndex ?? 0];
+    const editorElement = document.querySelectorAll(selectors.editor)[selectors.editorIndex ?? 0];
     if (!(readerElement instanceof HTMLElement) || !(editorElement instanceof HTMLElement)) {
       throw new Error(`missing comparison selectors: ${JSON.stringify(selectors)}`);
     }

@@ -8,7 +8,6 @@
 
 import { STYLED_BLOCK_NAMES } from "../core/constants/block-manifest";
 import {
-  IMAGE_MAX_HEIGHT,
   IMAGE_PREVIEW_RESERVED_HEIGHT,
 } from "../core/constants/layout";
 
@@ -162,7 +161,6 @@ export const blockThemeStyles: Record<string, Record<string, string>> = {
   ".cf-image": {
     display: "block",
     maxWidth: "100%",
-    maxHeight: IMAGE_MAX_HEIGHT,
   },
   ".cf-doc-block--figure .cf-image-wrapper:not(.cf-image-loading):not(.cf-image-placeholder)": {
     display: "block",

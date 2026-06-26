@@ -690,7 +690,7 @@ describe("FootnoteSectionWidget", () => {
     expect(number?.getAttribute("style")).toBeNull();
   });
 
-  it("renders reader-compatible backrefs in collapsed footnote entries", () => {
+  it("renders editor-safe visible backrefs in collapsed footnote entries", () => {
     const widget = new FootnoteSectionWidget(
       [{ num: 1, id: "note-1", content: "Body", defFrom: 24, backrefHref: "#fnref-note-1" }],
       {},
@@ -699,7 +699,7 @@ describe("FootnoteSectionWidget", () => {
     );
 
     const backref = widget.createDOM().querySelector<HTMLAnchorElement>(`.${CSS.footnoteBackref}`);
-    expect(backref?.getAttribute("href")).toBe("#fnref-note-1");
+    expect(backref?.hasAttribute("href")).toBe(false);
     expect(backref?.textContent).toBe("↩");
   });
 

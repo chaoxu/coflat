@@ -2,6 +2,7 @@ import "katex/dist/katex.min.css";
 import "../../../src/editor/editor-theme.css";
 import { EditorView } from "@codemirror/view";
 import { applyThemePreset, mountEditor, themePresets } from "../../../editor";
+import type { StandaloneEditorMode } from "../../../editor";
 import {
   hydrateMath,
   hydrateMedia,
@@ -23,6 +24,9 @@ if (presetKey && presetKey in themePresets) {
   applyThemePreset(themePresets[presetKey]);
 }
 document.body.dataset.surface = params.get("surface") ?? "split";
+const requestedMode = params.get("mode");
+const editorMode: StandaloneEditorMode =
+  requestedMode === "source" || requestedMode === "rich-readonly" ? requestedMode : "rich";
 
 const source = window.localStorage.getItem(PARITY_SOURCE_KEY) ?? DEFAULT_PARITY_SOURCE;
 
@@ -56,7 +60,7 @@ await hydrateMath(readerRoot, { mathMacros: context.mathMacros });
 const mounted = mountEditor({
   parent: editorRoot,
   doc: source,
-  mode: "rich",
+  mode: editorMode,
   context,
 });
 const editorView = EditorView.findFromDOM(editorRoot.querySelector(".cm-editor") ?? editorRoot);

@@ -58,7 +58,11 @@ export interface MountEditorOptions {
   parent: HTMLElement;
   /** Initial markdown content. Defaults to an empty document. */
   doc?: string;
-  /** Initial display mode. Standalone support is limited to rich/source. */
+  /**
+   * Initial display mode. `rich-readonly` uses the same CM6-rendered document
+   * surface as rich mode, disables editing, and collapses footnotes into the
+   * reader-style document-tail section.
+   */
   mode?: StandaloneEditorMode;
   /** Extra CodeMirror extensions supplied by the host. */
   extensions?: readonly Extension[];
@@ -74,7 +78,7 @@ export interface MountEditorOptions {
   onChange?: (doc: string) => void;
   /** Called for direct user edits with CodeMirror change metadata. */
   onDocumentChange?: (change: MountedDocumentChange) => void;
-  /** Called whenever the effective rich/source mode changes. */
+  /** Called whenever the effective rich/rich-readonly/source mode changes. */
   onModeChange?: (mode: StandaloneEditorMode) => void;
   /**
    * Host UI for request/response intents (link picker, upload toast,
@@ -237,6 +241,7 @@ function getVisibleSourcePosition(
 export function mountEditor(options: MountEditorOptions): MountedEditor {
   const initialDoc = options.doc ?? "";
   const initialMode = options.mode ?? "rich";
+  const initialSidenotesCollapsed = options.sidenotesCollapsed ?? initialMode === "rich-readonly";
   let currentDoc = initialDoc;
   let currentMode: StandaloneEditorMode = "rich";
   let suppressModeCallback = false;
@@ -293,9 +298,7 @@ export function mountEditor(options: MountEditorOptions): MountedEditor {
         : []),
       ...(options.from ? [documentPathFacet.of(options.from)] : []),
       ...(options.fileSystem ? [fileSystemFacet.of(options.fileSystem)] : []),
-      ...(options.sidenotesCollapsed === undefined
-        ? []
-        : [sidenotesCollapsedField.init(() => options.sidenotesCollapsed ?? false)]),
+      [sidenotesCollapsedField.init(() => initialSidenotesCollapsed)],
       ...(options.extensions ?? []),
       ...(options.commands ? [commandRegistryExtension(options.commands)] : []),
       documentContextExtension(options.context),

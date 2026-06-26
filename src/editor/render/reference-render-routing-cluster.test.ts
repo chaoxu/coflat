@@ -224,11 +224,12 @@ describe("collectReferenceRanges (clusters)", () => {
     const el = widget.toDOM() as HTMLElement;
     expect(el.textContent).toContain("Eq. (1)");
     expect(el.textContent).toBe("Eq. (1); karger2000");
-    expect(el.className).toBe(CSS.crossref);
+    expect(el.className).toBe(CSS.citationCluster);
 
     const spans = el.querySelectorAll("span[data-ref-id]");
     expect(spans.length).toBe(2);
     expect(spans[0].getAttribute("data-ref-id")).toBe("eq:alpha");
+    expect(spans[0].className).toBe(CSS.crossref);
     expect(spans[1].getAttribute("data-ref-id")).toBe("karger2000");
     expect(spans[1].className).toBe(CSS.crossrefUnresolved);
   });

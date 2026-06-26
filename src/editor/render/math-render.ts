@@ -180,7 +180,7 @@ function displayMathContextClassNames(
     return false;
   })();
   return insideFencedBlockquote || insideMarkdownBlockquote
-    ? [CSS.editorVirtualBlockquoteDisplayMath]
+    ? [CSS.blockquoteDisplayMath]
     : [];
 }
 
