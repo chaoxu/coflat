@@ -1132,6 +1132,86 @@ test("public demo hydrates bibliography citations", async ({ page }) => {
   const reader = page.locator("#reader");
   await expect(reader.locator(".cf-bibliography")).toContainText("References");
   await expect(reader.locator(".cf-bibliography-entry").first()).toContainText("Introduction to Algorithms");
+  const readerEndMatter = await page.locator("#reader").evaluate(async (readerRoot) => {
+    const viewport = document.querySelector("#reader-viewport");
+    if (viewport instanceof HTMLElement) {
+      viewport.scrollTop = viewport.scrollHeight;
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    }
+    return ((root: Element) => {
+      const properties = ["font-size", "line-height", "white-space", "width"] as const;
+      const snap = (selector: string) => {
+        const el = root.querySelector(selector);
+        if (!(el instanceof HTMLElement)) throw new Error(`missing ${selector}`);
+        const style = getComputedStyle(el);
+        const box = el.getBoundingClientRect();
+        return {
+          box: {
+            height: Math.round(box.height * 100) / 100,
+            width: Math.round(box.width * 100) / 100,
+          },
+          style: Object.fromEntries(properties.map((property) => [
+            property,
+            style.getPropertyValue(property),
+          ])),
+          text: (el.textContent ?? "").replace(/\s+/g, " ").trim(),
+        };
+      };
+      return {
+        bibliography: snap(".cf-bibliography"),
+        footnotes: snap(".cf-footnote-section"),
+      };
+    })(readerRoot);
+  });
+
+  await page.getByRole("button", { name: "Editor" }).click();
+  await expect(page.locator("#editor .cm-editor")).toBeVisible();
+  await expect.poll(() => page.locator("#editor").evaluate(async (editor) => {
+    const scroller = editor.querySelector(".cm-scroller");
+    if (!(scroller instanceof HTMLElement)) return 0;
+    scroller.scrollTop = scroller.scrollHeight;
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    return editor.querySelectorAll(".cf-bibliography, .cf-footnote-section").length;
+  })).toBeGreaterThanOrEqual(2);
+  const editorOrder = await page.locator("#editor").evaluate((editor) => {
+    const scroller = editor.querySelector(".cm-scroller");
+    if (!(scroller instanceof HTMLElement)) throw new Error("missing editor scroller");
+    const bibliography = editor.querySelector(".cf-bibliography");
+    const footnotes = editor.querySelector(".cf-footnote-section");
+    if (!(bibliography instanceof HTMLElement) || !(footnotes instanceof HTMLElement)) {
+      throw new Error("missing generated reference sections");
+    }
+    const properties = ["font-size", "line-height", "white-space", "width"] as const;
+    const snap = (selector: string) => {
+      const el = editor.querySelector(selector);
+      if (!(el instanceof HTMLElement)) throw new Error(`missing ${selector}`);
+      const style = getComputedStyle(el);
+      const box = el.getBoundingClientRect();
+      return {
+        box: {
+          height: Math.round(box.height * 100) / 100,
+          width: Math.round(box.width * 100) / 100,
+        },
+        style: Object.fromEntries(properties.map((property) => [
+          property,
+          style.getPropertyValue(property),
+        ])),
+        text: (el.textContent ?? "").replace(/\s+/g, " ").trim(),
+      };
+    };
+    return {
+      bibliography: snap(".cf-bibliography"),
+      footnotes: snap(".cf-footnote-section"),
+      bibliographyTop: bibliography.getBoundingClientRect().top,
+      footnotesTop: footnotes.getBoundingClientRect().top,
+    };
+  });
+  expect(editorOrder.bibliography.text).toContain("References");
+  expect(editorOrder.bibliography.text).toContain("Introduction to Algorithms");
+  expect(editorOrder.footnotes.text).toContain("Footnotes");
+  expect(editorOrder.bibliographyTop).toBeLessThan(editorOrder.footnotesTop);
+  expect(editorOrder.bibliography).toEqual(readerEndMatter.bibliography);
+  expect(editorOrder.footnotes).toEqual(readerEndMatter.footnotes);
 });
 
 test("public demo shows hover panels for cross-references", async ({ page }) => {

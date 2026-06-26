@@ -27,6 +27,7 @@ import formatDoc from "../../FORMAT.md?raw";
 import "./style.css";
 
 const editorRoot = document.querySelector<HTMLElement>("#editor");
+const readerViewport = document.querySelector<HTMLElement>("#reader-viewport");
 const readerRoot = document.querySelector<HTMLElement>("#reader");
 const assetBaseUrl = new URL(import.meta.env.BASE_URL, window.location.origin);
 const docLinks = Array.from(document.querySelectorAll<HTMLAnchorElement>(".demo-doc-link"));
@@ -47,10 +48,11 @@ let currentDocId: DemoDocId = "showcase";
 let currentSurfaceId: DemoSurfaceId = "editor";
 let cleanupReaderHover: (() => void) | null = null;
 
-if (!editorRoot || !readerRoot) {
+if (!editorRoot || !readerViewport || !readerRoot) {
   throw new Error("Missing simple example roots.");
 }
 const mountedEditorRoot = editorRoot;
+const mountedReaderViewport = readerViewport;
 const mountedReaderRoot = readerRoot;
 
 async function fetchPublicFile(path: string): Promise<Response> {
@@ -163,7 +165,7 @@ function updateDocLinkHrefs(): void {
 }
 
 function resetSurfaceScroll(): void {
-  mountedReaderRoot.scrollTop = 0;
+  mountedReaderViewport.scrollTop = 0;
   const editorScroller = mountedEditorRoot.querySelector<HTMLElement>(".cm-scroller");
   if (editorScroller) editorScroller.scrollTop = 0;
 }
@@ -173,6 +175,7 @@ const editor = mountEditor({
   doc: initialDoc,
   mode: "rich",
   context: documentContext,
+  sidenotesCollapsed: true,
   extensions: [
     fileSystemFacet.of(publicFileSystem),
     bibliographyBootstrap,
@@ -232,7 +235,7 @@ function setActiveSurface(id: DemoSurfaceId): void {
   currentSurfaceId = id;
   const isReader = id === "reader";
   mountedEditorRoot.hidden = isReader;
-  mountedReaderRoot.hidden = !isReader;
+  mountedReaderViewport.hidden = !isReader;
   document.body.dataset.surface = id;
   for (const link of surfaceLinks) {
     setCurrentPageAttribute(link, link.dataset.surfaceId === id);

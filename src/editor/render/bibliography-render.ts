@@ -356,8 +356,17 @@ function mergeBacklinks(
   for (const [id, backlinks] of left) merged.set(id, [...backlinks]);
   for (const [id, backlinks] of right) {
     const bucket = merged.get(id);
-    if (bucket) bucket.push(...backlinks);
-    else merged.set(id, [...backlinks]);
+    if (!bucket) {
+      merged.set(id, [...backlinks]);
+      continue;
+    }
+    const seen = new Set(bucket.map((backlink) => `${backlink.from}:${backlink.to}`));
+    for (const backlink of backlinks) {
+      const key = `${backlink.from}:${backlink.to}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      bucket.push(backlink);
+    }
   }
   return merged;
 }
@@ -390,7 +399,7 @@ export function bibliographyDependenciesChanged(
   return getBibliographyDependencyKey(beforeState) !== getBibliographyDependencyKey(afterState);
 }
 
-function bibliographyShouldRebuild(tr: Transaction): boolean {
+export function bibliographyShouldRebuild(tr: Transaction): boolean {
   return (
     tr.effects.some((effect) => effect.is(bibDataEffect)) ||
     bibliographyDependenciesChanged(tr.startState, tr.state)
@@ -398,8 +407,16 @@ function bibliographyShouldRebuild(tr: Transaction): boolean {
 }
 
 function buildBibliographyDecorationsFromState(state: EditorState): DecorationSet {
+  const widget = createBibliographyWidgetFromState(state);
+  if (!widget) return Decoration.none;
+  return buildDecorations([
+    Decoration.widget({ widget, side: 1, block: true }).range(state.doc.length),
+  ]);
+}
+
+export function createBibliographyWidgetFromState(state: EditorState): BibliographyWidget | null {
   const { store, formatter, formatterRevision } = state.field(bibDataField);
-  if (store.size === 0) return Decoration.none;
+  if (store.size === 0) return null;
 
   // Use the incrementally-maintained document analysis instead of
   // re-parsing the entire document from scratch (#514).
@@ -409,7 +426,7 @@ function buildBibliographyDecorationsFromState(state: EditorState): DecorationSe
   appendUnique(citedIds, collectCitedIdsFromClusters(collectCitationClusters(footnoteTokens, store, {
     isLocalTarget: createReferenceIndexLocalTargetLookup(analysis.referenceIndex),
   })));
-  if (citedIds.length === 0) return Decoration.none;
+  if (citedIds.length === 0) return null;
   const backlinks = mergeBacklinks(
     collectCitationBacklinksFromAnalysis(analysis, store),
     collectCitationBacklinksFromTokens(footnoteTokens, store, {
@@ -456,7 +473,7 @@ function buildBibliographyDecorationsFromState(state: EditorState): DecorationSe
         citedIds.map((id) => store.get(id)).filter((e): e is CslJsonItem => e !== undefined),
       );
 
-  return buildBibliographyDecorations(state, entries, cslHtml, backlinks);
+  return new BibliographyWidget(entries, cslHtml, backlinks);
 }
 
 /** CM6 extension that renders a bibliography section at the end of the document. */

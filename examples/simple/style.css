@@ -119,12 +119,19 @@ body {
   min-width: 0;
 }
 
-#reader {
+#reader-viewport {
   height: 100%;
+  min-height: 0;
+  min-width: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+#reader {
+  min-height: 100%;
   max-width: var(--cf-content-max-width, 800px);
   margin-left: auto;
   margin-right: max(var(--cf-sidenote-margin-width, 0px), calc((100% - var(--cf-content-max-width, 800px)) / 2));
-  overflow: auto;
   padding-block-start: var(--cf-doc-content-padding-block-start, 24px);
   padding-block-end: var(--cf-doc-content-padding-block-end, 24px);
   padding-inline-start: max(var(--cf-doc-content-padding-inline, 48px), var(--cf-reader-control-gutter-inline, calc(var(--cf-h1-size, 1.15em) + var(--cf-spacing-xs))));
@@ -192,6 +199,10 @@ body {
     margin-top: 0;
     padding-top: 0;
     border-top: 0;
+  }
+
+  #reader-viewport {
+    height: auto;
   }
 
   #reader {

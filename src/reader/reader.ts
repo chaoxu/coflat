@@ -128,7 +128,11 @@ import {
   type ReferencePresentationRoute,
   type ResolvedCrossref,
 } from "../core/references/presentation";
-import { renderBibliographySectionHtml } from "../core/bibliography-surface";
+import {
+  appendBibliographyBacklinks,
+  bibliographyEntryId,
+  renderBibliographySectionHtml,
+} from "../core/bibliography-surface";
 import {
   formatBlockReferenceLabel,
 } from "../core/references/format";
@@ -2356,6 +2360,45 @@ function hydrateLinkElement(
   }
 }
 
+function hydrateBibliographyBacklinks(root: HTMLElement, ctx: DocumentContext): void {
+  if (!ctx.citationKeys) return;
+  const backlinks = new Map<string, Array<{ occurrence: number; sourceFrom: number }>>();
+  let occurrence = 0;
+
+  for (const el of Array.from(root.querySelectorAll<HTMLElement>(
+    `.${CSS.citation}[data-ref-key], .${CSS.citation} [data-ref-id]`,
+  ))) {
+    const rawKey = el.dataset.refId ?? el.dataset.refKey;
+    if (!rawKey) continue;
+    const ids = rawKey.split(";").map((id) => id.trim()).filter((id) =>
+      coreIsCitationKey(ctx.citationKeys, id)
+    );
+    if (ids.length === 0) continue;
+
+    occurrence += 1;
+    const sourceFrom = sourceRangeFromElement(el, { closest: true })?.from ?? -1;
+    for (const id of ids) {
+      const bucket = backlinks.get(id);
+      const entry = { occurrence, sourceFrom };
+      if (bucket) bucket.push(entry);
+      else backlinks.set(id, [entry]);
+    }
+  }
+
+  if (backlinks.size === 0) return;
+  for (const [id, refs] of backlinks) {
+    const entryId = bibliographyEntryId(id);
+    const escapedEntryId = globalThis.CSS?.escape
+      ? globalThis.CSS.escape(entryId)
+      : entryId.replace(/["\\]/g, "\\$&");
+    const entry = root.querySelector<HTMLElement>(
+      `#${escapedEntryId}`,
+    );
+    if (!entry || entry.querySelector(`.${CSS.bibliographyBacklinks}`)) continue;
+    appendBibliographyBacklinks(entry, refs);
+  }
+}
+
 /**
  * Hydrate unresolved reader references and links after static HTML insertion.
  *
@@ -2379,6 +2422,8 @@ export function hydrateReferences(
   for (const el of Array.from(root.querySelectorAll<HTMLAnchorElement>("a[href]"))) {
     hydrateLinkElement(el, ctx, opts);
   }
+
+  hydrateBibliographyBacklinks(root, ctx);
 }
 
 export interface ReaderHoverPreviewEnv {

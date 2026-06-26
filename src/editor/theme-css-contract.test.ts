@@ -205,6 +205,7 @@ describe("theme CSS contract", () => {
     expect(cssRuleBody(css, ".cf-bibliography-entry-number")).toContain("margin-right: 4px;");
     expect(cssRuleBody(css, ".cf-bibliography-heading")).toContain("font-size: var(--cf-h2-size, 1.15em);");
     expect(cssRuleBody(css, ".cf-bibliography-heading")).toContain("font-style: var(--cf-h2-style, italic);");
+    expect(cssRuleBody(css, ".cf-bibliography,\n.cf-footnote-section")).toContain("white-space: normal;");
     expect(cssRuleBody(css, ".cf-bibliography .cf-bibliography-backlink,\n.cf-footnote-section .cf-footnote-backref")).toContain("color: inherit;");
     expect(cssRuleBody(css, ".cf-bibliography .cf-bibliography-backlink,\n.cf-footnote-section .cf-footnote-backref")).toContain("text-decoration: none;");
     const taskCheckboxRule = cssRuleBody(css, ".cf-reader .cf-doc-list-item--check input[type=\"checkbox\"]");
