@@ -628,6 +628,30 @@ describe("renderToHtml — block-level rendering ()", () => {
     expect(r.html).toContain('<p class="cf-doc-paragraph cf-block-qed"><span class="cf-doc-block-heading"><span class="cf-block-header-rendered">Proof</span></span>body</p>');
   });
 
+  it("renders same-length nested fenced divs inside their outer block", () => {
+    const r = renderToHtml(
+      [
+        "::: {.proof}",
+        "Before.",
+        "",
+        "::: {.problem}",
+        "Inner.",
+        ":::",
+        "",
+        "After.",
+        ":::",
+      ].join("\n"),
+    );
+    const problemIndex = r.html.indexOf('cf-doc-block--problem');
+    const afterIndex = r.html.indexOf("After.");
+    const outerCloseIndex = r.html.lastIndexOf("</div>");
+    expect(r.html).toContain('cf-doc-block--proof');
+    expect(problemIndex).toBeGreaterThan(-1);
+    expect(afterIndex).toBeGreaterThan(problemIndex);
+    expect(afterIndex).toBeLessThan(outerCloseIndex);
+    expect(r.html).not.toContain(":::");
+  });
+
   it("preserves blank source lines inside fenced semantic blocks", () => {
     const r = renderToHtml("::: {.proof}\nfirst\n\nsecond\n\n\nthird\n:::");
     const blankLines = r.html.match(/class="cf-doc-blank-line"/g) ?? [];
