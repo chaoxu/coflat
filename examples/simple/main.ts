@@ -52,6 +52,10 @@ let currentSurfaceId: DemoSurfaceId = "editor";
 let cleanupReaderHover: (() => void) | null = null;
 let surfaceSwitchVersion = 0;
 const SURFACE_SCROLL_ANCHOR_RATIO = 0.2;
+const readerDocCache = new Map<DemoDocId, {
+  readonly html: string;
+  readonly mathMacros?: Record<string, string>;
+}>();
 
 if (!editorRoot || !readerViewport || !readerRoot) {
   throw new Error("Missing simple example roots.");
@@ -252,32 +256,56 @@ function formatBibliographyPreview(key: string): string | null {
   ].filter(Boolean).join(". ");
 }
 
-function renderReaderDoc(): Promise<void> {
-  const doc = docs[currentDocId];
-  cleanupReaderHover?.();
-  const result = renderToHtml(doc.source, documentContext, {
-    resolveReferences: true,
-    sourcePositions: true,
-  });
-  mountedReaderRoot.innerHTML = result.html;
+function attachReaderBehavior(doc: { readonly source: string }, mathMacros?: Record<string, string>): void {
   hydrateReaderDisclosures(mountedReaderRoot);
   hydrateMedia(mountedReaderRoot);
   hydrateReferences(mountedReaderRoot, documentContext, { source: doc.source });
-  // Forward the document's frontmatter `math:` macros so custom definitions
-  // render in the title and body, matching the editor surface.
-  const mathReady = hydrateMath(
-    mountedReaderRoot,
-    result.mathMacros ? { mathMacros: result.mathMacros } : undefined,
-  );
   cleanupReaderHover = hydrateReaderHoverPreviews(mountedReaderRoot, {
     context: documentContext,
     previewForReference: formatBibliographyPreview,
     source: doc.source,
     // Forward frontmatter macros so custom definitions also render inside
     // equation/heading hover previews, matching the main reader surface.
-    mathMacros: result.mathMacros,
+    mathMacros,
   });
-  return mathReady.then(() => undefined);
+}
+
+function mountPreparedReaderDoc(
+  id: DemoDocId,
+  prepared: { readonly html: string; readonly mathMacros?: Record<string, string> },
+): void {
+  const doc = docs[id];
+  cleanupReaderHover?.();
+  cleanupReaderHover = null;
+  mountedReaderRoot.innerHTML = prepared.html;
+  attachReaderBehavior(doc, prepared.mathMacros);
+}
+
+async function prepareReaderDoc(id: DemoDocId): Promise<{
+  readonly html: string;
+  readonly mathMacros?: Record<string, string>;
+}> {
+  const cached = readerDocCache.get(id);
+  if (cached) return cached;
+  const doc = docs[id];
+  const result = renderToHtml(doc.source, documentContext, {
+    resolveReferences: true,
+    sourcePositions: true,
+  });
+  const scratchRoot = document.createElement("div");
+  scratchRoot.innerHTML = result.html;
+  // Forward the document's frontmatter `math:` macros so custom definitions
+  // render in the title and body, matching the editor surface.
+  await hydrateMath(
+    scratchRoot,
+    result.mathMacros ? { mathMacros: result.mathMacros } : undefined,
+  );
+  const prepared = {
+    html: scratchRoot.innerHTML,
+    mathMacros: result.mathMacros,
+  };
+  readerDocCache.set(id, prepared);
+  return prepared;
 }
 
 function setActiveSurface(id: DemoSurfaceId, options: { preserveScroll?: boolean } = {}): void {
@@ -287,8 +315,6 @@ function setActiveSurface(id: DemoSurfaceId, options: { preserveScroll?: boolean
   surfaceSwitchVersion = switchVersion;
   currentSurfaceId = id;
   const isReader = id === "reader";
-  mountedEditorRoot.hidden = isReader;
-  mountedReaderViewport.hidden = !isReader;
   document.body.dataset.surface = id;
   for (const link of surfaceLinks) {
     setCurrentPageAttribute(link, link.dataset.surfaceId === id);
@@ -298,16 +324,21 @@ function setActiveSurface(id: DemoSurfaceId, options: { preserveScroll?: boolean
   url.searchParams.set("surface", id);
   window.history.replaceState(null, "", url);
   if (isReader) {
-    const readerReady = renderReaderDoc();
-    if (scrollAnchor) {
-      restoreSurfaceScroll(scrollAnchor, true, switchVersion);
-      void readerReady.then(() => {
+    mountedReaderViewport.hidden = true;
+    void prepareReaderDoc(currentDocId).then((prepared) => {
+      if (switchVersion !== surfaceSwitchVersion || currentSurfaceId !== "reader") return;
+      mountPreparedReaderDoc(currentDocId, prepared);
+      mountedEditorRoot.hidden = true;
+      mountedReaderViewport.hidden = false;
+      if (scrollAnchor) {
         restoreSurfaceScroll(scrollAnchor, true, switchVersion);
-      });
-    } else {
-      resetSurfaceScroll();
-    }
+      } else {
+        resetSurfaceScroll();
+      }
+    });
   } else {
+    mountedEditorRoot.hidden = false;
+    mountedReaderViewport.hidden = true;
     editor.setMode(id === "readonly" ? "rich-readonly" : "rich");
     editor.focus();
     if (scrollAnchor) {
@@ -319,7 +350,8 @@ function setActiveSurface(id: DemoSurfaceId, options: { preserveScroll?: boolean
 }
 
 function setActiveDoc(id: DemoDocId): void {
-  surfaceSwitchVersion += 1;
+  const switchVersion = surfaceSwitchVersion + 1;
+  surfaceSwitchVersion = switchVersion;
   currentDocId = id;
   const doc = docs[id];
   editor.setDoc(doc.source);
@@ -334,8 +366,14 @@ function setActiveDoc(id: DemoDocId): void {
   window.history.replaceState(null, "", url);
   resetSurfaceScroll();
   if (currentSurfaceId === "reader") {
-    renderReaderDoc();
-    resetSurfaceScroll();
+    mountedReaderViewport.hidden = true;
+    void prepareReaderDoc(id).then((prepared) => {
+      if (switchVersion !== surfaceSwitchVersion || currentDocId !== id || currentSurfaceId !== "reader") return;
+      mountPreparedReaderDoc(id, prepared);
+      mountedEditorRoot.hidden = true;
+      mountedReaderViewport.hidden = false;
+      resetSurfaceScroll();
+    });
   } else {
     editor.focus();
   }

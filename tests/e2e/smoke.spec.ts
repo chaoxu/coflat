@@ -721,6 +721,77 @@ test("public demo surface switch preserves the visible document position", async
     .toBeLessThanOrEqual(2);
 });
 
+test("public demo reveals reader only after math is hydrated", async ({ page }) => {
+  await page.goto("/examples/simple/index.html?doc=showcase&surface=editor");
+  await settleLayout(page);
+  await page.evaluate(() => {
+    const state = window as unknown as { __coflatRawReaderMathVisible?: boolean };
+    state.__coflatRawReaderMathVisible = false;
+    const detectVisibleRawMath = () => {
+      const viewport = document.querySelector<HTMLElement>("#reader-viewport");
+      const reader = document.querySelector<HTMLElement>("#reader");
+      if (!viewport || !reader || viewport.hidden) return;
+      if (reader.querySelector('[data-math]:not([data-math-hydrated="true"])')) {
+        state.__coflatRawReaderMathVisible = true;
+      }
+    };
+    const observer = new MutationObserver(() => {
+      detectVisibleRawMath();
+    });
+    observer.observe(document.body, {
+      attributes: true,
+      attributeFilter: ["hidden", "data-math-hydrated"],
+      childList: true,
+      subtree: true,
+    });
+    const sampleVisibleFrames = () => {
+      detectVisibleRawMath();
+      requestAnimationFrame(sampleVisibleFrames);
+    };
+    requestAnimationFrame(sampleVisibleFrames);
+  });
+
+  await page.getByRole("button", { name: "Reader" }).click();
+  await settleDemoReaderMath(page);
+  await expect(page.locator("#reader-viewport")).toBeVisible();
+  await expect
+    .poll(() => page.evaluate(() =>
+      Boolean((window as unknown as { __coflatRawReaderMathVisible?: boolean }).__coflatRawReaderMathVisible)
+    ))
+    .toBe(false);
+
+  await page.getByRole("button", { name: "Readonly" }).click();
+  await expect(page.locator("#editor")).toBeVisible();
+  await page.evaluate(() => {
+    (window as unknown as { __coflatRawReaderMathVisible?: boolean }).__coflatRawReaderMathVisible = false;
+  });
+  await page.getByRole("button", { name: "Reader" }).click();
+  await settleDemoReaderMath(page);
+  await expect(page.locator("#reader-viewport")).toBeVisible();
+  await expect
+    .poll(() => page.evaluate(() =>
+      Boolean((window as unknown as { __coflatRawReaderMathVisible?: boolean }).__coflatRawReaderMathVisible)
+    ))
+    .toBe(false);
+
+  const cachedReaderBlock = page.locator('#reader [id="thm:hover-preview"]');
+  await cachedReaderBlock.scrollIntoViewIfNeeded();
+  const cachedReaderBlockButton = cachedReaderBlock.locator("> .cf-doc-block-heading > .cf-block-disclosure-toggle");
+  await expect(cachedReaderBlockButton).toHaveAttribute("aria-expanded", "true");
+  await cachedReaderBlockButton.click({ force: true });
+  await expect(cachedReaderBlockButton).toHaveAttribute("aria-expanded", "false");
+  expect(await cachedReaderBlock.evaluate((block) => {
+    const body = block.querySelector(":scope > .cf-block-disclosure-body");
+    return {
+      expanded: block.getAttribute("data-cf-block-open"),
+      hidden: body instanceof HTMLElement ? body.hidden : null,
+    };
+  })).toEqual({
+    expanded: "false",
+    hidden: true,
+  });
+});
+
 test("public demo reader surface shows shared hover previews", async ({ page }) => {
   await page.goto("/examples/simple/index.html?doc=format&surface=reader");
 
