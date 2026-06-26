@@ -142,6 +142,48 @@ async function settleLayout(page: Page): Promise<void> {
   });
 }
 
+async function settleDemoReaderMath(page: Page): Promise<void> {
+  await page.waitForFunction(() => {
+    const math = Array.from(document.querySelectorAll<HTMLElement>("#reader [data-math]"));
+    return math.length > 0 && math.every((element) => element.dataset.mathHydrated === "true");
+  });
+  await settleLayout(page);
+}
+
+function demoHeading(page: Page, surface: "editor" | "reader", text: string): Locator {
+  const selector = surface === "reader" ? "#reader .cf-doc-heading" : "#editor .cm-line.cf-doc-heading";
+  return page.locator(selector, { hasText: text }).first();
+}
+
+async function alignDemoHeadingToViewportRatio(
+  page: Page,
+  surface: "editor" | "reader",
+  text: string,
+  viewportRatio: number,
+): Promise<void> {
+  await page.evaluate(({ surface, text, viewportRatio }) => {
+    const scroller = surface === "reader"
+      ? document.querySelector<HTMLElement>("#reader-viewport")
+      : document.querySelector<HTMLElement>("#editor .cm-scroller");
+    const selector = surface === "reader" ? "#reader .cf-doc-heading" : "#editor .cm-line.cf-doc-heading";
+    const heading = Array.from(document.querySelectorAll<HTMLElement>(selector))
+      .find((element) => element.textContent?.includes(text));
+    if (!scroller || !heading) throw new Error(`missing ${surface} heading ${text}`);
+    const scrollerRect = scroller.getBoundingClientRect();
+    scroller.scrollTop += heading.getBoundingClientRect().top
+      - (scrollerRect.top + scrollerRect.height * viewportRatio);
+  }, { surface, text, viewportRatio });
+  await settleLayout(page);
+}
+
+async function demoHeadingTop(page: Page, surface: "editor" | "reader", text: string): Promise<number> {
+  const heading = demoHeading(page, surface, text);
+  await expect(heading).toBeVisible();
+  const box = await heading.boundingBox();
+  if (!box) throw new Error(`missing ${surface} heading box for ${text}`);
+  return box.y;
+}
+
 async function expectLineHeightStableAfterClick(
   page: Page,
   selector: string,
@@ -642,6 +684,41 @@ test("public demo readonly surface uses CM6 rich rendering without editing", asy
   await page.getByRole("button", { name: "Editor" }).click();
   await expect(page).toHaveURL(/surface=editor/);
   await expect(content).toHaveAttribute("contenteditable", "true");
+});
+
+test("public demo surface switch preserves the visible document position", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto("/examples/simple/index.html?doc=showcase&surface=editor");
+  await settleLayout(page);
+
+  await scrollThroughUntil(page, [800, 1000, 1200, 1400, 1600, 1800], demoHeading(page, "editor", "Math in Lists"));
+  await alignDemoHeadingToViewportRatio(page, "editor", "Math in Lists", 0.2);
+  const editorTop = await demoHeadingTop(page, "editor", "Math in Lists");
+
+  await page.getByRole("button", { name: "Reader" }).click();
+  await expect(page).toHaveURL(/surface=reader/);
+  await settleDemoReaderMath(page);
+  await expect
+    .poll(async () => Math.abs(await demoHeadingTop(page, "reader", "Math in Lists") - editorTop))
+    .toBeLessThanOrEqual(2);
+
+  await page.getByRole("button", { name: "Readonly" }).click();
+  await expect(page).toHaveURL(/surface=readonly/);
+  await settleLayout(page);
+  await expect
+    .poll(async () => Math.abs(await demoHeadingTop(page, "editor", "Math in Lists") - editorTop))
+    .toBeLessThanOrEqual(2);
+
+  await scrollThroughUntil(page, [2200, 2400, 2600, 2800, 3000, 3200], demoHeading(page, "editor", "Tables"));
+  await alignDemoHeadingToViewportRatio(page, "editor", "Tables", 0.2);
+  const readonlyTop = await demoHeadingTop(page, "editor", "Tables");
+
+  await page.getByRole("button", { name: "Reader" }).click();
+  await expect(page).toHaveURL(/surface=reader/);
+  await settleDemoReaderMath(page);
+  await expect
+    .poll(async () => Math.abs(await demoHeadingTop(page, "reader", "Tables") - readonlyTop))
+    .toBeLessThanOrEqual(2);
 });
 
 test("public demo reader surface shows shared hover previews", async ({ page }) => {

@@ -9,6 +9,9 @@ import {
   hydrateReaderHoverPreviews,
   hydrateReferences,
   renderToHtml,
+  sourceElementAtPosition,
+  visibleSourcePositionInScroller,
+  type SourcePosition,
 } from "../../reader";
 import { buildReferenceCatalog } from "../../parse";
 import {
@@ -47,6 +50,8 @@ type DemoSurfaceId = "editor" | "readonly" | "reader";
 let currentDocId: DemoDocId = "showcase";
 let currentSurfaceId: DemoSurfaceId = "editor";
 let cleanupReaderHover: (() => void) | null = null;
+let surfaceSwitchVersion = 0;
+const SURFACE_SCROLL_ANCHOR_RATIO = 0.2;
 
 if (!editorRoot || !readerViewport || !readerRoot) {
   throw new Error("Missing simple example roots.");
@@ -170,6 +175,49 @@ function resetSurfaceScroll(): void {
   if (editorScroller) editorScroller.scrollTop = 0;
 }
 
+function currentSurfaceScrollAnchor(): SourcePosition | null {
+  return currentSurfaceId === "reader"
+    ? visibleSourcePositionInScroller(mountedReaderViewport, {
+      viewportRatio: SURFACE_SCROLL_ANCHOR_RATIO,
+    })
+    : editor.getVisibleSourcePosition({ viewportRatio: SURFACE_SCROLL_ANCHOR_RATIO });
+}
+
+function alignReaderToSourcePosition(position: SourcePosition): boolean {
+  const element = sourceElementAtPosition(mountedReaderRoot, position);
+  if (!element) return false;
+  const viewportRect = mountedReaderViewport.getBoundingClientRect();
+  const targetY = typeof position.viewportY === "number" && Number.isFinite(position.viewportY)
+    ? position.viewportY
+    : viewportRect.top + viewportRect.height * (position.viewportRatio ?? SURFACE_SCROLL_ANCHOR_RATIO);
+  mountedReaderViewport.scrollTop += element.getBoundingClientRect().top - targetY;
+  return true;
+}
+
+function restoreReaderSourcePosition(position: SourcePosition, switchVersion: number): void {
+  if (switchVersion !== surfaceSwitchVersion || currentSurfaceId !== "reader") return;
+  alignReaderToSourcePosition(position);
+  let frames = 0;
+  const alignFrame = () => {
+    if (switchVersion !== surfaceSwitchVersion || currentSurfaceId !== "reader") return;
+    alignReaderToSourcePosition(position);
+    frames += 1;
+    if (frames < 8) requestAnimationFrame(alignFrame);
+  };
+  requestAnimationFrame(alignFrame);
+}
+
+function restoreSurfaceScroll(anchor: SourcePosition | null, isReader: boolean, switchVersion: number): void {
+  if (!anchor) return;
+  if (switchVersion !== surfaceSwitchVersion) return;
+  if (isReader !== (currentSurfaceId === "reader")) return;
+  if (isReader) {
+    restoreReaderSourcePosition(anchor, switchVersion);
+  } else {
+    editor.scrollToSourcePosition(anchor);
+  }
+}
+
 const editor = mountEditor({
   parent: mountedEditorRoot,
   doc: initialDoc,
@@ -204,7 +252,7 @@ function formatBibliographyPreview(key: string): string | null {
   ].filter(Boolean).join(". ");
 }
 
-function renderReaderDoc(): void {
+function renderReaderDoc(): Promise<void> {
   const doc = docs[currentDocId];
   cleanupReaderHover?.();
   const result = renderToHtml(doc.source, documentContext, {
@@ -217,7 +265,7 @@ function renderReaderDoc(): void {
   hydrateReferences(mountedReaderRoot, documentContext, { source: doc.source });
   // Forward the document's frontmatter `math:` macros so custom definitions
   // render in the title and body, matching the editor surface.
-  void hydrateMath(
+  const mathReady = hydrateMath(
     mountedReaderRoot,
     result.mathMacros ? { mathMacros: result.mathMacros } : undefined,
   );
@@ -229,9 +277,14 @@ function renderReaderDoc(): void {
     // equation/heading hover previews, matching the main reader surface.
     mathMacros: result.mathMacros,
   });
+  return mathReady.then(() => undefined);
 }
 
-function setActiveSurface(id: DemoSurfaceId): void {
+function setActiveSurface(id: DemoSurfaceId, options: { preserveScroll?: boolean } = {}): void {
+  const switchVersion = surfaceSwitchVersion + 1;
+  const preserveScroll = options.preserveScroll ?? true;
+  const scrollAnchor = preserveScroll ? currentSurfaceScrollAnchor() : null;
+  surfaceSwitchVersion = switchVersion;
   currentSurfaceId = id;
   const isReader = id === "reader";
   mountedEditorRoot.hidden = isReader;
@@ -245,16 +298,28 @@ function setActiveSurface(id: DemoSurfaceId): void {
   url.searchParams.set("surface", id);
   window.history.replaceState(null, "", url);
   if (isReader) {
-    renderReaderDoc();
-    resetSurfaceScroll();
+    const readerReady = renderReaderDoc();
+    if (scrollAnchor) {
+      restoreSurfaceScroll(scrollAnchor, true, switchVersion);
+      void readerReady.then(() => {
+        restoreSurfaceScroll(scrollAnchor, true, switchVersion);
+      });
+    } else {
+      resetSurfaceScroll();
+    }
   } else {
     editor.setMode(id === "readonly" ? "rich-readonly" : "rich");
-    resetSurfaceScroll();
     editor.focus();
+    if (scrollAnchor) {
+      restoreSurfaceScroll(scrollAnchor, false, switchVersion);
+    } else {
+      resetSurfaceScroll();
+    }
   }
 }
 
 function setActiveDoc(id: DemoDocId): void {
+  surfaceSwitchVersion += 1;
   currentDocId = id;
   const doc = docs[id];
   editor.setDoc(doc.source);
@@ -303,4 +368,6 @@ if (isDemoDocId(requestedDoc) && requestedDoc !== "showcase") {
 }
 
 const requestedSurface = new URLSearchParams(window.location.search).get("surface");
-setActiveSurface(isDemoSurfaceId(requestedSurface) ? requestedSurface : "editor");
+setActiveSurface(isDemoSurfaceId(requestedSurface) ? requestedSurface : "editor", {
+  preserveScroll: false,
+});
