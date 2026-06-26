@@ -665,8 +665,9 @@ describe("imageRenderPlugin block ownership", () => {
         spec.to === imageTo
       ),
     ).toBe(false);
-    expect(specs.filter((spec) => spec.class === CSS.sourceDelimiter)).toHaveLength(4);
-    expect(specs.filter((spec) => spec.class === CSS.inlineSource)).toHaveLength(1);
+    expect(specs.filter((spec) => spec.class === CSS.sourceDelimiter)).toHaveLength(0);
+    expect(specs.filter((spec) => spec.class === CSS.inlineSource)).toHaveLength(0);
+    expect(specs.filter((spec) => spec.class === CSS.inlineMediaSource)).toHaveLength(1);
     expect(view.contentDOM.textContent).toContain("![diagram](figure.png)");
     view.destroy();
   });
@@ -762,9 +763,17 @@ describe("imageRenderPlugin block ownership", () => {
       view.state.field(_imageDecorationFieldForTest).decorations,
     );
 
-    expect(specs.some((spec) => spec.widgetClass === "ImagePreviewWidget")).toBe(false);
-    expect(specs.filter((spec) => spec.class === CSS.sourceDelimiter)).toHaveLength(4);
-    expect(specs.filter((spec) => spec.class === CSS.inlineSource)).toHaveLength(1);
+    expect(
+      specs.some((spec) =>
+        spec.widgetClass === "ImagePreviewWidget" &&
+        spec.block !== true &&
+        spec.from === imageFrom &&
+        spec.to === imageFrom
+      ),
+    ).toBe(true);
+    expect(specs.filter((spec) => spec.class === CSS.sourceDelimiter)).toHaveLength(0);
+    expect(specs.filter((spec) => spec.class === CSS.inlineSource)).toHaveLength(0);
+    expect(specs.filter((spec) => spec.class === CSS.inlineMediaSource)).toHaveLength(1);
     expect(view.contentDOM.textContent).toContain("![diagram](figure.png)");
 
     view.dispatch({ selection: { anchor: imageTo + " suffix".length } });

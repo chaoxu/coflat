@@ -7,7 +7,9 @@ import {
 import type { Decoration } from "@codemirror/view";
 import type { SyntaxNode } from "@lezer/common";
 import { editorFocusField } from "./focus-state";
-import { addInlineRevealSourceMetricsInSubtree } from "./markdown-inline-source";
+import {
+  addInlineMediaSourceMetricsRange,
+} from "./markdown-inline-source";
 
 export interface ActiveImageSourceTarget {
   readonly from: number;
@@ -51,8 +53,11 @@ function findSelectionImageNode(state: EditorState): SyntaxNode | null {
       while (node.parent) {
         if (
           node.name === "Image" &&
-          selection.from >= node.from &&
-          selection.to <= node.to
+          (
+            selection.empty
+              ? selection.from >= node.from && selection.from < node.to
+              : selection.from >= node.from && selection.to <= node.to
+          )
         ) {
           return node;
         }
@@ -87,7 +92,7 @@ export function addActiveImageSourceDecorations(
       if (node.name !== "Image" || node.from !== target.from || node.to !== target.to) {
         return;
       }
-      addInlineRevealSourceMetricsInSubtree(node.node, items);
+      addInlineMediaSourceMetricsRange(node.from, node.to, items);
       return false;
     },
   });

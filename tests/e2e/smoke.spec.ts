@@ -219,6 +219,75 @@ async function expectLineHeightStableAfterClick(
   expect(Math.abs(after.height - before.height), label).toBeLessThanOrEqual(0.5);
 }
 
+async function expectVisibleDemoRowsKeepHeightOnCursorEntry(
+  page: Page,
+  scrollTop: number,
+): Promise<void> {
+  await scrollDemoEditorTo(page, scrollTop);
+  await settleLayout(page);
+  const samples = await page.evaluate(() => {
+    const scroller = document.querySelector("#editor .cm-scroller");
+    if (!(scroller instanceof HTMLElement)) throw new Error("missing editor scroller");
+    const scrollerRect = scroller.getBoundingClientRect();
+    return Array.from(document.querySelectorAll<HTMLElement>("#editor .cm-line"))
+      .map((el, index) => {
+        const rect = el.getBoundingClientRect();
+        return {
+          className: el.className,
+          from: el.getAttribute("data-source-from"),
+          height: rect.height,
+          index,
+          text: el.textContent ?? "",
+          to: el.getAttribute("data-source-to"),
+          visible: rect.bottom > scrollerRect.top + 4 && rect.top < scrollerRect.bottom - 4,
+        };
+      })
+      .filter((sample) => sample.visible && sample.height > 0);
+  });
+
+  for (const sample of samples) {
+    await scrollDemoEditorTo(page, scrollTop);
+    await settleLayout(page);
+    const before = await page.evaluate(({ from, index, text, to }) => {
+      const sourceTarget = from !== null && to !== null
+        ? Array.from(document.querySelectorAll<HTMLElement>(
+          `#editor .cm-line[data-source-from="${CSS.escape(from)}"][data-source-to="${CSS.escape(to)}"]`,
+        )).find((el) => (el.textContent ?? "") === text)
+        : null;
+      const target = sourceTarget ?? document.querySelectorAll<HTMLElement>("#editor .cm-line")[index];
+      if (!(target instanceof HTMLElement)) throw new Error("missing row before click");
+      const rect = target.getBoundingClientRect();
+      return {
+        className: target.className,
+        from: target.getAttribute("data-source-from"),
+        height: rect.height,
+        text: target.textContent ?? "",
+        to: target.getAttribute("data-source-to"),
+        x: Math.min(rect.right - 2, Math.max(rect.left + 2, rect.left + Math.min(96, rect.width / 2))),
+        y: rect.top + Math.max(1, Math.min(rect.height - 1, rect.height / 2)),
+      };
+    }, sample);
+
+    await page.mouse.click(before.x, before.y);
+    await settleLayout(page);
+
+    const after = await page.evaluate(({ from, text, to, x, y }) => {
+      const sourceTarget = from !== null && to !== null
+        ? Array.from(document.querySelectorAll<HTMLElement>(
+          `#editor .cm-line[data-source-from="${CSS.escape(from)}"][data-source-to="${CSS.escape(to)}"]`,
+        )).find((el) => (el.textContent ?? "") === text)
+        : null;
+      const target = sourceTarget ?? document.elementFromPoint(x, y)?.closest(".cm-line");
+      if (!(target instanceof HTMLElement)) throw new Error("missing clicked row");
+      return target.getBoundingClientRect().height;
+    }, before);
+    expect(
+      Math.abs(after - before.height),
+      `row ${sample.index} at scroll ${scrollTop}: ${before.className} ${JSON.stringify(before.text.slice(0, 80))}`,
+    ).toBeLessThanOrEqual(0.5);
+  }
+}
+
 async function textRect(locator: Locator, text: string) {
   return locator.evaluate((el, targetText) => {
     const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
@@ -328,6 +397,51 @@ test("rich editor cursor movement never changes line height", async ({ page }) =
     [".cm-line.cf-codeblock-body:has-text('const value')", "code block body line"],
   ] as const) {
     await expectLineHeightStableAfterClick(page, selector, label);
+  }
+});
+
+test("rich editor keeps inline image row height stable when source is active", async ({ page }) => {
+  const doc = [
+    "Before",
+    "",
+    "![Local hover-preview figure](/showcase/hover-preview-figure.svg) suffix",
+    "",
+    "After",
+  ].join("\n");
+  await page.goto("/tests/e2e/fixtures/index.html");
+  await setEditorDoc(page, doc, "rich");
+  await settleLayout(page);
+
+  const imageLine = page.locator(".cm-line.cf-doc-paragraph:has-text('suffix')");
+  await expect(imageLine).toBeVisible();
+  const image = imageLine.locator("img.cf-image");
+  await expect(image).toBeVisible();
+  await expect.poll(() => image.evaluate((img) => ({
+    complete: img.complete,
+    height: img.naturalHeight,
+    width: img.naturalWidth,
+  }))).toMatchObject({ complete: true, height: expect.any(Number), width: expect.any(Number) });
+
+  const before = await imageLine.evaluate((el) => el.getBoundingClientRect().height);
+  await page.evaluate((pos) => {
+    (window as unknown as {
+      __coflatEditor: { scrollToPosition: (pos: number) => void };
+    }).__coflatEditor.scrollToPosition(pos);
+  }, doc.indexOf("Local hover-preview"));
+  await settleLayout(page);
+
+  await expect(imageLine).toContainText("![Local hover-preview figure]");
+  await expect(imageLine.locator("img.cf-image")).toBeVisible();
+  const after = await imageLine.evaluate((el) => el.getBoundingClientRect().height);
+  expect(Math.abs(after - before), "inline image source reveal row height").toBeLessThanOrEqual(0.5);
+});
+
+test("public demo cursor entry keeps visible row heights stable", async ({ page }) => {
+  await page.goto("/examples/simple/index.html?doc=showcase&surface=editor");
+  await expect(page.locator("#editor .cm-editor")).toBeVisible();
+
+  for (const scrollTop of [0, 900, 1800, 2700, 3600, 4500, 5200]) {
+    await expectVisibleDemoRowsKeepHeightOnCursorEntry(page, scrollTop);
   }
 });
 

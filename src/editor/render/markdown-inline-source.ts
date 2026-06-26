@@ -7,6 +7,7 @@ import { cursorInRange } from "./node-collection";
 
 const sourceDelimiterDecoration = Decoration.mark({ class: CSS.sourceDelimiter });
 const inlineSourceDecoration = Decoration.mark({ class: CSS.inlineSource });
+const inlineMediaSourceDecoration = Decoration.mark({ class: CSS.inlineMediaSource });
 
 const SOURCE_DELIMITER_MARKS = new Set([
   "EmphasisMark",
@@ -31,6 +32,15 @@ export function addInlineRevealSourceMetricsInSubtree(
     addInlineRevealSourceMetricsInSubtree(child, items);
     child = child.nextSibling;
   }
+}
+
+export function addInlineMediaSourceMetricsRange(
+  from: number,
+  to: number,
+  items: Range<Decoration>[],
+): void {
+  if (from >= to) return;
+  items.push(inlineMediaSourceDecoration.range(from, to));
 }
 
 export function sourceRevealMetricsForNode(

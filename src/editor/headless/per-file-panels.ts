@@ -49,11 +49,15 @@ export interface ScrollToLineOptions {
   readonly column?: number;
   /** Center the target line in the viewport when possible. */
   readonly center?: boolean;
+  /** Move the editor selection to the target. Defaults to true for navigation. */
+  readonly select?: boolean;
 }
 
 export interface ScrollToPositionOptions {
   /** Center the target position in the viewport when possible. */
   readonly center?: boolean;
+  /** Move the editor selection to the target. Defaults to true for navigation. */
+  readonly select?: boolean;
 }
 
 export interface HeadlessPanelStore<T> {
@@ -327,18 +331,15 @@ export function createPerFilePanelApi(): PerFilePanelApi {
       return;
     }
     const target = clampPosition(view.state.doc, from);
-    if (options.center) {
-      view.dispatch({
-        selection: { anchor: target },
-        effects: EditorView.scrollIntoView(target, { y: "center" }),
-      });
-    } else {
-      view.dispatch({
-        selection: { anchor: target },
-        scrollIntoView: true,
-      });
-    }
-    view.focus();
+    const select = options.select !== false;
+    view.dispatch({
+      selection: select ? { anchor: target } : undefined,
+      effects: options.center || !select
+        ? EditorView.scrollIntoView(target, options.center ? { y: "center" } : undefined)
+        : undefined,
+      scrollIntoView: select && !options.center,
+    });
+    if (select) view.focus();
   };
 
   const scrollToLine = (line: number, options: ScrollToLineOptions = {}) => {

@@ -371,7 +371,9 @@ export function mountEditor(options: MountEditorOptions): MountedEditor {
       const select = "select" in position ? position.select !== false : true;
       view.dispatch({
         selection: select ? { anchor: target } : undefined,
-        effects: center ? EditorView.scrollIntoView(target, { y: "center" }) : undefined,
+        effects: center || !select
+          ? EditorView.scrollIntoView(target, center ? { y: "center" } : undefined)
+          : undefined,
         scrollIntoView: select && !center,
       });
       const viewportY = "viewportY" in position ? position.viewportY : undefined;

@@ -224,6 +224,14 @@ export const typographyThemeStyles = {
   ".cf-inline-source": {
     ...inlineSourceTypography,
   },
+  ".cf-inline-media-source": {
+    ...inlineSourceTypography,
+    display: "inline-block",
+    maxWidth: "0",
+    overflow: "visible",
+    whiteSpace: "nowrap",
+    width: "0",
+  },
 
   /* Math source content — LaTeX between $ delimiters when editing */
   ".cf-math-source": {

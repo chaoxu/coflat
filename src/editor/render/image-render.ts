@@ -88,6 +88,7 @@ function buildImageItemsFromInfos(
       );
       addActiveImageSourceDecorations(state, info, items);
     } else if (activeImageSource) {
+      items.push(Decoration.widget({ widget, side: -1 }).range(info.from));
       addActiveImageSourceDecorations(state, info, items);
     } else if (info.isBlock) {
       pushBlockWidgetDecoration(items, widget, info.from, info.to);
