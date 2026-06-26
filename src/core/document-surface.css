@@ -485,7 +485,7 @@
   border-radius: var(--cf-border-radius-lg);
 }
 
-.cf-reader .cf-doc-blockquote {
+.cf-doc-flow .cf-doc-blockquote {
   margin: var(--cf-doc-blockquote-margin, 1em 0);
   border-left: var(--cf-doc-blockquote-border-width, 3px) solid var(--cf-blockquote-border);
   padding-left: var(--cf-doc-blockquote-padding-left, 1em);

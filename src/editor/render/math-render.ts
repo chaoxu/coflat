@@ -51,6 +51,12 @@ import { measureSync } from "../lib/perf";
 import { getBlockManifestEntry } from "../../core/constants/block-manifest";
 import { getLastFencedDivContentLine } from "../fenced-block/model";
 import {
+  activeFlowBlockquoteRange,
+  enclosingFlowBlockquote,
+  flowBlockquoteRangesEqual,
+  selectionIntersectsRange,
+} from "./rendered-block-flow";
+import {
   collectActiveMathDirtyRanges,
   collectDirtyMathRegions,
   collectMathDirtyRanges,
@@ -184,6 +190,21 @@ function displayMathContextClassNames(
     : [];
 }
 
+function displayMathCoveredByInactiveBlockquoteFlow(
+  state: EditorState,
+  region: MathSemantics,
+): boolean {
+  if (!region.isDisplay) return false;
+  const blockquote = enclosingFlowBlockquote(state, region.from, region.to);
+  if (!blockquote) return false;
+  return !selectionIntersectsRange(
+    state,
+    blockquote.from,
+    blockquote.to,
+    state.field(editorFocusField, false) ?? false,
+  );
+}
+
 function getRevealedMathTarget(
   state: EditorState,
   focused: boolean,
@@ -211,6 +232,7 @@ function buildMathItems(
   const disableDisplayMathWidgets = isDebugRenderFlagEnabled("disableDisplayMathWidgets");
 
   for (const region of regions) {
+    if (displayMathCoveredByInactiveBlockquoteFlow(state, region)) continue;
     if (shouldSkip(region.from, region.to)) {
       if (region.contentFrom > region.from) {
         // Keep delimiters on the lighter source-delimiter class so they
@@ -373,6 +395,18 @@ const mathDecorationField = createDecorationStateField({
       tr.state.field(editorFocusField, false) ?? false,
     );
     const activeMathChanged = inlineRevealTargetChanged(beforeActive, afterActive);
+    const beforeActiveBlockquote = activeFlowBlockquoteRange(
+      tr.startState,
+      tr.startState.field(editorFocusField, false) ?? false,
+    );
+    const afterActiveBlockquote = activeFlowBlockquoteRange(
+      tr.state,
+      tr.state.field(editorFocusField, false) ?? false,
+    );
+    const activeBlockquoteChanged = !flowBlockquoteRangesEqual(
+      beforeActiveBlockquote,
+      afterActiveBlockquote,
+    );
     const mathPositionsMayShift = docChangeCanShiftMathDecorations(tr, regionsBefore);
     const mathChangeSummary = tr.docChanged
       ? summarizeMathChanges(tr, regionsBefore, regionsAfter)
@@ -392,7 +426,7 @@ const mathDecorationField = createDecorationStateField({
         if (docChangeOnlyShiftsMath && !mathPositionsMayShift) return false;
         return regionsBefore !== regionsAfter || mathPositionsMayShift;
       },
-      contextChanged: () => activeMathChanged,
+      contextChanged: () => activeMathChanged || activeBlockquoteChanged,
       contextUpdateMode: "dirty-ranges",
       // Edits after every math range can keep the DecorationSet by identity.
       // The "keep" branch below still maps when the actual decoration set
@@ -426,13 +460,23 @@ const mathDecorationField = createDecorationStateField({
           beforeActive,
           afterActive,
         );
+        const blockquoteDirtyRanges = [
+          beforeActiveBlockquote,
+          afterActiveBlockquote,
+        ].filter((range): range is { readonly from: number; readonly to: number } => range !== null);
 
         if (!context.docChanged) {
-          return activeDirtyRanges;
+          return mergeDirtyRanges([
+            ...activeDirtyRanges,
+            ...blockquoteDirtyRanges,
+          ]);
         }
 
         if (!context.docChanged || !context.semanticChanged) {
-          return activeDirtyRanges;
+          return mergeDirtyRanges([
+            ...activeDirtyRanges,
+            ...blockquoteDirtyRanges,
+          ]);
         }
 
         const mathDirtyRanges = collectMathDirtyRanges(
@@ -443,6 +487,7 @@ const mathDecorationField = createDecorationStateField({
         return mergeDirtyRanges([
           ...mathDirtyRanges,
           ...activeDirtyRanges,
+          ...blockquoteDirtyRanges,
         ]);
       },
     });

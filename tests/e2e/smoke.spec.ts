@@ -1830,53 +1830,55 @@ test("parity fixture applies initial editor mode from the URL", async ({ page })
 });
 
 test("reader and CM6 rich editor keep blockquote display math aligned", async ({ page }) => {
-  await page.setViewportSize({ width: 2560, height: 1600 });
-  await loadParityPairSurface(page, "default", BLOCKQUOTE_DISPLAY_MATH_PARITY_SOURCE);
+  for (const width of [2560, 1200]) {
+    await page.setViewportSize({ width, height: 1600 });
+    await loadParityPairSurface(page, "default", BLOCKQUOTE_DISPLAY_MATH_PARITY_SOURCE);
 
-  const result = await page.evaluate(() => {
-    const rounded = (value: number) => Math.round(value * 100) / 100;
-    const snapAll = (rootSelector: string) =>
-      Array.from(document.querySelectorAll<HTMLElement>(`${rootSelector} .cf-doc-display-math`))
-        .map((el) => {
-          const rect = el.getBoundingClientRect();
-          return {
-            className: el.className,
-            height: rounded(rect.height),
-            text: (el.textContent ?? "").replace(/\s+/g, " ").trim(),
-            top: rounded(rect.top),
-            width: rounded(rect.width),
-          };
-        });
-    return {
-      reader: snapAll("#reader-root"),
-      editor: snapAll("#editor-root"),
-    };
-  });
+    const result = await page.evaluate(() => {
+      const rounded = (value: number) => Math.round(value * 100) / 100;
+      const snapAll = (rootSelector: string) =>
+        Array.from(document.querySelectorAll<HTMLElement>(`${rootSelector} .cf-doc-display-math`))
+          .map((el) => {
+            const rect = el.getBoundingClientRect();
+            return {
+              className: el.className,
+              height: rounded(rect.height),
+              text: (el.textContent ?? "").replace(/\s+/g, " ").trim(),
+              top: rounded(rect.top),
+              width: rounded(rect.width),
+            };
+          });
+      return {
+        reader: snapAll("#reader-root"),
+        editor: snapAll("#editor-root"),
+      };
+    });
 
-  expect(result.reader).toHaveLength(2);
-  expect(result.editor).toHaveLength(2);
-  for (const [index, reader] of result.reader.entries()) {
-    const editor = result.editor[index];
-    expect(editor.text, `math ${index} text`).toBe(reader.text);
-    expect(editor.width, `math ${index} width`).toBe(reader.width);
-    expect(editor.height, `math ${index} height`).toBe(reader.height);
-    if (index === 0) {
-      expect(editor.top, `math ${index} top`).toBe(reader.top);
-    } else {
-      expect(Math.abs(editor.top - reader.top), `math ${index} top drift`).toBeLessThanOrEqual(8);
+    expect(result.reader).toHaveLength(2);
+    expect(result.editor).toHaveLength(2);
+    for (const [index, reader] of result.reader.entries()) {
+      const editor = result.editor[index];
+      expect(editor.text, `${width}px math ${index} text`).toBe(reader.text);
+      expect(editor.width, `${width}px math ${index} width`).toBe(reader.width);
+      expect(editor.height, `${width}px math ${index} height`).toBe(reader.height);
+      expect(editor.top, `${width}px math ${index} top`).toBe(reader.top);
     }
-  }
 
-  await expectLoadedSelectorsPixelsMatch(page, "fenced blockquote display math", {
-    reader: "#reader-root .cf-doc-display-math",
-    editor: "#editor-root .cf-doc-display-math",
-  });
-  await expectLoadedSelectorsPixelsMatch(page, "standard blockquote display math", {
-    reader: "#reader-root .cf-doc-display-math",
-    editor: "#editor-root .cf-doc-display-math",
-    readerIndex: 1,
-    editorIndex: 1,
-  });
+    await expectLoadedSelectorsPixelsMatch(page, `${width}px fenced blockquote display math`, {
+      reader: "#reader-root .cf-doc-display-math",
+      editor: "#editor-root .cf-doc-display-math",
+    });
+    await expectLoadedSelectorsPixelsMatch(page, `${width}px standard blockquote display math`, {
+      reader: "#reader-root .cf-doc-display-math",
+      editor: "#editor-root .cf-doc-display-math",
+      readerIndex: 1,
+      editorIndex: 1,
+    });
+    await expectLoadedSelectorsPixelsMatch(page, `${width}px standard blockquote surface`, {
+      reader: "#reader-root .cf-doc-blockquote",
+      editor: "#editor-root .cf-doc-blockquote",
+    });
+  }
 });
 
 test("reader and CM6 rich editor render root-relative browser images the same way", async ({ page }) => {

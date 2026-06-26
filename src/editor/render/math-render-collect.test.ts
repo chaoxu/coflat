@@ -160,6 +160,23 @@ describe("collectMathRanges", () => {
     expect(countSourceMarks(ranges)).toBeGreaterThan(1);
   });
 
+  it("rebuilds quoted display math when the cursor enters an inactive blockquote flow", () => {
+    const doc = "> quoted prose\n> $$\n> x^2\n> $$\n\nnext";
+    view = createMathRenderView(doc, doc.length);
+
+    expect(
+      getDecorationSpecs(view.state.field(mathDecorationField))
+        .filter((spec) => spec.widgetClass === "MathWidget"),
+    ).toHaveLength(0);
+
+    view.dispatch({ selection: { anchor: doc.indexOf("quoted") } });
+
+    expect(
+      getDecorationSpecs(view.state.field(mathDecorationField))
+        .filter((spec) => spec.widgetClass === "MathWidget"),
+    ).toHaveLength(1);
+  });
+
   it("keeps display-math label/body on cf-math-source but delimiters on cf-source-delimiter during structure edit (#789)", () => {
     const doc = "before\n\n$$\nx^2\n$$ {#eq:test}\n\nafter";
     view = createMathView(doc, 0);

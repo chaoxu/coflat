@@ -484,7 +484,8 @@ function renderDisplayMath(
 ): void {
   const plan = displayMathRenderPlan(context.doc, node);
   const equationNumber = plan.equationId
-    ? context.semantics.equationById.get(plan.equationId)?.number
+    ? context.referenceSemantics.equationById.get(plan.equationId)?.number
+      ?? context.semantics.equationById.get(plan.equationId)?.number
     : undefined;
 
   const wrapper = createDisplayMathSurfaceElement(document, plan.latex, {

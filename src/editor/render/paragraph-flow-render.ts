@@ -30,8 +30,13 @@ import { buildPreviewBlockOptions } from "./hover-preview-block-options";
 import { renderPreviewBlockContentToDom } from "./preview-block-renderer";
 import { getReferenceRenderDependencySignature } from "./reference-render";
 import { RenderWidget } from "./source-widget";
+import {
+  selectionIntersectsRange,
+  shouldRenderBlockquoteAsFlow,
+} from "./rendered-block-flow";
 
 const PARAGRAPH_FLOW_WIDGET_CLASS = "cf-paragraph-flow-widget";
+const BLOCKQUOTE_FLOW_WIDGET_CLASS = "cf-blockquote-flow-widget";
 
 function selectionIntersects(
   state: EditorState,
@@ -39,12 +44,7 @@ function selectionIntersects(
   to: number,
   focused: boolean,
 ): boolean {
-  if (!focused) return false;
-  return state.selection.ranges.some((range) => (
-    range.empty
-      ? from <= range.from && range.from <= to
-      : range.from < to && from < range.to
-  ));
+  return selectionIntersectsRange(state, from, to, focused);
 }
 
 function isTopLevelParagraph(node: SyntaxNode): boolean {
@@ -64,6 +64,14 @@ function isEligibleParagraph(
   if (!isMultiLineRange(state, node.from, node.to)) return false;
   if (selectionIntersects(state, node.from, node.to, focused)) return false;
   return true;
+}
+
+function isEligibleBlockquote(
+  state: EditorState,
+  node: SyntaxNode,
+  focused: boolean,
+): boolean {
+  return shouldRenderBlockquoteAsFlow(state, node, focused);
 }
 
 class ParagraphFlowWidget extends RenderWidget {
@@ -107,28 +115,89 @@ class ParagraphFlowWidget extends RenderWidget {
   }
 }
 
+class BlockquoteFlowWidget extends RenderWidget {
+  useLiveSourceRange = false;
+
+  constructor(
+    private readonly source: string,
+    private readonly fullDocumentSource: string,
+  ) {
+    super();
+  }
+
+  override toDOM(view?: EditorView): HTMLElement {
+    const wrapper = document.createElement("div");
+    wrapper.className = documentSurfaceClassNames(
+      DOCUMENT_SURFACE_CLASS.flow,
+      PARAGRAPH_FLOW_WIDGET_CLASS,
+      BLOCKQUOTE_FLOW_WIDGET_CLASS,
+    );
+    const config = parseFrontmatter(this.fullDocumentSource).config;
+    const options = view
+      ? buildPreviewBlockOptions(
+        view,
+        view.state.field(mathMacrosField, false) ?? config.math ?? {},
+      )
+      : { config };
+    renderPreviewBlockContentToDom(wrapper, this.source, options);
+    this.syncWidgetAttrs(wrapper, view);
+    const blockquote = wrapper.querySelector<HTMLElement>(".cf-doc-blockquote");
+    if (blockquote) {
+      this.setSourceRangeAttrs(blockquote);
+    }
+    if (view) this.bindSourceReveal(wrapper, view);
+    return wrapper;
+  }
+
+  override eq(other: BlockquoteFlowWidget): boolean {
+    return (
+      this.source === other.source &&
+      this.fullDocumentSource === other.fullDocumentSource
+    );
+  }
+}
+
 function collectParagraphFlowDecorations(state: EditorState): DecorationSet {
   const focused = state.field(editorFocusField, false) ?? false;
   const fullDocumentSource = state.doc.toString();
   const items: Range<Decoration>[] = [];
   syntaxTree(state).iterate({
     enter(node: SyntaxNodeRef) {
-      if (node.name !== "Paragraph") return undefined;
-      const paragraph = node.node;
-      if (!isEligibleParagraph(state, paragraph, focused)) return undefined;
-      const widget = new ParagraphFlowWidget(
-        state.sliceDoc(paragraph.from, paragraph.to),
-        fullDocumentSource,
-      );
-      widget.updateSourceRange(paragraph.from, paragraph.to);
-      items.push(
-        Decoration.replace({
-          widget,
-          block: true,
-          class: PARAGRAPH_FLOW_WIDGET_CLASS,
-        }).range(paragraph.from, paragraph.to),
-      );
-      return false;
+      if (node.name === "Paragraph") {
+        const paragraph = node.node;
+        if (!isEligibleParagraph(state, paragraph, focused)) return undefined;
+        const widget = new ParagraphFlowWidget(
+          state.sliceDoc(paragraph.from, paragraph.to),
+          fullDocumentSource,
+        );
+        widget.updateSourceRange(paragraph.from, paragraph.to);
+        items.push(
+          Decoration.replace({
+            widget,
+            block: true,
+            class: PARAGRAPH_FLOW_WIDGET_CLASS,
+          }).range(paragraph.from, paragraph.to),
+        );
+        return false;
+      }
+      if (node.name === "Blockquote") {
+        const blockquote = node.node;
+        if (!isEligibleBlockquote(state, blockquote, focused)) return undefined;
+        const widget = new BlockquoteFlowWidget(
+          state.sliceDoc(blockquote.from, blockquote.to),
+          fullDocumentSource,
+        );
+        widget.updateSourceRange(blockquote.from, blockquote.to);
+        items.push(
+          Decoration.replace({
+            widget,
+            block: true,
+            class: `${PARAGRAPH_FLOW_WIDGET_CLASS} ${BLOCKQUOTE_FLOW_WIDGET_CLASS}`,
+          }).range(blockquote.from, blockquote.to),
+        );
+        return false;
+      }
+      return undefined;
     },
   });
   return buildDecorations(items);
