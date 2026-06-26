@@ -141,7 +141,16 @@
 }
 
 .cm-line.cf-doc-block--blockquote {
-  padding-left: 1em;
+  padding-left: var(--cf-doc-blockquote-padding-left, 1em);
+}
+
+.cf-editor-virtual-blockquote-display-math {
+  margin-left: calc(
+    var(--cf-doc-blockquote-border-width, 3px) + var(--cf-doc-blockquote-padding-left, 1em)
+  );
+  width: calc(
+    100% - var(--cf-doc-blockquote-border-width, 3px) - var(--cf-doc-blockquote-padding-left, 1em)
+  );
 }
 
 .cm-editor.cm-focused {

@@ -109,6 +109,8 @@
   --cf-proof-marker-size: 1.2em;
   --cf-blockquote-border: var(--cf-border);
   --cf-blockquote-color: var(--cf-fg);
+  --cf-doc-blockquote-border-width: 3px;
+  --cf-doc-blockquote-padding-left: 1em;
   --cf-block-margin: 0.6em 0;
   --cf-block-title-display: inline;
   --cf-block-title-separator: ".\2002\2002";
@@ -485,8 +487,8 @@
 
 .cf-reader .cf-doc-blockquote {
   margin: var(--cf-doc-blockquote-margin, 1em 0);
-  border-left: 3px solid var(--cf-blockquote-border);
-  padding-left: 1em;
+  border-left: var(--cf-doc-blockquote-border-width, 3px) solid var(--cf-blockquote-border);
+  padding-left: var(--cf-doc-blockquote-padding-left, 1em);
   color: var(--cf-blockquote-color);
 }
 
@@ -1065,8 +1067,8 @@ div.cf-image-wrapper:not(.cf-image-loading):not(.cf-image-placeholder) {
 
 /* Fenced-div blockquote styling. Bare blockquote stays scoped to hover preview. */
 .cf-doc-block.cf-doc-block--blockquote {
-  border-left: 3px solid var(--cf-blockquote-border);
-  padding-left: 1em;
+  border-left: var(--cf-doc-blockquote-border-width, 3px) solid var(--cf-blockquote-border);
+  padding-left: var(--cf-doc-blockquote-padding-left, 1em);
   margin-left: 0;
   font-style: italic;
 }

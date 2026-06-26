@@ -3,6 +3,8 @@ import {
   type Extension,
   type Range,
 } from "@codemirror/state";
+import { syntaxTree } from "@codemirror/language";
+import type { SyntaxNode } from "@lezer/common";
 import {
   Decoration,
   type DecorationSet,
@@ -158,6 +160,30 @@ function displayMathVisualReplacementFrom(
   return /^\s*$/.test(prefix) ? line.from : sourceFrom;
 }
 
+function displayMathContextClassNames(
+  state: EditorState,
+  analysis: DocumentAnalysis,
+  region: MathSemantics,
+): readonly string[] {
+  if (!region.isDisplay) return [];
+  const insideFencedBlockquote = analysis.fencedDivs.some((div) => {
+    if (div.primaryClass !== "blockquote") return false;
+    const contentTo = div.closeFenceFrom >= 0 ? div.closeFenceFrom : div.to;
+    return region.from >= div.openFenceTo && region.to <= contentTo;
+  });
+  const insideMarkdownBlockquote = (() => {
+    let node: SyntaxNode | null = syntaxTree(state).resolveInner(region.from, -1);
+    while (node) {
+      if (node.name === "Blockquote" && region.to <= node.to) return true;
+      node = node.parent;
+    }
+    return false;
+  })();
+  return insideFencedBlockquote || insideMarkdownBlockquote
+    ? [CSS.editorVirtualBlockquoteDisplayMath]
+    : [];
+}
+
 function getRevealedMathTarget(
   state: EditorState,
   focused: boolean,
@@ -225,6 +251,7 @@ function buildMathItems(
           region.contentFrom - region.from,
           getDisplayEquationNumber(region, equationNumbersByFrom),
           qedDisplayMathStarts.has(region.from),
+          displayMathContextClassNames(state, analysis, region),
         );
         widget.sourceFrom = region.from;
         widget.sourceTo = region.to;
@@ -243,6 +270,7 @@ function buildMathItems(
         region.contentFrom - region.from,
         getDisplayEquationNumber(region, equationNumbersByFrom),
         qedDisplayMathStarts.has(region.from),
+        displayMathContextClassNames(state, analysis, region),
       );
       pushBlockWidgetReplacementDecoration(
         items,

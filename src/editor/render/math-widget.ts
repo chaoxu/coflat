@@ -160,6 +160,7 @@ export class MathWidget extends LazyMacroAwareWidget {
     private readonly contentOffset = 0,
     private readonly equationNumber?: number,
     private readonly hasQedMarker = false,
+    private readonly displayContextClassNames: readonly string[] = [],
   ) {
     super(macros);
     this.inlineDomCacheKey = [
@@ -171,6 +172,7 @@ export class MathWidget extends LazyMacroAwareWidget {
       this.macrosKey,
       this.equationNumber === undefined ? "" : String(this.equationNumber),
       this.hasQedMarker ? "qed" : "",
+      ...this.displayContextClassNames,
     ].join("\u0001");
     this.displayDomCacheKey = [
       this.latex,
@@ -178,6 +180,7 @@ export class MathWidget extends LazyMacroAwareWidget {
       this.macrosKey,
       this.equationNumber === undefined ? "" : String(this.equationNumber),
       this.hasQedMarker ? "qed" : "",
+      ...this.displayContextClassNames,
     ].join("\u0001");
   }
 
@@ -190,6 +193,9 @@ export class MathWidget extends LazyMacroAwareWidget {
       CSS.mathDisplayNumbered,
       this.equationNumber !== undefined,
     );
+    for (const className of this.displayContextClassNames) {
+      el.classList.add(className);
+    }
   }
 
   private syncDisplayEquationNumber(el: HTMLElement): void {
@@ -323,7 +329,8 @@ export class MathWidget extends LazyMacroAwareWidget {
       this.isDisplay === other.isDisplay &&
       this.macrosKey === other.macrosKey &&
       this.equationNumber === other.equationNumber &&
-      this.hasQedMarker === other.hasQedMarker
+      this.hasQedMarker === other.hasQedMarker &&
+      this.displayContextClassNames.join(" ") === other.displayContextClassNames.join(" ")
     );
   }
 
@@ -336,7 +343,11 @@ export class MathWidget extends LazyMacroAwareWidget {
     }
 
     if (this.isDisplay) {
-      dom.className = mathSurfaceClassNames(true, this.hasQedMarker && CSS.blockQed);
+      dom.className = mathSurfaceClassNames(
+        true,
+        this.hasQedMarker && CSS.blockQed,
+        ...this.displayContextClassNames,
+      );
       dom.setAttribute("role", "img");
       dom.setAttribute("aria-label", this.latex);
     } else {

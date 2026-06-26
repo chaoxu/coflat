@@ -61,6 +61,20 @@ const ROOT_IMAGE_PARITY_SOURCE = `# Root Image
 
 ![Local hover-preview figure](/showcase/hover-preview-figure.svg) should render as an inline image without a filesystem.
 `;
+const BLOCKQUOTE_DISPLAY_MATH_PARITY_SOURCE = `# Blockquote Math
+
+::: Blockquote
+Fenced blockquote display math:
+$$
+x^2 + y^2 = z^2
+$$
+:::
+
+> Standard blockquote display math:
+> $$
+> \\int_0^1 x^2\\,dx = \\frac{1}{3}
+> $$
+`;
 
 async function setEditorDoc(page: Page, doc: string, mode: "rich" | "source" = "rich") {
   await page.evaluate(({ doc, mode }) => {
@@ -1530,6 +1544,50 @@ test("reader and CM6 rich editor keep indented display math in lists aligned", a
   });
 });
 
+test("reader and CM6 rich editor keep blockquote display math aligned", async ({ page }) => {
+  await page.setViewportSize({ width: 2560, height: 1600 });
+  await loadParityPairSurface(page, "default", BLOCKQUOTE_DISPLAY_MATH_PARITY_SOURCE);
+
+  const result = await page.evaluate(() => {
+    const rounded = (value: number) => Math.round(value * 100) / 100;
+    const snapAll = (rootSelector: string) =>
+      Array.from(document.querySelectorAll<HTMLElement>(`${rootSelector} .cf-doc-display-math`))
+        .map((el) => {
+          const rect = el.getBoundingClientRect();
+          return {
+            className: el.className,
+            height: rounded(rect.height),
+            text: (el.textContent ?? "").replace(/\s+/g, " ").trim(),
+            top: rounded(rect.top),
+            width: rounded(rect.width),
+          };
+        });
+    return {
+      reader: snapAll("#reader-root"),
+      editor: snapAll("#editor-root"),
+    };
+  });
+
+  expect(result.reader).toHaveLength(2);
+  expect(result.editor).toHaveLength(2);
+  for (const [index, reader] of result.reader.entries()) {
+    const editor = result.editor[index];
+    expect(editor.text, `math ${index} text`).toBe(reader.text);
+    expect(editor.width, `math ${index} width`).toBe(reader.width);
+    expect(editor.height, `math ${index} height`).toBe(reader.height);
+    if (index === 0) {
+      expect(editor.top, `math ${index} top`).toBe(reader.top);
+    } else {
+      expect(Math.abs(editor.top - reader.top), `math ${index} top drift`).toBeLessThanOrEqual(8);
+    }
+  }
+
+  await expectLoadedSelectorsPixelsMatch(page, "fenced blockquote display math", {
+    reader: "#reader-root .cf-doc-display-math",
+    editor: "#editor-root .cf-doc-display-math",
+  });
+});
+
 test("reader and CM6 rich editor render root-relative browser images the same way", async ({ page }) => {
   await page.setViewportSize({ width: 2560, height: 1600 });
   await loadParityPairSurface(page, "default", ROOT_IMAGE_PARITY_SOURCE);
@@ -1596,6 +1654,7 @@ test("public showcase keeps reader and CM6 rich editor block geometry aligned", 
       readonly h: number;
       readonly range: string;
       readonly text: string;
+      readonly w: number;
       readonly y: number;
     };
     type EditorViewLike = {
@@ -1620,7 +1679,7 @@ test("public showcase keeps reader and CM6 rich editor block geometry aligned", 
       .slice(0, 80);
     const rect = (el: Element) => {
       const r = el.getBoundingClientRect();
-      return { h: rounded(r.height), y: rounded(r.y) };
+      return { h: rounded(r.height), w: rounded(r.width), y: rounded(r.y) };
     };
     const readerRows = Array.from(document.querySelectorAll<HTMLElement>([
       "#reader-root .cf-doc-title",
@@ -1681,19 +1740,44 @@ test("public showcase keeps reader and CM6 rich editor block geometry aligned", 
       if (!editor) return [];
       const dy = rounded(editor.y - reader.y);
       const dh = rounded(editor.h - reader.h);
-      if (Math.abs(dy) <= 1 && Math.abs(dh) <= 2.5) return [];
-      return [{ dh, dy, editor, reader }];
+      const dw = rounded(editor.w - reader.w);
+      const textMatches = editor.text === reader.text;
+      if (Math.abs(dy) <= 1 && Math.abs(dh) <= 2.5 && Math.abs(dw) <= 1 && textMatches) {
+        return [];
+      }
+      return [{ dh, dw, dy, textMatches, editor, reader }];
     });
-    return { compared: readerRows.length, mismatches };
+    return {
+      compared: readerRows.filter((row) => editorByRange.has(row.range)).length,
+      mismatches,
+    };
   }, PUBLIC_SHOWCASE_PARITY_END);
 
-  expect(result.compared).toBeGreaterThan(80);
+  expect(result.compared).toBeGreaterThan(75);
   expect(result.mismatches).toEqual([]);
 });
 
-test("public showcase keeps reader and rich-readonly footnote sections aligned", async ({ page }) => {
+test("public showcase keeps reader and rich editor footnote sections aligned", async ({ page }) => {
   await page.setViewportSize({ width: 2560, height: 7200 });
   await loadParityPairSurface(page, "default", PUBLIC_SHOWCASE_PARITY_SOURCE);
+
+  await page.evaluate(async () => {
+    const mounted = (
+      window as typeof window & {
+        __coflatEditor?: { setMode?: (mode: "rich" | "rich-readonly") => void };
+      }
+    ).__coflatEditor;
+    mounted?.setMode?.("rich-readonly");
+    mounted?.setMode?.("rich");
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+  });
+
+  await expectLoadedSelectorsPixelsMatch(page, "showcase footnote section rich editor", {
+    reader: "#reader-root .cf-footnote-section",
+    editor: "#editor-root .cf-footnote-section",
+  });
+
   await page.evaluate(async () => {
     const mounted = (
       window as typeof window & {

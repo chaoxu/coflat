@@ -141,7 +141,12 @@ describe("theme CSS contract", () => {
     expect(cssRuleBody(css, ".cm-line.cf-doc-list-item")).toContain("margin: 0;");
     expect(cssRuleBody(css, ".cm-line.cf-codeblock-header,\n.cm-line.cf-codeblock-body,\n.cm-line.cf-codeblock-last")).toContain("font-style: normal;");
     expect(cssRuleBody(css, ".cm-line.cf-doc-block")).toContain("margin: 0;");
-    expect(cssRuleBody(css, ".cm-line.cf-doc-block--blockquote")).toContain("padding-left: 1em;");
+    expect(cssRuleBody(css, ".cm-line.cf-doc-block--blockquote")).toContain(
+      "padding-left: var(--cf-doc-blockquote-padding-left, 1em);",
+    );
+    expect(cssRuleBody(css, ".cf-editor-virtual-blockquote-display-math")).toContain(
+      "var(--cf-doc-blockquote-padding-left, 1em)",
+    );
   });
 
   it("ships full-document reader defaults for host-rendered documents", () => {
@@ -297,7 +302,10 @@ describe("theme CSS contract", () => {
     expect(cssRuleBody(css, ".cf-block-header-rendered")).toContain("line-height: 0;");
     expect(readRepoFile("editor/editor-theme.css")).not.toContain(".cm-line .cf-block-header-rendered");
     expect(cssRuleBody(css, ".cf-doc-block.cf-doc-block--blockquote")).toContain(
-      "padding-left: 1em;",
+      "padding-left: var(--cf-doc-blockquote-padding-left, 1em);",
+    );
+    expect(css).toContain(
+      "--cf-doc-blockquote-padding-left: 1em;",
     );
   });
 
