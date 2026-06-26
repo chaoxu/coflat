@@ -705,6 +705,7 @@ test("public demo surface switch preserves the visible document position", async
   await page.getByRole("button", { name: "Readonly" }).click();
   await expect(page).toHaveURL(/surface=readonly/);
   await settleLayout(page);
+  await expect(demoHeading(page, "editor", "Math in Lists")).not.toContainText("# Math in Lists");
   await expect
     .poll(async () => Math.abs(await demoHeadingTop(page, "editor", "Math in Lists") - editorTop))
     .toBeLessThanOrEqual(2);

@@ -218,7 +218,7 @@ function restoreSurfaceScroll(anchor: SourcePosition | null, isReader: boolean, 
   if (isReader) {
     restoreReaderSourcePosition(anchor, switchVersion);
   } else {
-    editor.scrollToSourcePosition(anchor);
+    editor.scrollToSourcePosition({ ...anchor, select: false });
   }
 }
 

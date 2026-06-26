@@ -150,6 +150,7 @@ export interface ScrollToSourcePositionOptions extends ScrollToPositionOptions {
   readonly line?: number;
   readonly viewportRatio?: number;
   readonly viewportY?: number;
+  readonly select?: boolean;
 }
 
 export interface MountedEditor {
@@ -367,10 +368,11 @@ export function mountEditor(options: MountEditorOptions): MountedEditor {
           : 0;
       const center = "center" in position ? position.center : true;
       const target = Math.max(0, Math.min(view.state.doc.length, pos));
+      const select = "select" in position ? position.select !== false : true;
       view.dispatch({
-        selection: { anchor: target },
+        selection: select ? { anchor: target } : undefined,
         effects: center ? EditorView.scrollIntoView(target, { y: "center" }) : undefined,
-        scrollIntoView: !center,
+        scrollIntoView: select && !center,
       });
       const viewportY = "viewportY" in position ? position.viewportY : undefined;
       const viewportRatio = "viewportRatio" in position ? position.viewportRatio : undefined;
