@@ -104,6 +104,7 @@ function buildBlockDecorations(state: EditorState): DecorationSet {
   const baseDecos = buildFencedBlockDecorations(state, collectFencedDivs, ({
     state,
     block: div,
+    cursorOnOpenFence,
     openLine,
     closeLine,
   }, items) => {
@@ -112,7 +113,7 @@ function buildBlockDecorations(state: EditorState): DecorationSet {
 
     if (!plugin) return;
 
-    const structureEditActive = isFencedStructureSourceEditActive(state, div);
+    const structureEditActive = isFencedStructureSourceEditActive(state, div) || cursorOnOpenFence;
     const activeShell = activeShellStarts.has(div.openFenceFrom);
 
     const numberEntry = counterState?.byPosition.get(div.from);

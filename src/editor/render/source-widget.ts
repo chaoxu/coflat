@@ -318,6 +318,7 @@ export abstract class RenderWidget extends BaseRenderWidget {
     el.style.cursor = "pointer";
     el.addEventListener("mousedown", (event) => {
       event.preventDefault();
+      event.stopPropagation();
       view.focus();
       const targetPos = resolveSourceRevealTargetFromPointer(view, el, event, this.sourceFrom);
       if (targetPos >= 0 && activateStructureEditAt(view, targetPos)) {
