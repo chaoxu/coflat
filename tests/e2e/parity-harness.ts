@@ -313,11 +313,13 @@ export async function loadParityPairSurface(
   preset: ParityPreset,
   source?: string,
   mode?: ParityEditorMode,
+  reader?: "rich-readonly",
 ) {
   await setParitySource(page, source);
   const params = new URLSearchParams();
   if (preset !== "default") params.set("preset", preset);
   if (mode && mode !== "rich") params.set("mode", mode);
+  if (reader) params.set("reader", reader);
   const query = params.toString();
   await gotoParityFixture(page, `/tests/e2e/fixtures/parity.html${query ? `?${query}` : ""}`);
   await disableParityMotion(page);

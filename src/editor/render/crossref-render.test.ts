@@ -126,7 +126,7 @@ describe("ClusteredCrossrefWidget per-item spans", () => {
     );
     const el = widget.toDOM();
     expect(el.tagName).toBe("SPAN");
-    expect(el.className).toBe(CSS.crossref);
+    expect(el.className).toBe(CSS.citationCluster);
 
     // Should have two child spans (with text nodes between)
     const spans = el.querySelectorAll("span[data-ref-id]");

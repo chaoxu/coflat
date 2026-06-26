@@ -5,7 +5,14 @@ import {
   createEditor,
   editorModeField,
   setEditorMode,
+  type EditorConfig,
+  type EditorLazyFeature,
 } from "./src/editor";
+import type {
+  EditorPlugin,
+  EditorPluginLifecycleEvent,
+} from "./src/editor/editor-plugin";
+import type { EditorPluginPresetName } from "./src/editor/editor-plugin-presets";
 import {
   createPerFilePanelApi,
   type Counts,
@@ -66,6 +73,10 @@ export interface MountEditorOptions {
   mode?: StandaloneEditorMode;
   /** Extra CodeMirror extensions supplied by the host. */
   extensions?: readonly Extension[];
+  /** Built-in plugin preset for optional editor features. */
+  pluginPreset?: EditorPluginPresetName;
+  /** Explicit plugin descriptors. Overrides `pluginPreset` when supplied. */
+  plugins?: readonly EditorPlugin[];
   /** Initial sidenote layout. Collapsed renders footnotes in the document tail. */
   sidenotesCollapsed?: boolean;
   /** Host context for links, references, citations, file I/O, and math. */
@@ -114,6 +125,13 @@ export interface MountEditorOptions {
    * library default picker).
    */
   autocompleteSources?: readonly AutocompleteSource[];
+  /**
+   * Called as dynamically imported editor features attach after first mount.
+   * Useful for measuring progressive editor readiness.
+   */
+  onLazyFeatureReady?: (feature: EditorLazyFeature) => void;
+  /** Called as lazy editor plugins become active. */
+  onPluginReady?: (event: EditorPluginLifecycleEvent) => void;
   /**
    * Optional source-file identifier passed into
    * {@link AutocompleteEnv.from}. Usually the path the document was
@@ -271,9 +289,13 @@ export function mountEditor(options: MountEditorOptions): MountedEditor {
     }
   });
 
-  let view: EditorView | null = createEditor({
+  const editorConfig: EditorConfig = {
     parent: options.parent,
     doc: initialDoc,
+    pluginPreset: options.pluginPreset ?? "full",
+    plugins: options.plugins,
+    onLazyFeatureReady: options.onLazyFeatureReady,
+    onPluginReady: options.onPluginReady,
     extensions: [
       updateListener,
       panelApi.extension,
@@ -303,7 +325,8 @@ export function mountEditor(options: MountEditorOptions): MountedEditor {
       ...(options.commands ? [commandRegistryExtension(options.commands)] : []),
       documentContextExtension(options.context),
     ],
-  });
+  };
+  let view: EditorView | null = createEditor(editorConfig);
   panelApi.attach(view);
   const initialBibData = bibDataFromDocumentContext(options.context);
   if (initialBibData) view.dispatch({ effects: bibDataEffect.of(initialBibData) });

@@ -1734,6 +1734,19 @@ test("theme presets keep full reader and CM6 content pixels aligned", async ({ p
   }
 });
 
+test("fast rich-readonly entry keeps full document pixels aligned with CM6 readonly", async ({ page }) => {
+  await page.setViewportSize({ width: 2560, height: 7200 });
+
+  await loadParityPairSurface(
+    page,
+    "default",
+    PUBLIC_SHOWCASE_PARITY_SOURCE,
+    "rich-readonly",
+    "rich-readonly",
+  );
+  await expectLoadedSplitContentPixelsMatch(page, "fast rich-readonly public showcase");
+});
+
 test("reader and CM6 rich editor keep image and caption surfaces aligned", async ({ page }) => {
   await page.setViewportSize({ width: 2560, height: 1800 });
   await loadParityPairSurface(page, "default", IMAGE_CAPTION_PARITY_SOURCE);

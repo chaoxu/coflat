@@ -9,3 +9,5 @@ export const wordWrapCompartment = new Compartment();
 export const lineNumbersCompartment = new Compartment();
 export const tabSizeCompartment = new Compartment();
 export const treeViewCompartment = new Compartment();
+export const referenceAutocompleteCompartment = new Compartment();
+export const blockTypePickerCompartment = new Compartment();

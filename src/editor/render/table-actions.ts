@@ -1,5 +1,4 @@
 import type { EditorView } from "@codemirror/view";
-import { ContextMenu } from "../lib/context-menu";
 import type { ContextMenuItem } from "../lib/context-menu";
 import {
   addColumn,
@@ -271,8 +270,10 @@ export function showTableContextMenu(
   table: TableRange,
   x: number,
   y: number,
-): void {
+): Promise<void> {
+  return import("../lib/context-menu").then(({ ContextMenu }) => {
   new ContextMenu(buildTableContextMenuItems(view, table), x, y);
+  });
 }
 
 /**
@@ -291,6 +292,8 @@ export function showWidgetContextMenu(
   col: number,
   x: number,
   y: number,
-): void {
+): Promise<void> {
+  return import("../lib/context-menu").then(({ ContextMenu }) => {
   new ContextMenu(buildWidgetContextMenuItems(view, table, section, row, col), x, y);
+  });
 }

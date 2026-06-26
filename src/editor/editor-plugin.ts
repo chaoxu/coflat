@@ -1,6 +1,17 @@
 import { Compartment, type Extension } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
 
+export type EditorPluginLoadTiming = "initial" | "after-mount" | "manual";
+
+export interface EditorPluginRuntimeContext {
+  readonly isDark?: boolean;
+}
+
+export interface EditorPluginLifecycleEvent {
+  readonly id: string;
+  readonly phase: string;
+}
+
 /**
  * An EditorPlugin encapsulates a toggleable CM6 feature with a stable identity.
  *
@@ -17,12 +28,25 @@ export interface EditorPlugin {
   /** Whether the plugin is enabled by default when first registered. */
   readonly defaultEnabled: boolean;
   /**
+   * When to materialize this plugin. `initial` keeps old eager behavior;
+   * `after-mount` leaves an empty compartment in the initial editor state and
+   * fills it after the first editable surface exists.
+   */
+  readonly loadTiming?: EditorPluginLoadTiming;
+  /** Lifecycle phase reported when the plugin becomes active. */
+  readonly readyPhase?: string;
+  /**
    * Return the CM6 extensions that implement this feature.
    * Called each time the plugin is activated (initial load and every
    * re-enable after a disable).  Implementations should be pure — return
    * the same logical extension objects across calls where possible.
    */
-  extensions(): Extension;
+  extensions?(): Extension;
+  /**
+   * Dynamically load the CM6 extensions that implement this feature. Use this
+   * for optional UI or tooling that should not block first editor pixels.
+   */
+  load?(context: EditorPluginRuntimeContext): Extension | Promise<Extension>;
 }
 
 /** Runtime state for a registered plugin. */
@@ -30,6 +54,18 @@ interface PluginEntry {
   plugin: EditorPlugin;
   compartment: Compartment;
   enabled: boolean;
+  extension: Extension | null;
+  loading: Promise<Extension | null> | null;
+  token: number;
+}
+
+function isPromiseLikeExtension(value: Extension | Promise<Extension> | undefined): value is Promise<Extension> {
+  return typeof (value as Promise<Extension> | undefined)?.then === "function";
+}
+
+export interface EditorPluginManagerOptions {
+  readonly context?: EditorPluginRuntimeContext;
+  readonly onReady?: (event: EditorPluginLifecycleEvent) => void;
 }
 
 /**
@@ -45,8 +81,12 @@ interface PluginEntry {
  */
 export class EditorPluginManager {
   private readonly entries = new Map<string, PluginEntry>();
+  private context: EditorPluginRuntimeContext = {};
+  private onReady?: (event: EditorPluginLifecycleEvent) => void;
 
-  constructor(plugins: EditorPlugin[] = []) {
+  constructor(plugins: readonly EditorPlugin[] = [], options: EditorPluginManagerOptions = {}) {
+    this.context = options.context ?? {};
+    this.onReady = options.onReady;
     for (const plugin of plugins) {
       this.register(plugin);
     }
@@ -62,6 +102,9 @@ export class EditorPluginManager {
       plugin,
       compartment: new Compartment(),
       enabled: plugin.defaultEnabled,
+      extension: null,
+      loading: null,
+      token: 0,
     });
   }
 
@@ -70,14 +113,29 @@ export class EditorPluginManager {
    * Each plugin's extensions are wrapped in its private `Compartment` so
    * they can be reconfigured later.
    */
-  initialExtensions(): Extension[] {
+  initialExtensions(context: EditorPluginRuntimeContext = this.context): Extension[] {
+    this.context = context;
     const result: Extension[] = [];
     for (const entry of this.entries.values()) {
+      const shouldLoadNow =
+        entry.enabled && (entry.plugin.loadTiming ?? "initial") === "initial";
+      const extension = shouldLoadNow ? this.loadSync(entry) : [];
       result.push(
-        entry.compartment.of(entry.enabled ? entry.plugin.extensions() : []),
+        entry.compartment.of(entry.enabled ? extension : []),
       );
     }
     return result;
+  }
+
+  attach(view: EditorView, options: EditorPluginManagerOptions = {}): void {
+    this.context = options.context ?? this.context;
+    this.onReady = options.onReady ?? this.onReady;
+    for (const entry of this.entries.values()) {
+      if (!entry.enabled) continue;
+      if ((entry.plugin.loadTiming ?? "initial") === "after-mount") {
+        void this.loadIntoView(entry, view);
+      }
+    }
   }
 
   /**
@@ -87,26 +145,29 @@ export class EditorPluginManager {
    * enabled state is updated so the next `initialExtensions()` call picks
    * it up correctly — no dispatch is attempted.
    */
-  setEnabled(view: EditorView | null, id: string, enabled: boolean): void {
+  async setEnabled(view: EditorView | null, id: string, enabled: boolean): Promise<void> {
     const entry = this.entries.get(id);
     if (!entry) return;
     if (entry.enabled === enabled) return;
 
     entry.enabled = enabled;
     if (view) {
-      view.dispatch({
-        effects: entry.compartment.reconfigure(
-          enabled ? entry.plugin.extensions() : [],
-        ),
-      });
+      entry.token += 1;
+      if (!enabled) {
+        entry.extension = null;
+        entry.loading = null;
+        view.dispatch({ effects: entry.compartment.reconfigure([]) });
+        return;
+      }
+      await this.loadIntoView(entry, view);
     }
   }
 
   /** Toggle a plugin between enabled and disabled. */
-  toggle(view: EditorView | null, id: string): void {
+  async toggle(view: EditorView | null, id: string): Promise<void> {
     const entry = this.entries.get(id);
     if (!entry) return;
-    this.setEnabled(view, id, !entry.enabled);
+    await this.setEnabled(view, id, !entry.enabled);
   }
 
   /** Return whether a plugin is currently enabled. */
@@ -121,5 +182,56 @@ export class EditorPluginManager {
       enabled,
     }));
   }
-}
 
+  private loadSync(entry: PluginEntry): Extension {
+    if (entry.extension) return entry.extension;
+    if (entry.plugin.extensions) {
+      entry.extension = entry.plugin.extensions();
+      this.emitReady(entry);
+      return entry.extension;
+    }
+    const loaded = entry.plugin.load?.(this.context);
+    if (isPromiseLikeExtension(loaded)) {
+      return [];
+    }
+    const extension = loaded ?? [];
+    entry.extension = extension;
+    this.emitReady(entry);
+    return extension;
+  }
+
+  private async loadIntoView(entry: PluginEntry, view: EditorView): Promise<void> {
+    const token = entry.token + 1;
+    entry.token = token;
+    const extension = await this.load(entry);
+    if (!entry.enabled || entry.token !== token) return;
+    try {
+      view.dispatch({
+        effects: entry.compartment.reconfigure(extension ?? []),
+      });
+      this.emitReady(entry);
+    } catch (_error) {
+      // The editor may have been destroyed before an optional plugin arrived.
+    }
+  }
+
+  private async load(entry: PluginEntry): Promise<Extension | null> {
+    if (entry.extension) return entry.extension;
+    if (entry.loading) return entry.loading;
+    entry.loading = Promise.resolve(
+      entry.plugin.load ? entry.plugin.load(this.context) : entry.plugin.extensions?.(),
+    ).then((extension) => {
+      entry.extension = extension ?? [];
+      entry.loading = null;
+      return entry.extension;
+    });
+    return entry.loading;
+  }
+
+  private emitReady(entry: PluginEntry): void {
+    this.onReady?.({
+      id: entry.plugin.id,
+      phase: entry.plugin.readyPhase ?? `plugin:${entry.plugin.id}:ready`,
+    });
+  }
+}

@@ -4,6 +4,11 @@ import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  assertPackageGraphBoundaries,
+  formatPackageGraphReport,
+  measurePackageGraph,
+} from "./measure-package-graph.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -31,7 +36,9 @@ const latexFilter = read("dist/latex/filter.lua");
 const latexSyntaxManifest = read("dist/latex/syntax-manifest.lua");
 const jsExports = [
   "../dist/editor.mjs",
+  "../dist/editor-lazy.mjs",
   "../dist/reader.mjs",
+  "../dist/rich-readonly.mjs",
   "../dist/reader-worker.mjs",
   "../dist/parse.mjs",
   "../dist/citeproc.mjs",
@@ -44,7 +51,9 @@ for (const entry of jsExports) {
   await import(entry);
 }
 const { renderToHtml } = await import("../dist/reader.mjs");
+const { renderFastRichReadonlyHtml } = await import("../dist/rich-readonly.mjs");
 const rendered = renderToHtml(source, undefined, { sourceLineAttribution: true });
+const richReadonly = renderFastRichReadonlyHtml(source, undefined, { outline: true });
 
 assertIncludes(rendered.html, 'class="cf-doc-heading cf-doc-heading--h1"', "reader html");
 assertIncludes(rendered.html, 'cf-doc-heading--unnumbered', "reader html");
@@ -53,6 +62,10 @@ assertIncludes(rendered.html, 'class="cf-doc-list cf-doc-list--unordered', "read
 assertIncludes(rendered.html, 'class="cf-doc-code-block"', "reader html");
 assertIncludes(rendered.html, 'class="cf-doc-table-block"', "reader html");
 assertIncludes(rendered.html, 'cf-doc-block--theorem', "reader html");
+assertIncludes(richReadonly.html, 'class="cf-doc-table-block"', "rich-readonly html");
+if (!richReadonly.outline || richReadonly.outline.length === 0) {
+  throw new Error("rich-readonly html did not expose outline metadata");
+}
 if (rendered.html.includes("{.unnumbered}") || rendered.html.includes("{-}")) {
   throw new Error("reader html leaked Pandoc heading attributes");
 }
@@ -76,6 +89,14 @@ assertIncludes(surfaceCss, ".katex-display", "dist/document-surface.css");
 assertNotMatches(surfaceCss, /\.cm-/, "dist/document-surface.css");
 assertNotMatches(css, /(^|})\s*\.font-mono\b/, "dist/editor.css");
 assertNotMatches(surfaceCss, /(^|})\s*\[data-section-number\]::before/, "dist/document-surface.css");
+
+const richReadonlyBundle = read("dist/rich-readonly.mjs");
+assertNotMatches(richReadonlyBundle, /@codemirror|react|react-dom|pdfjs-dist|@citation-js|cmdk|@radix-ui/, "dist/rich-readonly.mjs");
+const lazyEditorBundle = read("dist/editor-lazy.mjs");
+assertNotMatches(lazyEditorBundle, /@codemirror\/lang-(cpp|css|html|java|javascript|json|python|rust)|cmdk|@radix-ui\/react-context-menu/, "dist/editor-lazy.mjs");
+const packageGraph = measurePackageGraph();
+assertPackageGraphBoundaries(packageGraph);
+console.log(formatPackageGraphReport(packageGraph));
 
 assertIncludes(latexCsl, 'citation-format="numeric"', "dist/latex/csl/ieee.csl");
 assertIncludes(latexFilter, "syntax-manifest.lua", "dist/latex/filter.lua");

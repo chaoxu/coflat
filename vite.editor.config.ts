@@ -66,7 +66,9 @@ export default defineConfig(({ mode }) => ({
     lib: {
       entry: {
         editor: fileURLToPath(new URL("./editor.ts", import.meta.url)),
+        "editor-lazy": fileURLToPath(new URL("./editor-lazy.ts", import.meta.url)),
         reader: fileURLToPath(new URL("./reader.ts", import.meta.url)),
+        "rich-readonly": fileURLToPath(new URL("./rich-readonly.ts", import.meta.url)),
         "reader-worker": fileURLToPath(new URL("./reader-worker.ts", import.meta.url)),
         parse: fileURLToPath(new URL("./parse.ts", import.meta.url)),
         citeproc: fileURLToPath(new URL("./citeproc.ts", import.meta.url)),

@@ -29,6 +29,14 @@
       "types": "./dist/reader.d.ts",
       "import": "./dist/reader.mjs"
     },
+    "./rich-readonly": {
+      "types": "./dist/rich-readonly.d.ts",
+      "import": "./dist/rich-readonly.mjs"
+    },
+    "./editor-lazy": {
+      "types": "./dist/editor-lazy.d.ts",
+      "import": "./dist/editor-lazy.mjs"
+    },
     "./reader/worker": {
       "types": "./dist/reader-worker.d.ts",
       "import": "./dist/reader-worker.mjs"
@@ -74,6 +82,7 @@
     "check:static": "pnpm typecheck && pnpm lint",
     "dev:pages": "vite --config vite.pages.config.ts --host 127.0.0.1 --port 5190",
     "build:pages": "vite build --config vite.pages.config.ts",
+    "measure:package-graph": "pnpm build && node scripts/measure-package-graph.mjs --assert",
     "check:package": "pnpm build && pnpm publint",
     "check:package-smoke": "pnpm build && node scripts/package-smoke.mjs",
     "test:watch": "vitest",

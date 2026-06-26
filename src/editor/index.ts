@@ -25,6 +25,7 @@ export {
   lineNumbersCompartment,
   tabSizeCompartment,
   type Cm6HistoryState,
+  type EditorLazyFeature,
   type EditorConfig,
 } from "./editor";
 export {
@@ -154,7 +155,23 @@ export {
   programmaticDocumentChangeAnnotation,
 } from "./state/programmatic-document-change";
 export { renderInlineMarkdown } from "./render/inline-render";
-export { type EditorPlugin, EditorPluginManager } from "./editor-plugin";
+export {
+  type EditorPlugin,
+  type EditorPluginLifecycleEvent,
+  type EditorPluginLoadTiming,
+  type EditorPluginRuntimeContext,
+  EditorPluginManager,
+} from "./editor-plugin";
+export {
+  blockTypePickerEditorPlugin,
+  editorPluginPresets,
+  fullEditorPlugins,
+  listOutlinerEditorPlugin,
+  referenceAutocompleteEditorPlugin,
+  resolveEditorPluginPreset,
+  workbenchEditorPlugins,
+  type EditorPluginPresetName,
+} from "./editor-plugin-presets";
 export { defaultEditorPlugins } from "./editor-plugins-registry";
 export { createInlineEditor, type InlineEditorOptions } from "./inline-editor";
 export {

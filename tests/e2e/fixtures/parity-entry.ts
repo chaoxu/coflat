@@ -9,6 +9,7 @@ import {
   hydrateReaderDisclosures,
   renderToHtml,
 } from "../../../reader";
+import { mountRichReadonlyDocument } from "../../../rich-readonly";
 import { parseFrontmatter } from "../../../src/core/parser";
 import { buildReferenceCatalog } from "../../../parse";
 import { CSS } from "../../../src/core/constants/css-classes";
@@ -27,6 +28,7 @@ document.body.dataset.surface = params.get("surface") ?? "split";
 const requestedMode = params.get("mode");
 const editorMode: StandaloneEditorMode =
   requestedMode === "source" || requestedMode === "rich-readonly" ? requestedMode : "rich";
+const readerMode = params.get("reader");
 
 const source = window.localStorage.getItem(PARITY_SOURCE_KEY) ?? DEFAULT_PARITY_SOURCE;
 
@@ -49,12 +51,27 @@ const context = {
 const readerRoot = requiredHTMLElement("reader-root");
 const editorRoot = requiredHTMLElement("editor-root");
 
-readerRoot.innerHTML = renderToHtml(source, context, { sourcePositions: true }).html;
-hydrateReaderDisclosures(readerRoot);
-hydrateMedia(readerRoot);
+const mountedRichReadonly = readerMode === "rich-readonly"
+  ? mountRichReadonlyDocument({
+      root: readerRoot,
+      source,
+      context,
+      renderOptions: { sourcePositions: true },
+      hydration: { math: false },
+    })
+  : null;
+const readerResult = mountedRichReadonly?.result ?? renderToHtml(source, context, { sourcePositions: true });
+
+if (readerMode !== "rich-readonly") {
+  readerRoot.innerHTML = readerResult.html;
+  hydrateReaderDisclosures(readerRoot);
+  hydrateMedia(readerRoot);
+}
+
 for (const textSpan of Array.from(readerRoot.querySelectorAll("span.cf-text"))) {
   textSpan.replaceWith(document.createTextNode(textSpan.textContent ?? ""));
 }
+await mountedRichReadonly?.ready;
 await hydrateMath(readerRoot, { mathMacros: context.mathMacros });
 
 const mounted = mountEditor({
