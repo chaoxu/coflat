@@ -130,6 +130,37 @@ describe("renderToHtml — slow path (Lezer)", () => {
     expect(r.mathMacros).toEqual({ "\\foo": "\\mathbb{R}", "\\bar": "\\mathcal{B}" });
   });
 
+  it("emits host-controlled layout gaps at source-line block boundaries", () => {
+    const source = "first\n\nsecond\n\nthird";
+    const r = renderToHtml(source, undefined, {
+      layoutGaps: [
+        { id: "gap-before-second", sourceLine: 3, height: 18, className: "cosheaf-gap bad$class" },
+        { id: "gap-after-third", sourceLine: 5, placement: "after", height: 7 },
+      ],
+    });
+
+    expect(r.html).toContain(
+      '<div class="cf-doc-layout-gap cosheaf-gap" data-cf-layout-gap-id="gap-before-second" style="height:18px" aria-hidden="true"></div>' +
+        '<p class="cf-doc-paragraph">second</p>',
+    );
+    expect(r.html).toContain(
+      '<p class="cf-doc-paragraph">third</p>' +
+        '<div class="cf-doc-layout-gap" data-cf-layout-gap-id="gap-after-third" style="height:7px" aria-hidden="true"></div>',
+    );
+    expect(r.html).not.toContain("data-source-line=");
+  });
+
+  it("does not emit invalid or unmatched layout gaps", () => {
+    const r = renderToHtml("first\n\nsecond", undefined, {
+      layoutGaps: [
+        { id: "bad-line", sourceLine: 0, height: 8 },
+        { id: "missing", sourceLine: 100, height: 8 },
+      ],
+    });
+
+    expect(r.html).not.toContain("cf-doc-layout-gap");
+  });
+
   it("omits result.mathMacros when the document defines no macros", () => {
     expect(renderToHtml("# Heading\n\nbody").mathMacros).toBeUndefined();
     // Plain math with no preamble still needs no macros.

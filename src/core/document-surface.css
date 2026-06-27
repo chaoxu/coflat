@@ -868,6 +868,12 @@
   line-height: inherit;
 }
 
+.cf-doc-flow .cf-doc-layout-gap {
+  display: block;
+  height: 0;
+  pointer-events: none;
+}
+
 .cf-doc-flow .cf-doc-block-collapsible > .cf-doc-block-heading,
 .cf-doc-flow details.cf-doc-block > .cf-doc-block-heading {
   display: block;

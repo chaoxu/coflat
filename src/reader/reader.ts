@@ -676,6 +676,8 @@ interface WalkContext {
   source: string;
   resolvers: Resolvers;
   lineOffsets: Uint32Array | null;
+  /** When true, emit 1-based source line attributes on block elements. */
+  sourceLineAttribution: boolean;
   /** When true, emit `data-source-from`/`data-source-to` byte offsets on
    *  every block element, inline mark, math placeholder, and plain-text
    *  span (the latter wrapped in `<span class="cf-text">`). */
@@ -723,6 +725,16 @@ interface WalkContext {
    *  as unnumbered even though the numbering walk still advances (for crossref
    *  resolution). Defaults to true. */
   numberHeadings: boolean;
+  layoutGaps: ReaderLayoutGap[];
+  emittedLayoutGapIds: Set<string>;
+}
+
+export interface ReaderLayoutGap {
+  id: string;
+  sourceLine: number;
+  placement?: "before" | "after";
+  height?: number;
+  className?: string;
 }
 
 function sourcePosAttrs(ctx: WalkContext, from: number, to: number): string {
@@ -1104,7 +1116,7 @@ type TruncateSpec = { lines: number } | { chars: number };
 
 export type ReaderOutlineEntry = DocumentOutlineEntry;
 
-interface RenderOptions {
+export interface RenderOptions {
   /** If true, emit `data-source-line` on every block-level element. */
   sourceLineAttribution?: boolean;
   /**
@@ -1163,6 +1175,16 @@ interface RenderOptions {
    * numbers (coflat#47).
    */
   sectionNumbering?: boolean;
+  /**
+   * Host-controlled block-boundary layout gaps. The reader resolves each
+   * 1-based source line to the first rendered block whose source line range
+   * contains it and emits a placeholder gap before or after that block.
+   *
+   * This is intentionally document-layout metadata, not diff semantics: hosts
+   * own PR/gap pairing and only ask Coflat to insert placeholders at safe
+   * rendered boundaries.
+   */
+  layoutGaps?: readonly ReaderLayoutGap[];
 }
 
 export interface TruncatedInfo {
@@ -1198,7 +1220,7 @@ function combineBlocks(blocks: BlockResult[]): BlockResult {
 function blockSourceAttrs(ctx: WalkContext, from: number, to: number, kind = "block"): string {
   const lineRange = sourceLineRange(ctx, from, to);
   return sourceRangeAttrs({
-    sourceLine: ctx.sourceMap ? null : lineRange?.from ?? null,
+    sourceLine: ctx.sourceLineAttribution && !ctx.sourceMap ? lineRange?.from ?? null : null,
     sourceLineRange: ctx.sourceMap ? lineRange ?? null : null,
     sourceRange: ctx.sourcePositions ? { from, to } : null,
   }) + sourceAnchorAttrs(ctx, kind, "block", from, to);
@@ -1207,10 +1229,66 @@ function blockSourceAttrs(ctx: WalkContext, from: number, to: number, kind = "bl
 function blockMathSourceAttrs(ctx: WalkContext, from: number, to: number, kind = "display-math"): string {
   const lineRange = sourceLineRange(ctx, from, to);
   return sourceRangeAttrs({
-    sourceLine: ctx.sourceMap ? null : lineRange?.from ?? null,
+    sourceLine: ctx.sourceLineAttribution && !ctx.sourceMap ? lineRange?.from ?? null : null,
     sourceLineRange: ctx.sourceMap ? lineRange ?? null : null,
     sourceRange: ctx.mathSourcePositions ? { from, to } : null,
   }) + sourceAnchorAttrs(ctx, kind, "block", from, to);
+}
+
+function normalizeLayoutGaps(gaps: readonly ReaderLayoutGap[] | undefined): ReaderLayoutGap[] {
+  if (!gaps?.length) return [];
+  const out: ReaderLayoutGap[] = [];
+  const seen = new Set<string>();
+  for (const gap of gaps) {
+    if (!gap.id || seen.has(gap.id)) continue;
+    if (!Number.isInteger(gap.sourceLine) || gap.sourceLine < 1) continue;
+    seen.add(gap.id);
+    out.push({
+      id: gap.id,
+      sourceLine: gap.sourceLine,
+      placement: gap.placement === "after" ? "after" : "before",
+      ...(Number.isFinite(gap.height) && gap.height !== undefined && gap.height >= 0 ? { height: gap.height } : {}),
+      ...(gap.className ? { className: gap.className } : {}),
+    });
+  }
+  return out;
+}
+
+function layoutGapsForBlock(ctx: WalkContext, from: number, to: number, placement: "before" | "after"): ReaderLayoutGap[] {
+  if (ctx.layoutGaps.length === 0) return [];
+  const lineRange = sourceLineRange(ctx, from, to);
+  if (!lineRange) return [];
+  return ctx.layoutGaps.filter((gap) =>
+    !ctx.emittedLayoutGapIds.has(gap.id) &&
+    (gap.placement ?? "before") === placement &&
+    lineRange.from <= gap.sourceLine &&
+    gap.sourceLine <= lineRange.to
+  );
+}
+
+function renderLayoutGap(gap: ReaderLayoutGap): string {
+  const classes = ["cf-doc-layout-gap", ...safeClassTokens(gap.className)];
+  const style = gap.height === undefined ? "" : ` style="height:${gap.height}px"`;
+  return `<div class="${classes.join(" ")}" data-cf-layout-gap-id="${escapeHtml(gap.id)}"${style} aria-hidden="true"></div>`;
+}
+
+function safeClassTokens(className: string | undefined): string[] {
+  if (!className) return [];
+  return className.split(/\s+/).filter((token) => /^[A-Za-z0-9_-]+$/.test(token));
+}
+
+function emitBlockWithLayoutGaps(ctx: WalkContext, blocks: BlockResult[], block: BlockResult, from: number, to: number): void {
+  const before = layoutGapsForBlock(ctx, from, to, "before");
+  for (const gap of before) {
+    blocks.push({ html: renderLayoutGap(gap), text: "", hasMath: false });
+    ctx.emittedLayoutGapIds.add(gap.id);
+  }
+  blocks.push(block);
+  const after = layoutGapsForBlock(ctx, from, to, "after");
+  for (const gap of after) {
+    blocks.push({ html: renderLayoutGap(gap), text: "", hasMath: false });
+    ctx.emittedLayoutGapIds.add(gap.id);
+  }
 }
 
 function renderBlock(ctx: WalkContext, node: SyntaxNode): BlockResult {
@@ -1541,7 +1619,7 @@ function renderBlankLine(ctx: WalkContext, from: number, to: number): BlockResul
   const lineRange = sourceLineRange(ctx, from, to);
   return {
     html: renderBlankLineHtml(sourceRangeAttrs({
-      sourceLine: ctx.sourceMap ? null : lineRange?.from ?? null,
+      sourceLine: ctx.sourceLineAttribution && !ctx.sourceMap ? lineRange?.from ?? null : null,
       sourceLineRange: ctx.sourceMap ? lineRange ?? null : null,
       sourceRange: ctx.sourcePositions ? { from, to } : null,
     })),
@@ -1715,7 +1793,8 @@ function walkDocument(
   const ctx: WalkContext = {
     source,
     resolvers,
-    lineOffsets: opts.sourceLineAttribution || opts.sourceMap ? buildLineOffsets(source) : null,
+    lineOffsets: opts.sourceLineAttribution || opts.sourceMap || opts.layoutGaps?.length ? buildLineOffsets(source) : null,
+    sourceLineAttribution: !!opts.sourceLineAttribution,
     sourcePositions: !!(opts.sourcePositions || opts.sourceMap),
     mathSourcePositions: !!(opts.sourcePositions || opts.sourceMap || opts.mathSourcePositions),
     semanticBlockDisclosures: surfacePolicy.semanticBlockDisclosures,
@@ -1741,6 +1820,8 @@ function walkDocument(
     buildCatalog,
     buildReferencePreviews: !!opts.referencePreviews,
     numberHeadings: opts.sectionNumbering !== false,
+    layoutGaps: normalizeLayoutGaps(opts.layoutGaps),
+    emittedLayoutGapIds: new Set(),
     sourceMap: !!opts.sourceMap,
     sourceAnchors: [],
     sourceAnchorCounts: new Map(),
@@ -1827,14 +1908,14 @@ function walkDocument(
         // Either used===0 (must emit at least this block, even if it busts
         // budget — atomic blocks) or budget still has room. Emit.
         flushPendingBlankRanges();
-        blocks.push(rendered);
+        emitBlockWithLayoutGaps(ctx, blocks, rendered, child.from, child.to);
         used += cost;
         topCount++;
         return;
       }
       flushPendingBlankRanges();
       topCount++;
-      blocks.push(renderBlock(ctx, child));
+      emitBlockWithLayoutGaps(ctx, blocks, renderBlock(ctx, child), child.from, child.to);
     },
     emitTrailingBlank: (range) => {
       if (!truncated) {
@@ -1851,6 +1932,7 @@ function walkDocument(
   if (
     !truncated &&
     topCount === 1 &&
+    blocks.length === 1 &&
     blocks[0].html.startsWith(`<p class="${paragraphClasses}"`)
   ) {
     const stripped = blocks[0].html
@@ -2044,6 +2126,7 @@ export function renderToHtml(
     !opts.sourceLineAttribution &&
     !opts.sourcePositions &&
     !opts.sourceMap &&
+    !opts.layoutGaps?.length &&
     !opts.truncate &&
     !opts.outline &&
     !opts.resolveReferences &&
