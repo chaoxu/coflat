@@ -3,6 +3,23 @@ export interface SourceRange {
   readonly to: number;
 }
 
+export interface SourceLineRange {
+  readonly from: number;
+  readonly to: number;
+}
+
+export type RenderedSourceAnchorGranularity = "block" | "inline";
+
+export interface RenderedSourceAnchor {
+  readonly id: string;
+  readonly kind?: string;
+  readonly granularity: RenderedSourceAnchorGranularity;
+  readonly sourceRange: SourceRange;
+  readonly lineRange?: SourceLineRange;
+  readonly selector: string;
+  readonly element?: HTMLElement;
+}
+
 export interface SourcePosition {
   readonly pos: number;
   readonly line?: number;
@@ -24,6 +41,7 @@ export interface VisibleSourcePositionOptions {
 export interface SourceRangeAttrsOptions {
   readonly sourceRange?: SourceRange | null;
   readonly sourceLine?: number | null;
+  readonly sourceLineRange?: SourceLineRange | null;
 }
 
 export interface ParseSourceRangeOptions {
@@ -39,8 +57,25 @@ export interface SourceRangeCarrierOptions {
   readonly ignoredClassNames?: readonly string[];
 }
 
+export interface RenderedSourceAnchorLookupOptions {
+  readonly includeInline?: boolean;
+  readonly maxDistance?: number;
+}
+
+export interface ReaderSourceDecoration {
+  readonly anchorId?: string;
+  readonly sourceRange?: SourceRange;
+  readonly sourceLineRange?: SourceLineRange;
+  readonly includeInline?: boolean;
+  readonly className?: string;
+  readonly data?: Readonly<Record<string, string | number | boolean | null | undefined>>;
+  readonly renderOverlay?: (anchor: RenderedSourceAnchor) => HTMLElement | null | undefined;
+  readonly overlayPosition?: "after" | "before" | "append";
+}
+
 const SOURCE_RANGE_CARRIER_SELECTOR = "[data-source-from][data-source-to]";
 const MATH_SOURCE_CARRIER_SELECTOR = "[data-math]";
+const SOURCE_ANCHOR_SELECTOR = "[data-cf-anchor-id][data-source-from][data-source-to]";
 
 export function parseSourceOffset(value: string | null | undefined): number | null {
   if (!value) return null;
@@ -85,6 +120,13 @@ export function sourceRangeFromElement(
     carrier.getAttribute("data-source-to"),
     options,
   );
+}
+
+export function sourceLineRangeFromElement(element: Element): SourceLineRange | null {
+  const from = parseSourceOffset(element.getAttribute("data-source-line"));
+  if (from === null) return null;
+  const to = parseSourceOffset(element.getAttribute("data-source-line-to")) ?? from;
+  return { from, to };
 }
 
 export function isSourceRangeCarrier(element: Element): boolean {
@@ -211,6 +253,193 @@ export function sourceElementAtPosition(
   return best?.element ?? null;
 }
 
+function anchorSelector(id: string): string {
+  const escaped = globalThis.CSS?.escape
+    ? globalThis.CSS.escape(id)
+    : id.replace(/["\\]/g, "\\$&");
+  return `[data-cf-anchor-id="${escaped}"]`;
+}
+
+function sourceRangesOverlap(a: SourceRange, b: SourceRange): boolean {
+  return a.from < b.to && b.from < a.to;
+}
+
+function sourceLineRangesOverlap(a: SourceLineRange, b: SourceLineRange): boolean {
+  return a.from <= b.to && b.from <= a.to;
+}
+
+function sourceRangeContainsRange(outer: SourceRange, inner: SourceRange): boolean {
+  return outer.from <= inner.from && outer.to >= inner.to;
+}
+
+function sourceLineRangeContainsRange(outer: SourceLineRange, inner: SourceLineRange): boolean {
+  return outer.from <= inner.from && outer.to >= inner.to;
+}
+
+function sourceRangeDistanceToRange(range: SourceRange, target: SourceRange): number {
+  if (sourceRangesOverlap(range, target) || sourceRangeContainsRange(range, target)) return 0;
+  if (range.to <= target.from) return target.from - range.to;
+  return range.from - target.to;
+}
+
+function anchorFromElement(element: HTMLElement): RenderedSourceAnchor | null {
+  const sourceRange = sourceRangeFromElement(element);
+  const id = element.dataset.cfAnchorId;
+  if (!sourceRange || !id) return null;
+  const kind = element.dataset.cfBlockKind ?? element.dataset.cfAnchorKind;
+  const granularity = element.dataset.cfAnchorGranularity === "inline" ? "inline" : "block";
+  const lineRange = sourceLineRangeFromElement(element) ?? undefined;
+  return {
+    id,
+    ...(kind ? { kind } : {}),
+    granularity,
+    sourceRange,
+    ...(lineRange ? { lineRange } : {}),
+    selector: anchorSelector(id),
+    element,
+  };
+}
+
+export function renderedSourceAnchorsFromDom(
+  container: ParentNode,
+  options: { readonly includeInline?: boolean } = {},
+): RenderedSourceAnchor[] {
+  const anchors: RenderedSourceAnchor[] = [];
+  for (const element of container.querySelectorAll<HTMLElement>(SOURCE_ANCHOR_SELECTOR)) {
+    const anchor = anchorFromElement(element);
+    if (!anchor) continue;
+    if (!options.includeInline && anchor.granularity === "inline") continue;
+    anchors.push(anchor);
+  }
+  return anchors;
+}
+
+function anchorLookupCandidates(
+  container: ParentNode,
+  options: RenderedSourceAnchorLookupOptions,
+): RenderedSourceAnchor[] {
+  const anchored = renderedSourceAnchorsFromDom(container, options);
+  if (anchored.length > 0) return anchored;
+
+  const fallback: RenderedSourceAnchor[] = [];
+  let index = 0;
+  for (const element of container.querySelectorAll<HTMLElement>(SOURCE_RANGE_CARRIER_SELECTOR)) {
+    const range = sourceRangeFromElement(element);
+    if (!range) continue;
+    const display = element instanceof HTMLElement ? getComputedStyle(element).display : "";
+    const granularity: RenderedSourceAnchorGranularity = display === "inline" ? "inline" : "block";
+    if (!options.includeInline && granularity === "inline") continue;
+    const id = element.dataset.cfAnchorId || `cf-source-${index++}`;
+    const lineRange = sourceLineRangeFromElement(element) ?? undefined;
+    fallback.push({
+      id,
+      granularity,
+      sourceRange: range,
+      ...(lineRange ? { lineRange } : {}),
+      selector: element.dataset.cfAnchorId ? anchorSelector(element.dataset.cfAnchorId) : "",
+      element,
+    });
+  }
+  return fallback;
+}
+
+function nonOverlappingAnchors(
+  anchors: RenderedSourceAnchor[],
+  _target: SourceRange | SourceLineRange,
+  mode: "source" | "line",
+): RenderedSourceAnchor[] {
+  const selected: RenderedSourceAnchor[] = [];
+  for (const anchor of anchors) {
+    const overlaps = selected.some((existing) =>
+      mode === "source"
+        ? sourceRangesOverlap(existing.sourceRange, anchor.sourceRange)
+        : existing.lineRange && anchor.lineRange && sourceLineRangesOverlap(existing.lineRange, anchor.lineRange)
+    );
+    if (!overlaps) {
+      selected.push(anchor);
+      continue;
+    }
+
+    for (let index = 0; index < selected.length; index++) {
+      const existing = selected[index];
+      const conflict = mode === "source"
+        ? sourceRangesOverlap(existing.sourceRange, anchor.sourceRange)
+        : existing.lineRange && anchor.lineRange && sourceLineRangesOverlap(existing.lineRange, anchor.lineRange);
+      if (!conflict) continue;
+      const existingSpan = mode === "source"
+        ? sourceRangeSpan(existing.sourceRange)
+        : (existing.lineRange ? existing.lineRange.to - existing.lineRange.from : Infinity);
+      const anchorSpan = mode === "source"
+        ? sourceRangeSpan(anchor.sourceRange)
+        : (anchor.lineRange ? anchor.lineRange.to - anchor.lineRange.from : Infinity);
+      if (anchorSpan <= existingSpan) {
+        selected[index] = anchor;
+      }
+    }
+  }
+  return selected.sort((a, b) => a.sourceRange.from - b.sourceRange.from || a.sourceRange.to - b.sourceRange.to);
+}
+
+export function renderedAnchorsForSourceRange(
+  container: ParentNode,
+  range: SourceRange,
+  options: RenderedSourceAnchorLookupOptions = {},
+): RenderedSourceAnchor[] {
+  if (!Number.isFinite(range.from) || !Number.isFinite(range.to)) return [];
+  const normalized = range.from <= range.to ? range : { from: range.to, to: range.from };
+  const anchors = anchorLookupCandidates(container, options)
+    .map((anchor) => ({
+      anchor,
+      distance: sourceRangeDistanceToRange(anchor.sourceRange, normalized),
+      contains: sourceRangeContainsRange(anchor.sourceRange, normalized),
+      span: sourceRangeSpan(anchor.sourceRange),
+    }))
+    .filter((item) => item.distance <= (options.maxDistance ?? Infinity))
+    .sort((a, b) =>
+      a.distance - b.distance ||
+      Number(b.contains) - Number(a.contains) ||
+      a.anchor.sourceRange.from - b.anchor.sourceRange.from ||
+      a.span - b.span
+    );
+
+  const exact = anchors.filter((item) =>
+    sourceRangesOverlap(item.anchor.sourceRange, normalized) ||
+    sourceRangeContainsRange(item.anchor.sourceRange, normalized)
+  ).map((item) => item.anchor);
+  if (exact.length > 0) return nonOverlappingAnchors(exact, normalized, "source");
+  return anchors[0] ? [anchors[0].anchor] : [];
+}
+
+export function renderedAnchorsForSourceLineRange(
+  container: ParentNode,
+  range: SourceLineRange,
+  options: RenderedSourceAnchorLookupOptions = {},
+): RenderedSourceAnchor[] {
+  if (!Number.isFinite(range.from) || !Number.isFinite(range.to)) return [];
+  const normalized = range.from <= range.to ? range : { from: range.to, to: range.from };
+  const anchors = anchorLookupCandidates(container, options)
+    .filter((anchor) => anchor.lineRange)
+    .map((anchor) => ({
+      anchor,
+      contains: sourceLineRangeContainsRange(anchor.lineRange!, normalized),
+      overlaps: sourceLineRangesOverlap(anchor.lineRange!, normalized),
+      distance: anchor.lineRange!.to < normalized.from
+        ? normalized.from - anchor.lineRange!.to
+        : anchor.lineRange!.from > normalized.to
+        ? anchor.lineRange!.from - normalized.to
+        : 0,
+    }))
+    .filter((item) => item.distance <= (options.maxDistance ?? Infinity))
+    .sort((a, b) =>
+      a.distance - b.distance ||
+      Number(b.contains) - Number(a.contains) ||
+      a.anchor.sourceRange.from - b.anchor.sourceRange.from
+    );
+  const exact = anchors.filter((item) => item.overlaps || item.contains).map((item) => item.anchor);
+  if (exact.length > 0) return nonOverlappingAnchors(exact, normalized, "line");
+  return anchors[0] ? [anchors[0].anchor] : [];
+}
+
 /**
  * Scroll a rendered reader container to a source offset.
  *
@@ -270,6 +499,25 @@ export function mapDomRangeToSource(
   if (end === null) return null;
 
   return start <= end ? { from: start, to: end } : { from: end, to: start };
+}
+
+export function mapDomNodeToSource(
+  node: Node,
+  container: HTMLElement,
+): SourceRange | null {
+  const element = node.nodeType === Node.ELEMENT_NODE
+    ? (node as Element)
+    : node.parentElement;
+  if (!element || !container.contains(element)) return null;
+  return sourceRangeFromElement(element, { closest: true });
+}
+
+export function mapDomPointToSource(
+  node: Node,
+  offset: number,
+  container: HTMLElement,
+): number | null {
+  return resolveDomRangeEndpoint(node, offset, container, false);
 }
 
 function resolveDomRangeEndpoint(
@@ -353,16 +601,82 @@ function countTextCharsBefore(root: Element, target: Node): number {
 
 export function sourceRangeAttrs({
   sourceLine,
+  sourceLineRange,
   sourceRange,
 }: SourceRangeAttrsOptions): string {
   let attrs = "";
-  if (sourceLine !== undefined && sourceLine !== null) {
-    attrs += ` data-source-line="${sourceLine}"`;
+  const lineFrom = sourceLineRange?.from ?? sourceLine;
+  const lineTo = sourceLineRange?.to ?? lineFrom;
+  if (lineFrom !== undefined && lineFrom !== null) {
+    attrs += ` data-source-line="${lineFrom}"`;
+    if (lineTo !== undefined && lineTo !== null && lineTo !== lineFrom) {
+      attrs += ` data-source-line-to="${lineTo}"`;
+    }
   }
   if (sourceRange) {
     attrs += ` data-source-from="${sourceRange.from}" data-source-to="${sourceRange.to}"`;
   }
   return attrs;
+}
+
+export function applyReaderSourceDecorations(
+  container: ParentNode,
+  decorations: readonly ReaderSourceDecoration[],
+): RenderedSourceAnchor[] {
+  const applied: RenderedSourceAnchor[] = [];
+  for (const decoration of decorations) {
+    let anchors: RenderedSourceAnchor[] = [];
+    if (decoration.anchorId) {
+      const escaped = globalThis.CSS?.escape
+        ? globalThis.CSS.escape(decoration.anchorId)
+        : decoration.anchorId.replace(/["\\]/g, "\\$&");
+      const element = container.querySelector<HTMLElement>(`[data-cf-anchor-id="${escaped}"]`);
+      const anchor = element ? anchorFromElement(element) : null;
+      if (anchor) anchors = [anchor];
+    } else if (decoration.sourceRange) {
+      anchors = renderedAnchorsForSourceRange(container, decoration.sourceRange, {
+        includeInline: decoration.includeInline,
+      });
+    } else if (decoration.sourceLineRange) {
+      anchors = renderedAnchorsForSourceLineRange(container, decoration.sourceLineRange, {
+        includeInline: decoration.includeInline,
+      });
+    }
+
+    for (const anchor of anchors) {
+      const element = anchor.element;
+      if (!element) continue;
+      if (decoration.className) {
+        element.classList.add(...decoration.className.split(/\s+/).filter(Boolean));
+      }
+      if (decoration.data) {
+        for (const [key, value] of Object.entries(decoration.data)) {
+          if (value === null || value === undefined || value === false) {
+            delete element.dataset[key];
+          } else {
+            element.dataset[key] = String(value);
+          }
+        }
+      }
+      const overlay = decoration.renderOverlay?.(anchor);
+      if (overlay) {
+        overlay.dataset.cfAnchorOverlayFor = anchor.id;
+        switch (decoration.overlayPosition ?? "after") {
+          case "before":
+            element.before(overlay);
+            break;
+          case "append":
+            element.appendChild(overlay);
+            break;
+          case "after":
+            element.after(overlay);
+            break;
+        }
+      }
+      applied.push(anchor);
+    }
+  }
+  return applied;
 }
 
 export function applySourceRangeAttrs(

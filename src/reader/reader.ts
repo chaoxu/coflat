@@ -212,14 +212,24 @@ import {
 import {
   sourceRangeAttrs,
   sourceRangeFromElement,
+  type RenderedSourceAnchor,
+  type RenderedSourceAnchorGranularity,
+  type SourceLineRange,
 } from "../core/source-range-surface";
 export {
   applySourceRangeAttrs,
+  applyReaderSourceDecorations,
   closestMathSourceCarrier,
   closestSourceRangeCarrier,
   isSourceRangeCarrier,
   mapDomRangeToSource,
+  mapDomNodeToSource,
+  mapDomPointToSource,
   parseSourceOffset,
+  renderedAnchorsForSourceLineRange,
+  renderedAnchorsForSourceRange,
+  renderedSourceAnchorsFromDom,
+  sourceLineRangeFromElement,
   sourceRangeAttrs,
   sourceRangeFromDataset,
   sourceRangeFromElement,
@@ -227,6 +237,11 @@ export {
   visibleSourcePositionInScroller,
   type ElementSourceRangeOptions,
   type ParseSourceRangeOptions,
+  type ReaderSourceDecoration,
+  type RenderedSourceAnchor,
+  type RenderedSourceAnchorGranularity,
+  type RenderedSourceAnchorLookupOptions,
+  type SourceLineRange,
   type SourceRange,
   type SourceRangeAttrsOptions,
   type SourceRangeCarrierOptions,
@@ -673,6 +688,10 @@ interface WalkContext {
   surfacePolicy: DocumentSurfacePolicy;
   /** When true, emit ids on all headings and accumulate {@link outline}. */
   collectOutline: boolean;
+  /** When true, emit stable rendered source anchors and return a source map. */
+  sourceMap: boolean;
+  sourceAnchors: RenderedSourceAnchor[];
+  sourceAnchorCounts: Map<string, number>;
   /** Headings in document order; populated only when {@link collectOutline}. */
   outline: ReaderOutlineEntry[];
   /** Heading ids already emitted, for slug de-duplication. */
@@ -708,12 +727,54 @@ interface WalkContext {
 
 function sourcePosAttrs(ctx: WalkContext, from: number, to: number): string {
   if (!ctx.sourcePositions) return "";
-  return sourceRangeAttrs({ sourceRange: { from, to } });
+  return sourceRangeAttrs({ sourceRange: { from, to } }) + sourceAnchorAttrs(ctx, "inline", "inline", from, to);
 }
 
 function mathSourcePosAttrs(ctx: WalkContext, from: number, to: number): string {
   if (!ctx.mathSourcePositions) return "";
-  return sourceRangeAttrs({ sourceRange: { from, to } });
+  return sourceRangeAttrs({ sourceRange: { from, to } }) + sourceAnchorAttrs(ctx, "inline-math", "inline", from, to);
+}
+
+function anchorIdPart(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "") || "anchor";
+}
+
+function sourceLineRange(ctx: WalkContext, from: number, to: number): SourceLineRange | undefined {
+  if (!ctx.lineOffsets) return undefined;
+  return {
+    from: lineAt(ctx.lineOffsets, from),
+    to: lineAt(ctx.lineOffsets, Math.max(from, to - 1)),
+  };
+}
+
+function sourceAnchorAttrs(
+  ctx: WalkContext,
+  kind: string,
+  granularity: RenderedSourceAnchorGranularity,
+  from: number,
+  to: number,
+): string {
+  if (!ctx.sourceMap) return "";
+  const key = `${granularity}:${kind}:${from}:${to}`;
+  const previous = ctx.sourceAnchorCounts.get(key) ?? 0;
+  ctx.sourceAnchorCounts.set(key, previous + 1);
+  const base = `cf-${anchorIdPart(granularity)}-${anchorIdPart(kind)}-${from}-${to}`;
+  const id = previous === 0 ? base : `${base}-${previous + 1}`;
+  const selector = `[data-cf-anchor-id="${id}"]`;
+  const lineRange = sourceLineRange(ctx, from, to);
+  ctx.sourceAnchors.push({
+    id,
+    kind,
+    granularity,
+    sourceRange: { from, to },
+    ...(lineRange ? { lineRange } : {}),
+    selector,
+  });
+  const blockKindAttr = granularity === "block" ? ` data-cf-block-kind="${kind}"` : "";
+  return (
+    ` data-cf-anchor-id="${id}" data-cf-anchor-kind="${kind}"` +
+    ` data-cf-anchor-granularity="${granularity}"${blockKindAttr}`
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -1075,6 +1136,12 @@ interface RenderOptions {
    *  `<span class="cf-text" data-source-from=… data-source-to=…>`. Off by
    *  default — output is byte-identical to the un-opted form. */
   sourcePositions?: boolean;
+  /**
+   * If true, emit stable `data-cf-anchor-id` metadata on rendered block and
+   * inline source carriers and return a rendered source map. Implies
+   * `sourcePositions` and line-range attribution for anchors.
+   */
+  sourceMap?: boolean;
   /** If true, emit `data-source-from`/`data-source-to` on math spans only. */
   mathSourcePositions?: boolean;
   /** Block-boundary truncation budget. */
@@ -1128,18 +1195,22 @@ function combineBlocks(blocks: BlockResult[]): BlockResult {
 /** Block-level convenience: emits both `data-source-line` (if
  *  `sourceLineAttribution`) and `data-source-from`/`data-source-to` (if
  *  `sourcePositions`). Pass the block node's `from`/`to`. */
-function blockSourceAttrs(ctx: WalkContext, from: number, to: number): string {
+function blockSourceAttrs(ctx: WalkContext, from: number, to: number, kind = "block"): string {
+  const lineRange = sourceLineRange(ctx, from, to);
   return sourceRangeAttrs({
-    sourceLine: ctx.lineOffsets ? lineAt(ctx.lineOffsets, from) : null,
+    sourceLine: ctx.sourceMap ? null : lineRange?.from ?? null,
+    sourceLineRange: ctx.sourceMap ? lineRange ?? null : null,
     sourceRange: ctx.sourcePositions ? { from, to } : null,
-  });
+  }) + sourceAnchorAttrs(ctx, kind, "block", from, to);
 }
 
-function blockMathSourceAttrs(ctx: WalkContext, from: number, to: number): string {
+function blockMathSourceAttrs(ctx: WalkContext, from: number, to: number, kind = "display-math"): string {
+  const lineRange = sourceLineRange(ctx, from, to);
   return sourceRangeAttrs({
-    sourceLine: ctx.lineOffsets ? lineAt(ctx.lineOffsets, from) : null,
+    sourceLine: ctx.sourceMap ? null : lineRange?.from ?? null,
+    sourceLineRange: ctx.sourceMap ? lineRange ?? null : null,
     sourceRange: ctx.mathSourcePositions ? { from, to } : null,
-  });
+  }) + sourceAnchorAttrs(ctx, kind, "block", from, to);
 }
 
 function renderBlock(ctx: WalkContext, node: SyntaxNode): BlockResult {
@@ -1188,7 +1259,7 @@ function renderBlock(ctx: WalkContext, node: SyntaxNode): BlockResult {
         html: renderDisplayMathPlaceholderHtml(plan.latex, raw, {
           equationNumber,
           id: equationId ?? undefined,
-          sourceAttrs: blockMathSourceAttrs(ctx, plan.sourceRange.from, plan.sourceRange.to),
+          sourceAttrs: blockMathSourceAttrs(ctx, plan.sourceRange.from, plan.sourceRange.to, "display-math"),
         }),
         text: raw,
         hasMath: true,
@@ -1291,7 +1362,7 @@ function renderHeading(ctx: WalkContext, node: SyntaxNode): BlockResult {
         sectionNumber: headingNumber,
         unnumbered: displayUnnumbered,
       },
-      blockSourceAttrs(ctx, plan.sourceRange.from, plan.sourceRange.to),
+      blockSourceAttrs(ctx, plan.sourceRange.from, plan.sourceRange.to, `heading-${plan.level}`),
     ),
     text: plan.text,
     hasMath: plan.hasMath,
@@ -1309,7 +1380,7 @@ function renderParagraph(ctx: WalkContext, node: SyntaxNode): BlockResult {
     plan.contentRange.to,
   );
   return {
-    html: renderParagraphHtml(inner.html, blockSourceAttrs(ctx, plan.sourceRange.from, plan.sourceRange.to)),
+    html: renderParagraphHtml(inner.html, blockSourceAttrs(ctx, plan.sourceRange.from, plan.sourceRange.to, "paragraph")),
     text: plan.text,
     hasMath: plan.hasMath,
   };
@@ -1318,7 +1389,7 @@ function renderParagraph(ctx: WalkContext, node: SyntaxNode): BlockResult {
 function renderHorizontalRule(ctx: WalkContext, node: SyntaxNode): BlockResult {
   const plan = horizontalRuleRenderPlan(node);
   return {
-    html: renderHorizontalRuleHtml(blockSourceAttrs(ctx, plan.sourceRange.from, plan.sourceRange.to)),
+    html: renderHorizontalRuleHtml(blockSourceAttrs(ctx, plan.sourceRange.from, plan.sourceRange.to, "horizontal-rule")),
     text: "",
     hasMath: false,
   };
@@ -1333,7 +1404,7 @@ function renderList(ctx: WalkContext, node: SyntaxNode): BlockResult {
     html: renderListSurfaceHtml(
       surfacePlan.options,
       items.map((b) => b.html).join(""),
-      blockSourceAttrs(ctx, plan.sourceRange.from, plan.sourceRange.to),
+      blockSourceAttrs(ctx, plan.sourceRange.from, plan.sourceRange.to, plan.ordered ? "ordered-list" : "bullet-list"),
     ),
     text: items.map((b) => b.text).join("\n"),
     hasMath: items.some((b) => b.hasMath),
@@ -1359,7 +1430,7 @@ function renderListItem(
         blocks.push({
           html: renderParagraphHtml(
             inner.html,
-            blockSourceAttrs(ctx, plan.task.trimmedContentRange.from, plan.task.trimmedContentRange.to),
+            blockSourceAttrs(ctx, plan.task.trimmedContentRange.from, plan.task.trimmedContentRange.to, "task-paragraph"),
           ),
           text: inner.text,
           hasMath: inner.hasMath,
@@ -1396,7 +1467,7 @@ function renderListItem(
       surfacePlan.options,
       surfacePlan.markerNumber,
       inner,
-      blockSourceAttrs(ctx, plan.sourceRange.from, plan.sourceRange.to),
+      blockSourceAttrs(ctx, plan.sourceRange.from, plan.sourceRange.to, plan.task ? "task-list-item" : "list-item"),
     ),
     text,
     hasMath,
@@ -1412,7 +1483,7 @@ function renderBlockquote(ctx: WalkContext, node: SyntaxNode): BlockResult {
   return {
     html: renderBlockquoteHtml(
       blocks.map((b) => b.html).join(""),
-      blockSourceAttrs(ctx, plan.sourceRange.from, plan.sourceRange.to),
+      blockSourceAttrs(ctx, plan.sourceRange.from, plan.sourceRange.to, "blockquote"),
     ),
     text: blocks.map((b) => b.text).join("\n"),
     hasMath: blocks.some((b) => b.hasMath),
@@ -1425,7 +1496,7 @@ function renderFencedCode(ctx: WalkContext, node: SyntaxNode): BlockResult {
     html: renderCodeBlockHtml(
       plan.language,
       plan.code,
-      blockSourceAttrs(ctx, plan.sourceRange.from, plan.sourceRange.to),
+      blockSourceAttrs(ctx, plan.sourceRange.from, plan.sourceRange.to, "code-block"),
     ),
     text: plan.code,
     hasMath: false,
@@ -1440,8 +1511,8 @@ function renderTable(ctx: WalkContext, node: SyntaxNode): BlockResult {
   const textRowsByFrom = new Map<number, string[]>();
   let hasMath = false;
   const html = renderTablePlanHtml(plan, {
-    tableAttrs: blockSourceAttrs(ctx, plan.sourceRange.from, plan.sourceRange.to),
-    rowAttrs: (row) => blockSourceAttrs(ctx, row.sourceRange.from, row.sourceRange.to),
+    tableAttrs: blockSourceAttrs(ctx, plan.sourceRange.from, plan.sourceRange.to, "table"),
+    rowAttrs: (row) => blockSourceAttrs(ctx, row.sourceRange.from, row.sourceRange.to, row.header ? "table-header-row" : "table-row"),
     renderCell: (cell, row) => {
       const inner = renderInlineFragmentsForReader(
         ctx,
@@ -1467,8 +1538,13 @@ function renderTable(ctx: WalkContext, node: SyntaxNode): BlockResult {
 }
 
 function renderBlankLine(ctx: WalkContext, from: number, to: number): BlockResult {
+  const lineRange = sourceLineRange(ctx, from, to);
   return {
-    html: renderBlankLineHtml(blockSourceAttrs(ctx, from, to)),
+    html: renderBlankLineHtml(sourceRangeAttrs({
+      sourceLine: ctx.sourceMap ? null : lineRange?.from ?? null,
+      sourceLineRange: ctx.sourceMap ? lineRange ?? null : null,
+      sourceRange: ctx.sourcePositions ? { from, to } : null,
+    })),
     text: "",
     hasMath: false,
   };
@@ -1498,7 +1574,7 @@ function renderFencedDiv(ctx: WalkContext, node: SyntaxNode): BlockResult {
   }
   const attrs = blockContainerSurfaceAttrs(fencedDivContainerOptions(plan));
   const body = combineBlocks(blocks);
-  const sourceAttrs = blockSourceAttrs(ctx, plan.sourceRange.from, plan.sourceRange.to);
+  const sourceAttrs = blockSourceAttrs(ctx, plan.sourceRange.from, plan.sourceRange.to, normalizedClassName ?? "fenced-div");
   const caption = chrome.captionSlot === "below" && plan.title && normalizedClassName
     ? renderBlockCaption(ctx, normalizedClassName, plan.title, plan.titleFragments, plan.number, node.from, node.to)
     : emptyBlock();
@@ -1624,6 +1700,7 @@ function walkDocument(
   outline: ReaderOutlineEntry[];
   catalog: Map<string, DocumentReferenceTarget>;
   referencePreviewIndex: ReaderReferencePreviewCatalog;
+  sourceMap: RenderedSourceAnchor[];
   mathMacros?: Record<string, string>;
 } {
   const frontmatter = parseFrontmatter(source);
@@ -1638,9 +1715,9 @@ function walkDocument(
   const ctx: WalkContext = {
     source,
     resolvers,
-    lineOffsets: opts.sourceLineAttribution ? buildLineOffsets(source) : null,
-    sourcePositions: !!opts.sourcePositions,
-    mathSourcePositions: !!(opts.sourcePositions || opts.mathSourcePositions),
+    lineOffsets: opts.sourceLineAttribution || opts.sourceMap ? buildLineOffsets(source) : null,
+    sourcePositions: !!(opts.sourcePositions || opts.sourceMap),
+    mathSourcePositions: !!(opts.sourcePositions || opts.sourceMap || opts.mathSourcePositions),
     semanticBlockDisclosures: surfacePolicy.semanticBlockDisclosures,
     surfacePolicy,
     collectOutline: !!opts.outline,
@@ -1664,6 +1741,9 @@ function walkDocument(
     buildCatalog,
     buildReferencePreviews: !!opts.referencePreviews,
     numberHeadings: opts.sectionNumbering !== false,
+    sourceMap: !!opts.sourceMap,
+    sourceAnchors: [],
+    sourceAnchorCounts: new Map(),
   };
 
   if (ctx.collectOutline) reserveExplicitHeadingIds(ctx, tree);
@@ -1685,7 +1765,7 @@ function walkDocument(
     // full block document, so it never sprouts headings/lists/paragraphs.
     const renderedTitle = renderInlineSnippet(ctx, title);
     blocks.push({
-      html: `<div class="${CSS.docTitle}"${blockSourceAttrs(ctx, 0, frontmatterEnd)}>${renderedTitle.html}</div>`,
+      html: `<div class="${CSS.docTitle}"${blockSourceAttrs(ctx, 0, frontmatterEnd, "document-title")}>${renderedTitle.html}</div>`,
       text: title,
       hasMath: renderedTitle.hasMath,
     });
@@ -1812,6 +1892,7 @@ function walkDocument(
     outline: ctx.outline,
     catalog: ctx.catalog,
     referencePreviewIndex: ctx.referencePreviewIndex,
+    sourceMap: ctx.sourceAnchors,
     // Surface the document's frontmatter `math:` macros so the host can forward
     // them to `hydrateMath` without re-parsing. Mirrors the editor, where the
     // same `config.math` feeds `mathMacrosField` and every math render path.
@@ -1936,6 +2017,7 @@ export interface ReaderHtmlResult {
   hasMath: boolean;
   truncated?: TruncatedInfo;
   outline?: ReaderOutlineEntry[];
+  sourceMap?: RenderedSourceAnchor[];
   mathMacros?: Record<string, string>;
   referencePreviewIndex?: ReaderReferencePreviewIndex;
 }
@@ -1961,6 +2043,7 @@ export function renderToHtml(
     !FAST_PATH_RE.test(source) &&
     !opts.sourceLineAttribution &&
     !opts.sourcePositions &&
+    !opts.sourceMap &&
     !opts.truncate &&
     !opts.outline &&
     !opts.resolveReferences &&
@@ -1986,6 +2069,7 @@ export function renderToHtml(
   };
   if (result.truncated) out.truncated = result.truncated;
   if (opts.outline) out.outline = result.outline;
+  if (opts.sourceMap) out.sourceMap = result.sourceMap;
   if (opts.referencePreviews) {
     out.referencePreviewIndex = serializeReferencePreviewIndex(result.referencePreviewIndex);
   }

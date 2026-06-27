@@ -2,10 +2,16 @@ import { describe, expect, it } from "vitest";
 
 import {
   applySourceRangeAttrs,
+  applyReaderSourceDecorations,
   closestMathSourceCarrier,
   closestSourceRangeCarrier,
   isSourceRangeCarrier,
   parseSourceOffset,
+  renderedAnchorsForSourceLineRange,
+  renderedAnchorsForSourceRange,
+  renderedSourceAnchorsFromDom,
+  renderToHtml,
+  sourceLineRangeFromElement,
   sourceRangeAttrs,
   sourceElementAtPosition,
   sourceRangeFromDataset,
@@ -53,6 +59,75 @@ describe("@chaoxu/coflat/reader public source-range helpers", () => {
     expect(element.outerHTML).toBe(
       '<span data-source-line="4" data-source-from="12" data-source-to="18"></span>',
     );
+  });
+
+  it("renders a first-class source map with stable block anchors", () => {
+    const source = "# Title\n\nBody **bold** text\n\n- item\n";
+    const result = renderToHtml(source, undefined, { sourceMap: true });
+
+    const heading = result.sourceMap?.find((anchor) => anchor.kind === "heading-1");
+    const paragraph = result.sourceMap?.find((anchor) => anchor.kind === "paragraph");
+    const listItem = result.sourceMap?.find((anchor) => anchor.kind === "list-item");
+    const inline = result.sourceMap?.find((anchor) => anchor.granularity === "inline");
+
+    expect(heading).toMatchObject({
+      id: "cf-block-heading-1-0-7",
+      granularity: "block",
+      sourceRange: { from: 0, to: 7 },
+      lineRange: { from: 1, to: 1 },
+      selector: '[data-cf-anchor-id="cf-block-heading-1-0-7"]',
+    });
+    expect(paragraph?.lineRange).toEqual({ from: 3, to: 3 });
+    expect(listItem?.kind).toBe("list-item");
+    expect(inline?.sourceRange.from).toBeGreaterThanOrEqual(0);
+    expect(result.html).toContain('data-cf-anchor-id="cf-block-heading-1-0-7"');
+    expect(result.html).toContain('data-cf-block-kind="paragraph"');
+  });
+
+  it("looks up non-overlapping rendered anchors by source offset and line range", () => {
+    const source = "# Title\n\nBody **bold** text\n\n- item\n";
+    const result = renderToHtml(source, undefined, { sourceMap: true });
+    const container = document.createElement("div");
+    container.innerHTML = result.html;
+
+    expect(renderedSourceAnchorsFromDom(container).map((anchor) => anchor.kind)).toEqual([
+      "heading-1",
+      "paragraph",
+      "bullet-list",
+      "list-item",
+    ]);
+    expect(renderedAnchorsForSourceRange(container, {
+      from: source.indexOf("Body"),
+      to: source.indexOf("text") + "text".length,
+    }).map((anchor) => anchor.kind)).toEqual(["paragraph"]);
+    expect(renderedAnchorsForSourceLineRange(container, { from: 5, to: 5 }).map((anchor) => anchor.kind)).toEqual([
+      "list-item",
+    ]);
+    expect(sourceLineRangeFromElement(container.querySelector("p")!)).toEqual({ from: 3, to: 3 });
+  });
+
+  it("applies host decorations and overlay slots to rendered source anchors", () => {
+    const source = "# Title\n\nBody\n";
+    const result = renderToHtml(source, undefined, { sourceMap: true });
+    const container = document.createElement("div");
+    container.innerHTML = result.html;
+
+    const applied = applyReaderSourceDecorations(container, [{
+      sourceLineRange: { from: 3, to: 3 },
+      className: "is-changed",
+      data: { diffStop: "1" },
+      renderOverlay: () => {
+        const button = document.createElement("button");
+        button.textContent = "+";
+        return button;
+      },
+    }]);
+
+    expect(applied.map((anchor) => anchor.kind)).toEqual(["paragraph"]);
+    const paragraph = container.querySelector("p")!;
+    expect(paragraph.classList.contains("is-changed")).toBe(true);
+    expect(paragraph.getAttribute("data-diff-stop")).toBe("1");
+    expect(paragraph.nextElementSibling?.getAttribute("data-cf-anchor-overlay-for")).toBe(applied[0].id);
   });
 
   it("exposes math source carrier lookup", () => {
