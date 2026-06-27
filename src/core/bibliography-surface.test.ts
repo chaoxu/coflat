@@ -16,8 +16,14 @@ describe("bibliography surface", () => {
     expect(renderBibliographySectionHtml([
       { id: "smith:2024", html: "<span>[1] Smith</span>" },
     ])).toBe(
-      '<div class="cf-bibliography" aria-label="References"><h2 class="cf-bibliography-heading">References</h2><div class="cf-bibliography-list"><div class="cf-bibliography-entry" id="bib-smith%3A2024"><span>[1] Smith</span></div></div></div>',
+      '<div class="cf-bibliography" aria-label="References"><h2 class="cf-bibliography-heading">References</h2><div class="cf-bibliography-list"><div class="cf-bibliography-entry" id="bib-smith%3A2024" data-citation-key="smith:2024"><span>[1] Smith</span></div></div></div>',
     );
+  });
+
+  it("escapes reader bibliography citation keys in attributes", () => {
+    expect(renderBibliographySectionHtml([
+      { id: 'smith"&2024', html: "<span>[1] Smith</span>" },
+    ])).toContain('data-citation-key="smith&quot;&amp;2024"');
   });
 
   it("creates editor bibliography DOM with the same classes and encoded ids", () => {
@@ -33,6 +39,7 @@ describe("bibliography surface", () => {
     expect(section.querySelector(`.${CSS.bibliographyList}`)).toBe(list);
     expect(entry.className).toBe(CSS.bibliographyEntry);
     expect(entry.id).toBe(bibliographyEntryId("smith:2024"));
+    expect(entry.dataset.citationKey).toBe("smith:2024");
   });
 
   it("creates canonical bibliography backlink groups", () => {
@@ -56,7 +63,7 @@ describe("bibliography surface", () => {
     appendBibliographyBacklinks(entry, [{ occurrence: 1, sourceFrom: 12 }]);
 
     expect(entry.outerHTML).toBe(
-      '<div class="cf-bibliography-entry" id="bib-smith%3A2024">[1] Smith ' +
+      '<div class="cf-bibliography-entry" id="bib-smith%3A2024" data-citation-key="smith:2024">[1] Smith ' +
         `<span class="cf-bibliography-backlinks"><a class="cf-bibliography-backlink" href="#cite-ref-1" data-source-from="12" aria-label="Jump to citation">${BIBLIOGRAPHY_BACKLINK_TEXT}</a></span>` +
         "</div>",
     );

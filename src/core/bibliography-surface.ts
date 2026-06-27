@@ -22,7 +22,7 @@ export function renderBibliographySectionHtml(
   entries: readonly BibliographySurfaceEntryHtml[],
 ): string {
   const items = entries.map((entry) =>
-    `<div class="${CSS.bibliographyEntry}" id="${escapeHtml(bibliographyEntryId(entry.id))}">${entry.html}</div>`
+    `<div class="${CSS.bibliographyEntry}" id="${escapeHtml(bibliographyEntryId(entry.id))}" data-citation-key="${escapeHtml(entry.id)}">${entry.html}</div>`
   );
   return (
     `<div class="${CSS.bibliography}" aria-label="References">` +
@@ -71,6 +71,7 @@ export function createBibliographyEntryElement(
   const entry = ownerDocument.createElement("div");
   entry.className = CSS.bibliographyEntry;
   entry.id = bibliographyEntryId(id);
+  entry.dataset.citationKey = id;
   return entry;
 }
 
