@@ -6,9 +6,13 @@
  * entirely when there is no title).
  */
 import { EditorState, type Extension, type Range } from "@codemirror/state";
-import { Decoration, DecorationSet, type EditorView } from "@codemirror/view";
+import { Decoration, DecorationSet, EditorView } from "@codemirror/view";
 import { renderDocumentFragmentToDom } from "../document-surfaces";
 import { CSS } from "../../core/constants/css-classes";
+import { createInlineEditorController, type InlineEditorController } from "../inline-editor";
+import { documentContextFacet } from "../document-context";
+import { getEditorDocumentReferenceCatalog } from "../semantics/editor-reference-catalog";
+import { bibDataField } from "../state/bib-data";
 
 import { frontmatterField } from "../state/frontmatter-state";
 import {
@@ -110,6 +114,8 @@ function updateFrontmatterStringField(
 
 /** Widget that renders article frontmatter fields. */
 class ArticleHeaderWidget extends ShellMacroAwareWidget {
+  private readonly abstractEditors = new WeakMap<HTMLElement, InlineEditorController>();
+
   constructor(
     private readonly title: string,
     private readonly abstract: string | undefined,
@@ -202,6 +208,7 @@ class ArticleHeaderWidget extends ShellMacroAwareWidget {
   private bindAbstractEditor(section: HTMLElement, view: EditorView): void {
     const body = section.querySelector<HTMLElement>(`.${CSS.docAbstractBody}`);
     if (!body) return;
+    if (isEditorReadOnly(view)) return;
     body.style.cursor = "text";
     body.addEventListener("mousedown", (event) => {
       event.preventDefault();
@@ -215,63 +222,123 @@ class ArticleHeaderWidget extends ShellMacroAwareWidget {
   }
 
   private beginAbstractEdit(body: HTMLElement, view: EditorView): void {
-    const textarea = document.createElement("textarea");
-    textarea.className = CSS.docAbstractEditor;
-    textarea.value = this.abstract ?? "";
-    body.replaceChildren(textarea);
-    textarea.focus();
-    textarea.setSelectionRange(0, textarea.value.length);
+    if (this.abstractEditors.has(body)) return;
+    body.classList.add(CSS.docAbstractEditor);
+    body.replaceChildren();
 
-    const autosize = () => {
-      textarea.style.height = "auto";
-      textarea.style.height = `${Math.max(72, textarea.scrollHeight)}px`;
+    let currentDoc = this.abstract ?? "";
+    let closed = false;
+    const bibData = view.state.field(bibDataField, false);
+    const controller = createInlineEditorController({
+      parent: body,
+      doc: currentDoc,
+      macros: this.macros,
+      bibData: bibData ?? undefined,
+      documentContext: view.state.facet(documentContextFacet),
+      referenceCatalog: getEditorDocumentReferenceCatalog(view.state),
+      onChange: (newDoc) => {
+        currentDoc = newDoc;
+      },
+    });
+    this.abstractEditors.set(body, controller);
+
+    const restoreRendered = (): void => {
+      body.classList.remove(CSS.docAbstractEditor);
+      body.replaceChildren();
+      renderDocumentFragmentToDom(body, {
+        kind: "title",
+        text: this.abstract ?? "",
+        macros: this.macros,
+      });
     };
-    autosize();
-    textarea.addEventListener("input", autosize);
 
-    let committed = false;
     const commit = () => {
-      if (committed) return;
-      committed = true;
+      if (closed) return;
+      closed = true;
+      this.abstractEditors.delete(body);
+      controller.destroy();
       const frontmatter = view.state.field(frontmatterField, false);
       const change = frontmatter
         ? updateFrontmatterStringField(
           view.state.doc.toString(),
           frontmatter.end,
           "abstract",
-          textarea.value,
+          currentDoc,
         )
         : null;
-      if (change) {
+      if (change && currentDoc !== (this.abstract ?? "")) {
         view.dispatch({
           changes: change,
           scrollIntoView: false,
         });
+      } else {
+        restoreRendered();
       }
       view.focus();
     };
     const cancel = () => {
-      if (committed) return;
-      committed = true;
-      renderDocumentFragmentToDom(body, {
-        kind: "title",
-        text: this.abstract ?? "",
-        macros: this.macros,
-      });
+      if (closed) return;
+      closed = true;
+      this.abstractEditors.delete(body);
+      controller.destroy();
+      restoreRendered();
       view.focus();
     };
 
-    textarea.addEventListener("blur", commit);
-    textarea.addEventListener("keydown", (event) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        cancel();
-      }
-      if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
-        event.preventDefault();
-        commit();
-      }
+    controller.setCallbacks({
+      onChange: (newDoc) => {
+        currentDoc = newDoc;
+      },
+      onBlur: () => {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            if (
+              document.activeElement instanceof HTMLElement &&
+              body.contains(document.activeElement)
+            ) {
+              return;
+            }
+            commit();
+          });
+        });
+      },
+      onKeydown: (event) => {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          event.stopPropagation();
+          cancel();
+          return true;
+        }
+        if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+          event.preventDefault();
+          event.stopPropagation();
+          commit();
+          return true;
+        }
+        return false;
+      },
     });
+
+    controller.view.dispatch({ selection: { anchor: controller.view.state.doc.length } });
+    controller.view.focus();
+  }
+
+  override destroy(dom: HTMLElement): void {
+    for (const body of dom.querySelectorAll<HTMLElement>(`.${CSS.docAbstractBody}`)) {
+      const controller = this.abstractEditors.get(body);
+      if (!controller) continue;
+      controller.destroy();
+      this.abstractEditors.delete(body);
+    }
+  }
+}
+
+function isEditorReadOnly(view: EditorView): boolean {
+  try {
+    return view.state.facet(EditorState.readOnly) === true ||
+      view.state.facet(EditorView.editable) === false;
+  } catch (_error) {
+    return false;
   }
 }
 

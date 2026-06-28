@@ -122,21 +122,39 @@ describe("frontmatterDecoration", () => {
     const parent = document.createElement("div");
     document.body.appendChild(parent);
     const view = new EditorView({
-      state: createState("---\ntitle: Hello\nabstract: |\n  Old abstract.\n---\nContent"),
+      state: createState("---\ntitle: Hello\nabstract: |\n  Old $x^2$ abstract.\n---\nContent"),
       parent,
     });
     try {
       const widget = getArticleHeaderWidget(view.state);
       const dom = widget.toDOM(view);
+      parent.appendChild(dom);
       const body = dom.querySelector<HTMLElement>(".cf-doc-abstract-body");
       expect(body).not.toBeNull();
       body?.click();
 
-      const textarea = body?.querySelector<HTMLTextAreaElement>("textarea");
-      expect(textarea).not.toBeNull();
-      if (!textarea) throw new Error("expected abstract editor");
-      textarea.value = "New abstract.\nWith a second line.";
-      textarea.dispatchEvent(new Event("blur"));
+      const editorDom = body?.querySelector<HTMLElement>(".cm-editor");
+      expect(editorDom).not.toBeNull();
+      if (!editorDom) throw new Error("expected abstract inline editor");
+      expect(editorDom.classList.contains("cf-inline-editor")).toBe(true);
+      expect(editorDom.querySelector(".katex")).not.toBeNull();
+
+      const inlineView = EditorView.findFromDOM(editorDom);
+      expect(inlineView).not.toBeNull();
+      if (!inlineView) throw new Error("expected abstract inline EditorView");
+      inlineView.dispatch({
+        changes: {
+          from: 0,
+          to: inlineView.state.doc.length,
+          insert: "New abstract.\nWith a second line.",
+        },
+      });
+      inlineView.contentDOM.dispatchEvent(new KeyboardEvent("keydown", {
+        bubbles: true,
+        cancelable: true,
+        key: "Enter",
+        metaKey: true,
+      }));
 
       expect(view.state.doc.toString()).toContain(
         "abstract: |\n  New abstract.\n  With a second line.\n",
