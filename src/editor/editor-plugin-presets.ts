@@ -1,4 +1,5 @@
 import type { EditorPlugin } from "./editor-plugin";
+import { listOutlinerExtension } from "./list-outliner";
 
 export type EditorPluginPresetName = "core" | "workbench" | "full";
 
@@ -7,9 +8,8 @@ export const listOutlinerEditorPlugin: EditorPlugin = {
   name: "List Outliner",
   description: "Tab/Shift-Tab list indentation behavior",
   defaultEnabled: true,
-  loadTiming: "after-mount",
   readyPhase: "outline-ready",
-  load: async () => (await import("./list-outliner")).listOutlinerExtension,
+  extensions: () => listOutlinerExtension,
 };
 
 export const referenceAutocompleteEditorPlugin: EditorPlugin = {

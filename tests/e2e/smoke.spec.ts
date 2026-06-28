@@ -655,6 +655,30 @@ test("editor supports ordinary list exit and marker removal while writing", asyn
   await expect.poll(() => getEditorDoc(page)).toBe("- one\ntwo");
 });
 
+test("rich editor treats held Enter repeat as repeated list splitting", async ({ page }) => {
+  await page.goto("/tests/e2e/fixtures/index.html");
+  await setEditorDoc(page, "- item", "rich");
+
+  await page.locator(".cm-content").click();
+  await page.keyboard.press("Meta+ArrowRight");
+  await page.evaluate(() => {
+    const content = document.querySelector(".cm-content");
+    if (!content) throw new Error("missing editor content");
+    const init: KeyboardEventInit = {
+      key: "Enter",
+      code: "Enter",
+      bubbles: true,
+      cancelable: true,
+    };
+    content.dispatchEvent(new KeyboardEvent("keydown", { ...init, repeat: false }));
+    for (let i = 0; i < 3; i += 1) {
+      content.dispatchEvent(new KeyboardEvent("keydown", { ...init, repeat: true }));
+    }
+  });
+
+  await expect.poll(() => getEditorDoc(page)).toBe("- item\n\n\n\n");
+});
+
 test("rich editor supports ordinary fenced code and display math writing", async ({ page }) => {
   await page.goto("/tests/e2e/fixtures/index.html");
   await setEditorDoc(page, "", "rich");
