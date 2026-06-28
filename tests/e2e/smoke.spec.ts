@@ -1619,7 +1619,9 @@ test("public demo hydrates bibliography citations", async ({ page }) => {
 
   await page.getByRole("button", { name: "Reader" }).click();
   const reader = page.locator("#reader");
-  await expect(reader.locator(".cf-bibliography")).toContainText("References");
+  await expect(reader.locator(".cf-bibliography")).toHaveCount(1);
+  await expect(reader.locator(".cf-footnote-section")).toHaveCount(1);
+  await expect(reader.locator(".cf-bibliography")).toContainText("Bibliography");
   await expect(reader.locator(".cf-bibliography-entry").first()).toContainText("Introduction to Algorithms");
   const readerEndMatter = await page.locator("#reader").evaluate(async (readerRoot) => {
     const viewport = document.querySelector("#reader-viewport");
@@ -1661,7 +1663,7 @@ test("public demo hydrates bibliography citations", async ({ page }) => {
     scroller.scrollTop = scroller.scrollHeight;
     await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     return editor.querySelectorAll(".cf-bibliography, .cf-footnote-section").length;
-  })).toBeGreaterThanOrEqual(2);
+  })).toBe(2);
   const editorOrder = await page.locator("#editor").evaluate((editor) => {
     const scroller = editor.querySelector(".cm-scroller");
     if (!(scroller instanceof HTMLElement)) throw new Error("missing editor scroller");
@@ -1695,7 +1697,7 @@ test("public demo hydrates bibliography citations", async ({ page }) => {
       footnotesTop: footnotes.getBoundingClientRect().top,
     };
   });
-  expect(editorOrder.bibliography.text).toContain("References");
+  expect(editorOrder.bibliography.text).toContain("Bibliography");
   expect(editorOrder.bibliography.text).toContain("Introduction to Algorithms");
   expect(editorOrder.footnotes.text).toContain("Footnotes");
   expect(editorOrder.bibliographyTop).toBeLessThan(editorOrder.footnotesTop);

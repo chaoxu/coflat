@@ -5,6 +5,7 @@ import {
   renderToText,
 } from "../../reader";
 import type { LinkResolver } from "../../reader";
+import { createNumericCitationFormatter } from "../core/citations/numeric";
 import type { FileSystem } from "../core/lib/file-system-types";
 import {
   getLezerInvocationCount,
@@ -872,6 +873,25 @@ describe("renderToHtml — block-level rendering ()", () => {
     const r = renderToHtml("As @cormen2009 showed.");
     expect(r.html).toContain("As @cormen2009 showed.");
     expect(r.html).not.toContain("cf-crossref-unresolved");
+  });
+
+  it("renders bibliography before footnotes to match the rich editor end matter", () => {
+    const r = renderToHtml("See [@smith2024] and note[^1].\n\n[^1]: Footnote body.", {
+      citationFormatter: createNumericCitationFormatter([{
+        id: "smith2024",
+        title: "Smith 2024",
+      }]),
+      citationKeys: new Set(["smith2024"]),
+    });
+
+    const root = document.createElement("div");
+    root.innerHTML = r.html;
+    const bibliography = root.querySelector(".cf-bibliography");
+    const footnotes = root.querySelector(".cf-footnote-section");
+    expect(bibliography?.textContent).toContain("Smith 2024");
+    expect(footnotes?.textContent).toContain("Footnote body");
+    expect(bibliography?.compareDocumentPosition(footnotes as Node) ?? 0)
+      .toBe(Node.DOCUMENT_POSITION_FOLLOWING);
   });
 
   it("passes resolver metadata and document path while rendering references", () => {
