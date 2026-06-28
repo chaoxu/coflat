@@ -38,18 +38,6 @@ export const typographyThemeStyles = {
     color: "var(--cf-fg)",
   },
 
-  ".cm-editor .cf-doc-abstract": {
-    borderRadius: "var(--cf-radius-sm)",
-    marginLeft: "calc(-1 * var(--cf-spacing-xs))",
-    marginRight: "calc(-1 * var(--cf-spacing-xs))",
-    padding: "2px var(--cf-spacing-xs)",
-  },
-
-  ".cm-editor .cf-doc-abstract:hover, .cm-editor .cf-doc-abstract:focus": {
-    background: "color-mix(in srgb, var(--cf-accent) 7%, transparent)",
-    outline: "none",
-  },
-
   ".cf-doc-abstract-label": {
     fontFamily: "var(--cf-ui-font, ui-sans-serif, system-ui, sans-serif)",
     fontSize: "0.76em",
@@ -68,17 +56,11 @@ export const typographyThemeStyles = {
   },
 
   ".cf-doc-abstract-editor": {
-    width: "100%",
-    minHeight: "72px",
-    resize: "vertical",
-    boxSizing: "border-box",
-    border: "var(--cf-border-width) solid var(--cf-border)",
-    borderRadius: "var(--cf-radius-sm)",
-    background: "var(--cf-bg)",
+    display: "block",
+    minHeight: "1.55em",
     color: "var(--cf-fg)",
-    font: "inherit",
+    fontFamily: "inherit",
     lineHeight: "1.55",
-    padding: "var(--cf-spacing-xs) var(--cf-spacing-sm)",
   },
 
   /* Frontmatter YAML lines — monospace when editing (structured data, not prose) */

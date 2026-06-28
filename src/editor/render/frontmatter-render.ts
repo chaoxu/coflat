@@ -304,7 +304,8 @@ class ArticleHeaderWidget extends ShellMacroAwareWidget {
     body.classList.add(CSS.docAbstractEditor);
     body.replaceChildren();
 
-    let currentDoc = this.abstract ?? "";
+    const originalDoc = (this.abstract ?? "").replace(/\n$/, "");
+    let currentDoc = originalDoc;
     let closed = false;
     const bibData = view.state.field(bibDataField, false);
     const controller = createInlineEditorController({
@@ -347,7 +348,7 @@ class ArticleHeaderWidget extends ShellMacroAwareWidget {
           currentDoc,
         )
         : null;
-      if (change && currentDoc !== (this.abstract ?? "")) {
+      if (change && currentDoc !== originalDoc) {
         view.dispatch({
           changes: change,
           scrollIntoView: false,

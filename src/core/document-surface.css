@@ -370,17 +370,11 @@
 }
 
 .cf-doc-abstract-editor {
-  width: 100%;
-  min-height: 72px;
-  resize: vertical;
-  box-sizing: border-box;
-  border: var(--cf-border-width) solid var(--cf-border);
-  border-radius: var(--cf-radius-sm);
-  background: var(--cf-bg);
+  display: block;
+  min-height: 1.55em;
   color: var(--cf-fg);
-  font: inherit;
+  font-family: inherit;
   line-height: 1.55;
-  padding: var(--cf-spacing-xs) var(--cf-spacing-sm);
 }
 
 .cf-reader .cf-doc-heading:not(.cf-doc-heading--unnumbered)::before {

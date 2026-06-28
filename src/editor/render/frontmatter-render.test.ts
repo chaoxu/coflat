@@ -201,6 +201,7 @@ describe("frontmatterDecoration", () => {
       const inlineView = EditorView.findFromDOM(editorDom);
       expect(inlineView).not.toBeNull();
       if (!inlineView) throw new Error("expected abstract inline EditorView");
+      expect(inlineView.state.doc.toString()).toBe("Old $x^2$ abstract.");
       inlineView.dispatch({
         changes: {
           from: 0,
