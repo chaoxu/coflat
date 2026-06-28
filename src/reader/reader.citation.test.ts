@@ -33,13 +33,13 @@ function ctxWith(keys: string[]): DocumentContext {
 }
 
 describe("reader citations", () => {
-  it("resolves inline [@key] and emits a References section", () => {
+  it("resolves inline [@key] and emits a Bibliography section", () => {
     const { html } = renderToHtml("See [@cormen2009] here.", ctxWith(["cormen2009"]));
     expect(html).toContain('class="cf-citation"');
     expect(html).toContain('data-ref-key="cormen2009"');
     expect(html).toContain(">[1]<");
     expect(html).toContain('class="cf-bibliography"');
-    expect(html).toContain("References");
+    expect(html).toContain("Bibliography");
     expect(html).toContain("<i>cormen2009</i>"); // italics survive sanitize (i added to allowlist)
   });
 

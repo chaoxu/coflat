@@ -46,8 +46,54 @@ const testPlugins: readonly BlockPlugin[] = [
 
 const MASTER_FIXTURE = `---
 title: Test Document
+subtitle: Quarto-shaped frontmatter
+description: |
+  A short summary for article listings and citation metadata.
+abstract: |
+  This is a longer abstract with $x^2$ in it.
+date: 2026-06-20
+date-format: long
+doi: 10.5555/coflat.1
+author:
+  - id: cx
+    name: Chao Xu
+    email: chao@example.org
+    orcid: 0000-0000-0000-0000
+    affiliation:
+      - ref: lab
+affiliations:
+  - id: lab
+    name: Coflat Lab
+    url: https://example.org/lab
 bibliography: refs.bib
+csl: ieee.csl
+keywords:
+  - math writing
+  - editor
+license:
+  text: CC BY 4.0
+  type: open-access
+  url: https://creativecommons.org/licenses/by/4.0/
+copyright:
+  holder: Chao Xu
+  year: 2026
+citation:
+  type: article-journal
+  container-title: Journal of Coflat
+  doi: 10.5555/coflat.1
+google-scholar: true
+title-block-style: plain
+title-block-banner: banner.png
+title-block-banner-color: white
+abstract-title: Summary
+author-title: Contributors
+funding: No external funding.
+acknowledgements: We thank the reviewers.
+relatedversion: https://example.org/full-version
 numbering: global
+latex:
+  template: article
+  csl: chicago-author-date.csl
 math:
   \\R: "\\\\mathbb{R}"
   \\N: "\\\\mathbb{N}"
@@ -217,9 +263,89 @@ describe("FORMAT.md coverage: Frontmatter", () => {
     expect(fm.config.title).toBe("Test Document");
   });
 
+  it("parses Quarto-compatible article metadata", () => {
+    const fm = masterState.field(frontmatterField);
+    expect(fm.config.subtitle).toBe("Quarto-shaped frontmatter");
+    expect(fm.config.description).toContain("short summary");
+    expect(fm.config.abstract).toContain("longer abstract");
+    expect(fm.config.date).toBe("2026-06-20");
+    expect(fm.config.dateFormat).toBe("long");
+    expect(fm.config.doi).toBe("10.5555/coflat.1");
+    expect(fm.config.keywords).toEqual(["math writing", "editor"]);
+    expect(fm.config.googleScholar).toBe(true);
+    expect(fm.config.funding).toBe("No external funding.");
+    expect(fm.config.acknowledgements).toBe("We thank the reviewers.");
+    expect(fm.config.relatedversion).toBe("https://example.org/full-version");
+    expect(fm.config.citation).toMatchObject({
+      type: "article-journal",
+      "container-title": "Journal of Coflat",
+    });
+  });
+
+  it("groups title-block display options without rendering them directly", () => {
+    const fm = masterState.field(frontmatterField);
+    expect(fm.config.titleBlock).toEqual({
+      style: "plain",
+      banner: "banner.png",
+      bannerColor: "white",
+      labels: {
+        abstract: "Summary",
+        author: "Contributors",
+      },
+    });
+  });
+
+  it("normalizes author and affiliation metadata into config", () => {
+    const fm = masterState.field(frontmatterField);
+    expect(fm.config.author).toEqual([
+      {
+        id: "cx",
+        name: "Chao Xu",
+        email: "chao@example.org",
+        orcid: "0000-0000-0000-0000",
+        affiliation: [{ ref: "lab" }],
+      },
+    ]);
+    expect(fm.config.affiliations).toEqual([
+      {
+        id: "lab",
+        name: "Coflat Lab",
+        url: "https://example.org/lab",
+      },
+    ]);
+  });
+
   it("parses bibliography path", () => {
     const fm = masterState.field(frontmatterField);
     expect(fm.config.bibliography).toBe("refs.bib");
+  });
+
+  it("parses CSL and LaTeX export options", () => {
+    const fm = masterState.field(frontmatterField);
+    expect(fm.config.csl).toBe("ieee.csl");
+    expect(fm.config.latex).toMatchObject({
+      template: "article",
+      csl: "chicago-author-date.csl",
+    });
+  });
+
+  it("accepts legacy authors and singular affiliation aliases", () => {
+    const state = createTestState(`---
+authors:
+  - name: Legacy Author
+affiliation:
+  id: legacy-lab
+  name: Legacy Lab
+---
+
+# Body
+`);
+    const fm = state.field(frontmatterField);
+    expect(fm.config.author).toEqual([{ name: "Legacy Author" }]);
+    expect(fm.config.affiliations).toEqual({
+      id: "legacy-lab",
+      name: "Legacy Lab",
+    });
   });
 
   it("parses numbering scheme", () => {

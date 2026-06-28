@@ -9,6 +9,7 @@
 import type { EditorState } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
 import type { FileSystem } from "../../core/lib/file-system-types";
+import { mediaKindForSrc } from "../../core/media-surface";
 import { fileSystemFacet } from "../lib/types";
 import { imageUrlField, type ImageUrlEntry } from "../state/image-url";
 import {
@@ -74,6 +75,10 @@ export function resolveLocalMediaPreview(
 ): MediaPreviewResult | null {
   const resolvedPath = resolveLocalMediaPathFromState(view.state, src);
   if (!resolvedPath) return null;
+  const rootRelativeDisplay = rootRelativeImageDisplayUrlWithoutFileSystem(view.state, src);
+  if (rootRelativeDisplay) return { kind: "image", resolvedPath, dataUrl: rootRelativeDisplay };
+  const display = resolveDisplayImageUrlFromState(view.state, resolvedPath);
+  if (display) return { kind: "image", resolvedPath, dataUrl: display };
   if (classifyLocalMediaTarget(src) === "pdf") return resolvePdfPreview(view, src, resolvedPath);
   return resolveImagePreview(view, src, resolvedPath);
 }
@@ -84,6 +89,10 @@ export function resolveLocalMediaPreviewFromState(
 ): MediaPreviewResult | null {
   const resolvedPath = resolveLocalMediaPathFromState(state, src);
   if (!resolvedPath) return null;
+  const rootRelativeDisplay = rootRelativeImageDisplayUrlWithoutFileSystem(state, src);
+  if (rootRelativeDisplay) return { kind: "image", resolvedPath, dataUrl: rootRelativeDisplay };
+  const display = resolveDisplayImageUrlFromState(state, resolvedPath);
+  if (display) return { kind: "image", resolvedPath, dataUrl: display };
   if (classifyLocalMediaTarget(src) === "pdf") return resolvePdfPreviewFromState(state, src, resolvedPath);
   return resolveImagePreviewFromState(state, src, resolvedPath);
 }
@@ -113,7 +122,7 @@ export function getLocalMediaPreviewDependency(
       };
     case "error":
       return {
-        cacheKind: classifyLocalMediaTarget(src) === "pdf" ? "pdf" : "image",
+        cacheKind: classifyLocalMediaTarget(preview.resolvedPath) ?? (classifyLocalMediaTarget(src) === "pdf" ? "pdf" : "image"),
         resolvedPath: preview.resolvedPath,
         status: "error",
       };
@@ -127,6 +136,25 @@ export function getLocalMediaPreviewDependencyKey(
 }
 
 // ── Internal ────────────────────────────────────────────────────────────────
+
+function rootRelativeImageDisplayUrlWithoutFileSystem(
+  state: EditorState,
+  src: string,
+): string | null {
+  if (!src.startsWith("/") || src.startsWith("//")) return null;
+  if (state.facet(fileSystemFacet)) return null;
+  return mediaKindForSrc(src) === "image" ? src : null;
+}
+
+function resolveDisplayImageUrlFromState(state: EditorState, resolvedPath: string): string | null {
+  try {
+    const resolved = state.facet(fileSystemFacet)?.resolveAssetUrl(resolvedPath, { purpose: "display" });
+    if (typeof resolved !== "string" || resolved === resolvedPath) return null;
+    return mediaKindForSrc(resolved) === "image" ? resolved : null;
+  } catch (_error) {
+    return null;
+  }
+}
 
 function resolvePdfPreview(
   view: EditorView,

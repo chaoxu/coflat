@@ -123,6 +123,8 @@ export const themeTypographyTokens = [
   "--cf-doc-code-block-margin",
   "--cf-doc-display-math-margin",
   "--cf-doc-blockquote-margin",
+  "--cf-doc-blockquote-border-width",
+  "--cf-doc-blockquote-padding-left",
   "--cf-ui-font-size-sm",
   "--cf-ui-font-size-base",
   "--cf-h1-size",
@@ -215,6 +217,8 @@ export const themeSurfaceTokenMap = {
     "--cf-doc-code-block-margin",
     "--cf-doc-display-math-margin",
     "--cf-doc-blockquote-margin",
+    "--cf-doc-blockquote-border-width",
+    "--cf-doc-blockquote-padding-left",
   ],
   readMode: [
     "--cf-bg",
@@ -236,6 +240,8 @@ export const themeSurfaceTokenMap = {
     "--cf-doc-code-block-margin",
     "--cf-doc-display-math-margin",
     "--cf-doc-blockquote-margin",
+    "--cf-doc-blockquote-border-width",
+    "--cf-doc-blockquote-padding-left",
   ],
   blockSurfaces: [
     "--cf-fg",

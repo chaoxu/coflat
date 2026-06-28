@@ -102,4 +102,30 @@ describe("footnote section surface", () => {
         '</div></div></div>',
     );
   });
+
+  it("can omit global navigation ids for embedded editor copies", () => {
+    const section = createFootnoteSectionElement(document, [
+      {
+        num: 1,
+        id: "note:1",
+        defFrom: 20,
+        backrefHref: "#fnref-note%3A1",
+        includeId: false,
+        includeBackrefHref: false,
+        appendContent: (content) => {
+          content.textContent = "Body";
+        },
+      },
+    ]);
+
+    expect(section.outerHTML).toBe(
+      '<div class="cf-footnote-section" aria-label="Footnotes">' +
+        '<h2 class="cf-bibliography-heading">Footnotes</h2>' +
+        '<div class="cf-bibliography-list">' +
+        '<div class="cf-bibliography-entry" data-def-from="20">' +
+        '<sup class="cf-bibliography-entry-number">1</sup>' +
+        '<span>Body</span> <a class="cf-footnote-backref">↩</a>' +
+        '</div></div></div>',
+    );
+  });
 });

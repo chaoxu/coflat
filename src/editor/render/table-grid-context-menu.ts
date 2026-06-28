@@ -1,5 +1,4 @@
 import { EditorView } from "@codemirror/view";
-import { ContextMenu } from "../lib/context-menu";
 import type { ContextMenuItem } from "../lib/context-menu";
 import {
   addColumn,
@@ -177,11 +176,13 @@ export function createTableGridContextMenuHandler(
 
       event.preventDefault();
       view.dispatch({ selection: { anchor: pos }, scrollIntoView: false });
-      new ContextMenu(
-        buildTableGridContextMenuItems(view, table, actions),
-        event.clientX,
-        event.clientY,
-      );
+      void import("../lib/context-menu").then(({ ContextMenu }) => {
+        new ContextMenu(
+          buildTableGridContextMenuItems(view, table, actions),
+          event.clientX,
+          event.clientY,
+        );
+      });
       return true;
     },
   });

@@ -130,6 +130,37 @@ describe("renderToHtml — slow path (Lezer)", () => {
     expect(r.mathMacros).toEqual({ "\\foo": "\\mathbb{R}", "\\bar": "\\mathcal{B}" });
   });
 
+  it("emits host-controlled layout gaps at source-line block boundaries", () => {
+    const source = "first\n\nsecond\n\nthird";
+    const r = renderToHtml(source, undefined, {
+      layoutGaps: [
+        { id: "gap-before-second", sourceLine: 3, height: 18, className: "cosheaf-gap bad$class" },
+        { id: "gap-after-third", sourceLine: 5, placement: "after", height: 7 },
+      ],
+    });
+
+    expect(r.html).toContain(
+      '<div class="cf-doc-layout-gap cosheaf-gap" data-cf-layout-gap-id="gap-before-second" style="height:18px" aria-hidden="true"></div>' +
+        '<p class="cf-doc-paragraph">second</p>',
+    );
+    expect(r.html).toContain(
+      '<p class="cf-doc-paragraph">third</p>' +
+        '<div class="cf-doc-layout-gap" data-cf-layout-gap-id="gap-after-third" style="height:7px" aria-hidden="true"></div>',
+    );
+    expect(r.html).not.toContain("data-source-line=");
+  });
+
+  it("does not emit invalid or unmatched layout gaps", () => {
+    const r = renderToHtml("first\n\nsecond", undefined, {
+      layoutGaps: [
+        { id: "bad-line", sourceLine: 0, height: 8 },
+        { id: "missing", sourceLine: 100, height: 8 },
+      ],
+    });
+
+    expect(r.html).not.toContain("cf-doc-layout-gap");
+  });
+
   it("omits result.mathMacros when the document defines no macros", () => {
     expect(renderToHtml("# Heading\n\nbody").mathMacros).toBeUndefined();
     // Plain math with no preamble still needs no macros.
@@ -272,6 +303,66 @@ describe("renderToHtml — slow path (Lezer)", () => {
     const r = renderToHtml("![alt text](logo.png)", ctx);
     expect(r.html).toContain('src="https://cdn/logo.png"');
     expect(r.html).toContain('alt="alt text"');
+  });
+
+  it("resolves reader image assets relative to the document path", () => {
+    const seen: string[] = [];
+    const ctx = {
+      fileSystem: {
+        resolveAssetUrl: (path: string, options?: { purpose?: "source" | "display" }) => {
+          seen.push(`${options?.purpose ?? "source"}:${path}`);
+          return `https://cdn/${path.replace(/\.pdf$/, ".png")}`;
+        },
+      } as unknown as FileSystem,
+    };
+    const r = renderToHtml("![Paper](figures/paper.pdf)", ctx, { documentPath: "posts/math.md" });
+    expect(seen).toEqual(["display:posts/figures/paper.pdf"]);
+    expect(r.html).toContain('src="https://cdn/posts/figures/paper.png"');
+  });
+
+  it("resolves root-relative reader image assets from the workspace root", () => {
+    const seen: string[] = [];
+    const ctx = {
+      fileSystem: {
+        resolveAssetUrl: (path: string, options?: { purpose?: "source" | "display" }) => {
+          seen.push(`${options?.purpose ?? "source"}:${path}`);
+          return `https://cdn/${path.replace(/\.pdf$/, ".png")}`;
+        },
+      } as unknown as FileSystem,
+    };
+    const r = renderToHtml("![Paper](/assets/paper.pdf)", ctx, { documentPath: "posts/math.md" });
+    expect(seen).toEqual(["display:assets/paper.pdf"]);
+    expect(r.html).toContain('src="https://cdn/assets/paper.png"');
+  });
+
+  it("does not resolve protocol image URLs through the filesystem", () => {
+    const calls: string[] = [];
+    const ctx = {
+      fileSystem: {
+        resolveAssetUrl: (path: string) => {
+          calls.push(path);
+          return `https://cdn/${path}`;
+        },
+      } as unknown as FileSystem,
+    };
+    const r = renderToHtml("![Remote](https://example.com/remote.png)", ctx, { documentPath: "posts/math.md" });
+    expect(calls).toEqual([]);
+    expect(r.html).toContain('src="https://example.com/remote.png"');
+  });
+
+  it("does not resolve protocol-relative image URLs through the filesystem", () => {
+    const calls: string[] = [];
+    const ctx = {
+      fileSystem: {
+        resolveAssetUrl: (path: string) => {
+          calls.push(path);
+          return `https://cdn/${path}`;
+        },
+      } as unknown as FileSystem,
+    };
+    const r = renderToHtml("![Remote](//cdn.example/remote.png)", ctx, { documentPath: "posts/math.md" });
+    expect(calls).toEqual([]);
+    expect(r.html).toContain('src="//cdn.example/remote.png"');
   });
 });
 
@@ -535,6 +626,30 @@ describe("renderToHtml — block-level rendering ()", () => {
     const r = renderToHtml("::: {.proof title=\"main theorem\"}\nbody\n:::");
     expect(r.html).toContain('<div class="cf-doc-block cf-doc-block--proof"');
     expect(r.html).toContain('<p class="cf-doc-paragraph cf-block-qed"><span class="cf-doc-block-heading"><span class="cf-block-header-rendered">Proof</span></span>body</p>');
+  });
+
+  it("renders same-length nested fenced divs inside their outer block", () => {
+    const r = renderToHtml(
+      [
+        "::: {.proof}",
+        "Before.",
+        "",
+        "::: {.problem}",
+        "Inner.",
+        ":::",
+        "",
+        "After.",
+        ":::",
+      ].join("\n"),
+    );
+    const problemIndex = r.html.indexOf('cf-doc-block--problem');
+    const afterIndex = r.html.indexOf("After.");
+    const outerCloseIndex = r.html.lastIndexOf("</div>");
+    expect(r.html).toContain('cf-doc-block--proof');
+    expect(problemIndex).toBeGreaterThan(-1);
+    expect(afterIndex).toBeGreaterThan(problemIndex);
+    expect(afterIndex).toBeLessThan(outerCloseIndex);
+    expect(r.html).not.toContain(":::");
   });
 
   it("preserves blank source lines inside fenced semantic blocks", () => {

@@ -12,6 +12,7 @@ import {
   renderImageSurfaceHtml,
   renderMediaLoadingHtml,
   renderMediaLoadingInto,
+  syncInlineImageSize,
 } from "./media-surface";
 
 describe("media surface", () => {
@@ -52,6 +53,20 @@ describe("media surface", () => {
     renderImagePlaceholderInto(loading, "Broken", { block: true });
     expect(loading.className).toBe(`${CSS.imageWrapper} ${CSS.imagePlaceholder}`);
     expect(loading.textContent).toBe("[Image: Broken]");
+  });
+
+  it("shares inline image natural-size synchronization", () => {
+    const wrapper = createMediaWrapperElement(document, "span");
+    const img = createImageElement(document, "figure.svg", "Figure");
+    Object.defineProperties(img, {
+      naturalWidth: { configurable: true, value: 257 },
+      naturalHeight: { configurable: true, value: 150 },
+    });
+
+    syncInlineImageSize(wrapper, img);
+
+    expect(wrapper.getAttribute("style")).toBe("width: 257px; height: 150px;");
+    expect(img.getAttribute("style")).toBe("width: 100%; height: 100%;");
   });
 
   it("identifies local media that needs host resolution", () => {

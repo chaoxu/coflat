@@ -19,7 +19,7 @@
       }
     },
     "args": [
-      "--from={pandoc_from}",
+      "--from={pandoc_from}-latex_macros",
       "--to=latex",
       "--wrap=preserve",
       "--no-highlight",

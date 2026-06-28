@@ -7,9 +7,12 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { EditorState, Text } from "@codemirror/state";
+import { EditorView } from "@codemirror/view";
 
 import { mountEditor, type MountedEditor } from "../../editor";
-import type { SaveHandler, StatusEvents } from "./editor-host-api";
+import { saveHandlerFacet, statusEventsFacet, type SaveHandler, type StatusEvents } from "./editor-host-api";
+import { saveExtension } from "./save-handler";
 
 interface Harness {
   editor: MountedEditor;
@@ -82,6 +85,26 @@ afterEach(() => {
 });
 
 describe("SaveHandler dirty tracking", () => {
+  it("fires onDirtyChange without requiring a save handler", () => {
+    const parent = document.createElement("div");
+    document.body.appendChild(parent);
+    const onDirtyChange = vi.fn();
+    const editor = mountEditor({
+      parent,
+      doc: "hello",
+      statusEvents: { onDirtyChange },
+    });
+    cleanups.push(() => {
+      editor.unmount();
+      parent.remove();
+    });
+
+    typeAt(editor, "hello world");
+
+    expect(onDirtyChange).toHaveBeenCalledWith(true);
+    expect(editor.isSaved()).toBe(false);
+  });
+
   it("fires onDirtyChange(true) exactly once across multiple changes", () => {
     const h = makeHarness();
     cleanups.push(() => {
@@ -112,6 +135,41 @@ describe("SaveHandler dirty tracking", () => {
     typeAt(h.editor, "hello"); // back to original
     expect(h.events.onDirtyChange).toHaveBeenLastCalledWith(false);
     expect(h.editor.isSaved()).toBe(true);
+  });
+
+  it("does not materialize the full document for same-length dirty checks", () => {
+    const parent = document.createElement("div");
+    document.body.appendChild(parent);
+    const onDirtyChange = vi.fn();
+    const saveHandler: SaveHandler = {
+      save: async () => ({ ok: true as const }),
+    };
+    const view = new EditorView({
+      parent,
+      state: EditorState.create({
+        doc: "hello",
+        extensions: [
+          statusEventsFacet.of({ onDirtyChange }),
+          saveHandlerFacet.of(saveHandler),
+          saveExtension(),
+        ],
+      }),
+    });
+    cleanups.push(() => {
+      view.destroy();
+      parent.remove();
+    });
+    const toStringSpy = vi.spyOn(Text.prototype, "toString");
+    toStringSpy.mockClear();
+
+    try {
+      view.dispatch({ changes: { from: 0, to: 1, insert: "j" } });
+
+      expect(toStringSpy).not.toHaveBeenCalled();
+      expect(onDirtyChange).toHaveBeenCalledWith(true);
+    } finally {
+      toStringSpy.mockRestore();
+    }
   });
 });
 

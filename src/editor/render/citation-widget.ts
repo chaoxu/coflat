@@ -70,6 +70,9 @@ export class HostRefWidget extends ReferenceWidget {
  * citations like "Karger (2000)". Pass `narrative: true` for the latter.
  */
 export class CitationWidget extends SimpleTextReferenceWidget {
+  private readonly refKey: string;
+  private readonly refMode: "bracketed" | "narrative";
+
   constructor(
     text: string,
     ids: readonly string[],
@@ -80,5 +83,24 @@ export class CitationWidget extends SimpleTextReferenceWidget {
       text,
       ariaLabel: ids.join("; "),
     });
+    this.refKey = ids.join(";");
+    this.refMode = narrative ? "narrative" : "bracketed";
+  }
+
+  createDOM(): HTMLElement {
+    const root = super.createDOM();
+    if (this.refKey) root.dataset.refKey = this.refKey;
+    root.dataset.refMode = this.refMode;
+    return root;
+  }
+
+  eq(other: WidgetType): boolean {
+    return (
+      other instanceof CitationWidget &&
+      this.spec.text === other.spec.text &&
+      this.refKey === other.refKey &&
+      this.refMode === other.refMode &&
+      this.hasSameReferenceRoot(other)
+    );
   }
 }

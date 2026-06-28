@@ -12,7 +12,6 @@ import { createEditorReferencePresentationController } from "../references/prese
 import { documentAnalysisField } from "../state/document-analysis";
 import type { DocumentAnalysis } from "../semantics/document";
 import { buildHeadingOutlineProjection } from "../../core/semantics/outline-plan";
-
 export interface OutlineEntry extends DocumentOutlineEntry {
   /** Heading inline Markdown without leading heading markers or trailing attributes. */
   readonly markdown: string;
@@ -49,16 +48,20 @@ export interface ScrollToLineOptions {
   readonly column?: number;
   /** Center the target line in the viewport when possible. */
   readonly center?: boolean;
+  /** Move the editor selection to the target. Defaults to true for navigation. */
+  readonly select?: boolean;
 }
 
 export interface ScrollToPositionOptions {
   /** Center the target position in the viewport when possible. */
   readonly center?: boolean;
+  /** Move the editor selection to the target. Defaults to true for navigation. */
+  readonly select?: boolean;
 }
 
 export interface HeadlessPanelStore<T> {
   get(): T;
-  subscribe(callback: (value: T) => void): () => void;
+  subscribe(callback: (value: T) => void, options?: { readonly emitCurrent?: boolean }): () => void;
 }
 
 export interface PerFilePanelApi {
@@ -85,10 +88,10 @@ const emptyCursorContext: CursorContext = {
 const wordSegmenter = new Intl.Segmenter(undefined, { granularity: "word" });
 
 class MutablePanelStore<T> implements HeadlessPanelStore<T> {
-  private callbacks = new Set<(value: T) => void>();
+  protected callbacks = new Set<(value: T) => void>();
 
   constructor(
-    private value: T,
+    protected value: T,
     private readonly equal: Equality<T>,
   ) {}
 
@@ -106,8 +109,11 @@ class MutablePanelStore<T> implements HeadlessPanelStore<T> {
     }
   }
 
-  subscribe(callback: (value: T) => void): () => void {
+  subscribe(callback: (value: T) => void, options?: { readonly emitCurrent?: boolean }): () => void {
     this.callbacks.add(callback);
+    if (options?.emitCurrent) {
+      callback(this.get());
+    }
     return () => {
       this.callbacks.delete(callback);
     };
@@ -115,6 +121,35 @@ class MutablePanelStore<T> implements HeadlessPanelStore<T> {
 
   clear(): void {
     this.callbacks.clear();
+  }
+}
+
+class LazyPanelStore<T> extends MutablePanelStore<T> {
+  private dirty = true;
+
+  constructor(
+    value: T,
+    equal: Equality<T>,
+    private readonly compute: () => T,
+  ) {
+    super(value, equal);
+  }
+
+  override get(): T {
+    if (this.dirty) {
+      this.value = this.compute();
+      this.dirty = false;
+    }
+    return this.value;
+  }
+
+  refresh(): void {
+    if (this.callbacks.size === 0) {
+      this.dirty = true;
+      return;
+    }
+    this.dirty = false;
+    this.set(this.compute());
   }
 }
 
@@ -288,14 +323,14 @@ function computeCursorContext(view: EditorView): CursorContext {
 
 function updatePanelStores(
   view: EditorView,
-  outline: MutablePanelStore<readonly OutlineEntry[]>,
-  counts: MutablePanelStore<Counts>,
+  outline: LazyPanelStore<readonly OutlineEntry[]>,
+  counts: LazyPanelStore<Counts>,
   cursorContext: MutablePanelStore<CursorContext>,
   options: { readonly docChanged: boolean; readonly selectionSet: boolean; readonly force?: boolean },
 ): void {
   if (options.force || options.docChanged) {
-    outline.set(computeOutline(view));
-    counts.set(computeCounts(view));
+    outline.refresh();
+    counts.refresh();
   }
   if (options.force || options.docChanged || options.selectionSet) {
     cursorContext.set(computeCursorContext(view));
@@ -304,8 +339,16 @@ function updatePanelStores(
 
 export function createPerFilePanelApi(): PerFilePanelApi {
   let view: EditorView | null = null;
-  const outline = new MutablePanelStore<readonly OutlineEntry[]>([], sameOutlineEntries);
-  const counts = new MutablePanelStore<Counts>(emptyCounts, sameCounts);
+  const outline = new LazyPanelStore<readonly OutlineEntry[]>(
+    [],
+    sameOutlineEntries,
+    () => view ? computeOutline(view) : [],
+  );
+  const counts = new LazyPanelStore<Counts>(
+    emptyCounts,
+    sameCounts,
+    () => view ? computeCounts(view) : emptyCounts,
+  );
   const cursorContext = new MutablePanelStore<CursorContext>(
     emptyCursorContext,
     sameCursorContext,
@@ -327,18 +370,15 @@ export function createPerFilePanelApi(): PerFilePanelApi {
       return;
     }
     const target = clampPosition(view.state.doc, from);
-    if (options.center) {
-      view.dispatch({
-        selection: { anchor: target },
-        effects: EditorView.scrollIntoView(target, { y: "center" }),
-      });
-    } else {
-      view.dispatch({
-        selection: { anchor: target },
-        scrollIntoView: true,
-      });
-    }
-    view.focus();
+    const select = options.select !== false;
+    view.dispatch({
+      selection: select ? { anchor: target } : undefined,
+      effects: options.center || !select
+        ? EditorView.scrollIntoView(target, options.center ? { y: "center" } : undefined)
+        : undefined,
+      scrollIntoView: select && !options.center,
+    });
+    if (select) view.focus();
   };
 
   const scrollToLine = (line: number, options: ScrollToLineOptions = {}) => {

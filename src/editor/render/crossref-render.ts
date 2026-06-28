@@ -55,7 +55,7 @@ export class ClusteredCrossrefWidget extends ReferenceWidget {
     raw: string,
   ) {
     super({
-      className: CSS.crossref,
+      className: CSS.citationCluster,
       ariaLabel: raw,
     });
   }
@@ -64,9 +64,9 @@ export class ClusteredCrossrefWidget extends ReferenceWidget {
     return this.createReferenceListDOM({
       ...this.rootSpec,
       items: this.parts.map((part) => ({
+        className: part.unresolved ? CSS.crossrefUnresolved : CSS.crossref,
         id: part.id,
         text: part.text,
-        ...(part.unresolved ? { className: CSS.crossrefUnresolved } : {}),
       })),
       separatorText: "; ",
     });

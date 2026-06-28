@@ -128,7 +128,11 @@ import {
   type ReferencePresentationRoute,
   type ResolvedCrossref,
 } from "../core/references/presentation";
-import { renderBibliographySectionHtml } from "../core/bibliography-surface";
+import {
+  appendBibliographyBacklinks,
+  bibliographyEntryId,
+  renderBibliographySectionHtml,
+} from "../core/bibliography-surface";
 import {
   formatBlockReferenceLabel,
 } from "../core/references/format";
@@ -177,6 +181,7 @@ import {
   isUnresolvedLocalMediaUrl,
   renderImageSurfaceHtml,
   renderMediaLoadingHtml,
+  syncInlineImageSizeOnLoad,
 } from "../core/media-surface";
 import { renderParagraphHtml } from "../core/paragraph-surface";
 import {
@@ -207,23 +212,48 @@ import {
 import {
   sourceRangeAttrs,
   sourceRangeFromElement,
+  type RenderedSourceAnchor,
+  type RenderedSourceAnchorGranularity,
+  type SourceLineRange,
 } from "../core/source-range-surface";
 export {
   applySourceRangeAttrs,
+  applyReaderSourceDecorations,
   closestMathSourceCarrier,
   closestSourceRangeCarrier,
   isSourceRangeCarrier,
   mapDomRangeToSource,
+  mapDomNodeToSource,
+  mapDomPointToSource,
   parseSourceOffset,
+  renderedAnchorsForSourceLineRange,
+  renderedAnchorsForSourceRange,
+  renderedSourceAnchorsFromDom,
+  sourceLineRangeFromElement,
   sourceRangeAttrs,
   sourceRangeFromDataset,
   sourceRangeFromElement,
   sourceRangeFromValues,
+  visibleSourcePositionInScroller,
   type ElementSourceRangeOptions,
   type ParseSourceRangeOptions,
+  type ReaderSourceDecoration,
+  type RenderedSourceAnchor,
+  type RenderedSourceAnchorGranularity,
+  type RenderedSourceAnchorLookupOptions,
+  type SourceLineRange,
   type SourceRange,
   type SourceRangeAttrsOptions,
   type SourceRangeCarrierOptions,
+  type VisibleSourcePositionOptions,
+} from "../core/source-range-surface";
+export {
+  scrollReaderToSourcePosition,
+  sourceElementAtPosition,
+} from "../core/source-range-surface";
+export type {
+  SourcePosition,
+  SourcePositionScrollOptions,
 } from "../core/source-range-surface";
 import type {
   CitationFormatter,
@@ -241,6 +271,10 @@ export {
 } from "../core/theme-manifest";
 export type { CoflatThemeManifest, CoflatThemeTarget } from "../core/theme-manifest";
 import { noteLezerInvocation } from "./reader-internal";
+import {
+  orderElementsVisibleFirst,
+  scheduleHydrationYield,
+} from "./hydration-scheduler";
 
 export type {
   DocumentContext,
@@ -646,6 +680,8 @@ interface WalkContext {
   source: string;
   resolvers: Resolvers;
   lineOffsets: Uint32Array | null;
+  /** When true, emit 1-based source line attributes on block elements. */
+  sourceLineAttribution: boolean;
   /** When true, emit `data-source-from`/`data-source-to` byte offsets on
    *  every block element, inline mark, math placeholder, and plain-text
    *  span (the latter wrapped in `<span class="cf-text">`). */
@@ -658,6 +694,10 @@ interface WalkContext {
   surfacePolicy: DocumentSurfacePolicy;
   /** When true, emit ids on all headings and accumulate {@link outline}. */
   collectOutline: boolean;
+  /** When true, emit stable rendered source anchors and return a source map. */
+  sourceMap: boolean;
+  sourceAnchors: RenderedSourceAnchor[];
+  sourceAnchorCounts: Map<string, number>;
   /** Headings in document order; populated only when {@link collectOutline}. */
   outline: ReaderOutlineEntry[];
   /** Heading ids already emitted, for slug de-duplication. */
@@ -689,16 +729,68 @@ interface WalkContext {
    *  as unnumbered even though the numbering walk still advances (for crossref
    *  resolution). Defaults to true. */
   numberHeadings: boolean;
+  layoutGaps: ReaderLayoutGap[];
+  emittedLayoutGapIds: Set<string>;
+}
+
+export interface ReaderLayoutGap {
+  id: string;
+  sourceLine: number;
+  placement?: "before" | "after";
+  height?: number;
+  className?: string;
 }
 
 function sourcePosAttrs(ctx: WalkContext, from: number, to: number): string {
   if (!ctx.sourcePositions) return "";
-  return sourceRangeAttrs({ sourceRange: { from, to } });
+  return sourceRangeAttrs({ sourceRange: { from, to } }) + sourceAnchorAttrs(ctx, "inline", "inline", from, to);
 }
 
 function mathSourcePosAttrs(ctx: WalkContext, from: number, to: number): string {
   if (!ctx.mathSourcePositions) return "";
-  return sourceRangeAttrs({ sourceRange: { from, to } });
+  return sourceRangeAttrs({ sourceRange: { from, to } }) + sourceAnchorAttrs(ctx, "inline-math", "inline", from, to);
+}
+
+function anchorIdPart(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "") || "anchor";
+}
+
+function sourceLineRange(ctx: WalkContext, from: number, to: number): SourceLineRange | undefined {
+  if (!ctx.lineOffsets) return undefined;
+  return {
+    from: lineAt(ctx.lineOffsets, from),
+    to: lineAt(ctx.lineOffsets, Math.max(from, to - 1)),
+  };
+}
+
+function sourceAnchorAttrs(
+  ctx: WalkContext,
+  kind: string,
+  granularity: RenderedSourceAnchorGranularity,
+  from: number,
+  to: number,
+): string {
+  if (!ctx.sourceMap) return "";
+  const key = `${granularity}:${kind}:${from}:${to}`;
+  const previous = ctx.sourceAnchorCounts.get(key) ?? 0;
+  ctx.sourceAnchorCounts.set(key, previous + 1);
+  const base = `cf-${anchorIdPart(granularity)}-${anchorIdPart(kind)}-${from}-${to}`;
+  const id = previous === 0 ? base : `${base}-${previous + 1}`;
+  const selector = `[data-cf-anchor-id="${id}"]`;
+  const lineRange = sourceLineRange(ctx, from, to);
+  ctx.sourceAnchors.push({
+    id,
+    kind,
+    granularity,
+    sourceRange: { from, to },
+    ...(lineRange ? { lineRange } : {}),
+    selector,
+  });
+  const blockKindAttr = granularity === "block" ? ` data-cf-block-kind="${kind}"` : "";
+  return (
+    ` data-cf-anchor-id="${id}" data-cf-anchor-kind="${kind}"` +
+    ` data-cf-anchor-granularity="${granularity}"${blockKindAttr}`
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -865,9 +957,9 @@ function renderInlineFragmentsForReader(
           text += alt;
           break;
         }
-        if (ctx.resolvers.resolveAssetUrl) {
+        if (ctx.resolvers.resolveAssetUrl && isReaderLocalAssetSrc(src)) {
           try {
-            const resolved = ctx.resolvers.resolveAssetUrl(src);
+            const resolved = ctx.resolvers.resolveAssetUrl(resolveReaderAssetPath(ctx.resolvers.documentPath, src));
             if (typeof resolved === "string") src = resolved;
           } catch (_error) {
             // Asset resolution is host-provided; fall back to the authored URL.
@@ -1028,7 +1120,7 @@ type TruncateSpec = { lines: number } | { chars: number };
 
 export type ReaderOutlineEntry = DocumentOutlineEntry;
 
-interface RenderOptions {
+export interface RenderOptions {
   /** If true, emit `data-source-line` on every block-level element. */
   sourceLineAttribution?: boolean;
   /**
@@ -1060,6 +1152,12 @@ interface RenderOptions {
    *  `<span class="cf-text" data-source-from=… data-source-to=…>`. Off by
    *  default — output is byte-identical to the un-opted form. */
   sourcePositions?: boolean;
+  /**
+   * If true, emit stable `data-cf-anchor-id` metadata on rendered block and
+   * inline source carriers and return a rendered source map. Implies
+   * `sourcePositions` and line-range attribution for anchors.
+   */
+  sourceMap?: boolean;
   /** If true, emit `data-source-from`/`data-source-to` on math spans only. */
   mathSourcePositions?: boolean;
   /** Block-boundary truncation budget. */
@@ -1081,6 +1179,16 @@ interface RenderOptions {
    * numbers (coflat#47).
    */
   sectionNumbering?: boolean;
+  /**
+   * Host-controlled block-boundary layout gaps. The reader resolves each
+   * 1-based source line to the first rendered block whose source line range
+   * contains it and emits a placeholder gap before or after that block.
+   *
+   * This is intentionally document-layout metadata, not diff semantics: hosts
+   * own PR/gap pairing and only ask Coflat to insert placeholders at safe
+   * rendered boundaries.
+   */
+  layoutGaps?: readonly ReaderLayoutGap[];
 }
 
 export interface TruncatedInfo {
@@ -1113,18 +1221,78 @@ function combineBlocks(blocks: BlockResult[]): BlockResult {
 /** Block-level convenience: emits both `data-source-line` (if
  *  `sourceLineAttribution`) and `data-source-from`/`data-source-to` (if
  *  `sourcePositions`). Pass the block node's `from`/`to`. */
-function blockSourceAttrs(ctx: WalkContext, from: number, to: number): string {
+function blockSourceAttrs(ctx: WalkContext, from: number, to: number, kind = "block"): string {
+  const lineRange = sourceLineRange(ctx, from, to);
   return sourceRangeAttrs({
-    sourceLine: ctx.lineOffsets ? lineAt(ctx.lineOffsets, from) : null,
+    sourceLine: ctx.sourceLineAttribution && !ctx.sourceMap ? lineRange?.from ?? null : null,
+    sourceLineRange: ctx.sourceMap ? lineRange ?? null : null,
     sourceRange: ctx.sourcePositions ? { from, to } : null,
-  });
+  }) + sourceAnchorAttrs(ctx, kind, "block", from, to);
 }
 
-function blockMathSourceAttrs(ctx: WalkContext, from: number, to: number): string {
+function blockMathSourceAttrs(ctx: WalkContext, from: number, to: number, kind = "display-math"): string {
+  const lineRange = sourceLineRange(ctx, from, to);
   return sourceRangeAttrs({
-    sourceLine: ctx.lineOffsets ? lineAt(ctx.lineOffsets, from) : null,
+    sourceLine: ctx.sourceLineAttribution && !ctx.sourceMap ? lineRange?.from ?? null : null,
+    sourceLineRange: ctx.sourceMap ? lineRange ?? null : null,
     sourceRange: ctx.mathSourcePositions ? { from, to } : null,
-  });
+  }) + sourceAnchorAttrs(ctx, kind, "block", from, to);
+}
+
+function normalizeLayoutGaps(gaps: readonly ReaderLayoutGap[] | undefined): ReaderLayoutGap[] {
+  if (!gaps?.length) return [];
+  const out: ReaderLayoutGap[] = [];
+  const seen = new Set<string>();
+  for (const gap of gaps) {
+    if (!gap.id || seen.has(gap.id)) continue;
+    if (!Number.isInteger(gap.sourceLine) || gap.sourceLine < 1) continue;
+    seen.add(gap.id);
+    out.push({
+      id: gap.id,
+      sourceLine: gap.sourceLine,
+      placement: gap.placement === "after" ? "after" : "before",
+      ...(Number.isFinite(gap.height) && gap.height !== undefined && gap.height >= 0 ? { height: gap.height } : {}),
+      ...(gap.className ? { className: gap.className } : {}),
+    });
+  }
+  return out;
+}
+
+function layoutGapsForBlock(ctx: WalkContext, from: number, to: number, placement: "before" | "after"): ReaderLayoutGap[] {
+  if (ctx.layoutGaps.length === 0) return [];
+  const lineRange = sourceLineRange(ctx, from, to);
+  if (!lineRange) return [];
+  return ctx.layoutGaps.filter((gap) =>
+    !ctx.emittedLayoutGapIds.has(gap.id) &&
+    (gap.placement ?? "before") === placement &&
+    lineRange.from <= gap.sourceLine &&
+    gap.sourceLine <= lineRange.to
+  );
+}
+
+function renderLayoutGap(gap: ReaderLayoutGap): string {
+  const classes = ["cf-doc-layout-gap", ...safeClassTokens(gap.className)];
+  const style = gap.height === undefined ? "" : ` style="height:${gap.height}px"`;
+  return `<div class="${classes.join(" ")}" data-cf-layout-gap-id="${escapeHtml(gap.id)}"${style} aria-hidden="true"></div>`;
+}
+
+function safeClassTokens(className: string | undefined): string[] {
+  if (!className) return [];
+  return className.split(/\s+/).filter((token) => /^[A-Za-z0-9_-]+$/.test(token));
+}
+
+function emitBlockWithLayoutGaps(ctx: WalkContext, blocks: BlockResult[], block: BlockResult, from: number, to: number): void {
+  const before = layoutGapsForBlock(ctx, from, to, "before");
+  for (const gap of before) {
+    blocks.push({ html: renderLayoutGap(gap), text: "", hasMath: false });
+    ctx.emittedLayoutGapIds.add(gap.id);
+  }
+  blocks.push(block);
+  const after = layoutGapsForBlock(ctx, from, to, "after");
+  for (const gap of after) {
+    blocks.push({ html: renderLayoutGap(gap), text: "", hasMath: false });
+    ctx.emittedLayoutGapIds.add(gap.id);
+  }
 }
 
 function renderBlock(ctx: WalkContext, node: SyntaxNode): BlockResult {
@@ -1173,7 +1341,7 @@ function renderBlock(ctx: WalkContext, node: SyntaxNode): BlockResult {
         html: renderDisplayMathPlaceholderHtml(plan.latex, raw, {
           equationNumber,
           id: equationId ?? undefined,
-          sourceAttrs: blockMathSourceAttrs(ctx, plan.sourceRange.from, plan.sourceRange.to),
+          sourceAttrs: blockMathSourceAttrs(ctx, plan.sourceRange.from, plan.sourceRange.to, "display-math"),
         }),
         text: raw,
         hasMath: true,
@@ -1276,7 +1444,7 @@ function renderHeading(ctx: WalkContext, node: SyntaxNode): BlockResult {
         sectionNumber: headingNumber,
         unnumbered: displayUnnumbered,
       },
-      blockSourceAttrs(ctx, plan.sourceRange.from, plan.sourceRange.to),
+      blockSourceAttrs(ctx, plan.sourceRange.from, plan.sourceRange.to, `heading-${plan.level}`),
     ),
     text: plan.text,
     hasMath: plan.hasMath,
@@ -1294,7 +1462,7 @@ function renderParagraph(ctx: WalkContext, node: SyntaxNode): BlockResult {
     plan.contentRange.to,
   );
   return {
-    html: renderParagraphHtml(inner.html, blockSourceAttrs(ctx, plan.sourceRange.from, plan.sourceRange.to)),
+    html: renderParagraphHtml(inner.html, blockSourceAttrs(ctx, plan.sourceRange.from, plan.sourceRange.to, "paragraph")),
     text: plan.text,
     hasMath: plan.hasMath,
   };
@@ -1303,7 +1471,7 @@ function renderParagraph(ctx: WalkContext, node: SyntaxNode): BlockResult {
 function renderHorizontalRule(ctx: WalkContext, node: SyntaxNode): BlockResult {
   const plan = horizontalRuleRenderPlan(node);
   return {
-    html: renderHorizontalRuleHtml(blockSourceAttrs(ctx, plan.sourceRange.from, plan.sourceRange.to)),
+    html: renderHorizontalRuleHtml(blockSourceAttrs(ctx, plan.sourceRange.from, plan.sourceRange.to, "horizontal-rule")),
     text: "",
     hasMath: false,
   };
@@ -1318,7 +1486,7 @@ function renderList(ctx: WalkContext, node: SyntaxNode): BlockResult {
     html: renderListSurfaceHtml(
       surfacePlan.options,
       items.map((b) => b.html).join(""),
-      blockSourceAttrs(ctx, plan.sourceRange.from, plan.sourceRange.to),
+      blockSourceAttrs(ctx, plan.sourceRange.from, plan.sourceRange.to, plan.ordered ? "ordered-list" : "bullet-list"),
     ),
     text: items.map((b) => b.text).join("\n"),
     hasMath: items.some((b) => b.hasMath),
@@ -1344,7 +1512,7 @@ function renderListItem(
         blocks.push({
           html: renderParagraphHtml(
             inner.html,
-            blockSourceAttrs(ctx, plan.task.trimmedContentRange.from, plan.task.trimmedContentRange.to),
+            blockSourceAttrs(ctx, plan.task.trimmedContentRange.from, plan.task.trimmedContentRange.to, "task-paragraph"),
           ),
           text: inner.text,
           hasMath: inner.hasMath,
@@ -1381,7 +1549,7 @@ function renderListItem(
       surfacePlan.options,
       surfacePlan.markerNumber,
       inner,
-      blockSourceAttrs(ctx, plan.sourceRange.from, plan.sourceRange.to),
+      blockSourceAttrs(ctx, plan.sourceRange.from, plan.sourceRange.to, plan.task ? "task-list-item" : "list-item"),
     ),
     text,
     hasMath,
@@ -1397,7 +1565,7 @@ function renderBlockquote(ctx: WalkContext, node: SyntaxNode): BlockResult {
   return {
     html: renderBlockquoteHtml(
       blocks.map((b) => b.html).join(""),
-      blockSourceAttrs(ctx, plan.sourceRange.from, plan.sourceRange.to),
+      blockSourceAttrs(ctx, plan.sourceRange.from, plan.sourceRange.to, "blockquote"),
     ),
     text: blocks.map((b) => b.text).join("\n"),
     hasMath: blocks.some((b) => b.hasMath),
@@ -1410,7 +1578,7 @@ function renderFencedCode(ctx: WalkContext, node: SyntaxNode): BlockResult {
     html: renderCodeBlockHtml(
       plan.language,
       plan.code,
-      blockSourceAttrs(ctx, plan.sourceRange.from, plan.sourceRange.to),
+      blockSourceAttrs(ctx, plan.sourceRange.from, plan.sourceRange.to, "code-block"),
     ),
     text: plan.code,
     hasMath: false,
@@ -1425,8 +1593,8 @@ function renderTable(ctx: WalkContext, node: SyntaxNode): BlockResult {
   const textRowsByFrom = new Map<number, string[]>();
   let hasMath = false;
   const html = renderTablePlanHtml(plan, {
-    tableAttrs: blockSourceAttrs(ctx, plan.sourceRange.from, plan.sourceRange.to),
-    rowAttrs: (row) => blockSourceAttrs(ctx, row.sourceRange.from, row.sourceRange.to),
+    tableAttrs: blockSourceAttrs(ctx, plan.sourceRange.from, plan.sourceRange.to, "table"),
+    rowAttrs: (row) => blockSourceAttrs(ctx, row.sourceRange.from, row.sourceRange.to, row.header ? "table-header-row" : "table-row"),
     renderCell: (cell, row) => {
       const inner = renderInlineFragmentsForReader(
         ctx,
@@ -1452,8 +1620,13 @@ function renderTable(ctx: WalkContext, node: SyntaxNode): BlockResult {
 }
 
 function renderBlankLine(ctx: WalkContext, from: number, to: number): BlockResult {
+  const lineRange = sourceLineRange(ctx, from, to);
   return {
-    html: renderBlankLineHtml(blockSourceAttrs(ctx, from, to)),
+    html: renderBlankLineHtml(sourceRangeAttrs({
+      sourceLine: ctx.sourceLineAttribution && !ctx.sourceMap ? lineRange?.from ?? null : null,
+      sourceLineRange: ctx.sourceMap ? lineRange ?? null : null,
+      sourceRange: ctx.sourcePositions ? { from, to } : null,
+    })),
     text: "",
     hasMath: false,
   };
@@ -1483,7 +1656,7 @@ function renderFencedDiv(ctx: WalkContext, node: SyntaxNode): BlockResult {
   }
   const attrs = blockContainerSurfaceAttrs(fencedDivContainerOptions(plan));
   const body = combineBlocks(blocks);
-  const sourceAttrs = blockSourceAttrs(ctx, plan.sourceRange.from, plan.sourceRange.to);
+  const sourceAttrs = blockSourceAttrs(ctx, plan.sourceRange.from, plan.sourceRange.to, normalizedClassName ?? "fenced-div");
   const caption = chrome.captionSlot === "below" && plan.title && normalizedClassName
     ? renderBlockCaption(ctx, normalizedClassName, plan.title, plan.titleFragments, plan.number, node.from, node.to)
     : emptyBlock();
@@ -1609,6 +1782,7 @@ function walkDocument(
   outline: ReaderOutlineEntry[];
   catalog: Map<string, DocumentReferenceTarget>;
   referencePreviewIndex: ReaderReferencePreviewCatalog;
+  sourceMap: RenderedSourceAnchor[];
   mathMacros?: Record<string, string>;
 } {
   const frontmatter = parseFrontmatter(source);
@@ -1623,9 +1797,10 @@ function walkDocument(
   const ctx: WalkContext = {
     source,
     resolvers,
-    lineOffsets: opts.sourceLineAttribution ? buildLineOffsets(source) : null,
-    sourcePositions: !!opts.sourcePositions,
-    mathSourcePositions: !!(opts.sourcePositions || opts.mathSourcePositions),
+    lineOffsets: opts.sourceLineAttribution || opts.sourceMap || opts.layoutGaps?.length ? buildLineOffsets(source) : null,
+    sourceLineAttribution: !!opts.sourceLineAttribution,
+    sourcePositions: !!(opts.sourcePositions || opts.sourceMap),
+    mathSourcePositions: !!(opts.sourcePositions || opts.sourceMap || opts.mathSourcePositions),
     semanticBlockDisclosures: surfacePolicy.semanticBlockDisclosures,
     surfacePolicy,
     collectOutline: !!opts.outline,
@@ -1649,6 +1824,11 @@ function walkDocument(
     buildCatalog,
     buildReferencePreviews: !!opts.referencePreviews,
     numberHeadings: opts.sectionNumbering !== false,
+    layoutGaps: normalizeLayoutGaps(opts.layoutGaps),
+    emittedLayoutGapIds: new Set(),
+    sourceMap: !!opts.sourceMap,
+    sourceAnchors: [],
+    sourceAnchorCounts: new Map(),
   };
 
   if (ctx.collectOutline) reserveExplicitHeadingIds(ctx, tree);
@@ -1670,7 +1850,7 @@ function walkDocument(
     // full block document, so it never sprouts headings/lists/paragraphs.
     const renderedTitle = renderInlineSnippet(ctx, title);
     blocks.push({
-      html: `<div class="${CSS.docTitle}"${blockSourceAttrs(ctx, 0, frontmatterEnd)}>${renderedTitle.html}</div>`,
+      html: `<div class="${CSS.docTitle}"${blockSourceAttrs(ctx, 0, frontmatterEnd, "document-title")}>${renderedTitle.html}</div>`,
       text: title,
       hasMath: renderedTitle.hasMath,
     });
@@ -1732,14 +1912,14 @@ function walkDocument(
         // Either used===0 (must emit at least this block, even if it busts
         // budget — atomic blocks) or budget still has room. Emit.
         flushPendingBlankRanges();
-        blocks.push(rendered);
+        emitBlockWithLayoutGaps(ctx, blocks, rendered, child.from, child.to);
         used += cost;
         topCount++;
         return;
       }
       flushPendingBlankRanges();
       topCount++;
-      blocks.push(renderBlock(ctx, child));
+      emitBlockWithLayoutGaps(ctx, blocks, renderBlock(ctx, child), child.from, child.to);
     },
     emitTrailingBlank: (range) => {
       if (!truncated) {
@@ -1756,6 +1936,7 @@ function walkDocument(
   if (
     !truncated &&
     topCount === 1 &&
+    blocks.length === 1 &&
     blocks[0].html.startsWith(`<p class="${paragraphClasses}"`)
   ) {
     const stripped = blocks[0].html
@@ -1775,18 +1956,21 @@ function walkDocument(
     };
   }
 
-  const references = renderReferencesList(ctx);
-  if (references) {
-    combined = {
-      html: combined.html + references,
-      text: combined.text,
-      hasMath: combined.hasMath,
-    };
-  }
   const footnotes = renderFootnotesList(ctx);
   if (footnotes) {
     combined = {
       html: combined.html + footnotes,
+      text: combined.text,
+      hasMath: combined.hasMath,
+    };
+  }
+  const references = renderReferencesList(ctx);
+  if (references) {
+    const footnoteBibliographySpacer = footnotes
+      ? '<div class="cf-doc-blank-line" aria-hidden="true"><br></div>'
+      : "";
+    combined = {
+      html: combined.html + footnoteBibliographySpacer + references,
       text: combined.text,
       hasMath: combined.hasMath,
     };
@@ -1797,6 +1981,7 @@ function walkDocument(
     outline: ctx.outline,
     catalog: ctx.catalog,
     referencePreviewIndex: ctx.referencePreviewIndex,
+    sourceMap: ctx.sourceAnchors,
     // Surface the document's frontmatter `math:` macros so the host can forward
     // them to `hydrateMath` without re-parsing. Mirrors the editor, where the
     // same `config.math` feeds `mathMacrosField` and every math render path.
@@ -1921,6 +2106,7 @@ export interface ReaderHtmlResult {
   hasMath: boolean;
   truncated?: TruncatedInfo;
   outline?: ReaderOutlineEntry[];
+  sourceMap?: RenderedSourceAnchor[];
   mathMacros?: Record<string, string>;
   referencePreviewIndex?: ReaderReferencePreviewIndex;
 }
@@ -1946,6 +2132,8 @@ export function renderToHtml(
     !FAST_PATH_RE.test(source) &&
     !opts.sourceLineAttribution &&
     !opts.sourcePositions &&
+    !opts.sourceMap &&
+    !opts.layoutGaps?.length &&
     !opts.truncate &&
     !opts.outline &&
     !opts.resolveReferences &&
@@ -1971,6 +2159,7 @@ export function renderToHtml(
   };
   if (result.truncated) out.truncated = result.truncated;
   if (opts.outline) out.outline = result.outline;
+  if (opts.sourceMap) out.sourceMap = result.sourceMap;
   if (opts.referencePreviews) {
     out.referencePreviewIndex = serializeReferencePreviewIndex(result.referencePreviewIndex);
   }
@@ -2026,7 +2215,7 @@ function buildResolvers(
   let resolveAssetUrl: ((path: string) => string) | undefined;
   if (fs && typeof fs.resolveAssetUrl === "function") {
     resolveAssetUrl = (path: string) => {
-      const v = fs.resolveAssetUrl(path);
+      const v = fs.resolveAssetUrl(path, { purpose: "display" });
       return typeof v === "string" ? v : path;
     };
   }
@@ -2038,6 +2227,28 @@ function buildResolvers(
     resolveAssetUrl,
     documentPath,
   };
+}
+
+function resolveReaderAssetPath(documentPath: string | undefined, src: string): string {
+  if (!src || /^[a-z][a-z0-9+.-]*:/i.test(src)) return src;
+  const baseDir = documentPath?.includes("/") ? documentPath.slice(0, documentPath.lastIndexOf("/")) : "";
+  const parts = src.startsWith("/")
+    ? src.slice(1).split("/")
+    : [...(baseDir ? baseDir.split("/") : []), ...src.split("/")];
+  const out: string[] = [];
+  for (const part of parts) {
+    if (!part || part === ".") continue;
+    if (part === "..") {
+      out.pop();
+      continue;
+    }
+    out.push(part);
+  }
+  return out.join("/");
+}
+
+function isReaderLocalAssetSrc(src: string): boolean {
+  return Boolean(src) && !src.startsWith("//") && !/^[a-z][a-z0-9+.-]*:/i.test(src);
 }
 
 // ---------------------------------------------------------------------------
@@ -2225,6 +2436,20 @@ export function hydrateBlockDisclosures(root: HTMLElement): void {
   hydrateReaderDisclosures(root);
 }
 
+export function hydrateMedia(root: HTMLElement): void {
+  for (const wrapper of Array.from(root.querySelectorAll<HTMLElement>(`span.${CSS.imageWrapper}`))) {
+    if (
+      wrapper.classList.contains(CSS.imageLoading) ||
+      wrapper.classList.contains(CSS.imagePlaceholder)
+    ) {
+      continue;
+    }
+    const img = wrapper.querySelector<HTMLImageElement>(`img.${CSS.image}`);
+    if (!img) continue;
+    syncInlineImageSizeOnLoad(wrapper, img);
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Reference hydration.
 // ---------------------------------------------------------------------------
@@ -2309,6 +2534,45 @@ function hydrateLinkElement(
   }
 }
 
+function hydrateBibliographyBacklinks(root: HTMLElement, ctx: DocumentContext): void {
+  if (!ctx.citationKeys) return;
+  const backlinks = new Map<string, Array<{ occurrence: number; sourceFrom: number }>>();
+  let occurrence = 0;
+
+  for (const el of Array.from(root.querySelectorAll<HTMLElement>(
+    `.${CSS.citation}[data-ref-key], .${CSS.citation} [data-ref-id]`,
+  ))) {
+    const rawKey = el.dataset.refId ?? el.dataset.refKey;
+    if (!rawKey) continue;
+    const ids = rawKey.split(";").map((id) => id.trim()).filter((id) =>
+      coreIsCitationKey(ctx.citationKeys, id)
+    );
+    if (ids.length === 0) continue;
+
+    occurrence += 1;
+    const sourceFrom = sourceRangeFromElement(el, { closest: true })?.from ?? -1;
+    for (const id of ids) {
+      const bucket = backlinks.get(id);
+      const entry = { occurrence, sourceFrom };
+      if (bucket) bucket.push(entry);
+      else backlinks.set(id, [entry]);
+    }
+  }
+
+  if (backlinks.size === 0) return;
+  for (const [id, refs] of backlinks) {
+    const entryId = bibliographyEntryId(id);
+    const escapedEntryId = globalThis.CSS?.escape
+      ? globalThis.CSS.escape(entryId)
+      : entryId.replace(/["\\]/g, "\\$&");
+    const entry = root.querySelector<HTMLElement>(
+      `#${escapedEntryId}`,
+    );
+    if (!entry || entry.querySelector(`.${CSS.bibliographyBacklinks}`)) continue;
+    appendBibliographyBacklinks(entry, refs);
+  }
+}
+
 /**
  * Hydrate unresolved reader references and links after static HTML insertion.
  *
@@ -2332,6 +2596,8 @@ export function hydrateReferences(
   for (const el of Array.from(root.querySelectorAll<HTMLAnchorElement>("a[href]"))) {
     hydrateLinkElement(el, ctx, opts);
   }
+
+  hydrateBibliographyBacklinks(root, ctx);
 }
 
 export interface ReaderHoverPreviewEnv {
@@ -2380,6 +2646,30 @@ function buildReaderCitationPreview(
   const body = createHoverPreviewCitationBodyElement();
   body.innerHTML = sanitize(entry.html);
   return createHoverPreviewElementWithChild(body);
+}
+
+export function createReaderCitationClusterPreviewBody(
+  key: string,
+  context: DocumentContext | undefined,
+): HTMLElement | null {
+  if (!context?.citationFormatter || !context.citationKeys) return null;
+  const ids = key.split(";").map((id) => id.trim()).filter(Boolean);
+  if (ids.length < 2) return null;
+  const citationIds = ids.filter((id) => coreIsCitationKey(context.citationKeys, id));
+  if (citationIds.length === 0) return null;
+  const entriesById = new Map(
+    coreBibliographyEntries(context.citationFormatter, citationIds).map((entry) => [entry.id, entry.html]),
+  );
+  const container = document.createElement("div");
+  container.className = "cf-hover-preview-citation-body";
+  for (const id of citationIds) {
+    const html = entriesById.get(id);
+    if (!html) continue;
+    const body = createHoverPreviewCitationBodyElement();
+    body.innerHTML = sanitize(html);
+    container.appendChild(body);
+  }
+  return container.childNodes.length > 0 ? container : null;
 }
 
 function renderReaderPreviewSource(
@@ -2608,6 +2898,40 @@ export interface HydrateMathOptions {
   mathMacros?: Record<string, string>;
 }
 
+interface KatexRenderer {
+  renderToString: typeof import("katex").renderToString;
+}
+
+function hydrateMathElement(
+  el: HTMLElement,
+  katex: KatexRenderer,
+  macros: Record<string, string> | undefined,
+): void {
+  if (el.getAttribute("data-math-hydrated") === "true") return;
+  const latex = el.getAttribute("data-math");
+  if (latex === null) return;
+
+  const isDisplay = el.classList.contains(DOCUMENT_SURFACE_CLASS.displayMath);
+  const html = katex.renderToString(latex, {
+    ...buildKatexOptions(isDisplay, macros),
+    output: isDisplay ? "htmlAndMathml" : "html",
+  });
+  if (html.includes("katex-error")) {
+    el.classList.add(CSS.mathError);
+    el.setAttribute("data-math-error", "KaTeX error");
+  }
+
+  if (isDisplay) {
+    const content = document.createElement("div");
+    content.innerHTML = html;
+    const equationNumber = el.dataset.equationNumber;
+    replaceDisplayMathContent(el, content, equationNumber);
+  } else {
+    el.innerHTML = html;
+  }
+  el.setAttribute("data-math-hydrated", "true");
+}
+
 /**
  * Lazily hydrate `[data-math]` placeholders inside `root` with KaTeX-rendered
  * HTML.
@@ -2647,31 +2971,19 @@ export async function hydrateMath(
   const katexModule = await import("katex");
   const katex = katexModule.default ?? katexModule;
   const macros = opts?.mathMacros;
+  const orderedPlaceholders = orderElementsVisibleFirst(Array.from(placeholders));
+  const chunkBudgetMs = 8;
 
-  for (const el of Array.from(placeholders)) {
-    if (el.getAttribute("data-math-hydrated") === "true") continue;
-    const latex = el.getAttribute("data-math");
-    if (latex === null) continue;
-
-    const isDisplay = el.classList.contains(DOCUMENT_SURFACE_CLASS.displayMath);
-    let html: string;
-    html = katex.renderToString(latex, {
-      ...buildKatexOptions(isDisplay, macros),
-      output: isDisplay ? "htmlAndMathml" : "html",
-    });
-    if (html.includes("katex-error")) {
-      el.classList.add(CSS.mathError);
-      el.setAttribute("data-math-error", "KaTeX error");
+  let chunkStartedAt = performance.now();
+  for (let index = 0; index < orderedPlaceholders.length; index += 1) {
+    hydrateMathElement(orderedPlaceholders[index], katex, macros);
+    if (
+      index < orderedPlaceholders.length - 1 &&
+      orderedPlaceholders.length > 32 &&
+      performance.now() - chunkStartedAt >= chunkBudgetMs
+    ) {
+      await scheduleHydrationYield();
+      chunkStartedAt = performance.now();
     }
-
-    if (isDisplay) {
-      const content = document.createElement("div");
-      content.innerHTML = html;
-      const equationNumber = el.dataset.equationNumber;
-      replaceDisplayMathContent(el, content, equationNumber);
-    } else {
-      el.innerHTML = html;
-    }
-    el.setAttribute("data-math-hydrated", "true");
   }
 }

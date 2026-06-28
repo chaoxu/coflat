@@ -14,6 +14,8 @@ export interface FootnoteSectionDomEntry {
   readonly id: string;
   readonly defFrom?: number;
   readonly backrefHref?: string;
+  readonly includeId?: boolean;
+  readonly includeBackrefHref?: boolean;
   readonly appendContent: (content: HTMLSpanElement) => void;
 }
 
@@ -147,7 +149,9 @@ export function createFootnoteEntryElement(
   entry: FootnoteSectionDomEntry,
 ): HTMLDivElement {
   const wrapper = ownerDocument.createElement("div");
-  wrapper.id = footnoteEntryId(entry.id);
+  if (entry.includeId ?? true) {
+    wrapper.id = footnoteEntryId(entry.id);
+  }
   wrapper.className = CSS.bibliographyEntry;
   if (entry.defFrom !== undefined) {
     wrapper.dataset.defFrom = String(entry.defFrom);
@@ -165,7 +169,9 @@ export function createFootnoteEntryElement(
   if (entry.backrefHref) {
     wrapper.appendChild(ownerDocument.createTextNode(" "));
     const backref = ownerDocument.createElement("a");
-    backref.href = entry.backrefHref;
+    if (entry.includeBackrefHref ?? true) {
+      backref.href = entry.backrefHref;
+    }
     backref.className = CSS.footnoteBackref;
     backref.textContent = "↩";
     wrapper.appendChild(backref);

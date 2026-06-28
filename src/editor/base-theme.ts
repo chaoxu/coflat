@@ -29,7 +29,7 @@ export const baseThemeStyles = {
   },
   "@media (max-width: 720px)": {
     ".cm-content": {
-      paddingInline: "var(--cf-doc-content-padding-inline-compact, 20px)",
+      paddingInline: "var(--cf-doc-content-padding-inline-compact, var(--cf-doc-content-padding-inline, 20px))",
       marginRight: "auto",
     },
   },

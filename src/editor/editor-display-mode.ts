@@ -1,9 +1,10 @@
 /** Shared app-level editor display modes. */
-export type EditorMode = "cm6-rich" | "source";
+export type EditorMode = "cm6-rich" | "cm6-rich-readonly" | "source";
 
 /** Markdown modes exposed by the shared app shell. */
 export const markdownEditorModes: readonly EditorMode[] = [
   "cm6-rich",
+  "cm6-rich-readonly",
   "source",
 ];
 

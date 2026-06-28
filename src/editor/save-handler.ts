@@ -1,19 +1,20 @@
 /**
  * SaveHandler wiring:
- *  - a CM6 extension that snapshots the last successfully-saved source,
- *    fires {@link StatusEvents.onDirtyChange} on transitions only, and
- *    debounces autosave per the host-supplied (or default) cadence;
+ *  - a dirty-state CM6 extension that snapshots the last clean source and
+ *    fires {@link StatusEvents.onDirtyChange} on transitions only;
+ *  - a save CM6 extension that adds autosave and Ctrl/Cmd-S when a
+ *    {@link SaveHandler} is present;
  *  - {@link createSaveController} which exposes {@code isSaved} and
  *    {@code triggerSave} for the {@code MountedEditor} surface; and
  *  - {@code saveKeymap} which binds Ctrl/Cmd-S → manual save when (and
  *    only when) a {@link SaveHandler} is present.
  *
- * The dispatcher itself is shared by autosave, the keymap, and
+ * The save dispatcher itself is shared by autosave, the keymap, and
  * {@code triggerSave}, so {@code onSaveStart} / {@code onSaveSucceeded} /
  * {@code onSaveFailed} fire in a single place.
  */
 
-import { Prec } from "@codemirror/state";
+import { Prec, type Text } from "@codemirror/state";
 import { EditorView, keymap, ViewPlugin } from "@codemirror/view";
 
 import {
@@ -31,7 +32,7 @@ interface SaveControllerInternal {
 }
 
 interface PerViewState {
-  lastSavedSource: string;
+  lastSavedDoc: Text;
   dirty: boolean;
   autosaveTimer: ReturnType<typeof setTimeout> | null;
   pendingDispatch: Promise<void> | null;
@@ -43,7 +44,7 @@ function getState(view: EditorView): PerViewState {
   let s = stateByView.get(view);
   if (!s) {
     s = {
-      lastSavedSource: view.state.doc.toString(),
+      lastSavedDoc: view.state.doc,
       dirty: false,
       autosaveTimer: null,
       pendingDispatch: null,
@@ -66,23 +67,37 @@ function setDirty(view: EditorView, s: PerViewState, dirty: boolean): void {
   emitStatusEvent(view, "onDirtyChange", dirty);
 }
 
+function liveDocEqualsLastSaved(view: EditorView, s: PerViewState): boolean {
+  return view.state.doc.eq(s.lastSavedDoc);
+}
+
+function dirtyAfterDocumentChange(
+  view: EditorView,
+  s: PerViewState,
+  exactRevertDetection: boolean,
+): boolean {
+  if (view.state.doc.length !== s.lastSavedDoc.length) return true;
+  return exactRevertDetection ? !liveDocEqualsLastSaved(view, s) : true;
+}
+
 async function dispatchSave(view: EditorView, reason: SaveReason): Promise<void> {
   const handler = view.state.facet(saveHandlerFacet);
   if (!handler) return;
   const s = getState(view);
   // Serialize concurrent saves; keymap + autosave + triggerSave share this.
-  if (s.pendingDispatch) {
+  while (s.pendingDispatch) {
     await s.pendingDispatch;
   }
-  const source = view.state.doc.toString();
+  const savedDoc = view.state.doc;
+  const source = savedDoc.toString();
   const run = (async () => {
     clearAutosave(s);
     emitStatusEvent(view, "onSaveStart");
     try {
       const result = await handler.save({ source, reason });
       if (result.ok) {
-        s.lastSavedSource = source;
-        setDirty(view, s, source !== view.state.doc.toString());
+        s.lastSavedDoc = savedDoc;
+        setDirty(view, s, !view.state.doc.eq(savedDoc));
         emitStatusEvent(view, "onSaveSucceeded");
       } else {
         emitStatusEvent(view, "onSaveFailed", { error: result.error });
@@ -115,10 +130,11 @@ function scheduleAutosave(view: EditorView, handler: SaveHandler): void {
 }
 
 /**
- * Extension that powers dirty tracking and autosave. Should be included
- * exactly once per editor view.
+ * Extension that powers dirty tracking. Should be included exactly once per
+ * editor view, either directly for status-only hosts or through
+ * {@link saveExtension} for hosts with persistence.
  */
-export function saveExtension() {
+export function dirtyStateExtension() {
   return [
     // ViewPlugin so we can capture the initial doc as the baseline
     // BEFORE any updateListener fires.
@@ -136,12 +152,29 @@ export function saveExtension() {
       if (!update.docChanged) return;
       const handler = update.view.state.facet(saveHandlerFacet);
       const s = getState(update.view);
-      const source = update.state.doc.toString();
-      setDirty(update.view, s, source !== s.lastSavedSource);
-      if (handler && s.dirty) {
+      setDirty(
+        update.view,
+        s,
+        dirtyAfterDocumentChange(update.view, s, Boolean(handler)),
+      );
+      if (!handler || !s.dirty) clearAutosave(s);
+    }),
+  ];
+}
+
+/**
+ * Extension that adds persistence behavior on top of dirty tracking.
+ */
+export function saveExtension() {
+  return [
+    dirtyStateExtension(),
+    EditorView.updateListener.of((update) => {
+      if (!update.docChanged) return;
+      const handler = update.view.state.facet(saveHandlerFacet);
+      if (!handler) return;
+      const s = getState(update.view);
+      if (s.dirty) {
         scheduleAutosave(update.view, handler);
-      } else {
-        clearAutosave(s);
       }
     }),
     Prec.high(
@@ -166,8 +199,8 @@ export function saveExtension() {
 export function createSaveController(view: EditorView): SaveControllerInternal {
   return {
     isSaved() {
-      const s = getState(view);
-      return view.state.doc.toString() === s.lastSavedSource;
+      const s = stateByView.get(view);
+      return s ? liveDocEqualsLastSaved(view, s) : true;
     },
     async triggerSave(reason: "manual" | "command" = "manual") {
       await dispatchSave(view, reason);

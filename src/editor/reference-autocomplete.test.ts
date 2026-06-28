@@ -23,7 +23,7 @@ import { CSL_FIXTURES, makeBibStore } from "./test-utils";
 import {
   createMarkdownLanguageExtensions,
 } from "./base-editor-extensions";
-import { createEditor } from "./editor";
+import { createEditor, type EditorConfig } from "./editor";
 import { frontmatterField } from "./state/frontmatter-state";
 import {
   collectReferenceCompletionCandidates,
@@ -84,6 +84,23 @@ function typeText(view: ReturnType<typeof createEditor>, text: string): void {
     selection: { anchor: from + text.length },
     userEvent: "input.type",
   });
+}
+
+function createEditorWithReferenceAutocomplete(
+  config: EditorConfig,
+): { view: ReturnType<typeof createEditor>; ready: Promise<void> } {
+  let resolveReady!: () => void;
+  const ready = new Promise<void>((resolve) => {
+    resolveReady = resolve;
+  });
+  const view = createEditor({
+    ...config,
+    onLazyFeatureReady(feature) {
+      config.onLazyFeatureReady?.(feature);
+      if (feature === "reference-autocomplete") resolveReady();
+    },
+  });
+  return { view, ready };
 }
 
 afterEach(() => {
@@ -249,7 +266,8 @@ describe("reference autocomplete integration", () => {
     ].join("\n");
     const parent = document.createElement("div");
     document.body.appendChild(parent);
-    const view = createEditor({ parent, doc });
+    const { view, ready } = createEditorWithReferenceAutocomplete({ parent, doc });
+    await ready;
     view.focus();
 
     view.dispatch({
@@ -286,7 +304,8 @@ describe("reference autocomplete integration", () => {
     ].join("\n");
     const parent = document.createElement("div");
     document.body.appendChild(parent);
-    const view = createEditor({ parent, doc });
+    const { view, ready } = createEditorWithReferenceAutocomplete({ parent, doc });
+    await ready;
     view.focus();
     view.dispatch({
       selection: { anchor: view.state.doc.length },
@@ -308,7 +327,8 @@ describe("reference autocomplete integration", () => {
     const doc = "See ";
     const parent = document.createElement("div");
     document.body.appendChild(parent);
-    const view = createEditor({ parent, doc });
+    const { view, ready } = createEditorWithReferenceAutocomplete({ parent, doc });
+    await ready;
     view.focus();
     view.dispatch({
       selection: { anchor: view.state.doc.length },
@@ -338,7 +358,8 @@ describe("reference autocomplete integration", () => {
     const doc = "See [@";
     const parent = document.createElement("div");
     document.body.appendChild(parent);
-    const view = createEditor({ parent, doc });
+    const { view, ready } = createEditorWithReferenceAutocomplete({ parent, doc });
+    await ready;
     view.focus();
 
     view.dispatch({
@@ -406,7 +427,8 @@ describe("reference autocomplete integration", () => {
     ].join("\n");
     const parent = document.createElement("div");
     document.body.appendChild(parent);
-    const view = createEditor({ parent, doc });
+    const { view, ready } = createEditorWithReferenceAutocomplete({ parent, doc });
+    await ready;
     view.focus();
     view.dispatch({
       selection: { anchor: view.state.doc.length },
@@ -484,7 +506,8 @@ describe("reference autocomplete integration", () => {
     ].join("\n");
     const parent = document.createElement("div");
     document.body.appendChild(parent);
-    const view = createEditor({ parent, doc });
+    const { view, ready } = createEditorWithReferenceAutocomplete({ parent, doc });
+    await ready;
     view.focus();
 
     view.dispatch({

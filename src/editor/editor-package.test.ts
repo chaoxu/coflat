@@ -28,7 +28,11 @@ describe("package editor export", () => {
 
     expect(Object.keys(packageJson.exports ?? {}).sort()).toEqual([
       ".",
+      "./browser-test-utils",
       "./citeproc",
+      "./document-surface.css",
+      "./editor-lazy",
+      "./inline-render",
       "./latex",
       "./latex/csl/ieee.csl",
       "./latex/filter.lua",
@@ -39,6 +43,7 @@ describe("package editor export", () => {
       "./parse",
       "./reader",
       "./reader/worker",
+      "./rich-readonly",
       "./style.css",
       "./test-utils",
       "./themes/blueprint-book.css",
@@ -96,6 +101,16 @@ describe("package editor export", () => {
     });
   });
 
+  it("publishes the dependency-light inline render sub-entry from generated dist output", () => {
+    const packageJson = readPackageJson();
+    const inlineRenderExport = packageJson.exports?.["./inline-render"];
+
+    expect(inlineRenderExport).toEqual({
+      types: "./dist/inline-render.d.ts",
+      import: "./dist/inline-render.mjs",
+    });
+  });
+
   it("publishes the numeric citation helper sub-entry from generated dist output", () => {
     const packageJson = readPackageJson();
     const numericExport = packageJson.exports?.["./numeric"];
@@ -131,11 +146,28 @@ describe("package editor export", () => {
     });
   });
 
+  it("publishes browser selector helpers from a dependency-light test entry", () => {
+    const packageJson = readPackageJson();
+    const testUtilsExport = packageJson.exports?.["./browser-test-utils"];
+
+    expect(testUtilsExport).toEqual({
+      types: "./dist/browser-test-utils.d.ts",
+      import: "./dist/browser-test-utils.js",
+    });
+  });
+
   it("publishes the standalone editor stylesheet", () => {
     const packageJson = readPackageJson();
     const cssExport = packageJson.exports?.["./style.css"];
 
     expect(cssExport).toBe("./dist/editor.css");
+  });
+
+  it("publishes the shared document surface stylesheet", () => {
+    const packageJson = readPackageJson();
+    const cssExport = packageJson.exports?.["./document-surface.css"];
+
+    expect(cssExport).toBe("./dist/document-surface.css");
   });
 
   it("publishes optional theme stylesheets as explicit subpath exports", () => {

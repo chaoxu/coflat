@@ -31,10 +31,6 @@ import {
 import {
   Decoration,
   type DecorationSet,
-  EditorView,
-  type PluginValue,
-  ViewPlugin,
-  type ViewUpdate,
 } from "@codemirror/view";
 import { CSS } from "../../core/constants/css-classes";
 import {
@@ -190,9 +186,9 @@ function sidenoteDecorationShouldRebuild(tr: Transaction): boolean {
   );
 }
 
-function footnoteSectionShouldUpdate(update: ViewUpdate): boolean {
-  const beforeCollapsed = update.startState.field(sidenotesCollapsedField, false) ?? false;
-  const afterCollapsed = update.state.field(sidenotesCollapsedField, false) ?? false;
+export function footnoteSectionShouldRebuild(tr: Transaction): boolean {
+  const beforeCollapsed = tr.startState.field(sidenotesCollapsedField, false) ?? false;
+  const afterCollapsed = tr.state.field(sidenotesCollapsedField, false) ?? false;
 
   if (beforeCollapsed !== afterCollapsed) {
     return true;
@@ -203,9 +199,9 @@ function footnoteSectionShouldUpdate(update: ViewUpdate): boolean {
   }
 
   return (
-    footnoteSliceChanged(update.startState, update.state)
-    || mathMacrosChanged(update.startState, update.state)
-    || referenceRenderDependenciesChanged(update.startState, update.state)
+    footnoteSliceChanged(tr.startState, tr.state)
+    || mathMacrosChanged(tr.startState, tr.state)
+    || referenceRenderDependenciesChanged(tr.startState, tr.state)
   );
 }
 
@@ -328,68 +324,65 @@ export function computeSidenoteOffsets(
   return offsets;
 }
 
-/** ViewPlugin that adds a "Footnotes" section at the end of the document when sidenotes are collapsed. */
-class FootnoteSectionPlugin implements PluginValue {
-  decorations: DecorationSet;
-
-  constructor(view: EditorView) {
-    this.decorations = this.build(view);
-  }
-
-  update(update: ViewUpdate): void {
-    if (footnoteSectionShouldUpdate(update)) {
-      this.decorations = this.build(update.view);
-    }
-  }
-
-  private build(view: EditorView): DecorationSet {
-    const collapsed = view.state.field(sidenotesCollapsedField, false) ?? false;
-    if (!collapsed) return Decoration.none;
-
-    const footnotes = collectFootnotes(view.state);
-    if (footnotes.defs.size === 0) return Decoration.none;
-
-    const entries = footnoteSectionPlanFromNumberedEntries(
-      footnotePlanSectionEntries(orderedFootnoteEntries(footnotes)),
-    ).map((entry) => ({
-      num: entry.num,
-      id: entry.id,
-      content: entry.def.content,
-      defFrom: entry.defFrom,
-      backrefHref: entry.backrefHref,
-    }));
-
-    const endPos = view.state.doc.length;
-    const macros = view.state.field(mathMacrosField);
-    const referenceContext = createEditorReferencePresentationController(view.state, {
-      surface: "editor-preview",
-    });
-    const footnoteNumbers = numberFootnotes(footnotes);
-    const widget = new FootnoteSectionWidget(
-      entries,
-      macros,
-      { ...referenceContext, footnoteNumbers },
-      getReferenceRenderDependencySignature(view.state),
-    );
-    return buildDecorations([
-      Decoration.widget({ widget, side: 1 }).range(endPos),
-    ]);
-  }
+/** Adds a block "Footnotes" section at the end of the document when sidenotes are collapsed. */
+function buildFootnoteSectionDecorations(state: EditorState): DecorationSet {
+  const widget = createFootnoteSectionWidgetFromState(state);
+  if (!widget) return Decoration.none;
+  return buildDecorations([
+    Decoration.widget({ widget, side: 1, block: true }).range(state.doc.length),
+  ]);
 }
 
-const footnoteSectionPlugin = ViewPlugin.fromClass(FootnoteSectionPlugin, {
-  decorations: (v) => v.decorations,
-});
+export function createFootnoteSectionWidgetFromState(state: EditorState): FootnoteSectionWidget | null {
+  const collapsed = state.field(sidenotesCollapsedField, false) ?? false;
+  if (!collapsed) return null;
+
+  const footnotes = collectFootnotes(state);
+  if (footnotes.defs.size === 0) return null;
+
+  const entries = footnoteSectionPlanFromNumberedEntries(
+    footnotePlanSectionEntries(orderedFootnoteEntries(footnotes)),
+  ).map((entry) => ({
+    num: entry.num,
+    id: entry.id,
+    content: entry.def.content,
+    defFrom: entry.defFrom,
+    backrefHref: entry.backrefHref,
+  }));
+
+  const macros = state.field(mathMacrosField);
+  const referenceContext = createEditorReferencePresentationController(state, {
+    surface: "editor-preview",
+  });
+  const footnoteNumbers = numberFootnotes(footnotes);
+  return new FootnoteSectionWidget(
+    entries,
+    macros,
+    { ...referenceContext, footnoteNumbers },
+    getReferenceRenderDependencySignature(state),
+  );
+}
+
+const footnoteSectionPlugin = createDecorationsField(
+  buildFootnoteSectionDecorations,
+  footnoteSectionShouldRebuild,
+  true,
+  "cm6.footnoteSection",
+);
 
 /** CM6 extension that renders footnote refs as superscripts and hides defs.
  *  Sidenote content is rendered by the React SidenoteMargin component. */
-export const sidenoteRenderPlugin: Extension = [
+export const sidenoteRenderWithoutSectionPlugin: Extension = [
   documentAnalysisField,
   editorFocusField,
   focusTracker,
   sidenotesCollapsedField,
   footnoteInlineExpandedField,
   sidenoteDecorationField,
+];
+
+export const sidenoteRenderPlugin: Extension = [
+  sidenoteRenderWithoutSectionPlugin,
   footnoteSectionPlugin,
 ];
 

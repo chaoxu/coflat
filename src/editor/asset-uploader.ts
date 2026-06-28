@@ -110,6 +110,8 @@ export function formatUploadedAssetMarkdown(
 interface PendingUpload {
   placeholderId: string;
   file: File;
+  from: number;
+  to: number;
   cancelled: boolean;
   resolved: boolean;
 }
@@ -150,35 +152,30 @@ function failureMarkdown(id: string, error: string): string {
   return `![upload failed: ${escapeAlt(error)}](upload-error:${id})`;
 }
 
-function findPlaceholderRange(
-  doc: string,
-  id: string,
-): { from: number; to: number } | null {
-  const needle = placeholderMarkdown(id);
-  const idx = doc.indexOf(needle);
-  if (idx < 0) return null;
-  return { from: idx, to: idx + needle.length };
-}
-
 /* ────────────────────────────────────────────────────────────────────────────
  * Per-file upload lifecycle
  * ──────────────────────────────────────────────────────────────────────────── */
 
-function insertPlaceholder(view: EditorView, pos: number, id: string): void {
+function insertPlaceholder(
+  view: EditorView,
+  pos: number,
+  id: string,
+): { from: number; to: number } {
   const snippet = placeholderMarkdown(id);
   view.dispatch({
     changes: { from: pos, to: pos, insert: snippet },
     selection: { anchor: pos + snippet.length },
   });
+  return { from: pos, to: pos + snippet.length };
 }
 
 function rewritePlaceholder(
   view: EditorView,
-  id: string,
+  pending: PendingUpload,
   replacement: string,
 ): boolean {
-  const range = findPlaceholderRange(view.state.doc.toString(), id);
-  if (!range) return false;
+  const range = { from: pending.from, to: pending.to };
+  if (view.state.doc.sliceString(range.from, range.to) !== placeholderMarkdown(pending.placeholderId)) return false;
   view.dispatch({
     changes: { from: range.from, to: range.to, insert: replacement },
   });
@@ -209,7 +206,7 @@ async function runUpload(
 
   if ("error" in result) {
     const replacement = failureMarkdown(pending.placeholderId, result.error);
-    rewritePlaceholder(view, pending.placeholderId, replacement);
+    rewritePlaceholder(view, pending, replacement);
     emitStatusEvent(view, "onAssetUploadFailed", {
       placeholderId: pending.placeholderId,
       error: result.error,
@@ -224,7 +221,7 @@ async function runUpload(
     alt,
     kind: "image",
   });
-  rewritePlaceholder(view, pending.placeholderId, replacement);
+  rewritePlaceholder(view, pending, replacement);
   emitStatusEvent(view, "onAssetUploadSucceeded", {
     placeholderId: pending.placeholderId,
     path: result.path,
@@ -251,11 +248,13 @@ function startUpload(
   }
 
   const placeholderId = makePlaceholderId(s);
-  insertPlaceholder(view, pos, placeholderId);
+  const range = insertPlaceholder(view, pos, placeholderId);
 
   const pending: PendingUpload = {
     placeholderId,
     file,
+    from: range.from,
+    to: range.to,
     cancelled: false,
     resolved: false,
   };
@@ -331,10 +330,12 @@ export function assetUploaderExtension(uploader: AssetUploader): Extension {
         update(update) {
           if (!update.docChanged) return;
           if (s.pending.size === 0) return;
-          const doc = update.state.doc.toString();
           for (const pending of [...s.pending.values()]) {
             if (pending.resolved || pending.cancelled) continue;
-            if (!doc.includes(`upload:${pending.placeholderId}`)) {
+            pending.from = update.changes.mapPos(pending.from, 1);
+            pending.to = update.changes.mapPos(pending.to, -1);
+            const current = update.state.doc.sliceString(pending.from, pending.to);
+            if (current !== placeholderMarkdown(pending.placeholderId)) {
               pending.cancelled = true;
               s.pending.delete(pending.placeholderId);
               try {

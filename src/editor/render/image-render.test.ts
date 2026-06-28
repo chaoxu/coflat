@@ -292,6 +292,10 @@ describe("isRelativeFilePath", () => {
     expect(isRelativeFilePath("HTTP://example.com/img.jpg")).toBe(false);
   });
 
+  it("returns false for protocol-relative URLs", () => {
+    expect(isRelativeFilePath("//cdn.example.com/img.png")).toBe(false);
+  });
+
   it("returns false for data: URLs", () => {
     expect(isRelativeFilePath("data:image/png;base64,ABC")).toBe(false);
   });
@@ -661,8 +665,9 @@ describe("imageRenderPlugin block ownership", () => {
         spec.to === imageTo
       ),
     ).toBe(false);
-    expect(specs.filter((spec) => spec.class === CSS.sourceDelimiter)).toHaveLength(4);
-    expect(specs.filter((spec) => spec.class === CSS.inlineSource)).toHaveLength(1);
+    expect(specs.filter((spec) => spec.class === CSS.sourceDelimiter)).toHaveLength(0);
+    expect(specs.filter((spec) => spec.class === CSS.inlineSource)).toHaveLength(0);
+    expect(specs.filter((spec) => spec.class === CSS.inlineMediaSource)).toHaveLength(1);
     expect(view.contentDOM.textContent).toContain("![diagram](figure.png)");
     view.destroy();
   });
@@ -733,7 +738,7 @@ describe("imageRenderPlugin block ownership", () => {
     view.destroy();
   });
 
-  it("keeps inline images as inline replacements", () => {
+  it("keeps unfocused inline images as inline replacements", () => {
     const view = createTestView("prefix ![](figure.png) suffix", {
       extensions: [markdown(), imageUrlField, pdfPreviewField, imageRenderPlugin],
     });
@@ -745,7 +750,7 @@ describe("imageRenderPlugin block ownership", () => {
     view.destroy();
   });
 
-  it("does not promote focused inline images into block source editing", () => {
+  it("reveals focused inline image source in rich mode", () => {
     const doc = "prefix ![diagram](figure.png) suffix";
     const imageFrom = doc.indexOf("![diagram]");
     const imageTo = imageFrom + "![diagram](figure.png)".length;
@@ -763,10 +768,27 @@ describe("imageRenderPlugin block ownership", () => {
         spec.widgetClass === "ImagePreviewWidget" &&
         spec.block !== true &&
         spec.from === imageFrom &&
+        spec.to === imageFrom
+      ),
+    ).toBe(true);
+    expect(specs.filter((spec) => spec.class === CSS.sourceDelimiter)).toHaveLength(0);
+    expect(specs.filter((spec) => spec.class === CSS.inlineSource)).toHaveLength(0);
+    expect(specs.filter((spec) => spec.class === CSS.inlineMediaSource)).toHaveLength(1);
+    expect(view.contentDOM.textContent).toContain("![diagram](figure.png)");
+
+    view.dispatch({ selection: { anchor: imageTo + " suffix".length } });
+
+    const blurredSpecs = getDecorationSpecs(
+      view.state.field(_imageDecorationFieldForTest).decorations,
+    );
+    expect(
+      blurredSpecs.some((spec) =>
+        spec.widgetClass === "ImagePreviewWidget" &&
+        spec.block !== true &&
+        spec.from === imageFrom &&
         spec.to === imageTo
       ),
     ).toBe(true);
-    expect(specs.some((spec) => spec.block === true && spec.widgetClass === "ImagePreviewWidget")).toBe(false);
     view.destroy();
   });
 });

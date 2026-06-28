@@ -20,11 +20,16 @@ import { formatBibEntry, sortBibEntries } from "../citations/bibliography";
 import {
   type CitationBacklink,
   collectCitationBacklinksFromAnalysis,
+  collectCitationBacklinksFromTokens,
+  collectCitationClusters,
   collectCitationMatchesFromAnalysis,
   collectCitedIdsFromReferenceIndex,
+  collectCitedIdsFromClusters,
+  createReferenceIndexLocalTargetLookup,
   getAnalysisCitationBacklinkKey,
   getAnalysisCitationRegistrationKey,
   getCitationRegistrationKey,
+  type CitationReferenceToken,
 } from "../citations/citation-matching";
 import type { CitationFormatter } from "../../core/document-context-types";
 import { type CslJsonItem } from "../../core/citations/csl-json";
@@ -40,6 +45,8 @@ import { type BibStore, bibDataEffect, bibDataField } from "../state/bib-data";
 import {
   documentAnalysisField,
 } from "../state/document-analysis";
+import type { FootnoteSemantics } from "../semantics/document";
+import { scanReferenceTokens } from "../lib/reference-tokens";
 import { mathMacrosField } from "../state/math-macros";
 import { HOVER_DELAY_MS } from "../../core/constants";
 import { createPreviewSurfaceBody } from "../../core/preview-surface";
@@ -317,12 +324,61 @@ function getCitedIdsKey(citedIds: readonly string[]): string {
   return citedIds.join("\0");
 }
 
+function footnoteCitationTokens(footnotes: FootnoteSemantics): CitationReferenceToken[] {
+  const tokens: CitationReferenceToken[] = [];
+  for (const def of footnotes.defs.values()) {
+    for (const token of scanReferenceTokens(def.content)) {
+      tokens.push({
+        id: token.id,
+        clusterFrom: def.bodyFrom + token.clusterFrom,
+        clusterTo: def.bodyFrom + token.clusterTo,
+        clusterIndex: token.clusterIndex,
+        locator: token.locator,
+      });
+    }
+  }
+  return tokens;
+}
+
+function appendUnique<T>(target: T[], values: readonly T[]): void {
+  for (const value of values) {
+    if (!target.includes(value)) target.push(value);
+  }
+}
+
+function mergeBacklinks(
+  left: ReadonlyMap<string, readonly CitationBacklink[]>,
+  right: ReadonlyMap<string, readonly CitationBacklink[]>,
+): ReadonlyMap<string, readonly CitationBacklink[]> {
+  if (right.size === 0) return left;
+  if (left.size === 0) return right;
+  const merged = new Map<string, CitationBacklink[]>();
+  for (const [id, backlinks] of left) merged.set(id, [...backlinks]);
+  for (const [id, backlinks] of right) {
+    const bucket = merged.get(id);
+    if (!bucket) {
+      merged.set(id, [...backlinks]);
+      continue;
+    }
+    const seen = new Set(bucket.map((backlink) => `${backlink.from}:${backlink.to}`));
+    for (const backlink of backlinks) {
+      const key = `${backlink.from}:${backlink.to}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      bucket.push(backlink);
+    }
+  }
+  return merged;
+}
+
 function getBibliographyDependencyKey(state: EditorState): string {
   const { store } = state.field(bibDataField);
   const analysis = state.field(documentAnalysisField);
+  const footnoteTokens = footnoteCitationTokens(analysis.footnotes);
   return [
     getAnalysisCitationRegistrationKey(analysis, store),
     getAnalysisCitationBacklinkKey(analysis, store),
+    footnoteTokens.map((token) => `${token.id}\0${token.clusterFrom}\0${token.clusterTo}\0${token.clusterIndex}\0${token.locator ?? ""}`).join("\u0002"),
   ].join("\u0003");
 }
 
@@ -343,7 +399,7 @@ export function bibliographyDependenciesChanged(
   return getBibliographyDependencyKey(beforeState) !== getBibliographyDependencyKey(afterState);
 }
 
-function bibliographyShouldRebuild(tr: Transaction): boolean {
+export function bibliographyShouldRebuild(tr: Transaction): boolean {
   return (
     tr.effects.some((effect) => effect.is(bibDataEffect)) ||
     bibliographyDependenciesChanged(tr.startState, tr.state)
@@ -351,15 +407,32 @@ function bibliographyShouldRebuild(tr: Transaction): boolean {
 }
 
 function buildBibliographyDecorationsFromState(state: EditorState): DecorationSet {
+  const widget = createBibliographyWidgetFromState(state);
+  if (!widget) return Decoration.none;
+  return buildDecorations([
+    Decoration.widget({ widget, side: 1, block: true }).range(state.doc.length),
+  ]);
+}
+
+export function createBibliographyWidgetFromState(state: EditorState): BibliographyWidget | null {
   const { store, formatter, formatterRevision } = state.field(bibDataField);
-  if (store.size === 0) return Decoration.none;
+  if (store.size === 0) return null;
 
   // Use the incrementally-maintained document analysis instead of
   // re-parsing the entire document from scratch (#514).
   const analysis = state.field(documentAnalysisField);
+  const footnoteTokens = footnoteCitationTokens(analysis.footnotes);
   const citedIds = collectCitedIdsFromReferenceIndex(analysis.referenceIndex, store);
-  if (citedIds.length === 0) return Decoration.none;
-  const backlinks = collectCitationBacklinksFromAnalysis(analysis, store);
+  appendUnique(citedIds, collectCitedIdsFromClusters(collectCitationClusters(footnoteTokens, store, {
+    isLocalTarget: createReferenceIndexLocalTargetLookup(analysis.referenceIndex),
+  })));
+  if (citedIds.length === 0) return null;
+  const backlinks = mergeBacklinks(
+    collectCitationBacklinksFromAnalysis(analysis, store),
+    collectCitationBacklinksFromTokens(footnoteTokens, store, {
+      isLocalTarget: createReferenceIndexLocalTargetLookup(analysis.referenceIndex),
+    }),
+  );
 
   let cslEntries: readonly { readonly id: string; readonly html: string }[] = [];
   if (formatter) {
@@ -400,7 +473,7 @@ function buildBibliographyDecorationsFromState(state: EditorState): DecorationSe
         citedIds.map((id) => store.get(id)).filter((e): e is CslJsonItem => e !== undefined),
       );
 
-  return buildBibliographyDecorations(state, entries, cslHtml, backlinks);
+  return new BibliographyWidget(entries, cslHtml, backlinks);
 }
 
 /** CM6 extension that renders a bibliography section at the end of the document. */

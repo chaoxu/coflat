@@ -10,7 +10,15 @@
  */
 import { describe, expect, it } from "vitest";
 import type { FileSystem } from "../../core/lib/file-system-types";
+import { CSS } from "../../core/constants/css-classes";
+import {
+  parseMarkdownSource,
+} from "../../core/parser";
 import { renderToHtml } from "../../reader/reader";
+import {
+  analyzeDocumentSemantics,
+  stringTextSource,
+} from "../semantics/document";
 import { renderPreviewBlockContentToDom } from "./preview-block-renderer";
 
 const BLOCK_TAGS = new Set([
@@ -402,5 +410,24 @@ describe("reader / editor-preview emission parity", () => {
       "1|#fn-note%3A1|fnref-note%3A1",
       "1|#fn-note%3A1|fnref-note%3A1",
     ]);
+  });
+
+  it("uses full-document equation numbers when rendering a blockquote fragment", () => {
+    const fullSource = [
+      "$$a^2$$ {#eq:first}",
+      "",
+      "> quoted equation:",
+      "> $$b^2$$ {#eq:second}",
+    ].join("\n");
+    const blockquoteSource = fullSource.slice(fullSource.indexOf("> quoted equation:"));
+    const host = document.createElement("div");
+    const fullTree = parseMarkdownSource(fullSource, "html-render");
+    const fullSemantics = analyzeDocumentSemantics(stringTextSource(fullSource), fullTree);
+
+    renderPreviewBlockContentToDom(host, blockquoteSource, {
+      referenceSemantics: fullSemantics,
+    });
+
+    expect(host.querySelector(`.${CSS.mathDisplayNumber}`)?.textContent).toBe("(2)");
   });
 });

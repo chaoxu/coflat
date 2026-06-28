@@ -11,13 +11,29 @@ import {
   packageNameFromSpecifier,
 } from "./scripts/editor-package-manifest.mjs";
 
+const DOCUMENT_SURFACE_IMPORT = '@import "../core/document-surface.css";';
+
+function inlineDocumentSurface(editorCss: string, documentSurfaceCss: string): string {
+  if (!editorCss.includes(DOCUMENT_SURFACE_IMPORT)) {
+    throw new Error(`src/editor/editor-theme.css must import ${DOCUMENT_SURFACE_IMPORT}`);
+  }
+  const inlined = editorCss.replace(DOCUMENT_SURFACE_IMPORT, documentSurfaceCss.trimEnd());
+  if (inlined.includes(DOCUMENT_SURFACE_IMPORT)) {
+    throw new Error("document surface CSS import was not fully inlined");
+  }
+  return inlined;
+}
+
 function copyEditorCss(): Plugin {
   return {
     name: "copy-editor-css",
     closeBundle() {
       const katexCss = readFileSync("node_modules/katex/dist/katex.min.css", "utf8");
+      const documentSurfaceCss = readFileSync("src/core/document-surface.css", "utf8");
       const editorCss = readFileSync("src/editor/editor-theme.css", "utf8");
-      writeFileSync("dist/editor.css", `${katexCss}\n${editorCss}`);
+      const inlinedEditorCss = inlineDocumentSurface(editorCss, documentSurfaceCss);
+      writeFileSync("dist/document-surface.css", `${katexCss}\n${documentSurfaceCss}`);
+      writeFileSync("dist/editor.css", `${katexCss}\n${inlinedEditorCss}`);
       mkdirSync("dist/themes", { recursive: true });
       cpSync("src/themes/blueprint-book.css", "dist/themes/blueprint-book.css");
       cpSync("node_modules/katex/dist/fonts", "dist/fonts", { recursive: true });
@@ -50,7 +66,10 @@ export default defineConfig(({ mode }) => ({
     lib: {
       entry: {
         editor: fileURLToPath(new URL("./editor.ts", import.meta.url)),
+        "editor-lazy": fileURLToPath(new URL("./editor-lazy.ts", import.meta.url)),
+        "inline-render": fileURLToPath(new URL("./inline-render.ts", import.meta.url)),
         reader: fileURLToPath(new URL("./reader.ts", import.meta.url)),
+        "rich-readonly": fileURLToPath(new URL("./rich-readonly.ts", import.meta.url)),
         "reader-worker": fileURLToPath(new URL("./reader-worker.ts", import.meta.url)),
         parse: fileURLToPath(new URL("./parse.ts", import.meta.url)),
         citeproc: fileURLToPath(new URL("./citeproc.ts", import.meta.url)),

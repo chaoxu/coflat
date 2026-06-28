@@ -1,10 +1,10 @@
 import type { Extension } from "@codemirror/state";
 import { describe, expect, it } from "vitest";
-import { bibliographyPlugin } from "./bibliography-render";
 import { checkboxRenderPlugin } from "./checkbox-render";
 import { codeBlockRenderPlugin, codeBlockStructureField } from "./code-block-render";
 import { cm6RichRenderExtensions } from "./cm6-rich-render-extensions";
 import { containerAttributesPlugin } from "./container-attributes";
+import { endMatterRenderPlugin } from "./end-matter-render";
 import { fenceGuidePlugin } from "./fence-guide";
 import { frontmatterDecoration } from "./frontmatter-render";
 import { hoverPreviewExtension } from "./hover-preview";
@@ -17,7 +17,7 @@ import { referenceRenderPlugin } from "./reference-render";
 import { richClipboardOutputFilter } from "./rich-clipboard";
 import { searchHighlightPlugin } from "./search-highlight";
 import { sectionNumberPlugin } from "./section-counter";
-import { sidenoteRenderPlugin } from "./sidenote-render";
+import { sidenoteRenderWithoutSectionPlugin } from "./sidenote-render";
 import { tableRenderPlugin } from "./table-render";
 
 function extensionIndex(extension: Extension): number {
@@ -43,6 +43,7 @@ describe("CM6 rich render extension composition", () => {
     expectOrderedBefore(hoverPreviewExtension, paragraphFlowRenderPlugin);
     expectOrderedBefore(paragraphFlowRenderPlugin, tableRenderPlugin);
     expectOrderedBefore(referenceRenderPlugin, tableRenderPlugin);
+    expectOrderedBefore(sidenoteRenderWithoutSectionPlugin, endMatterRenderPlugin);
     expectOrderedBefore(tableRenderPlugin, searchHighlightPlugin);
     expect(cm6RichRenderExtensions.at(-1)).toBe(searchHighlightPlugin);
   });
@@ -51,7 +52,7 @@ describe("CM6 rich render extension composition", () => {
     const expectedExtensions: readonly Extension[] = [
       codeBlockRenderPlugin,
       hoverPreviewExtension,
-      bibliographyPlugin,
+      endMatterRenderPlugin,
       containerAttributesPlugin,
       richClipboardOutputFilter,
       checkboxRenderPlugin,
@@ -59,7 +60,7 @@ describe("CM6 rich render extension composition", () => {
       mathPreviewPlugin,
       sectionNumberPlugin,
       fenceGuidePlugin,
-      sidenoteRenderPlugin,
+      sidenoteRenderWithoutSectionPlugin,
     ];
 
     for (const extension of expectedExtensions) {

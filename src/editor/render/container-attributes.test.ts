@@ -73,6 +73,23 @@ function extractClasses(state: EditorState): Array<{ pos: number; className: str
   return result;
 }
 
+function extractSourceRanges(state: EditorState): Array<{ pos: number; from: string; to: string }> {
+  const decos = state.field(containerAttributesField);
+  const result: Array<{ pos: number; from: string; to: string }> = [];
+  const iter = decos.iter();
+  while (iter.value) {
+    const attrs = (iter.value as Decoration & { spec?: { attributes?: Record<string, string> } })
+      .spec?.attributes;
+    const from = attrs?.["data-source-from"];
+    const to = attrs?.["data-source-to"];
+    if (from && to) {
+      result.push({ pos: iter.from, from, to });
+    }
+    iter.next();
+  }
+  return result;
+}
+
 function classNamesByLine(state: EditorState): string[][] {
   const byLine = new Map<number, Set<string>>();
   for (const line of extractClasses(state)) {
@@ -150,6 +167,14 @@ describe("containerAttributesField", () => {
         { pos: 0, tag: "p" },
         { pos: 9, tag: "p" },
         { pos: 18, tag: "p" },
+      ]);
+    });
+
+    it("marks editor lines as source carriers for rendered-position anchoring", () => {
+      const doc = "Line one\nLine two";
+      expect(extractSourceRanges(createState(doc))).toEqual([
+        { pos: 0, from: "0", to: "8" },
+        { pos: 9, from: "9", to: "17" },
       ]);
     });
   });

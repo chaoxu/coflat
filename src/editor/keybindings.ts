@@ -15,7 +15,7 @@ import {
 } from "./plugins/fence-protection";
 import { toggleDebugInspector } from "./render/debug-inspector";
 import { toggleFocusMode } from "./render/focus-mode";
-import { editorModeField, markdownEditorModes, setEditorMode } from "./editor-mode-state";
+import { editorModeField, setEditorMode, type EditorMode } from "./editor-mode-state";
 import {
   clearStructureEditTarget,
   getActiveStructureEditTarget,
@@ -27,10 +27,11 @@ import { CSS } from "../core/constants/css-classes";
 function cycleEditorMode(view: EditorView): boolean {
   // Read the current mode from the CM6 StateField so the cycle stays in sync
   // with React state (e.g., when the app switches modes programmatically).
+  const cycleModes: readonly EditorMode[] = ["rich", "source"];
   const currentMode = view.state.field(editorModeField, false) ?? "rich";
-  const currentIndex = markdownEditorModes.indexOf(currentMode);
-  const nextMode = markdownEditorModes[
-    (Math.max(0, currentIndex) + 1) % markdownEditorModes.length
+  const currentIndex = cycleModes.indexOf(currentMode);
+  const nextMode = cycleModes[
+    (Math.max(0, currentIndex) + 1) % cycleModes.length
   ];
   setEditorMode(view, nextMode);
 
@@ -249,7 +250,8 @@ const toggleStrikethrough = makeToggleInlineMarkerCommand("~~");
 const toggleHighlight = makeToggleInlineMarkerCommand("==");
 
 function isRichMode(view: EditorView): boolean {
-  return (view.state.field(editorModeField, false) ?? "rich") === "rich";
+  const mode = view.state.field(editorModeField, false) ?? "rich";
+  return mode === "rich" || mode === "rich-readonly";
 }
 
 function closingFenceLineStarts(state: EditorState): Set<number> {

@@ -158,6 +158,38 @@ describe("getReferencePresentationModel", () => {
     expect(getReferencePresentationModel(state).getPreviewText("host2024"))
       .toBe("[1] Host citation title");
   });
+
+  it("prefers DocumentContext citation previews over placeholder bibliography entries", () => {
+    const formatter: CitationFormatter = {
+      cite: () => "[1]",
+      citeNarrative: (id) => `${id} [1]`,
+      bibliographyEntries: () => [{
+        id: "host2024",
+        html: "<div><span>[1]</span> <i>Host citation title</i></div>",
+      }],
+      registerCitations: () => undefined,
+      citationRegistrationKey: null,
+      revision: 1,
+    };
+    const state = applyStateEffects(
+      createState("See [@host2024]."),
+      [
+        bibDataEffect.of({
+          store: makeBibStore([{ id: "host2024", type: "article" }]),
+          formatter: null,
+        }),
+        StateEffect.appendConfig.of(
+          documentContextFacet.of({
+            citationFormatter: formatter,
+            citationKeys: new Set(["host2024"]),
+          }),
+        ),
+      ],
+    );
+
+    expect(getReferencePresentationModel(state).getPreviewText("host2024"))
+      .toBe("[1] Host citation title");
+  });
 });
 
 const catalogTargets = [

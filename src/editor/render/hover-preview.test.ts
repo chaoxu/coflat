@@ -20,6 +20,7 @@ import { fencedDiv } from "../../core/parser/fenced-div";
 import { mathExtension } from "../../core/parser/math-backslash";
 import { documentAnalysisField } from "../state/document-analysis";
 import { mountEditor } from "../../../editor";
+import type { CitationFormatter } from "../../core/document-context-types";
 import {
   buildCrossrefPreviewContent,
   destroyHoverPreviewTooltipForTest,
@@ -296,6 +297,62 @@ describe("mounted editor hover previews", () => {
       expect(tooltip.querySelector(".cf-hover-preview-header")?.textContent)
         .toBe("Theorem 1 Main Result");
       expect(tooltip.textContent).toContain("Statement.");
+    } finally {
+      editor.unmount();
+      vi.useRealTimers();
+    }
+  });
+
+  it("shows host formatter bibliography text for rendered citation tooltips", async () => {
+    vi.useFakeTimers();
+    const parent = document.createElement("div");
+    document.body.appendChild(parent);
+    let citationRegistrationKey: string | null = null;
+    const formatter: CitationFormatter = {
+      cite(ids) {
+        return citationRegistrationKey
+          ? `[${ids.map((id) => id === "karger2000" ? "1" : id).join(", ")}]`
+          : "[unregistered]";
+      },
+      citeNarrative(id) {
+        return `${id} [1]`;
+      },
+      bibliographyEntries() {
+        return [{
+          id: "karger2000",
+          html: "<div><span>[1]</span> <i>Karger paper.</i></div>",
+        }];
+      },
+      registerCitations(clusters) {
+        citationRegistrationKey = clusters
+          .map((cluster) => cluster.ids.join(","))
+          .join(";");
+      },
+      get citationRegistrationKey() {
+        return citationRegistrationKey;
+      },
+      revision: 1,
+    };
+    const editor = mountEditor({
+      parent,
+      doc: "See [@karger2000].",
+      context: {
+        citationFormatter: formatter,
+        citationKeys: new Set(["karger2000"]),
+      },
+      mode: "rich",
+    });
+
+    try {
+      const widget = parent.querySelector<HTMLElement>("[data-reference-widget]");
+      expect(widget).not.toBeNull();
+      widget?.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
+      await vi.advanceTimersByTimeAsync(300);
+
+      const tooltip = ensureHoverPreviewTooltipForTest();
+      expect(tooltip.style.display).not.toBe("none");
+      expect(tooltip.textContent).toContain("[1] Karger paper.");
+      expect(tooltip.textContent).not.toBe(".");
     } finally {
       editor.unmount();
       vi.useRealTimers();

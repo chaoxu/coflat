@@ -80,13 +80,15 @@ function buildImageItemsFromInfos(
           { kind: "image", src: info.src },
           info.isBlock,
         );
-    const activeBlockSource = info.isBlock
-      && activeSourceTargetsEqual(activeSource, info);
-    if (activeBlockSource) {
+    const activeImageSource = activeSourceTargetsEqual(activeSource, info);
+    if (activeImageSource && info.isBlock) {
       widget.updateSourceRange(info.from, info.to);
       items.push(
         Decoration.widget({ widget, block: true, side: -1 }).range(info.from),
       );
+      addActiveImageSourceDecorations(state, info, items);
+    } else if (activeImageSource) {
+      items.push(Decoration.widget({ widget, side: -1 }).range(info.from));
       addActiveImageSourceDecorations(state, info, items);
     } else if (info.isBlock) {
       pushBlockWidgetDecoration(items, widget, info.from, info.to);

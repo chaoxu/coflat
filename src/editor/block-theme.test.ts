@@ -26,8 +26,8 @@ describe("blockThemeStyles", () => {
       ],
     ).toBeUndefined();
     expect(blockThemeStyles[".cf-doc-block--blockquote"]).toMatchObject({
-      borderLeft: "var(--cf-border-width-accent) solid var(--cf-blockquote-border)",
-      paddingLeft: "1em",
+      borderLeft: "var(--cf-doc-blockquote-border-width, 3px) solid var(--cf-blockquote-border)",
+      paddingLeft: "var(--cf-doc-blockquote-padding-left, 1em)",
       fontStyle: "italic",
     });
   });
@@ -81,6 +81,7 @@ describe("blockThemeStyles", () => {
 
     expect(blockThemeStyles[".cf-table-widget table"]).toEqual({
       borderCollapse: "collapse",
+      margin: "0",
       width: "100%",
       fontSize: "var(--cf-table-font-size, 0.9em)",
     });

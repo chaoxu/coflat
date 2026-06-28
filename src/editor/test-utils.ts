@@ -3,9 +3,9 @@ import { ensureSyntaxTree } from "@codemirror/language";
 import { EditorState, type Extension, type StateEffect } from "@codemirror/state";
 import { EditorView, type DecorationSet } from "@codemirror/view";
 import type { Tree } from "@lezer/common";
-import type { BlockPlugin } from "./plugins/plugin-types";
-import type { CslJsonItem } from "../core/citations/csl-json";
-import type { BibStore } from "./state/bib-data";
+import type { BlockPlugin } from "./plugins/plugin-types.js";
+import type { CslJsonItem } from "../core/citations/csl-json.js";
+import type { BibStore } from "./state/bib-data.js";
 
 // ── CslJsonItem fixture factory ───────────────────────────────────────────────
 
@@ -93,7 +93,7 @@ export {
   parseNodeInfos,
   findNodeInfo,
   type NodeInfo,
-} from "../core/test-utils";
+} from "../core/test-utils.js";
 
 export function createEditorState(
   doc: string,

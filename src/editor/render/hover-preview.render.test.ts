@@ -97,6 +97,40 @@ describe("hover preview block rendering", () => {
     view.destroy();
   });
 
+  it("does not materialize the full document for body-only block previews", () => {
+    const largePrefix = Array.from({ length: 400 }, (_, index) => `# Section ${index}\n\nText.`).join("\n\n");
+    const view = createPreviewView(
+      [
+        largePrefix,
+        "",
+        "::: {.theorem #thm:main}",
+        "Statement.",
+        ":::",
+      ].join("\n"),
+    );
+    const toStringSpy = vi.spyOn(view.state.doc, "toString");
+
+    const body = buildBlockPreviewBodyForTest(view, getNumberedBlock(view, "thm:main"));
+
+    expect(body?.textContent).toContain("Statement.");
+    expect(toStringSpy).not.toHaveBeenCalled();
+    view.destroy();
+  });
+
+  it("keeps body text for unclosed block previews", () => {
+    const view = createPreviewView(
+      [
+        "::: {.theorem #thm:main}",
+        "Draft statement before the closing fence exists.",
+      ].join("\n"),
+    );
+
+    const body = buildBlockPreviewBodyForTest(view, getNumberedBlock(view, "thm:main"));
+
+    expect(body?.textContent).toContain("Draft statement before the closing fence exists.");
+    view.destroy();
+  });
+
   it("marks fenced code blocks with the explicit preview overflow class", () => {
     const body = document.createElement("div");
     body.innerHTML = '<pre><code class="language-typescript">const veryLongIdentifierWithoutAnyBreaks = "abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz";</code></pre>';

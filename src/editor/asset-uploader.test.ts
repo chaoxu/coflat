@@ -6,13 +6,17 @@
  */
 
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { EditorState, Text } from "@codemirror/state";
+import { EditorView } from "@codemirror/view";
 
 import { mountEditor, type MountedEditor } from "../../editor";
+import { statusEventsFacet } from "./editor-host-api";
 import type {
   AssetUploader,
   StatusEvents,
 } from "../../editor";
 import {
+  assetUploaderExtension,
   formatUploadedAssetMarkdown,
   isUploadedAssetImage,
   uploadedAssetLabel,
@@ -159,6 +163,65 @@ async function flush(): Promise<void> {
   // Let microtasks settle.
   await Promise.resolve();
   await Promise.resolve();
+}
+
+function makeDirectUploadView(args: {
+  doc?: string;
+  selection?: number;
+  uploader?: AssetUploader;
+  events?: {
+    onAssetUploading: ReturnType<typeof vi.fn>;
+    onAssetUploadSucceeded: ReturnType<typeof vi.fn>;
+    onAssetUploadFailed: ReturnType<typeof vi.fn>;
+  };
+} = {}): {
+  parent: HTMLElement;
+  view: EditorView;
+  events: {
+    onAssetUploading: ReturnType<typeof vi.fn>;
+    onAssetUploadSucceeded: ReturnType<typeof vi.fn>;
+    onAssetUploadFailed: ReturnType<typeof vi.fn>;
+  };
+  uploader: AssetUploader;
+} {
+  const parent = document.createElement("div");
+  document.body.appendChild(parent);
+  const events = args.events ?? {
+    onAssetUploading: vi.fn(),
+    onAssetUploadSucceeded: vi.fn(),
+    onAssetUploadFailed: vi.fn(),
+  };
+  const uploader = args.uploader ?? {
+    upload: vi.fn(async () => ({ path: "assets/a.png" })),
+    cancel: vi.fn(),
+  };
+  const view = new EditorView({
+    parent,
+    state: EditorState.create({
+      doc: args.doc ?? "hello",
+      selection: { anchor: args.selection ?? 0 },
+      extensions: [
+        statusEventsFacet.of(events as StatusEvents),
+        assetUploaderExtension(uploader),
+      ],
+    }),
+  });
+  cleanups.push(() => {
+    view.destroy();
+    parent.remove();
+  });
+  return { parent, view, events, uploader };
+}
+
+function expectNoFullDocMaterialization(task: () => void): void {
+  const toStringSpy = vi.spyOn(Text.prototype, "toString");
+  toStringSpy.mockClear();
+  try {
+    task();
+    expect(toStringSpy).not.toHaveBeenCalled();
+  } finally {
+    toStringSpy.mockRestore();
+  }
 }
 
 describe("uploaded asset Markdown helpers", () => {
@@ -352,6 +415,123 @@ describe("assetUploaderExtension paste", () => {
     expect(doc).toContain("![](assets/a.png)");
     expect(doc).toContain("![](assets/b.png)");
     expect(doc).not.toContain("upload:");
+  });
+
+  it("tracks pending placeholders without materializing the full document", async () => {
+    const deferred = defer<{ path: string; alt?: string } | { error: string }>();
+    const uploader: AssetUploader = {
+      upload: vi.fn(async () => deferred.promise),
+      cancel: vi.fn(),
+    };
+    const { parent, view, events } = makeDirectUploadView({ uploader });
+
+    firePaste(parent, [makeFile("a.png")]);
+    await flush();
+    expect(events.onAssetUploading).toHaveBeenCalledTimes(1);
+
+    expectNoFullDocMaterialization(() => {
+      view.dispatch({ changes: { from: 0, to: 0, insert: "x" } });
+    });
+    expect(uploader.cancel).not.toHaveBeenCalled();
+    expect(events.onAssetUploadFailed).not.toHaveBeenCalled();
+
+    deferred.resolve({ path: "assets/a.png" });
+    await flush();
+    await flush();
+    expect(view.state.doc.toString()).toContain("![](assets/a.png)");
+    expect(events.onAssetUploadSucceeded).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps a nonzero placeholder alive across edits before and after it", async () => {
+    const deferred = defer<{ path: string; alt?: string } | { error: string }>();
+    const uploader: AssetUploader = {
+      upload: vi.fn(async () => deferred.promise),
+      cancel: vi.fn(),
+    };
+    const { parent, view, events } = makeDirectUploadView({
+      doc: "abcdef",
+      selection: 3,
+      uploader,
+    });
+
+    firePaste(parent, [makeFile("a.png")]);
+    await flush();
+    expect(events.onAssetUploading).toHaveBeenCalledTimes(1);
+
+    expectNoFullDocMaterialization(() => {
+      view.dispatch({ changes: { from: 0, to: 0, insert: "X" } });
+      view.dispatch({ changes: { from: view.state.doc.length, to: view.state.doc.length, insert: "Y" } });
+    });
+    expect(uploader.cancel).not.toHaveBeenCalled();
+    expect(events.onAssetUploadFailed).not.toHaveBeenCalled();
+
+    deferred.resolve({ path: "assets/a.png" });
+    await flush();
+    await flush();
+
+    expect(view.state.doc.toString()).toContain("Xabc![](assets/a.png)defY");
+    expect(events.onAssetUploadSucceeded).toHaveBeenCalledTimes(1);
+  });
+
+  it("cancels a pending upload when editing inside its placeholder", async () => {
+    const deferred = defer<{ path: string; alt?: string } | { error: string }>();
+    const file = makeFile("a.png");
+    const uploader: AssetUploader = {
+      upload: vi.fn(async () => deferred.promise),
+      cancel: vi.fn(),
+    };
+    const { parent, view, events } = makeDirectUploadView({ uploader });
+
+    firePaste(parent, [file]);
+    await flush();
+    const { placeholderId } = events.onAssetUploading.mock.calls[0][0];
+
+    expectNoFullDocMaterialization(() => {
+      view.dispatch({ changes: { from: 2, to: 2, insert: "broken" } });
+    });
+
+    expect(uploader.cancel).toHaveBeenCalledWith(file);
+    expect(events.onAssetUploadFailed).toHaveBeenCalledWith({
+      placeholderId,
+      error: "cancelled",
+    });
+
+    deferred.resolve({ path: "assets/a.png" });
+    await flush();
+    await flush();
+    expect(events.onAssetUploadSucceeded).not.toHaveBeenCalled();
+    expect(view.state.doc.toString()).not.toContain("![](assets/a.png)");
+  });
+
+  it("rewrites multiple pending placeholders when uploads complete out of order", async () => {
+    const first = defer<{ path: string; alt?: string } | { error: string }>();
+    const second = defer<{ path: string; alt?: string } | { error: string }>();
+    const uploader: AssetUploader = {
+      upload: vi.fn(async (file) => file.name === "a.png" ? first.promise : second.promise),
+      cancel: vi.fn(),
+    };
+    const { parent, view, events } = makeDirectUploadView({ uploader });
+
+    firePaste(parent, [makeFile("a.png"), makeFile("b.png")]);
+    await flush();
+    expect(events.onAssetUploading).toHaveBeenCalledTimes(2);
+
+    second.resolve({ path: "assets/b.png", alt: "b" });
+    await flush();
+    await flush();
+    expect(view.state.doc.toString()).toContain("![b](assets/b.png)");
+    expect(view.state.doc.toString()).toMatch(/upload:/);
+
+    first.resolve({ path: "assets/a.png", alt: "a" });
+    await flush();
+    await flush();
+
+    const doc = view.state.doc.toString();
+    expect(doc).toContain("![a](assets/a.png)");
+    expect(doc).toContain("![b](assets/b.png)");
+    expect(doc).not.toContain("upload:");
+    expect(uploader.cancel).not.toHaveBeenCalled();
+    expect(events.onAssetUploadSucceeded).toHaveBeenCalledTimes(2);
   });
 });
 

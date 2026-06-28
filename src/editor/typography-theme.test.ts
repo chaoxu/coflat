@@ -15,7 +15,6 @@ describe("typographyThemeStyles", () => {
       ".cf-inline-source",
       ".cf-math-source",
       ".cf-reference-source",
-      ".cf-inline-code",
     ] as const) {
       expect(typographyThemeStyles[selector]).toMatchObject({
         fontSize: "0.85em",
@@ -23,6 +22,9 @@ describe("typographyThemeStyles", () => {
         verticalAlign: "baseline",
       });
     }
+    expect(typographyThemeStyles[".cm-line .cf-inline-code"]).toMatchObject({
+      lineHeight: "0",
+    });
     expect(typographyThemeStyles[
       ".cf-block-header .tok-processingInstruction, .cf-block-source .tok-processingInstruction"
     ]).toMatchObject({
@@ -35,8 +37,10 @@ describe("typographyThemeStyles", () => {
     expect(typographyThemeStyles[".cf-inline-code"]).toMatchObject({
       backgroundColor: "var(--cf-color-code-bg, var(--cf-hover))",
       borderRadius: "var(--cf-border-radius)",
+      fontSize: "0.85em",
       padding: "0.1em 0.25em",
     });
+    expect(typographyThemeStyles[".cf-inline-code"]).not.toHaveProperty("lineHeight");
     expect(typographyThemeStyles[".cf-highlight"]).toMatchObject({
       color: "var(--cf-fg)",
     });

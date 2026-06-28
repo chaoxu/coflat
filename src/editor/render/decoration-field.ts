@@ -51,6 +51,7 @@ export function cursorSensitiveShouldRebuild(tr: Transaction): boolean {
 export function createDecorationStateField(options: {
   create: (state: EditorState) => DecorationSet;
   update: (value: DecorationSet, tr: Transaction) => DecorationSet;
+  atomicRanges?: boolean;
   spanName?: string;
 }): StateField<DecorationSet> {
   return StateField.define<DecorationSet>({
@@ -65,7 +66,13 @@ export function createDecorationStateField(options: {
         : options.update(value, tr);
     },
     provide(field) {
-      return EditorView.decorations.from(field);
+      const decorations = EditorView.decorations.from(field);
+      return options.atomicRanges
+        ? [
+            decorations,
+            EditorView.atomicRanges.of((view) => view.state.field(field)),
+          ]
+        : decorations;
     },
   });
 }

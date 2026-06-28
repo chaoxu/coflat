@@ -25,6 +25,9 @@
           <button class="demo-surface-link" type="button" data-surface-id="editor" aria-current="page">
             Editor
           </button>
+          <button class="demo-surface-link" type="button" data-surface-id="readonly">
+            Readonly
+          </button>
           <button class="demo-surface-link" type="button" data-surface-id="reader">
             Reader
           </button>
@@ -37,7 +40,9 @@
       </aside>
       <main class="demo-main">
         <div id="editor"></div>
-        <div id="reader" class="cf-reader cf-doc-surface cf-doc-flow" hidden></div>
+        <div id="reader-viewport" hidden>
+          <div id="reader" class="cf-reader cf-doc-surface cf-doc-flow"></div>
+        </div>
       </main>
     </div>
     <script type="module" src="./main.ts"></script>

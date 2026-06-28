@@ -137,7 +137,7 @@
   background: #89aecb;
 }
 
-.cf-theme-blueprint-book .cf-reader a {
+.cf-theme-blueprint-book .cf-doc-flow a {
   color: #396282;
   text-decoration-line: underline;
   text-decoration-style: dotted;
@@ -145,7 +145,7 @@
   text-underline-offset: 2px;
 }
 
-.cf-theme-blueprint-book .cf-reader .cf-doc-heading {
+.cf-theme-blueprint-book .cf-doc-flow .cf-doc-heading {
   color: #0f2f48;
   font-family: var(--cf-ui-font);
 }
@@ -155,25 +155,25 @@
   font-family: var(--cf-ui-font);
 }
 
-.cf-theme-blueprint-book .cf-reader .cf-doc-heading--h1 {
+.cf-theme-blueprint-book .cf-doc-flow .cf-doc-heading--h1 {
   font-size: var(--cf-h1-size);
   font-style: var(--cf-h1-style);
   font-weight: var(--cf-h1-weight);
 }
 
-.cf-theme-blueprint-book .cf-reader .cf-doc-heading--h2 {
+.cf-theme-blueprint-book .cf-doc-flow .cf-doc-heading--h2 {
   font-size: var(--cf-h2-size);
   font-style: var(--cf-h2-style);
   font-weight: var(--cf-h2-weight);
 }
 
-.cf-theme-blueprint-book .cf-reader :where(.cf-doc-heading--h3, .cf-doc-heading--h4, .cf-doc-heading--h5, .cf-doc-heading--h6) {
+.cf-theme-blueprint-book .cf-doc-flow :where(.cf-doc-heading--h3, .cf-doc-heading--h4, .cf-doc-heading--h5, .cf-doc-heading--h6) {
   font-size: 1rem;
   font-style: normal;
   font-weight: 700;
 }
 
-.cf-theme-blueprint-book .cf-reader .cf-doc-heading--h1 {
+.cf-theme-blueprint-book .cf-doc-flow .cf-doc-heading--h1 {
   line-height: 1;
   margin-block: 1rem;
   text-align: center;
@@ -184,7 +184,7 @@
   text-align: center;
 }
 
-.cf-theme-blueprint-book .cf-reader .cf-doc-heading--h2 {
+.cf-theme-blueprint-book .cf-doc-flow .cf-doc-heading--h2 {
   line-height: 1.2;
   margin-block: 0.8rem 0.5rem;
 }
@@ -193,22 +193,22 @@
   line-height: 1.2;
 }
 
-.cf-theme-blueprint-book .cf-reader .cf-doc-heading--h3,
-.cf-theme-blueprint-book .cf-reader .cf-doc-heading--h4 {
+.cf-theme-blueprint-book .cf-doc-flow .cf-doc-heading--h3,
+.cf-theme-blueprint-book .cf-doc-flow .cf-doc-heading--h4 {
   margin-block: 0.67rem 0.4rem;
 }
 
-.cf-theme-blueprint-book .cf-reader .cf-doc-block,
+.cf-theme-blueprint-book .cf-doc-flow .cf-doc-block,
 .cf-theme-blueprint-book .cf-doc-block:not(.cm-line) {
   margin: var(--cf-block-margin);
 }
 
-.cf-theme-blueprint-book .cf-reader .cf-doc-block-collapsible,
-.cf-theme-blueprint-book .cf-reader details.cf-doc-block {
+.cf-theme-blueprint-book .cf-doc-flow .cf-doc-block-collapsible,
+.cf-theme-blueprint-book .cf-doc-flow details.cf-doc-block {
   display: block;
 }
 
-.cf-theme-blueprint-book .cf-reader .cf-doc-block-heading {
+.cf-theme-blueprint-book .cf-doc-flow .cf-doc-block-heading {
   color: #0a0a14;
   cursor: default;
   font-family: var(--cf-content-font);
@@ -218,32 +218,32 @@
   user-select: text;
 }
 
-.cf-theme-blueprint-book .cf-reader .cf-doc-block-collapsible {
+.cf-theme-blueprint-book .cf-doc-flow .cf-doc-block-collapsible {
   --cf-block-disclosure-indicator-color: #536878;
 }
 
-.cf-theme-blueprint-book .cf-reader .cf-block-disclosure-toggle {
+.cf-theme-blueprint-book .cf-doc-flow .cf-block-disclosure-toggle {
   color: #536878;
   line-height: 1.5;
 }
 
-.cf-theme-blueprint-book .cf-reader .cf-block-disclosure-toggle:hover,
-.cf-theme-blueprint-book .cf-reader .cf-block-disclosure-toggle:focus-visible,
-.cf-theme-blueprint-book .cf-reader .cf-block-disclosure-toggle-collapsed {
+.cf-theme-blueprint-book .cf-doc-flow .cf-block-disclosure-toggle:hover,
+.cf-theme-blueprint-book .cf-doc-flow .cf-block-disclosure-toggle:focus-visible,
+.cf-theme-blueprint-book .cf-doc-flow .cf-block-disclosure-toggle-collapsed {
   color: #0a0a14;
 }
 
-.cf-theme-blueprint-book .cf-reader .cf-doc-block--proof > .cf-doc-block-heading {
+.cf-theme-blueprint-book .cf-doc-flow .cf-doc-block--proof > .cf-doc-block-heading {
   line-height: 1.2;
 }
 
-.cf-theme-blueprint-book .cf-reader .cf-doc-block-heading::marker {
+.cf-theme-blueprint-book .cf-doc-flow .cf-doc-block-heading::marker {
   color: #0a0a14;
   font-size: 0.8em;
 }
 
-.cf-theme-blueprint-book .cf-reader .cf-doc-block--theorem,
-.cf-theme-blueprint-book .cf-reader .cf-doc-block--proposition,
+.cf-theme-blueprint-book .cf-doc-flow .cf-doc-block--theorem,
+.cf-theme-blueprint-book .cf-doc-flow .cf-doc-block--proposition,
 .cf-theme-blueprint-book .cm-line.cf-doc-block--theorem,
 .cf-theme-blueprint-book .cm-line.cf-doc-block--proposition {
   border-left: 0.15rem solid #0a0a14;
@@ -251,9 +251,9 @@
   font-style: italic;
 }
 
-.cf-theme-blueprint-book .cf-reader .cf-doc-block--lemma,
-.cf-theme-blueprint-book .cf-reader .cf-doc-block--corollary,
-.cf-theme-blueprint-book .cf-reader .cf-doc-block--conjecture,
+.cf-theme-blueprint-book .cf-doc-flow .cf-doc-block--lemma,
+.cf-theme-blueprint-book .cf-doc-flow .cf-doc-block--corollary,
+.cf-theme-blueprint-book .cf-doc-flow .cf-doc-block--conjecture,
 .cf-theme-blueprint-book .cm-line.cf-doc-block--lemma,
 .cf-theme-blueprint-book .cm-line.cf-doc-block--corollary,
 .cf-theme-blueprint-book .cm-line.cf-doc-block--conjecture {
@@ -262,14 +262,14 @@
   font-style: italic;
 }
 
-.cf-theme-blueprint-book .cf-reader .cf-doc-block--proof,
+.cf-theme-blueprint-book .cf-doc-flow .cf-doc-block--proof,
 .cf-theme-blueprint-book .cf-doc-block--proof:not(.cm-line),
 .cf-theme-blueprint-book .cm-line.cf-doc-block--proof {
   border-left: 0.08rem solid #808080;
   padding-left: 1rem;
 }
 
-.cf-theme-blueprint-book .cf-reader .cf-doc-block--proof[open]::after {
+.cf-theme-blueprint-book .cf-doc-flow .cf-doc-block--proof[open]::after {
   float: right;
   color: #0a0a14;
   content: var(--cf-proof-marker);
@@ -277,16 +277,16 @@
   line-height: 1;
 }
 
-.cf-theme-blueprint-book .cf-reader .cf-doc-block--definition,
-.cf-theme-blueprint-book .cf-reader .cf-doc-block--example,
-.cf-theme-blueprint-book .cf-reader .cf-doc-block--remark,
+.cf-theme-blueprint-book .cf-doc-flow .cf-doc-block--definition,
+.cf-theme-blueprint-book .cf-doc-flow .cf-doc-block--example,
+.cf-theme-blueprint-book .cf-doc-flow .cf-doc-block--remark,
 .cf-theme-blueprint-book .cm-line.cf-doc-block--definition,
 .cf-theme-blueprint-book .cm-line.cf-doc-block--example,
 .cf-theme-blueprint-book .cm-line.cf-doc-block--remark {
   font-style: normal;
 }
 
-.cf-theme-blueprint-book .cf-reader .cf-doc-code-block {
+.cf-theme-blueprint-book .cf-doc-flow .cf-doc-code-block {
   border-radius: 1px;
 }
 

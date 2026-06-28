@@ -31,7 +31,12 @@
  */
 
 import type { CitationFormatter } from "./src/core/document-context-types";
+import { parseBibTeX } from "./src/core/citations/bibtex-parser";
+import { collectCitedIdsFromClusters } from "./src/core/references/citation-rendering";
 import { CslProcessor } from "./src/editor/citations/csl-processor";
+import type { CitationCluster } from "./src/editor/citations/citation-matching";
+import { collectCitationMatches } from "./src/editor/citations/citation-matching";
+import { buildReferenceCatalog } from "./parse";
 
 export {
   CslProcessor,
@@ -43,9 +48,7 @@ export {
   setCitationJsLoaderForTest,
 } from "./src/editor/citations/csl-processor";
 
-export {
-  parseBibTeX,
-} from "./src/core/citations/bibtex-parser";
+export { parseBibTeX };
 
 export {
   type CslJsonItem,
@@ -66,6 +69,57 @@ export {
 } from "./src/editor/state/bib-data";
 
 export type { CitationFormatter } from "./src/core/document-context-types";
+
+export type {
+  CitationCluster,
+  CitationCollectionOptions,
+  CitationIdLookup,
+  CitationReferenceCluster,
+} from "./src/editor/citations/citation-matching";
+
+export interface SourceCitationCollectionOptions {
+  readonly isLocalTarget?: (id: string) => boolean;
+}
+
+export interface PreparedCitationFormatter {
+  readonly formatter: CitationFormatter;
+  readonly keys: ReadonlySet<string>;
+  readonly citedKeys: readonly string[];
+  readonly clusters: readonly CitationCluster[];
+}
+
+export interface PrepareCitationFormatterOptions extends SourceCitationCollectionOptions {
+  readonly source: string;
+  readonly bibText: string;
+  readonly cslXml?: string;
+}
+
+export function collectCitationClustersFromSource(
+  source: string,
+  keys: ReadonlySet<string>,
+  options: SourceCitationCollectionOptions = {},
+): CitationCluster[] {
+  const catalog = buildReferenceCatalog(source);
+  return collectCitationMatches(catalog.references, keys, {
+    isLocalTarget: (id) => catalog.uniqueTargetById.has(id) || Boolean(options.isLocalTarget?.(id)),
+  });
+}
+
+export async function prepareCitationFormatterFromSource(
+  options: PrepareCitationFormatterOptions,
+): Promise<PreparedCitationFormatter | null> {
+  const items = parseBibTeX(options.bibText);
+  if (items.length === 0) return null;
+  const keys = new Set(items.map((item) => item.id));
+  const clusters = collectCitationClustersFromSource(options.source, keys, {
+    isLocalTarget: options.isLocalTarget,
+  });
+  const citedKeys = collectCitedIdsFromClusters(clusters);
+  if (citedKeys.length === 0) return null;
+  const formatter = createCslCitationFormatter(await CslProcessor.create(items, options.cslXml));
+  formatter.registerCitations(clusters);
+  return { formatter, keys, citedKeys, clusters };
+}
 
 /**
  * Wrap a `CslProcessor` so it satisfies the `CitationFormatter` contract

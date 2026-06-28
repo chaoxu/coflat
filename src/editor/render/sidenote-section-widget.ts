@@ -37,6 +37,8 @@ export class FootnoteSectionWidget extends RenderWidget {
           id: entry.id,
           defFrom: entry.defFrom,
           backrefHref: entry.backrefHref,
+          includeId: false,
+          includeBackrefHref: false,
           appendContent: (content) => {
             renderFootnoteEntryContent(content, entry.content, this.macros, this.referenceContext);
           },

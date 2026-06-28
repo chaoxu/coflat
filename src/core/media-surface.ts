@@ -44,6 +44,29 @@ export function createImageElement(
   return img;
 }
 
+export function syncInlineImageSize(
+  wrapper: HTMLElement,
+  img: HTMLImageElement,
+): void {
+  if (img.naturalWidth <= 0 || img.naturalHeight <= 0) {
+    return;
+  }
+  wrapper.style.width = `${img.naturalWidth}px`;
+  wrapper.style.height = `${img.naturalHeight}px`;
+  img.style.width = "100%";
+  img.style.height = "100%";
+}
+
+export function syncInlineImageSizeOnLoad(
+  wrapper: HTMLElement,
+  img: HTMLImageElement,
+): void {
+  img.addEventListener("load", () => syncInlineImageSize(wrapper, img));
+  if (img.complete) {
+    syncInlineImageSize(wrapper, img);
+  }
+}
+
 export function createImageSurfaceElement(
   ownerDocument: Document,
   tagName: MediaWrapperTag,

@@ -2,15 +2,6 @@ import { indentUnit, LanguageDescription } from "@codemirror/language";
 import { Compartment, EditorState, type Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { historyField } from "@codemirror/commands";
-import { cpp } from "@codemirror/lang-cpp";
-import { css } from "@codemirror/lang-css";
-import { html } from "@codemirror/lang-html";
-import { java } from "@codemirror/lang-java";
-import { javascript } from "@codemirror/lang-javascript";
-import { json } from "@codemirror/lang-json";
-import { python } from "@codemirror/lang-python";
-import { rust } from "@codemirror/lang-rust";
-import { treeView } from "@overleaf/codemirror-tree-view";
 import {
   DOCUMENT_SURFACE_CLASS,
   documentSurfaceClassNames,
@@ -22,27 +13,33 @@ import {
   createMarkdownLanguageExtensions,
   createProjectConfigExtensions,
 } from "./base-editor-extensions";
-import { blockTypePickerExtension } from "./block-type-picker";
 import { builtinCommandRegistryExtension } from "./commands";
 import { commandKeymapExtension } from "./command-registry";
 import {
+  blockTypePickerCompartment,
   syntaxHighlightCompartment,
   themeCompartment,
   treeViewCompartment,
 } from "./compartments";
 import { emitWindowDebugLaneStateChange } from "./debug-lane-state";
-import { debugPanelExtension } from "./debug-panel";
-import type { EditorPluginManager } from "./editor-plugin";
+import type {
+  EditorPlugin,
+  EditorPluginLifecycleEvent,
+  EditorPluginManager as EditorPluginManagerType,
+} from "./editor-plugin";
+import { EditorPluginManager } from "./editor-plugin";
+import {
+  resolveEditorPluginPreset,
+  type EditorPluginPresetName,
+} from "./editor-plugin-presets";
 import {
   renderModeExtensions,
   userSettingsExtensions,
 } from "./extension-builders";
 import { headingFold } from "./heading-fold";
 import { editorKeybindings } from "./keybindings";
-import { listOutlinerExtension } from "./list-outliner";
 import { editorModeField } from "./editor-mode-state";
 import { type ProjectConfig, type ProjectConfigStatus } from "./project-config";
-import { referenceAutocompleteExtension } from "./reference-autocomplete";
 import { richMouseSelectionStyle } from "./rich-mouse-selection";
 import { scrollStabilityExtension } from "./scroll-stability";
 import { shellSurfaceOverlayExtension } from "./shell-surface-overlay";
@@ -59,6 +56,8 @@ export {
 
 const fallbackDocument = "# Untitled\n";
 const debugLaneCompartment = new Compartment();
+const pendingDebugLaneEnabled = new WeakSet<EditorView>();
+const pendingTreeViewEnabled = new WeakSet<EditorView>();
 const defaultDebugLaneExtensions: Extension[] = [];
 const cm6DocumentSurfaceExtensions: Extension[] = [
   EditorView.editorAttributes.of({
@@ -77,29 +76,72 @@ export {
 } from "./compartments";
 
 /** Standard code-language descriptions for fenced code blocks. */
+const loadJavaScriptLanguage = () => import("@codemirror/lang-javascript");
+const loadPythonLanguage = () => import("@codemirror/lang-python");
+const loadHtmlLanguage = () => import("@codemirror/lang-html");
+const loadCssLanguage = () => import("@codemirror/lang-css");
+const loadJsonLanguage = () => import("@codemirror/lang-json");
+const loadJavaLanguage = () => import("@codemirror/lang-java");
+const loadCppLanguage = () => import("@codemirror/lang-cpp");
+const loadRustLanguage = () => import("@codemirror/lang-rust");
+
 const codeLanguageDescriptions: LanguageDescription[] = [
-  LanguageDescription.of({ name: "javascript", alias: ["js", "jsx"], load: async () => javascript({ jsx: true }) }),
-  LanguageDescription.of({ name: "typescript", alias: ["ts", "tsx"], load: async () => javascript({ jsx: true, typescript: true }) }),
-  LanguageDescription.of({ name: "python", alias: ["py"], load: async () => python() }),
-  LanguageDescription.of({ name: "html", alias: ["htm"], load: async () => html() }),
-  LanguageDescription.of({ name: "css", alias: ["scss", "less"], load: async () => css() }),
-  LanguageDescription.of({ name: "json", load: async () => json() }),
-  LanguageDescription.of({ name: "java", load: async () => java() }),
-  LanguageDescription.of({ name: "cpp", alias: ["c", "c++", "cc", "cxx", "h"], load: async () => cpp() }),
-  LanguageDescription.of({ name: "rust", alias: ["rs"], load: async () => rust() }),
+  LanguageDescription.of({
+    name: "javascript",
+    alias: ["js", "jsx"],
+    load: async () => (await loadJavaScriptLanguage()).javascript({ jsx: true }),
+  }),
+  LanguageDescription.of({
+    name: "typescript",
+    alias: ["ts", "tsx"],
+    load: async () =>
+      (await loadJavaScriptLanguage()).javascript({ jsx: true, typescript: true }),
+  }),
+  LanguageDescription.of({
+    name: "python",
+    alias: ["py"],
+    load: async () => (await loadPythonLanguage()).python(),
+  }),
+  LanguageDescription.of({
+    name: "html",
+    alias: ["htm"],
+    load: async () => (await loadHtmlLanguage()).html(),
+  }),
+  LanguageDescription.of({
+    name: "css",
+    alias: ["scss", "less"],
+    load: async () => (await loadCssLanguage()).css(),
+  }),
+  LanguageDescription.of({
+    name: "json",
+    load: async () => (await loadJsonLanguage()).json(),
+  }),
+  LanguageDescription.of({
+    name: "java",
+    load: async () => (await loadJavaLanguage()).java(),
+  }),
+  LanguageDescription.of({
+    name: "cpp",
+    alias: ["c", "c++", "cc", "cxx", "h"],
+    load: async () => (await loadCppLanguage()).cpp(),
+  }),
+  LanguageDescription.of({
+    name: "rust",
+    alias: ["rs"],
+    load: async () => (await loadRustLanguage()).rust(),
+  }),
 ];
 
-/** Editor chrome: folding, outliner, keybindings, picker, theme, debug panel. */
+/** Core editor chrome that should be present before the first editable pixels. */
 function editorChromeExtensions(isDark: boolean): Extension[] {
   return [
     headingFold,
-    listOutlinerExtension,
     editorKeybindings,
     widgetStopIndexCleanupExtension,
     scrollStabilityExtension,
     stableHeightOracleExtension,
     richMouseSelectionStyle,
-    blockTypePickerExtension,
+    blockTypePickerCompartment.of([]),
     builtinCommandRegistryExtension,
     commandKeymapExtension,
     debugLaneCompartment.of(defaultDebugLaneExtensions),
@@ -123,14 +165,37 @@ export interface EditorConfig {
   /** Structured status for the project configuration source. */
   projectConfigStatus?: ProjectConfigStatus;
   /** Plugin manager for toggleable editor features. */
-  pluginManager?: EditorPluginManager;
+  pluginManager?: EditorPluginManagerType;
+  /**
+   * Built-in plugin preset. `full` preserves the default editor workbench,
+   * `workbench` enables user-facing optional UI, and `core` mounts only the
+   * shared render/edit surface plus essential editing chrome.
+   */
+  pluginPreset?: EditorPluginPresetName;
+  /** Explicit plugin descriptors. Overrides `pluginPreset` when provided. */
+  plugins?: readonly EditorPlugin[];
   /** Additional CM6 extensions to include. */
   extensions?: Extension[];
   /** Optional restored CodeMirror history state for remounting the same document. */
   initialHistoryState?: Cm6HistoryState | null;
+  /**
+   * Called as optional editor startup features become interactive. These
+   * features are dynamically imported so first editor pixels are not blocked
+   * by autocomplete or picker UI code.
+   */
+  onLazyFeatureReady?: (feature: EditorLazyFeature) => void;
+  /** Called as lazy editor plugins become active. */
+  onPluginReady?: (event: EditorPluginLifecycleEvent) => void;
 }
 
 export type Cm6HistoryState = unknown;
+export type EditorLazyFeature =
+  | "block-type-picker"
+  | "debug-inspector"
+  | "find-replace"
+  | "hover-preview"
+  | "reference-autocomplete"
+  | "list-outliner";
 
 export function captureEditorHistoryState(state: EditorState): Cm6HistoryState | undefined {
   return state.field(historyField, false);
@@ -145,25 +210,50 @@ function hasCompartmentContent(extension: Extension | undefined): boolean {
  * Call from console: `__cmDebug.toggleTreeView()`.
  */
 export function toggleTreeView(view: EditorView): boolean {
-  const nextEnabled = !hasCompartmentContent(treeViewCompartment.get(view.state));
-  view.dispatch({
-    effects: treeViewCompartment.reconfigure(nextEnabled ? treeView : []),
-  });
+  const currentEnabled =
+    pendingTreeViewEnabled.has(view) || hasCompartmentContent(treeViewCompartment.get(view.state));
+  const nextEnabled = !currentEnabled;
+  if (nextEnabled) {
+    pendingTreeViewEnabled.add(view);
+    void import("@overleaf/codemirror-tree-view").then(({ treeView }) => {
+      if (!pendingTreeViewEnabled.has(view)) return;
+      view.dispatch({
+        effects: treeViewCompartment.reconfigure(treeView),
+      });
+    });
+  } else {
+    pendingTreeViewEnabled.delete(view);
+    view.dispatch({
+      effects: treeViewCompartment.reconfigure([]),
+    });
+  }
   return nextEnabled;
 }
 
 export function isDebugLaneEnabled(view: EditorView): boolean {
-  return hasCompartmentContent(debugLaneCompartment.get(view.state));
+  return pendingDebugLaneEnabled.has(view) || hasCompartmentContent(debugLaneCompartment.get(view.state));
 }
 
 export function setDebugLaneEnabled(view: EditorView, enabled: boolean): boolean {
-  const nextExtensions = enabled
-    ? [shellSurfaceOverlayExtension, debugPanelExtension]
-    : [];
-  view.dispatch({
-    effects: debugLaneCompartment.reconfigure(nextExtensions),
-  });
-  emitWindowDebugLaneStateChange();
+  if (enabled) {
+    pendingDebugLaneEnabled.add(view);
+    void import("./debug-panel").then(({ debugPanelExtension }) => {
+      if (!pendingDebugLaneEnabled.has(view)) return;
+      view.dispatch({
+        effects: debugLaneCompartment.reconfigure([
+          shellSurfaceOverlayExtension,
+          debugPanelExtension,
+        ]),
+      });
+      emitWindowDebugLaneStateChange();
+    });
+  } else {
+    pendingDebugLaneEnabled.delete(view);
+    view.dispatch({
+      effects: debugLaneCompartment.reconfigure([]),
+    });
+    emitWindowDebugLaneStateChange();
+  }
   return enabled;
 }
 
@@ -176,6 +266,18 @@ export function toggleDebugLane(view: EditorView): boolean {
 /** Create and mount a CodeMirror 6 markdown editor. */
 export function createEditor(config: EditorConfig): EditorView {
   const isDark = document.documentElement.dataset.theme === "dark";
+  const pluginManager = config.pluginManager ?? new EditorPluginManager(
+    resolveEditorPluginPreset(config.plugins ?? config.pluginPreset),
+  );
+  const onPluginReady = (event: EditorPluginLifecycleEvent) => {
+    config.onPluginReady?.(event);
+    if (event.id === "block-type-picker") config.onLazyFeatureReady?.("block-type-picker");
+    if (event.id === "debug-inspector") config.onLazyFeatureReady?.("debug-inspector");
+    if (event.id === "find-replace") config.onLazyFeatureReady?.("find-replace");
+    if (event.id === "hover-preview") config.onLazyFeatureReady?.("hover-preview");
+    if (event.id === "reference-autocomplete") config.onLazyFeatureReady?.("reference-autocomplete");
+    if (event.id === "list-outliner") config.onLazyFeatureReady?.("list-outliner");
+  };
 
   const state = EditorState.create({
     doc: config.doc ?? fallbackDocument,
@@ -196,8 +298,9 @@ export function createEditor(config: EditorConfig): EditorView {
       // Shared cross-editor document surface contract.
       ...cm6DocumentSurfaceExtensions,
 
-      // Reference/citation completion from semantic + bibliography state
-      referenceAutocompleteExtension,
+      // Reference autocomplete + block picker are attached after mount.
+      // Their module graphs include autocomplete/chrome UI that should not
+      // block the first editable document surface.
 
       // Mode switching (render/editable/modeClass compartments)
       ...renderModeExtensions({
@@ -205,8 +308,8 @@ export function createEditor(config: EditorConfig): EditorView {
         renderingExtensions: cm6RichRenderExtensions,
       }),
 
-      // Toggleable editor plugins (managed by EditorPluginManager)
-      ...(config.pluginManager?.initialExtensions() ?? []),
+      // Toggleable/lazy editor plugins.
+      ...pluginManager.initialExtensions({ isDark }),
 
       // User-configurable settings (word wrap, line numbers, tab size)
       ...userSettingsExtensions(tabSizeExtension(2)),
@@ -223,10 +326,12 @@ export function createEditor(config: EditorConfig): EditorView {
     ],
   });
 
-  return new EditorView({
+  const view = new EditorView({
     state,
     parent: config.parent,
   });
+  pluginManager.attach(view, { context: { isDark }, onReady: onPluginReady });
+  return view;
 }
 
 /** Build a tab-size extension from a numeric size (used by compartment reconfiguration). */

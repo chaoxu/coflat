@@ -9,6 +9,7 @@ import {
   createMediaWrapperElement,
   renderImagePlaceholderInto,
   renderMediaLoadingInto,
+  syncInlineImageSizeOnLoad,
 } from "../../core/media-surface";
 import {
   LazyWidgetBase,
@@ -130,18 +131,8 @@ export class ImagePreviewWidget extends LazyWidgetBase {
       case "image": {
         wrapper.className = CSS.imageWrapper;
         const img = createImageElement(document, this.state.src, this.alt);
-        const syncInlineSize = () => {
-          if (this.isBlock || img.naturalWidth <= 0 || img.naturalHeight <= 0) {
-            return;
-          }
-          wrapper.style.width = `${img.naturalWidth}px`;
-          wrapper.style.height = `${img.naturalHeight}px`;
-          img.style.width = "100%";
-          img.style.height = "100%";
-        };
-        img.addEventListener("load", syncInlineSize);
-        if (img.complete) {
-          syncInlineSize();
+        if (!this.isBlock) {
+          syncInlineImageSizeOnLoad(wrapper, img);
         }
         img.addEventListener("error", () => {
           this.renderUnavailablePlaceholder(wrapper);

@@ -25,6 +25,17 @@ export interface ConditionalWriteResult {
   currentContent?: string;
 }
 
+export type AssetResolvePurpose = "source" | "display";
+
+export interface AssetResolveOptions {
+  /**
+   * `source` means the canonical referenced asset. `display` means a
+   * browser-renderable representation, which may be generated or optimized by
+   * the host.
+   */
+  purpose?: AssetResolvePurpose;
+}
+
 /**
  * Plain-data block counter entry for cross-reference resolution.
  *
@@ -94,13 +105,13 @@ export interface FileSystem {
   readFileBinary(path: string): Promise<Uint8Array>;
   /**
    * Produce a URL the editor and reader emit into the DOM for asset
-   * references (e.g. `<img src="...">`). Hosts can return CDN URLs,
-   * blob URLs, or signed/auth'd URLs without coflat needing to know.
-   * Receives the same workspace-relative path that appears in the
-   * source — e.g. `![alt](images/foo.png)` calls `resolveAssetUrl("images/foo.png")`.
+   * references (e.g. `<img src="...">`). Hosts can return CDN URLs, blob
+   * URLs, signed/auth'd URLs, or generated browser-display URLs without Coflat
+   * needing to know. Receives a workspace-relative source asset path.
    *
-   * @param path    Workspace-relative path as written in the source.
-   * @returns       URL string to use as the resource's src.
+   * @param path    Workspace-relative source asset path.
+   * @param options source/display purpose; display may resolve to a preview.
+   * @returns       Synchronous URL string to use as the resource's src.
    */
-  resolveAssetUrl(path: string): string | Promise<string>;
+  resolveAssetUrl(path: string, options?: AssetResolveOptions): string;
 }

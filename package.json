@@ -1,6 +1,6 @@
 {
   "name": "@chaoxu/coflat",
-  "version": "0.2.11",
+  "version": "0.2.12",
   "description": "Math-aware Markdown editor library built on CodeMirror 6, Lezer, and KaTeX.",
   "type": "module",
   "homepage": "http://chaoxu.prof/coflat/",
@@ -29,10 +29,23 @@
       "types": "./dist/reader.d.ts",
       "import": "./dist/reader.mjs"
     },
+    "./rich-readonly": {
+      "types": "./dist/rich-readonly.d.ts",
+      "import": "./dist/rich-readonly.mjs"
+    },
+    "./editor-lazy": {
+      "types": "./dist/editor-lazy.d.ts",
+      "import": "./dist/editor-lazy.mjs"
+    },
+    "./inline-render": {
+      "types": "./dist/inline-render.d.ts",
+      "import": "./dist/inline-render.mjs"
+    },
     "./reader/worker": {
       "types": "./dist/reader-worker.d.ts",
       "import": "./dist/reader-worker.mjs"
     },
+    "./document-surface.css": "./dist/document-surface.css",
     "./parse": {
       "types": "./dist/parse.d.ts",
       "import": "./dist/parse.mjs"
@@ -59,6 +72,10 @@
       "types": "./dist/test-utils.d.ts",
       "import": "./dist/test-utils.js"
     },
+    "./browser-test-utils": {
+      "types": "./dist/browser-test-utils.d.ts",
+      "import": "./dist/browser-test-utils.js"
+    },
     "./style.css": "./dist/editor.css"
   },
   "scripts": {
@@ -69,11 +86,13 @@
     "check:static": "pnpm typecheck && pnpm lint",
     "dev:pages": "vite --config vite.pages.config.ts --host 127.0.0.1 --port 5190",
     "build:pages": "vite build --config vite.pages.config.ts",
+    "measure:package-graph": "pnpm build && node scripts/measure-package-graph.mjs --assert",
     "check:package": "pnpm build && pnpm publint",
     "check:package-smoke": "pnpm build && node scripts/package-smoke.mjs",
     "test:watch": "vitest",
     "lint": "biome lint . && node scripts/check-layer-boundary.mjs",
     "lint:layers": "node scripts/check-layer-boundary.mjs",
+    "publish:gitea": "node scripts/publish-gitea.mjs",
     "prepack": "pnpm build && pnpm publint",
     "test:e2e": "env -u NO_COLOR -u FORCE_COLOR playwright test tests/e2e/smoke.spec.ts",
     "test:e2e:corpus": "node scripts/run-corpus-parity.mjs",

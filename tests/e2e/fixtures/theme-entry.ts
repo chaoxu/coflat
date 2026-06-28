@@ -1,4 +1,4 @@
-import "../../../src/editor/editor-theme.css";
+import "../../../src/core/document-surface.css";
 import "../../../src/themes/blueprint-book.css";
 import { hydrateReaderDisclosures, renderToHtml } from "../../../reader";
 import { requiredHTMLElement } from "./utils";

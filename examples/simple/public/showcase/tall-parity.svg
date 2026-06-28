@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="720" viewBox="0 0 120 720" role="img" aria-labelledby="title desc">
+  <title id="title">Tall parity fixture</title>
+  <desc id="desc">A tall vector image used to verify shared reader and editor image metrics.</desc>
+  <rect width="120" height="720" fill="#fdd" />
+  <path d="M20 700L100 20" stroke="#d33" stroke-width="12" stroke-linecap="round" />
+</svg>

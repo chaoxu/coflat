@@ -5,9 +5,17 @@ import { describe, expect, it } from "vitest";
 import { baseThemeStyles } from "./base-theme";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const DOCUMENT_SURFACE_IMPORT = '@import "../core/document-surface.css";';
 
 function readRepoFile(relativePath: string): string {
-  return readFileSync(resolve(ROOT, relativePath), "utf8");
+  const css = readFileSync(resolve(ROOT, relativePath), "utf8");
+  if (relativePath !== "editor/editor-theme.css") return css;
+
+  const surfaceCss = readRepoFile("core/document-surface.css").trimEnd();
+  if (!css.includes(DOCUMENT_SURFACE_IMPORT)) {
+    throw new Error(`editor-theme.css must import ${DOCUMENT_SURFACE_IMPORT}`);
+  }
+  return css.replace(DOCUMENT_SURFACE_IMPORT, surfaceCss);
 }
 
 function cssRuleBody(css: string, selector: string): string {
@@ -25,13 +33,60 @@ function cssCustomProperties(ruleBody: string): string[] {
   );
 }
 
-describe("theme CSS contract", () => {
-  it("keeps dark mode as a complete token set", () => {
-    const css = readRepoFile("editor/editor-theme.css");
-    const rootTokens = cssCustomProperties(cssRuleBody(css, ":root"));
-    const darkTokens = new Set(cssCustomProperties(cssRuleBody(css, "[data-theme=\"dark\"]")));
+function selectorRulePattern(selector: string): RegExp {
+  const escapedSelector = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(^|})\\s*${escapedSelector}\\s*\\{`, "m");
+}
 
-    expect(rootTokens.filter((token) => !darkTokens.has(token))).toEqual([]);
+describe("theme CSS contract", () => {
+  it("keeps rendered document surface CSS in the shared source file", () => {
+    const editorCss = readFileSync(resolve(ROOT, "editor/editor-theme.css"), "utf8");
+    const surfaceCss = readRepoFile("core/document-surface.css");
+
+    expect(editorCss).toContain(DOCUMENT_SURFACE_IMPORT);
+    expect(editorCss).not.toContain(".cf-doc-flow .cf-doc-heading--h1 {");
+    expect(editorCss).not.toContain(".cf-doc-flow .cf-doc-list-item {");
+    expect(editorCss).not.toContain(".cf-bibliography-heading {");
+    expect(editorCss).not.toMatch(selectorRulePattern(".font-mono"));
+    expect(surfaceCss).not.toMatch(/\.cm-/);
+    expect(surfaceCss).not.toMatch(selectorRulePattern("[data-section-number]::before"));
+    expect(surfaceCss).toContain(".cf-doc-flow .cf-doc-heading--h1 {");
+    expect(surfaceCss).toContain(".cf-doc-flow .cf-doc-list-item {");
+    expect(surfaceCss).toContain(".cf-bibliography-heading {");
+  });
+
+  it("keeps reusable cf-doc rendered surfaces out of reader-only scope", () => {
+    const surfaceCss = readRepoFile("core/document-surface.css");
+    const allowedReaderScopedDocSelectors = [
+      /^\\.cf-reader \\.cf-doc-heading(?::not|--h[1-6]:not)/,
+      /^\\.cf-reader \\.cf-doc-list-item--check input\\[type="checkbox"\\]/,
+    ];
+    const readerScopedDocSelectors = [...surfaceCss.matchAll(/(?:^|})\\s*(\\.cf-reader [^{]*\\.cf-doc-[^{]+)\\s*\\{/gm)]
+      .map((match) => match[1].trim());
+
+    expect(readerScopedDocSelectors.filter((selector) => (
+      !allowedReaderScopedDocSelectors.some((allowed) => allowed.test(selector))
+    ))).toEqual([]);
+  });
+
+  it("lets compact editor padding inherit the document padding token", () => {
+    const compact = baseThemeStyles["@media (max-width: 720px)"][".cm-content"];
+
+    expect(compact.paddingInline).toBe(
+      "var(--cf-doc-content-padding-inline-compact, var(--cf-doc-content-padding-inline, 20px))",
+    );
+  });
+
+  it("keeps dark mode as overrides of root tokens", () => {
+    const css = readRepoFile("core/document-surface.css");
+    const rootTokens = new Set(cssCustomProperties(cssRuleBody(css, ":root")));
+    const darkTokens = cssCustomProperties(cssRuleBody(css, "[data-theme=\"dark\"]"));
+
+    expect(darkTokens.filter((token) => !rootTokens.has(token))).toEqual([]);
+    expect(darkTokens).toContain("--cf-bg");
+    expect(darkTokens).toContain("--cf-fg");
+    expect(darkTokens).toContain("--cf-border");
+    expect(darkTokens).toContain("--cf-accent");
   });
 
   it("keeps preview and citation hover surfaces on shared foreground tokens", () => {
@@ -39,6 +94,18 @@ describe("theme CSS contract", () => {
 
     expect(cssRuleBody(css, ".cf-preview-surface-body")).toContain(
       "color: var(--cf-fg);",
+    );
+    expect(cssRuleBody(css, ".cf-preview-surface-shell")).toContain(
+      "position: fixed;",
+    );
+    expect(cssRuleBody(css, ".cf-preview-surface-content")).toContain(
+      "font-family: var(--cf-content-font, KaTeX_Main, \"Times New Roman\", serif);",
+    );
+    expect(cssRuleBody(css, ".cf-preview-surface-header")).toContain(
+      "font-weight: 700;",
+    );
+    expect(cssRuleBody(css, ".cf-hover-preview-tooltip")).toContain(
+      "pointer-events: none;",
     );
     expect(cssRuleBody(css, ".cf-hover-preview-citation")).toContain(
       "color: var(--cf-fg);",
@@ -81,19 +148,37 @@ describe("theme CSS contract", () => {
     expect(cssRuleBody(css, ".cm-line")).toContain("line-height: inherit;");
     expect(cssRuleBody(css, ".cm-line")).toContain("padding: 0;");
     expect(cssRuleBody(css, ".cm-editor .cm-line")).toContain("padding: 0;");
+    expect(cssRuleBody(css, ".cm-line.cf-doc-list")).toContain("margin: 0;");
+    expect(cssRuleBody(css, ".cm-line.cf-doc-list")).toContain("padding-left: 0;");
+    expect(cssRuleBody(css, ".cm-line.cf-doc-list")).toContain("list-style: none;");
+    expect(cssRuleBody(css, ".cm-line.cf-doc-list-item")).toContain("display: block;");
+    expect(cssRuleBody(css, ".cm-line.cf-doc-list-item")).toContain("margin: 0;");
+    expect(cssRuleBody(css, ".cm-line.cf-codeblock-header,\n.cm-line.cf-codeblock-body,\n.cm-line.cf-codeblock-last")).toContain("font-style: normal;");
+    expect(cssRuleBody(css, ".cm-line.cf-doc-block")).toContain("margin: 0;");
+    expect(cssRuleBody(css, ".cm-line.cf-doc-block--blockquote")).toContain(
+      "padding-left: var(--cf-doc-blockquote-padding-left, 1em);",
+    );
+    expect(css).not.toContain(".cf-editor-virtual-blockquote-display-math");
   });
 
   it("ships full-document reader defaults for host-rendered documents", () => {
-    const css = readRepoFile("editor/editor-theme.css");
+    const css = readRepoFile("core/document-surface.css");
 
     expect(cssRuleBody(css, ".cf-doc-flow")).toContain("-webkit-font-smoothing: antialiased;");
     expect(cssRuleBody(css, ".cf-doc-title")).toContain("user-select: text;");
-    expect(cssRuleBody(css, ".cf-reader")).toContain("max-width: var(--cf-content-max-width, 800px);");
-    expect(cssRuleBody(css, ".cf-reader")).toContain("counter-reset: cf-reader-h1 cf-reader-h2 cf-reader-h3 cf-reader-h4 cf-reader-h5 cf-reader-h6;");
-    expect(cssRuleBody(css, ".cf-reader .cf-doc-heading--h1")).toContain(
+    const readerRule = cssRuleBody(css, ".cf-reader");
+    expect(readerRule).toContain("max-width: var(--cf-content-max-width, 800px);");
+    expect(readerRule).toContain("padding-block-start: var(--cf-doc-content-padding-block-start, 24px);");
+    expect(readerRule).toContain("padding-block-end: var(--cf-doc-content-padding-block-end, 64px);");
+    expect(readerRule).toContain(
+      "padding-inline-start: max(var(--cf-doc-content-padding-inline, 48px), var(--cf-reader-control-gutter-inline, calc(var(--cf-h1-size, 1.15em) + var(--cf-spacing-xs))));",
+    );
+    expect(readerRule).toContain("padding-inline-end: var(--cf-doc-content-padding-inline, 48px);");
+    expect(readerRule).toContain("counter-reset: cf-reader-h1 cf-reader-h2 cf-reader-h3 cf-reader-h4 cf-reader-h5 cf-reader-h6;");
+    expect(cssRuleBody(css, ".cf-doc-flow .cf-doc-heading--h1")).toContain(
       "font-size: var(--cf-h1-size, 1.15em);",
     );
-    expect(cssRuleBody(css, ".cf-reader .cf-doc-heading--h2")).toContain(
+    expect(cssRuleBody(css, ".cf-doc-flow .cf-doc-heading--h2")).toContain(
       "font-style: var(--cf-h2-style, italic);",
     );
     expect(cssRuleBody(css, ".cf-reader .cf-doc-heading--h1:not([data-section-number]):not(.cf-doc-heading--unnumbered)::before")).toContain(
@@ -105,82 +190,107 @@ describe("theme CSS contract", () => {
     expect(cssRuleBody(css, ".cf-reader .cf-doc-heading--h3:not([data-section-number]):not(.cf-doc-heading--unnumbered)::before")).toContain(
       "counter-increment: cf-reader-h3;",
     );
-    expect(cssRuleBody(css, "[data-section-number]::before")).toContain(
+    expect(cssRuleBody(css, ".cf-doc-heading[data-section-number]::before")).toContain(
       'content: attr(data-section-number) ".\\2002";',
     );
-    expect(cssRuleBody(css, ".cf-reader a,\n.cf-reader .cf-doc-link")).toContain("display: inline;");
-    expect(cssRuleBody(css, ".cf-reader a,\n.cf-reader .cf-doc-link")).toContain("text-decoration-style: dotted;");
-    expect(cssRuleBody(css, ".cf-reader a[data-cf-link-layout=\"flow\"],\n.cf-reader .cf-doc-link[data-cf-link-layout=\"flow\"]")).toContain(
+    expect(css).not.toMatch(selectorRulePattern("[data-section-number]::before"));
+    expect(cssRuleBody(css, ".cf-doc-flow a,\n.cf-doc-flow .cf-doc-link")).toContain("display: inline;");
+    expect(cssRuleBody(css, ".cf-doc-flow a,\n.cf-doc-flow .cf-doc-link")).toContain("text-decoration-style: dotted;");
+    expect(cssRuleBody(css, ".cf-doc-flow a[data-cf-link-layout=\"flow\"],\n.cf-doc-flow .cf-doc-link[data-cf-link-layout=\"flow\"]")).toContain(
       "display: inline;",
     );
-    expect(cssRuleBody(css, ".cf-reader a[data-cf-link-layout=\"atomic\"],\n.cf-reader .cf-doc-link[data-cf-link-layout=\"atomic\"]")).toContain(
+    expect(cssRuleBody(css, ".cf-doc-flow a[data-cf-link-layout=\"atomic\"],\n.cf-doc-flow .cf-doc-link[data-cf-link-layout=\"atomic\"]")).toContain(
       "display: inline-block;",
     );
-    expect(cssRuleBody(css, ".cf-reader .cf-doc-paragraph")).toContain("white-space: break-spaces;");
-    expect(cssRuleBody(css, ".cf-reader .cf-doc-paragraph")).toContain("word-break: break-word;");
-    expect(cssRuleBody(css, ".cf-reader .cf-doc-paragraph")).toContain("overflow-wrap: anywhere;");
-    expect(cssRuleBody(css, ".cf-reader .cf-doc-list")).toContain("margin: 0;");
-    expect(cssRuleBody(css, ".cf-reader .cf-doc-list")).toContain("padding-left: 0;");
-    expect(cssRuleBody(css, ".cf-reader .cf-doc-list--unordered")).toContain("list-style: none;");
-    expect(cssRuleBody(css, ".cf-reader .cf-doc-list--ordered")).toContain("list-style: none;");
-    expect(cssRuleBody(css, ".cf-reader .cf-doc-list-item")).toContain("display: block;");
-    expect(cssRuleBody(css, ".cf-reader .cf-doc-list-item")).toContain("margin: 0;");
+    expect(cssRuleBody(css, ".cf-doc-flow .cf-doc-paragraph")).toContain("white-space: break-spaces;");
+    expect(cssRuleBody(css, ".cf-doc-flow .cf-doc-paragraph")).toContain("word-break: break-word;");
+    expect(cssRuleBody(css, ".cf-doc-flow .cf-doc-paragraph")).toContain("overflow-wrap: anywhere;");
+    expect(cssRuleBody(css, ".cf-doc-flow .cf-doc-list")).toContain("margin: 0;");
+    expect(cssRuleBody(css, ".cf-doc-flow .cf-doc-list")).toContain("padding-left: 0;");
+    expect(cssRuleBody(css, ".cf-doc-flow .cf-doc-list--unordered")).toContain("list-style: none;");
+    expect(cssRuleBody(css, ".cf-doc-flow .cf-doc-list--ordered")).toContain("list-style: none;");
+    expect(cssRuleBody(css, ".cf-doc-flow .cf-doc-list-item")).toContain("display: block;");
+    expect(cssRuleBody(css, ".cf-doc-flow .cf-doc-list-item")).toContain("margin: 0;");
+    expect(cssRuleBody(css, ".cf-doc-flow .cf-doc-list-item > .cf-list-bullet + .cf-doc-paragraph,\n.cf-doc-flow .cf-doc-list-item > .cf-list-number + .cf-doc-paragraph")).toContain("display: inline;");
     expect(cssRuleBody(css, ".cf-list-bullet")).toContain("font-weight: 700;");
     expect(cssRuleBody(css, ".cf-list-number")).toContain("font-weight: 600;");
     expect(cssRuleBody(css, ".cf-list-number")).toContain("font-variant-numeric: tabular-nums;");
-    expect(cssRuleBody(css, ".cm-line.cf-doc-list")).toContain("margin: 0;");
-    expect(cssRuleBody(css, ".cm-line.cf-doc-list")).toContain("padding-left: 0;");
-    expect(cssRuleBody(css, ".cm-line.cf-doc-list")).toContain("list-style: none;");
-    expect(cssRuleBody(css, ".cm-line.cf-doc-list-item")).toContain("display: block;");
-    expect(cssRuleBody(css, ".cm-line.cf-doc-list-item")).toContain("margin: 0;");
-    expect(cssRuleBody(css, ".cf-reader .cf-doc-list-item--check input[type=\"checkbox\"]")).toContain("pointer-events: none;");
-    expect(cssRuleBody(css, ".cf-reader .cf-doc-code-block")).toContain("margin: 0;");
-    expect(cssRuleBody(css, ".cf-reader .cf-doc-code-block")).toContain("overflow-x: auto;");
-    expect(cssRuleBody(css, ".cf-reader .cf-doc-code-block")).toContain("overflow-y: hidden;");
-    expect(cssRuleBody(css, ".cf-reader .cf-doc-code-block")).toContain("padding: 0;");
-    expect(cssRuleBody(css, ".cf-reader .cf-doc-code-block")).toContain("border: 0;");
-    expect(cssRuleBody(css, ".cf-reader .cf-doc-code-block")).toContain('font-family: var(--cf-code-font, Monaco, "DejaVu Sans Mono", Consolas, monospace);');
-    expect(cssRuleBody(css, ".cf-reader .cf-doc-code-block")).toContain("font-style: normal;");
-    expect(cssRuleBody(css, ".cf-reader .cf-doc-code-block")).toContain("line-height: var(--cf-line-height, 1.5);");
-    expect(cssRuleBody(css, ".cf-reader .cf-doc-code-block > .cf-codeblock-language")).toContain("display: block;");
-    expect(cssRuleBody(css, ".cf-reader .cf-doc-code-block code")).toContain("display: block;");
-    expect(cssRuleBody(css, ".cm-line.cf-codeblock-header,\n.cm-line.cf-codeblock-body,\n.cm-line.cf-codeblock-last")).toContain("font-style: normal;");
-    expect(cssRuleBody(css, ".cf-reader .cf-doc-display-math")).toContain("text-align: center;");
+    const superscriptRule = cssRuleBody(css, ".cf-footnote-ref,\n.cf-sidenote-ref,\n.cf-bibliography-entry-number");
+    expect(superscriptRule).toContain("vertical-align: super;");
+    expect(superscriptRule).toContain("font-size: 0.7em;");
+    expect(superscriptRule).toContain("line-height: 1;");
+    expect(cssRuleBody(css, ".cf-bibliography-entry-number")).toContain("margin-right: 4px;");
+    expect(cssRuleBody(css, ".cf-bibliography-heading")).toContain("font-size: var(--cf-h2-size, 1.15em);");
+    expect(cssRuleBody(css, ".cf-bibliography-heading")).toContain("font-style: var(--cf-h2-style, italic);");
+    expect(cssRuleBody(css, ".cf-bibliography,\n.cf-footnote-section")).toContain("white-space: normal;");
+    expect(cssRuleBody(css, ".cf-bibliography .cf-bibliography-backlink,\n.cf-footnote-section .cf-footnote-backref")).toContain("color: inherit;");
+    expect(cssRuleBody(css, ".cf-bibliography .cf-bibliography-backlink,\n.cf-footnote-section .cf-footnote-backref")).toContain("text-decoration: none;");
+    const taskCheckboxRule = cssRuleBody(css, ".cf-doc-list-item--check input[type=\"checkbox\"]");
+    expect(taskCheckboxRule).toContain("height: 13px;");
+    expect(taskCheckboxRule).toContain("margin: 0 4px 0 0;");
+    expect(taskCheckboxRule).toContain("width: 13px;");
+    expect(cssRuleBody(css, ".cf-reader .cf-doc-list-item--check input[type=\"checkbox\"]")).toContain(
+      "pointer-events: none;",
+    );
+    expect(cssRuleBody(css, ".cf-doc-flow .cf-doc-code-block")).toContain("margin: 0;");
+    expect(cssRuleBody(css, ".cf-doc-flow .cf-doc-code-block")).toContain("overflow-x: auto;");
+    expect(cssRuleBody(css, ".cf-doc-flow .cf-doc-code-block")).toContain("overflow-y: hidden;");
+    expect(cssRuleBody(css, ".cf-doc-flow .cf-doc-code-block")).toContain("padding: 0;");
+    expect(cssRuleBody(css, ".cf-doc-flow .cf-doc-code-block")).toContain("border: 0;");
+    expect(cssRuleBody(css, ".cf-doc-flow .cf-doc-code-block")).toContain('font-family: var(--cf-code-font, Monaco, "DejaVu Sans Mono", Consolas, monospace);');
+    expect(cssRuleBody(css, ".cf-doc-flow .cf-doc-code-block")).toContain("font-style: normal;");
+    expect(cssRuleBody(css, ".cf-doc-flow .cf-doc-code-block")).toContain("line-height: var(--cf-line-height, 1.5);");
+    expect(cssRuleBody(css, ".cf-doc-flow .cf-doc-code-block > .cf-codeblock-language")).toContain("display: block;");
+    expect(cssRuleBody(css, ".cf-doc-flow .cf-doc-code-block code")).toContain("display: block;");
+    expect(cssRuleBody(css, ".cf-doc-flow .cf-doc-display-math")).toContain("text-align: center;");
     expect(cssRuleBody(css, ".cf-math-display-content")).toContain("display: block;");
     expect(cssRuleBody(css, ".cf-math-display-content")).toContain("width: fit-content;");
     expect(cssRuleBody(css, ".cf-math-display-content")).toContain("margin-inline: auto;");
     expect(cssRuleBody(css, ".cf-katex-small-caps")).toContain("font-variant: small-caps;");
     expect(cssRuleBody(css, ".cf-katex-small-caps")).toContain("font-variant-caps: small-caps;");
-    expect(cssRuleBody(css, ".cf-reader .cf-doc-table-block")).toContain("margin: var(--cf-spacing-sm) 0;");
-    expect(cssRuleBody(css, ".cf-reader .cf-doc-table-block")).toContain("width: 100%;");
-    expect(cssRuleBody(css, ".cf-reader .cf-doc-table-cell")).toContain("text-align: left;");
-    expect(cssRuleBody(css, ".cf-reader .cf-doc-table-cell")).toContain("vertical-align: top;");
-    expect(cssRuleBody(css, ".cf-reader .cf-doc-table-cell")).toContain("white-space: break-spaces;");
-    expect(cssRuleBody(css, ".cf-reader .cf-doc-table-cell")).toContain("word-break: break-word;");
-    expect(cssRuleBody(css, ".cf-reader .cf-doc-table-cell")).toContain("overflow-wrap: anywhere;");
-    expect(cssRuleBody(css, ".cf-reader .cf-doc-list-item")).toContain("white-space: break-spaces;");
-    expect(cssRuleBody(css, ".cf-reader .cf-doc-list-item")).toContain("word-break: break-word;");
-    expect(cssRuleBody(css, ".cf-reader .cf-doc-list-item")).toContain("overflow-wrap: anywhere;");
-    expect(cssRuleBody(css, ".cf-reader .cf-doc-table-header")).toContain("background: transparent;");
-    expect(cssRuleBody(css, ".cf-reader .cf-doc-table-header")).toContain("font-weight: 700;");
-    expect(cssRuleBody(css, ".cf-reader .cf-doc-block")).toContain("margin: 0;");
-    expect(cssRuleBody(css, ".cf-reader .cf-doc-block:not(.cm-line)")).toContain("margin: 0;");
-    expect(cssRuleBody(css, ".cf-reader .cf-doc-blank-line")).toContain("line-height: inherit;");
-    const collapsibleHeading = cssRuleBody(css, ".cf-reader .cf-doc-block-collapsible > .cf-doc-block-heading,\n.cf-reader details.cf-doc-block > .cf-doc-block-heading");
+    expect(cssRuleBody(css, ".cf-doc-flow .cf-doc-table-block")).toContain("margin: var(--cf-spacing-sm) 0;");
+    expect(cssRuleBody(css, ".cf-doc-flow .cf-doc-table-block")).toContain("width: 100%;");
+    expect(cssRuleBody(css, ".cf-doc-flow .cf-doc-table-cell")).toContain("text-align: left;");
+    expect(cssRuleBody(css, ".cf-doc-flow .cf-doc-table-cell")).toContain("vertical-align: top;");
+    expect(cssRuleBody(css, ".cf-doc-flow .cf-doc-table-cell")).toContain("white-space: break-spaces;");
+    expect(cssRuleBody(css, ".cf-doc-flow .cf-doc-table-cell")).toContain("word-break: break-word;");
+    expect(cssRuleBody(css, ".cf-doc-flow .cf-doc-table-cell")).toContain("overflow-wrap: anywhere;");
+    expect(cssRuleBody(css, ".cf-doc-flow .cf-doc-list-item")).toContain("white-space: break-spaces;");
+    expect(cssRuleBody(css, ".cf-doc-flow .cf-doc-list-item")).toContain("word-break: break-word;");
+    expect(cssRuleBody(css, ".cf-doc-flow .cf-doc-list-item")).toContain("overflow-wrap: anywhere;");
+    expect(cssRuleBody(css, ".cf-doc-flow .cf-doc-table-header")).toContain("background: transparent;");
+    expect(cssRuleBody(css, ".cf-doc-flow .cf-doc-table-header")).toContain("font-weight: 700;");
+    expect(css).not.toContain(".cf-reader .cf-image");
+    const blockquoteMathRule = cssRuleBody(css, ".cf-doc-flow .cf-doc-blockquote-display-math");
+    expect(blockquoteMathRule).toContain(
+      "var(--cf-doc-blockquote-padding-left, 1em)",
+    );
+    expect(blockquoteMathRule).toContain("position: relative;");
+    const blockquoteMathBeforeRule = cssRuleBody(css, ".cf-doc-flow .cf-doc-blockquote-display-math::before");
+    expect(blockquoteMathBeforeRule).toContain(
+      "border-left: var(--cf-doc-blockquote-border-width, 3px) solid var(--cf-blockquote-border);",
+    );
+    expect(blockquoteMathBeforeRule).toContain("position: absolute;");
+    expect(cssRuleBody(css, ".cf-image-error")).toContain("border-radius: var(--cf-border-radius);");
+    expect(cssRuleBody(css, ".cf-image-error")).toContain("vertical-align: middle;");
+    expect(cssRuleBody(css, ".cf-doc-flow .cf-doc-block")).toContain("margin: 0;");
+    expect(cssRuleBody(css, ".cf-doc-block")).toContain("margin: var(--cf-block-margin);");
+    expect(cssRuleBody(css, ".cf-doc-flow .cf-doc-blank-line")).toContain("line-height: inherit;");
+    const collapsibleHeading = cssRuleBody(css, ".cf-doc-flow .cf-doc-block-collapsible > .cf-doc-block-heading,\n.cf-doc-flow details.cf-doc-block > .cf-doc-block-heading");
     expect(collapsibleHeading).toContain("display: block;");
     expect(collapsibleHeading).toContain("position: relative;");
     expect(collapsibleHeading).toContain("list-style: none;");
-    const collapsibleBlock = cssRuleBody(css, ".cf-reader .cf-doc-block-collapsible");
+    const collapsibleBlock = cssRuleBody(css, ".cf-doc-flow .cf-doc-block-collapsible");
     expect(collapsibleBlock).toContain(
       "position: relative;",
     );
-    expect(cssRuleBody(css, ".cf-reader .cf-doc-section-heading-collapsible")).toContain(
+    expect(cssRuleBody(css, ".cf-doc-flow .cf-doc-section-heading-collapsible")).toContain(
       "position: relative;",
     );
-    expect(cssRuleBody(css, ".cf-reader .cf-doc-block-collapsible > .cf-block-disclosure-body,\n.cf-reader .cf-section-disclosure-body")).toContain(
+    expect(cssRuleBody(css, ".cf-doc-flow .cf-doc-block-collapsible > .cf-block-disclosure-body,\n.cf-doc-flow .cf-section-disclosure-body")).toContain(
       "position: relative;",
     );
-    const collapsibleRail = cssRuleBody(css, ".cf-reader .cf-doc-block-collapsible > .cf-block-disclosure-body::before,\n.cf-reader .cf-section-disclosure-body::before");
+    const collapsibleRail = cssRuleBody(css, ".cf-doc-flow .cf-doc-block-collapsible > .cf-block-disclosure-body::before,\n.cf-doc-flow .cf-section-disclosure-body::before");
     expect(collapsibleRail).toContain(
       "left: calc(-0.5em - var(--cf-spacing-xs));",
     );
@@ -190,13 +300,13 @@ describe("theme CSS contract", () => {
     expect(collapsibleRail).toContain(
       "width: var(--cf-border-width-accent, 2px);",
     );
-    expect(cssRuleBody(css, ".cf-reader .cf-doc-block-collapsible:has(> .cf-doc-block-heading > .cf-block-disclosure-toggle:hover) > .cf-block-disclosure-body::before,\n.cf-reader .cf-doc-block-collapsible:has(> .cf-doc-block-heading > .cf-block-disclosure-toggle:focus-visible) > .cf-block-disclosure-body::before")).toContain(
+    expect(cssRuleBody(css, ".cf-doc-flow .cf-doc-block-collapsible:has(> .cf-doc-block-heading > .cf-block-disclosure-toggle:hover) > .cf-block-disclosure-body::before,\n.cf-doc-flow .cf-doc-block-collapsible:has(> .cf-doc-block-heading > .cf-block-disclosure-toggle:focus-visible) > .cf-block-disclosure-body::before")).toContain(
       "opacity: 1;",
     );
-    expect(cssRuleBody(css, ".cf-reader .cf-doc-section-heading-collapsible:has(> .cf-section-disclosure-toggle:hover) + .cf-section-disclosure-body::before,\n.cf-reader .cf-doc-section-heading-collapsible:has(> .cf-section-disclosure-toggle:focus-visible) + .cf-section-disclosure-body::before")).toContain(
+    expect(cssRuleBody(css, ".cf-doc-flow .cf-doc-section-heading-collapsible:has(> .cf-section-disclosure-toggle:hover) + .cf-section-disclosure-body::before,\n.cf-doc-flow .cf-doc-section-heading-collapsible:has(> .cf-section-disclosure-toggle:focus-visible) + .cf-section-disclosure-body::before")).toContain(
       "opacity: 1;",
     );
-    const disclosureToggle = cssRuleBody(css, ".cf-reader .cf-block-disclosure-toggle");
+    const disclosureToggle = cssRuleBody(css, ".cf-doc-flow .cf-block-disclosure-toggle");
     expect(disclosureToggle).toContain("appearance: none;");
     expect(disclosureToggle).toContain("display: block;");
     expect(disclosureToggle).toContain("font: inherit;");
@@ -206,15 +316,22 @@ describe("theme CSS contract", () => {
     expect(disclosureToggle).toContain("right: 100%;");
     expect(disclosureToggle).toContain("transition: opacity");
     expect(disclosureToggle).not.toMatch(/\bfont-(?:family|size)\s*:/);
-    const disclosureToggleIcon = cssRuleBody(css, ".cf-reader .cf-block-disclosure-toggle svg");
+    const disclosureToggleIcon = cssRuleBody(css, ".cf-doc-flow .cf-block-disclosure-toggle svg");
     expect(disclosureToggleIcon).toContain("display: block;");
     expect(disclosureToggleIcon).toContain("width: 1em;");
     expect(disclosureToggleIcon).toContain("height: 1em;");
-    expect(cssRuleBody(css, ".cf-reader .cf-doc-block-collapsible:hover > .cf-doc-block-heading > .cf-block-disclosure-toggle,\n.cf-reader .cf-doc-block-collapsible:focus-within > .cf-doc-block-heading > .cf-block-disclosure-toggle,\n.cf-reader .cf-doc-section-heading-collapsible:hover > .cf-block-disclosure-toggle,\n.cf-reader .cf-doc-section-heading-collapsible:focus-within > .cf-block-disclosure-toggle")).toContain("opacity: 1;");
-    expect(cssRuleBody(css, ".cf-reader .cf-block-disclosure-toggle:hover,\n.cf-reader .cf-block-disclosure-toggle:focus-visible,\n.cf-reader .cf-block-disclosure-toggle-collapsed")).toContain("opacity: 1;");
-    expect(cssRuleBody(css, ".cf-reader .cf-block-disclosure-body[hidden]")).toContain("display: none;");
-    expect(cssRuleBody(css, ".cf-reader .cf-section-disclosure-body[hidden]")).toContain("display: none;");
+    expect(cssRuleBody(css, ".cf-doc-flow .cf-doc-block-collapsible:hover > .cf-doc-block-heading > .cf-block-disclosure-toggle,\n.cf-doc-flow .cf-doc-block-collapsible:focus-within > .cf-doc-block-heading > .cf-block-disclosure-toggle,\n.cf-doc-flow .cf-doc-section-heading-collapsible:hover > .cf-block-disclosure-toggle,\n.cf-doc-flow .cf-doc-section-heading-collapsible:focus-within > .cf-block-disclosure-toggle")).toContain("opacity: 1;");
+    expect(cssRuleBody(css, ".cf-doc-flow .cf-block-disclosure-toggle:hover,\n.cf-doc-flow .cf-block-disclosure-toggle:focus-visible,\n.cf-doc-flow .cf-block-disclosure-toggle-collapsed")).toContain("opacity: 1;");
+    expect(cssRuleBody(css, ".cf-doc-flow .cf-block-disclosure-body[hidden]")).toContain("display: none;");
+    expect(cssRuleBody(css, ".cf-doc-flow .cf-section-disclosure-body[hidden]")).toContain("display: none;");
     expect(cssRuleBody(css, ".cf-block-header-rendered")).toContain("line-height: 0;");
+    expect(readRepoFile("editor/editor-theme.css")).not.toContain(".cm-line .cf-block-header-rendered");
+    expect(cssRuleBody(css, ".cf-doc-block.cf-doc-block--blockquote")).toContain(
+      "padding-left: var(--cf-doc-blockquote-padding-left, 1em);",
+    );
+    expect(css).toContain(
+      "--cf-doc-blockquote-padding-left: 1em;",
+    );
   });
 
   it("keeps cursor-state block source classes metric-neutral", () => {
@@ -235,7 +352,7 @@ describe("theme CSS contract", () => {
   });
 
   it("keeps shared inline mark styling available outside CM6", () => {
-    const css = readRepoFile("editor/editor-theme.css");
+    const css = readRepoFile("core/document-surface.css");
 
     expect(cssRuleBody(css, ".cf-highlight")).toContain(
       "background-color: var(--cf-mark-bg, rgba(255, 255, 0, 0.2));",
@@ -261,25 +378,24 @@ describe("theme CSS contract", () => {
     expect(cssRuleBody(css, ".cf-theme-blueprint-book .cm-line.cf-doc-heading--h1")).toContain(
       "text-align: center;",
     );
-    expect(cssRuleBody(css, ".cf-theme-blueprint-book .cf-reader .cf-doc-block--theorem,\n.cf-theme-blueprint-book .cf-reader .cf-doc-block--proposition,\n.cf-theme-blueprint-book .cm-line.cf-doc-block--theorem,\n.cf-theme-blueprint-book .cm-line.cf-doc-block--proposition")).toContain(
+    expect(cssRuleBody(css, ".cf-theme-blueprint-book .cf-doc-flow .cf-doc-block--theorem,\n.cf-theme-blueprint-book .cf-doc-flow .cf-doc-block--proposition,\n.cf-theme-blueprint-book .cm-line.cf-doc-block--theorem,\n.cf-theme-blueprint-book .cm-line.cf-doc-block--proposition")).toContain(
       "border-left: 0.15rem solid #0a0a14;",
     );
-    expect(cssRuleBody(css, ".cf-theme-blueprint-book .cf-reader .cf-doc-block--proof,\n.cf-theme-blueprint-book .cf-doc-block--proof:not(.cm-line),\n.cf-theme-blueprint-book .cm-line.cf-doc-block--proof")).toContain(
+    expect(cssRuleBody(css, ".cf-theme-blueprint-book .cf-doc-flow .cf-doc-block--proof,\n.cf-theme-blueprint-book .cf-doc-block--proof:not(.cm-line),\n.cf-theme-blueprint-book .cm-line.cf-doc-block--proof")).toContain(
       "border-left: 0.08rem solid #808080;",
     );
   });
 
   it("keeps the proof QED marker on the shared line-level class", () => {
-    const css = readRepoFile("editor/editor-theme.css");
+    const css = readRepoFile("core/document-surface.css");
+    const editorCss = readRepoFile("editor/editor-theme.css");
 
-    expect(cssRuleBody(css, ".cf-doc-block--proof:not(.cm-line):not(.cf-block-header-collapsed)::after")).toContain(
+    expect(cssRuleBody(css, ".cf-block-qed::after")).toContain(
       "content: var(--cf-proof-marker);",
-    );
-    expect(cssRuleBody(css, ".cf-reader .cf-doc-block--proof:not(.cm-line)::after")).toContain(
-      "content: none;",
     );
     expect(cssRuleBody(css, ".cf-block-qed::after")).toContain(
       "line-height: 1;",
     );
+    expect(editorCss).not.toContain(".cm-line.cf-doc-block--proof::after");
   });
 });

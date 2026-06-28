@@ -146,11 +146,13 @@ export const typographyThemeStyles = {
   ".cf-inline-code": {
     fontFamily: monoFont,
     fontSize: "0.85em",
-    lineHeight: "0",
     verticalAlign: "baseline",
     backgroundColor: "var(--cf-color-code-bg, var(--cf-hover))",
     borderRadius: "var(--cf-border-radius)",
     padding: "0.1em 0.25em",
+  },
+  ".cm-line .cf-inline-code": {
+    lineHeight: "0",
   },
 
   /* Rendered link styling — shown when cursor is outside the link */
@@ -172,7 +174,7 @@ export const typographyThemeStyles = {
 
   /* Section numbers (rendered via ::before when cursor is outside).
    * Period after number matches blog's .header-section-number:after style. */
-  "[data-section-number]::before": {
+  ".cm-line.cf-doc-heading[data-section-number]::before": {
     content: "attr(data-section-number) '.\\2002'",
     color: "var(--cf-fg)",
     fontWeight: "400",
@@ -221,6 +223,14 @@ export const typographyThemeStyles = {
    * reveal cannot increase the surrounding prose row. */
   ".cf-inline-source": {
     ...inlineSourceTypography,
+  },
+  ".cf-inline-media-source": {
+    ...inlineSourceTypography,
+    display: "inline-block",
+    maxWidth: "0",
+    overflow: "visible",
+    whiteSpace: "nowrap",
+    width: "0",
   },
 
   /* Math source content — LaTeX between $ delimiters when editing */

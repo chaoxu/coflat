@@ -11,6 +11,8 @@ describe("CitationWidget", () => {
     expect(el.className).toBe(CSS.citation);
     expect(el.textContent).toBe("(Karger, 2000)");
     expect(el.getAttribute("aria-label")).toBe("karger2000");
+    expect(el.getAttribute("data-ref-key")).toBe("karger2000");
+    expect(el.getAttribute("data-ref-mode")).toBe("bracketed");
   });
 
   it("shows multiple ids in aria-label", () => {
@@ -20,6 +22,14 @@ describe("CitationWidget", () => {
     ]);
     const el = widget.toDOM();
     expect(el.getAttribute("aria-label")).toBe("karger2000; stein2001");
+    expect(el.getAttribute("data-ref-key")).toBe("karger2000;stein2001");
+  });
+
+  it("marks narrative citations with narrative reference mode", () => {
+    const widget = new CitationWidget("Karger (2000)", ["karger2000"], true);
+    const el = widget.toDOM();
+    expect(el.getAttribute("data-ref-key")).toBe("karger2000");
+    expect(el.getAttribute("data-ref-mode")).toBe("narrative");
   });
 
   it("eq returns true for same text", () => {
@@ -31,6 +41,12 @@ describe("CitationWidget", () => {
   it("eq returns false for different text", () => {
     const a = new CitationWidget("(Karger, 2000)", ["karger2000"]);
     const b = new CitationWidget("(Stein, 2001)", ["stein2001"]);
+    expect(a.eq(b)).toBe(false);
+  });
+
+  it("eq returns false for same text with different ids", () => {
+    const a = new CitationWidget("[1]", ["karger2000"]);
+    const b = new CitationWidget("[1]", ["stein2001"]);
     expect(a.eq(b)).toBe(false);
   });
 });

@@ -147,12 +147,12 @@ describe("table-actions", () => {
     expect(view.state.doc.toString()).toBe(prefix + expectedTable + suffix);
   });
 
-  it("disables row-targeted selection menu items when the cursor is on the header", () => {
+  it("disables row-targeted selection menu items when the cursor is on the header", async () => {
     view = makeView();
     const table = getTable(view);
     selectTableCell(view, 0, 1);
 
-    showTableContextMenu(view, table, 12, 34);
+    await showTableContextMenu(view, table, 12, 34);
 
     const menu = getLatestMenu();
     expect(menu.x).toBe(12);
@@ -165,12 +165,12 @@ describe("table-actions", () => {
     expect(getMenuItem(menu, "Align Right").disabled).toBe(false);
   });
 
-  it("uses the editor selection for boundary states and row insertion actions", () => {
+  it("uses the editor selection for boundary states and row insertion actions", async () => {
     view = makeView();
     const table = getTable(view);
     selectTableCell(view, 2, 0);
 
-    showTableContextMenu(view, table, 20, 40);
+    await showTableContextMenu(view, table, 20, 40);
 
     const menu = getLatestMenu();
     expect(getMenuItem(menu, "Move Row Up").disabled).toBe(true);
@@ -184,12 +184,12 @@ describe("table-actions", () => {
     expectDocWithMutatedTable(view, expectedTable, table.from, table.to);
   });
 
-  it("dispatches alignment mutations for the selected column", () => {
+  it("dispatches alignment mutations for the selected column", async () => {
     view = makeView();
     const table = getTable(view);
     selectTableCell(view, 2, 1);
 
-    showTableContextMenu(view, table, 24, 48);
+    await showTableContextMenu(view, table, 24, 48);
 
     const expectedTable = formatTable(setAlignment(table.parsed, 1, "right")).join("\n");
     getMenuItem(getLatestMenu(), "Align Right").action?.();
@@ -197,12 +197,12 @@ describe("table-actions", () => {
     expectDocWithMutatedTable(view, expectedTable, table.from, table.to);
   });
 
-  it("uses explicit widget body coordinates instead of the root selection", () => {
+  it("uses explicit widget body coordinates instead of the root selection", async () => {
     view = makeView();
     const table = getTable(view);
     view.dispatch({ selection: { anchor: 0 }, scrollIntoView: false });
 
-    showWidgetContextMenu(view, table, "body", 1, 1, 30, 60);
+    await showWidgetContextMenu(view, table, "body", 1, 1, 30, 60);
 
     const menu = getLatestMenu();
     expect(getMenuItem(menu, "Delete Row").disabled).toBe(false);
@@ -217,12 +217,12 @@ describe("table-actions", () => {
     expectDocWithMutatedTable(view, expectedTable, table.from, table.to);
   });
 
-  it("treats widget header cells as rowless and uses the explicit column for column actions", () => {
+  it("treats widget header cells as rowless and uses the explicit column for column actions", async () => {
     view = makeView();
     const table = getTable(view);
     selectTableCell(view, 2, 0);
 
-    showWidgetContextMenu(view, table, "header", 99, 1, 36, 72);
+    await showWidgetContextMenu(view, table, "header", 99, 1, 36, 72);
 
     const menu = getLatestMenu();
     expect(getMenuItem(menu, "Insert Row Above").disabled).toBe(true);

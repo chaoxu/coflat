@@ -247,15 +247,16 @@ interface OpeningFenceInfo {
  * closing fence.
  */
 let parseGeneration = 0;
-const COLON_RANGE = 256;
-const COLON_MASK = COLON_RANGE - 1;
+const fencedDivContexts = new Map<number, { colonCount: number; sameFenceDepth: number }>();
 
 function packValue(colonCount: number): number {
-  return colonCount + parseGeneration * COLON_RANGE;
+  parseGeneration += 1;
+  fencedDivContexts.set(parseGeneration, { colonCount, sameFenceDepth: 0 });
+  return parseGeneration;
 }
 
 function unpackColonCount(value: number): number {
-  return value & COLON_MASK;
+  return fencedDivContexts.get(Math.abs(value))?.colonCount ?? 0;
 }
 
 type LineMarkerRange = { readonly from: number; readonly to: number };
@@ -291,12 +292,31 @@ function fencedDivComposite(
   if (value < 0) return false;
 
   const colonCount = unpackColonCount(value);
+  const context = fencedDivContexts.get(value);
+  const opening = parseOpeningFence(
+    line.text,
+    readFencePrefix(line.text, line.pos),
+  );
+  if (opening?.colonCount === colonCount) {
+    if (context) context.sameFenceDepth += 1;
+    fencedDivLog(`SAME-FENCE nested open at lineStart=${cx.lineStart} depth=${cx.depth}`);
+    return true;
+  }
   const closingColons = closingFenceColonCount(
     line.text,
     readFencePrefix(line.text, line.pos),
   );
   fencedDivLog(`composite line="${line.text.slice(0, 40)}" closing=${closingColons} need=${colonCount} lineStart=${cx.lineStart} depth=${cx.depth}`);
   if (closingColons === colonCount) {
+    if (context && context.sameFenceDepth > 0) {
+      context.sameFenceDepth -= 1;
+      fencedDivLog(`SAME-FENCE nested close at lineStart=${cx.lineStart} depth=${cx.depth}`);
+      return true;
+    }
+    if (hasMatchedClosingFenceMarker(cx, line, closingColons)) {
+      fencedDivLog(`CLOSING already claimed by inner div at lineStart=${cx.lineStart} depth=${cx.depth}`);
+      return true;
+    }
     fencedDivLog(`CLOSING at lineStart=${cx.lineStart} depth=${cx.depth}`);
     line.addMarker(
       cx.elt(
@@ -335,8 +355,8 @@ const fencedDivBlockParser: BlockParser = {
     const fenceStart = cx.lineStart + line.pos;
     const fenceEnd = cx.lineStart + line.pos + info.colonCount;
 
-    parseGeneration += 1;
-    fencedDivLog(`OPEN at ${fenceStart} colons=${info.colonCount} gen=${parseGeneration}`);
+    const value = packValue(info.colonCount);
+    fencedDivLog(`OPEN at ${fenceStart} colons=${info.colonCount} gen=${value}`);
 
     // Start the composite block. Negative value signals self-closing
     // to the composite callback (it will end immediately).
@@ -344,8 +364,8 @@ const fencedDivBlockParser: BlockParser = {
       "FencedDiv",
       line.pos,
       info.isSelfClosing
-        ? -packValue(info.colonCount)
-        : packValue(info.colonCount),
+        ? -value
+        : value,
     );
 
     cx.addElement(cx.elt("FencedDivFence", fenceStart, fenceEnd));

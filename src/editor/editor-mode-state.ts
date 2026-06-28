@@ -1,9 +1,10 @@
 import { syntaxHighlighting } from "@codemirror/language";
-import { StateEffect, StateField } from "@codemirror/state";
+import { EditorState, StateEffect, StateField } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { classHighlighter } from "@lezer/highlight";
 import { CSS } from "../core/constants/css-classes";
 import { cm6RichRenderExtensions } from "./render/cm6-rich-render-extensions";
+import { sidenotesCollapsedEffect } from "./render/sidenote-state";
 import {
   editableCompartment,
   modeClassCompartment,
@@ -11,9 +12,9 @@ import {
   syntaxHighlightCompartment,
 } from "./compartments";
 
-export type EditorMode = "rich" | "source";
+export type EditorMode = "rich" | "rich-readonly" | "source";
 
-export const markdownEditorModes: readonly EditorMode[] = ["rich", "source"];
+export const markdownEditorModes: readonly EditorMode[] = ["rich", "rich-readonly", "source"];
 
 export const setEditorModeEffect = StateEffect.define<EditorMode>();
 
@@ -29,6 +30,12 @@ export const editorModeField = StateField.define<EditorMode>({
   },
 });
 
+const readOnlyTransactionFilter = EditorState.transactionFilter.of((tr) => {
+  return tr.startState.field(editorModeField, false) === "rich-readonly" && tr.docChanged
+    ? []
+    : tr;
+});
+
 const sourceSyntaxHighlightingExtension = syntaxHighlighting(classHighlighter);
 
 export function setEditorMode(view: EditorView, mode: EditorMode): void {
@@ -40,6 +47,18 @@ export function setEditorMode(view: EditorView, mode: EditorMode): void {
     case "rich":
       effects.push(renderCompartment.reconfigure(cm6RichRenderExtensions));
       effects.push(editableCompartment.reconfigure([]));
+      effects.push(modeClassCompartment.reconfigure([]));
+      effects.push(syntaxHighlightCompartment.reconfigure([]));
+      break;
+    case "rich-readonly":
+      effects.push(sidenotesCollapsedEffect.of(true));
+      effects.push(renderCompartment.reconfigure(cm6RichRenderExtensions));
+      effects.push(editableCompartment.reconfigure([
+        EditorState.readOnly.of(true),
+        EditorView.editable.of(false),
+        EditorView.contentAttributes.of({ tabindex: "0" }),
+        readOnlyTransactionFilter,
+      ]));
       effects.push(modeClassCompartment.reconfigure([]));
       effects.push(syntaxHighlightCompartment.reconfigure([]));
       break;

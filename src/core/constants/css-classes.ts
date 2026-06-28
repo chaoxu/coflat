@@ -116,6 +116,7 @@ export const CSS = {
   mathDisplayNumbered: "cf-math-display-numbered",
   mathDisplayContent: "cf-math-display-content",
   mathDisplayNumber: "cf-math-display-number",
+  blockquoteDisplayMath: "cf-doc-blockquote-display-math",
 
   /** Code block decorations. */
   codeblockHeader: "cf-codeblock-header",
@@ -205,8 +206,6 @@ export const CSS = {
   /** Document title from frontmatter. */
   docTitle: "cf-doc-title",
 
-  sectionNumber: "cf-section-number",
-
   /** Hidden elements (markers, URLs, etc. collapsed when cursor is away). */
   hidden: "cf-hidden",
 
@@ -238,6 +237,9 @@ export const CSS = {
 
   /** Generic inline source content revealed inside an existing prose line. */
   inlineSource: "cf-inline-source",
+
+  /** Inline media source revealed beside a metric-preserving preview widget. */
+  inlineMediaSource: "cf-inline-media-source",
 
   /** Math source (delimiter visible when cursor on math). */
   mathSource: "cf-math-source",

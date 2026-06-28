@@ -1,4 +1,5 @@
-import type { EditorView } from "@codemirror/view";
+import { EditorState } from "@codemirror/state";
+import { EditorView } from "@codemirror/view";
 import { CSS } from "../../core/constants/css-classes";
 import {
   applyTableCellSurface,
@@ -72,9 +73,19 @@ interface OpenCellEditorOptions {
   readonly useClickPlacement?: boolean;
 }
 
+function isEditorReadOnly(view: EditorView | null): boolean {
+  try {
+    return view?.state.facet(EditorState.readOnly) === true ||
+      view?.state.facet(EditorView.editable) === false;
+  } catch (_error) {
+    return false;
+  }
+}
+
 export function buildTableWidgetDOM(options: TableWidgetDomOptions): HTMLTableElement {
   const tableEl = createTableSurfaceElement();
   const navigationModel = createTableNavigationModel(options.table);
+  const isTableReadOnly = (): boolean => isEditorReadOnly(options.getRootView() ?? options.view);
 
   const findCell = (address: TableCellAddress): HTMLElement | null => {
     const target = tableEl.querySelector(
@@ -91,6 +102,7 @@ export function buildTableWidgetDOM(options: TableWidgetDomOptions): HTMLTableEl
   };
 
   const addRowAndFocus = (targetCol: number): void => {
+    if (isTableReadOnly()) return;
     const rootView = options.getRootView();
     if (!rootView) return;
     appendTableWidgetRowAndFocus({
@@ -120,6 +132,10 @@ export function buildTableWidgetDOM(options: TableWidgetDomOptions): HTMLTableEl
     address: TableCellAddress,
     placeAtEnd = false,
   ): void => {
+    if (isTableReadOnly()) {
+      focusTargetCell(address);
+      return;
+    }
     if (getActiveInlineEditor()) {
       const destroyed = destroyActiveInlineEditor();
       if (!destroyed) return;
@@ -151,6 +167,7 @@ export function buildTableWidgetDOM(options: TableWidgetDomOptions): HTMLTableEl
       useClickPlacement = false,
     }: OpenCellEditorOptions = {},
   ): void => {
+    if (isTableReadOnly()) return;
     clearActivePreviewCell();
     const rawText = options.getRawCellText(address);
     const renderedRect = cell.getBoundingClientRect();
@@ -389,6 +406,11 @@ export function buildTableWidgetDOM(options: TableWidgetDomOptions): HTMLTableEl
     cell.addEventListener("keydown", (event) => {
       if (!isActivePreviewCell(cell, options.owner)) return;
 
+      if (isTableReadOnly() && (event.key.length === 1 || event.key === "Enter" || event.key === "F2")) {
+        consumeTableKeyboardEvent(event);
+        return;
+      }
+
       if (
         event.key.length === 1 &&
         !event.ctrlKey &&
@@ -483,6 +505,7 @@ export function buildTableWidgetDOM(options: TableWidgetDomOptions): HTMLTableEl
     cell.addEventListener("mousedown", (event) => {
       try {
         if (isActiveInlineCell(cell)) return;
+        if (isTableReadOnly()) return;
 
         event.preventDefault();
         event.stopPropagation();
@@ -518,6 +541,7 @@ export function buildTableWidgetDOM(options: TableWidgetDomOptions): HTMLTableEl
 
     cell.addEventListener("click", (event) => {
       if (isActiveInlineCell(cell)) return;
+      if (isTableReadOnly()) return;
       event.preventDefault();
       event.stopPropagation();
     });
@@ -554,6 +578,7 @@ export function buildTableWidgetDOM(options: TableWidgetDomOptions): HTMLTableEl
   tableEl.appendChild(tbody);
 
   tableEl.addEventListener("contextmenu", (event: MouseEvent) => {
+    if (isTableReadOnly()) return;
     showTableWidgetContextMenu(options.view, options.tableFrom, tableEl, event);
   });
 

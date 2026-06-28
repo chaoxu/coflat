@@ -31,11 +31,63 @@ leaving `renderToHtml` static and server-render friendly.
 
 YAML block delimited by `---`. All fields optional.
 
+Coflat follows Quarto's scholarly-article metadata names where they fit. Use
+`author` as the canonical author key for new documents; `authors` is accepted
+as a compatibility alias. Likewise, top-level `affiliation` and
+`affiliations` are aliases, with `affiliations` preferred when defining shared
+affiliation records.
+
 ```yaml
 ---
 title: Document Title
+subtitle: Optional subtitle
+description: |
+  Short summary for listings, previews, and citation metadata.
+abstract: |
+  Scholarly abstract. Markdown and math are allowed.
+date: 2026-06-20
+date-format: long
+
+author:
+  - id: first
+    name: First Author
+    email: first@example.org
+    orcid: 0000-0000-0000-0000
+    url: https://example.org/first
+    affiliation:
+      - ref: lab
+    funding: Supported by grant X.
+affiliations:
+  - id: lab
+    name: Example Lab
+    city: Example City
+    country: Example Country
+    url: https://example.org/lab
+
+doi: 10.5555/example
+citation:
+  type: article-journal
+  container-title: Journal of Examples
+  volume: 1
+  issue: 2
+  doi: 10.5555/example
+google-scholar: true
 bibliography: reference.bib
 csl: style.csl
+keywords:
+  - keyword one
+  - keyword two
+license:
+  text: CC BY 4.0
+  type: open-access
+  url: https://creativecommons.org/licenses/by/4.0/
+copyright:
+  holder: First Author and coauthors
+  year: 2026
+funding: Document-level funding statement.
+acknowledgements: We thank the reviewers.
+relatedversion: https://arxiv.org/abs/0000.00000
+
 numbering: global
 imageFolder: images
 math:
@@ -51,62 +103,103 @@ blocks:
 ---
 ```
 
+### Article metadata
+
+These keys describe the article itself. They are intentionally close to
+Quarto's front matter so source can move between Quarto and Coflat with minimal
+rewriting.
+
 | Key | Type | Description |
 |-----|------|-------------|
-| `title` | string | Document title (rendered as H1 widget) |
-| `bibliography` | string | Path to `.bib` file (relative to document) |
-| `csl` | string | Path to CSL style file |
+| `title` | string | Document title. Rendered by the built-in reader/editor title shell. |
+| `subtitle` | string | Optional subtitle for title-block/export hosts. |
+| `description` | string | Short summary for listings, previews, and citation metadata. |
+| `abstract` | string | Scholarly abstract. Prefer YAML block style (`|`) for multi-line text. |
+| `date` | string | Publication or document date. ISO `YYYY-MM-DD` is preferred; Quarto-style `today`, `now`, and `last-modified` are accepted by hosts that can resolve them. |
+| `date-format` | string | Quarto-compatible date formatting hint. |
+| `author` / `authors` | string, object, or list | Author metadata. `author` is canonical; `authors` is an accepted alias for existing Coflat/LIPIcs documents. |
+| `affiliations` / `affiliation` | string, object, or list | Shared affiliation records. Use `id` and author-side `ref` to avoid repeating shared affiliations. |
+| `doi` | string | Article DOI. Also used as a default for `citation.doi` when citation metadata is emitted. |
+| `keywords` | list of string | Keyword list. |
+| `license` | string or map | License text or `{text, type, url}` metadata. |
+| `copyright` | string or map | Copyright statement or `{statement, holder, year}` metadata. |
+| `funding` | string | Document-level funding statement. |
+| `acknowledgements` | string | Document-level acknowledgements. |
+| `relatedversion` | string | Preprint, full version, artifact, or related-version pointer. |
+| `citation` | boolean or map | CSL-shaped citation metadata. `true` requests citation metadata from the article fields; a map can provide CSL fields such as `type`, `container-title`, `volume`, `issue`, `publisher`, `url`, `doi`, `page-first`, and `page-last`. |
+| `google-scholar` | boolean | Request Google Scholar / Highwire-style metadata in HTML-producing hosts. |
+
+Author objects use Quarto-compatible keys where possible:
+
+| Key | Type | Description |
+|-----|------|-------------|
+| `id` | string | Stable author identifier for references from other metadata. |
+| `name` | string or CSL name map | Display name. A CSL name map may be used when particles or family/given names matter. |
+| `email`, `phone`, `fax`, `url` | string | Contact details. |
+| `orcid` | string | ORCID in `0000-0000-0000-0000` form. |
+| `degrees` | string or list | Academic/professional degrees. |
+| `affiliation` | string, object, or list | Inline affiliation(s) or `{ref: id}` references to top-level `affiliations`. |
+| `affiliation-url` | string | Shortcut URL for a string affiliation. Prefer full affiliation objects when possible. |
+| `note`, `acknowledgements`, `funding` | string | Author-specific notes and support statements. |
+| `corresponding` | boolean | Marks the corresponding author. |
+
+Affiliation objects use:
+
+| Key | Type | Description |
+|-----|------|-------------|
+| `id` | string | Stable affiliation identifier. |
+| `ref` | string | Reference to another affiliation record. |
+| `name` | string | Institution, organization, or lab name. |
+| `department`, `group` | string | Optional sub-organization labels. |
+| `city`, `state`, `country` | string | Location metadata. |
+| `url` | string | Affiliation URL. |
+
+### Coflat document config
+
+These keys control Coflat parsing, rendering, and export behavior rather than
+the scholarly identity of the article:
+
+| Key | Type | Description |
+|-----|------|-------------|
+| `bibliography` | string | Path to `.bib` file (relative to document). |
+| `csl` | string | Path to CSL style file. |
 | `numbering` | `"global"` \| `"grouped"` | Block numbering scheme. `global`: all numbered blocks share one counter. `grouped`: each type has its own. |
-| `math` | map | KaTeX macro definitions (`\command: "expansion"`) |
-| `latex` | map | LaTeX export options. Supported keys: `template`, `bibliography`. |
-| `blocks` | map | Custom block definitions and overrides (`title`, `numbered`, `counter`, enable/disable) |
+| `math` | map | KaTeX macro definitions (`\command: "expansion"`). |
+| `latex` | map | LaTeX export options. Supported keys: `template`, `bibliography`, `csl`. |
+| `blocks` | map | Custom block definitions and overrides (`title`, `numbered`, `counter`, enable/disable). |
 | `imageFolder` | string | Default folder for pasted/dropped images. Also accepts `image-folder`. |
 
-Project-level config in `coflat.yaml` uses the same keys. File frontmatter overrides project config. Math macros merge additively (file adds to project).
+Project-level config in `coflat.yaml` uses the same Coflat document config
+keys. File frontmatter overrides project config. Math macros and block
+definitions merge additively (file adds to or overrides project).
 
-### Publisher metadata
+### Title-block metadata
 
-Fields consumed by the LaTeX export pipeline (e.g. LIPIcs, LNCS). The editor ignores unknown keys; exporters preserve supported metadata in frontmatter and pass it through the pre-pandoc pipeline.
-
-```yaml
----
-title: Main Title
-titlerunning: Short title for running head
-authorrunning: Short author line
-copyright: Firstname Lastname and coauthors
-category: Track A
-relatedversion: "A full version at https://arxiv.org/abs/..."
-acknowledgements: "We thank ..."
-funding: "NSF grant ..."
-keywords:
-  - keyword one
-  - keyword two
-ccsdesc:
-  - weight: 500
-    text: "Theory of computation → Graph algorithms"
-authors:
-  - name: First Author
-    affiliation: University A, Country
-    email: first@example.org
-    orcid: 0000-0000-0000-0000
-    funding: "Supported by grant X"
----
-```
+The built-in reader/editor presentation currently renders a title-only shell
+from `title`. Full-document reader/export hosts that render a richer article
+title block should use `title`, `subtitle`, `author`, `date`, `doi`,
+`abstract`, and `description`. The following Quarto-compatible keys customize
+title-block display when a host supports them:
 
 | Key | Type | Description |
 |-----|------|-------------|
-| `titlerunning` | string | Short title for running head |
-| `authorrunning` | string | Short author line for running head |
-| `copyright` | string | Rendered into publisher copyright block |
-| `category` | string | Track / session label |
-| `relatedversion` | string | Preprint or extended-version pointer |
-| `acknowledgements` | string | Plain text, before bibliography |
-| `funding` | string | Document-level funding statement |
-| `keywords` | list of string | Keyword list |
-| `ccsdesc` | list of `{weight, text}` | ACM CCS subject descriptors (higher weight → more prominent) |
-| `authors` | list of author objects | Per-author `name`, `affiliation`, `email`, `orcid`, `funding` |
+| `title-block-style` | `"default"` \| `"plain"` \| `"none"` | Controls title-block processing/styling. |
+| `title-block-banner` | boolean or string | Enables a banner title block; a string is interpreted as a banner image path. |
+| `title-block-banner-color` | string | Foreground color for banner text. |
+| `author-title`, `affiliation-title`, `abstract-title`, `description-title`, `published-title`, `doi-title` | string | Label overrides for title-block metadata. |
 
-These fields are not rendered in the live editor surface. They flow only through the LaTeX export.
+### Template-specific metadata
+
+Fields consumed only by a specific export template remain allowed at top level
+so Pandoc templates can read them directly. They should not replace the
+article metadata above.
+
+| Key | Type | Description |
+|-----|------|-------------|
+| `titlerunning` | string | Short title for running heads. |
+| `authorrunning` | string | Short author line for running heads. |
+| `category` | string | Track / session label. |
+| `ccsdesc` | list of `{weight, text}` | ACM CCS subject descriptors (higher weight -> more prominent). |
 
 ## Text Formatting
 
@@ -635,6 +728,6 @@ macros back into frontmatter `math:`.
 ### Template variants
 
 - `template/article.tex` — plain `\documentclass{article}` fallback with `amsthm`, `cleveref`, `soul`, `tabularx`, `booktabs`, `algorithm`, `hyperref`.
-- `template/lipics.tex` — LIPIcs submissions; consumes the Publisher metadata frontmatter (authors, ccsdesc, keywords, copyright, titlerunning, authorrunning, funding, acknowledgements, category, relatedversion).
+- `template/lipics.tex` — LIPIcs submissions; consumes article metadata plus LIPIcs-specific template metadata (`author`/`authors`, `ccsdesc`, `keywords`, `copyright`, `titlerunning`, `authorrunning`, `funding`, `acknowledgements`, `category`, `relatedversion`).
 
 Select a variant with `scripts/export-latex.mjs --template lipics` or by setting `latex.template: lipics` in frontmatter. `latex.bibliography` overrides the top-level `bibliography` value for LaTeX export; command-line `--template` and `--bibliography` flags override frontmatter in the CLI.

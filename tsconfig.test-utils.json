@@ -13,5 +13,5 @@
     "module": "esnext",
     "target": "es2022"
   },
-  "include": ["test-utils.ts", "src/editor/test-utils.ts", "src/editor/types/**/*.d.ts"]
+  "include": ["test-utils.ts", "browser-test-utils.ts", "src/editor/test-utils.ts", "src/editor/browser-test-utils.ts", "src/editor/types/**/*.d.ts"]
 }

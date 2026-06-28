@@ -175,13 +175,13 @@ describe("blockDecorationField", () => {
     expect(widgets.length).toBe(2); // theorem + proof
   });
 
-  it("keeps the rendered shell when cursor is on opening fence until structure edit activates", () => {
+  it("shows opener source when the focused cursor is on the opening fence", () => {
     const theoremStart = 0;
     const state = createTestState(TWO_BLOCKS, theoremStart, true);
     const specs = getDecoSpecs(state);
 
     const theoremLine = state.doc.line(1);
-    expect(hasLineClassAt(specs, theoremLine.from, CSS.blockSource)).toBe(false);
+    expect(hasLineClassAt(specs, theoremLine.from, CSS.blockSource)).toBe(true);
     expect(hasLineClassAt(specs, theoremLine.from, CSS.blockHeader)).toBe(true);
     expect(hasMarkClassInRange(specs, theoremLine.from, theoremLine.to, CSS.blockSource)).toBe(false);
   });
@@ -204,6 +204,31 @@ describe("blockDecorationField", () => {
     const proofLine = active.doc.line(5).from;
     expect(hasLineClassAt(specs, proofLine, CSS.blockHeader)).toBe(true);
     expect(hasLineClassAt(specs, proofLine, CSS.blockHeaderCollapsed)).toBe(false);
+  });
+
+  it("keeps a class-only fenced opener editable while adding a label", () => {
+    const doc = `::: {.lemma}\nBody text\n:::`;
+    const labelInsertPos = doc.indexOf("}");
+    const state = createTestStateWithPlugins(
+      doc,
+      [makeBlockPlugin({ name: "lemma", title: "Lemma" })],
+      labelInsertPos,
+      true,
+    );
+    const edited = state.update({
+      changes: { from: labelInsertPos, insert: " #l" },
+      selection: { anchor: labelInsertPos + " #l".length },
+    }).state;
+    const specs = getDecoSpecs(edited);
+    const openerLine = edited.doc.line(1);
+
+    expect(edited.doc.toString()).toBe(`::: {.lemma #l}\nBody text\n:::`);
+    expect(hasLineClassAt(specs, openerLine.from, CSS.blockHeader)).toBe(true);
+    expect(hasLineClassAt(specs, openerLine.from, CSS.blockSource)).toBe(true);
+    expect(specs.some((spec) =>
+      spec.widgetClass === "BlockHeaderWidget" &&
+      spec.from === openerLine.from
+    )).toBe(false);
   });
 
   it("rerenders the opener when selection leaves the active structure source range inside the same block", () => {

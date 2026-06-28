@@ -136,6 +136,19 @@ describe("fenced div parser", () => {
       expect(divCount).toBe(2);
     });
 
+    it("supports nested divs that use the same colon count", () => {
+      const text =
+        "::: {.proof}\nBefore.\n::: {.problem}\nInner.\n:::\nAfter.\n:::";
+      const infos = nodeInfos(text);
+      const divs = infos.filter((n) => n.name === "FencedDiv");
+      expect(divs).toHaveLength(2);
+      expect(divs.map((n) => n.text.split("\n")[0])).toEqual([
+        "::: {.proof}",
+        "::: {.problem}",
+      ]);
+      expect(divs[0].text).toContain("After.");
+    });
+
     it("requires the closing fence to use the same colon count as the opener", () => {
       // ::: opener with a :::: closer must NOT close the div; the closer's
       // colon count has to match the opener exactly.
@@ -466,7 +479,7 @@ describe("fenced div parser", () => {
       expect(divs[1].text).toBe("::: {.proof}\nProof content\n:::");
     });
 
-    it("same-colon nesting does not hide the second block boundary", () => {
+    it("same-colon nesting keeps the inner block boundary visible", () => {
       const fullParser = parser.configure(markdownExtensions);
       const text = [
         "::: {.theorem}",
@@ -491,8 +504,8 @@ describe("fenced div parser", () => {
       });
 
       expect(divs).toHaveLength(2);
-      expect(divs[0].text).toBe("::: {.theorem}\n::: {.proof}\nProof content.\n:::");
-      expect(divs[1].text).toBe("::: {.proof}\nProof content.");
+      expect(divs[0].text).toBe("::: {.theorem}\n::: {.proof}\nProof content.\n:::\n:::");
+      expect(divs[1].text).toBe("::: {.proof}\nProof content.\n:::");
     });
 
     it("sequential divs with display math before closing fence", () => {

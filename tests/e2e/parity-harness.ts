@@ -17,6 +17,7 @@ import {
 
 export type ParitySurface = "reader" | "editor";
 export type ParityPreset = "default" | string;
+export type ParityEditorMode = "rich" | "rich-readonly" | "source";
 
 const FULL_SURFACE_SIGNIFICANT_DELTA = 32;
 const ANTIALIAS_EDGE_DELTA = 2;
@@ -292,13 +293,15 @@ export async function loadParitySurface(
   preset: ParityPreset,
   surface: ParitySurface,
   source?: string,
+  mode?: ParityEditorMode,
 ) {
   await setParitySource(page, source);
   const params = new URLSearchParams({ surface });
   if (preset !== "default") params.set("preset", preset);
+  if (mode && mode !== "rich") params.set("mode", mode);
   await gotoParityFixture(page, `/tests/e2e/fixtures/parity.html?${params.toString()}`);
   await disableParityMotion(page);
-  if (surface === "editor") {
+  if (surface === "editor" && mode !== "source") {
     await waitForParityEditorVisibleTables(page);
   }
   await waitForParityRenderStable(page, surface);
@@ -309,14 +312,20 @@ export async function loadParityPairSurface(
   page: Page,
   preset: ParityPreset,
   source?: string,
+  mode?: ParityEditorMode,
+  reader?: "rich-readonly",
 ) {
   await setParitySource(page, source);
   const params = new URLSearchParams();
   if (preset !== "default") params.set("preset", preset);
+  if (mode && mode !== "rich") params.set("mode", mode);
+  if (reader) params.set("reader", reader);
   const query = params.toString();
   await gotoParityFixture(page, `/tests/e2e/fixtures/parity.html${query ? `?${query}` : ""}`);
   await disableParityMotion(page);
-  await waitForParityEditorVisibleTables(page);
+  if (mode !== "source") {
+    await waitForParityEditorVisibleTables(page);
+  }
   await waitForParityRenderStable(page, "reader");
   await waitForParityRenderStable(page, "editor");
   await page.mouse.move(0, 0);
@@ -401,6 +410,68 @@ export async function expectLoadedSplitContentPixelsMatch(
   expect(
     diff.different,
     `${label} full-content non-antialiased pixel diff (exact=${diff.exactDifferent}, antialias=${diff.antialiasDifferent}, budget=${residualBudget})`,
+  ).toBeLessThanOrEqual(residualBudget);
+}
+
+export async function expectLoadedSelectorsPixelsMatch(
+  page: Page,
+  label: string,
+  selectors: {
+    readonly reader: string;
+    readonly editor: string;
+    readonly readerIndex?: number;
+    readonly editorIndex?: number;
+  },
+) {
+  const clip = await page.evaluate((selectors) => {
+    const readerElement = document.querySelectorAll(selectors.reader)[selectors.readerIndex ?? 0];
+    const editorElement = document.querySelectorAll(selectors.editor)[selectors.editorIndex ?? 0];
+    if (!(readerElement instanceof HTMLElement) || !(editorElement instanceof HTMLElement)) {
+      throw new Error(`missing comparison selectors: ${JSON.stringify(selectors)}`);
+    }
+    const readerBounds = readerElement.getBoundingClientRect();
+    const editorBounds = editorElement.getBoundingClientRect();
+    const x = Math.floor(Math.min(readerBounds.left, editorBounds.left));
+    const y = Math.floor(Math.min(readerBounds.top, editorBounds.top));
+    const right = Math.ceil(Math.max(readerBounds.right, editorBounds.right));
+    const bottom = Math.ceil(Math.max(readerBounds.bottom, editorBounds.bottom));
+    const toRect = (bounds: DOMRect) => ({
+      height: Math.ceil(bounds.height),
+      width: Math.ceil(bounds.width),
+      x: Math.floor(bounds.left) - x,
+      y: Math.floor(bounds.top) - y,
+    });
+    return {
+      height: bottom - y,
+      reader: toRect(readerBounds),
+      editor: toRect(editorBounds),
+      width: right - x,
+      x,
+      y,
+    };
+  }, selectors);
+  const image = await page.screenshot({
+    clip: {
+      x: clip.x,
+      y: clip.y,
+      width: clip.width,
+      height: clip.height,
+    },
+  });
+  const diff = await compareSplitPngSignificant(page, image, {
+    reader: clip.reader,
+    editor: clip.editor,
+  });
+
+  expect(diff.leftWidth, `${label} reader width`).toBe(diff.rightWidth);
+  expect(diff.leftHeight, `${label} reader height`).toBe(diff.rightHeight);
+  const residualBudget = Math.min(
+    MAX_RESIDUAL_SIGNIFICANT_PIXELS,
+    Math.ceil(diff.width * diff.height * MAX_RESIDUAL_SIGNIFICANT_RATIO),
+  );
+  expect(
+    diff.different,
+    `${label} selector pixel diff (exact=${diff.exactDifferent}, antialias=${diff.antialiasDifferent}, budget=${residualBudget})`,
   ).toBeLessThanOrEqual(residualBudget);
 }
 

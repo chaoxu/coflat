@@ -2,6 +2,7 @@ import { expect, type Locator, type Page, test } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
+  expectLoadedSelectorsPixelsMatch,
   expectLoadedSplitContentPixelsMatch,
   loadParityPairSurface,
   loadParitySurface,
@@ -53,6 +54,69 @@ const IMAGE_CAPTION_PARITY_SOURCE = `# Media Caption
 
 ![Loading alt](relative/figure.png)
 `;
+const INDENTED_DISPLAY_MATH_PARITY_SOURCE = `# Math List
+
+1. First item
+2. Display math in list:
+   $$
+   T(n) = 2T(n/2) + O(n)
+   $$
+3. Final item
+`;
+const INDENTED_DISPLAY_MATH_FINAL_ITEM_FROM =
+  INDENTED_DISPLAY_MATH_PARITY_SOURCE.indexOf("3. Final item");
+const ROOT_IMAGE_PARITY_SOURCE = `# Root Image
+
+![Local hover-preview figure](/showcase/hover-preview-figure.svg) should render as an inline image without a filesystem.
+`;
+const TALL_IMAGE_PARITY_SOURCE = `# Tall Image
+
+![Tall image](/showcase/tall-parity.svg) should use the shared image cap.
+`;
+const BLOCKQUOTE_DISPLAY_MATH_PARITY_SOURCE = `# Blockquote Math
+
+::: Blockquote
+Fenced blockquote display math:
+$$
+x^2 + y^2 = z^2
+$$
+:::
+
+> Standard blockquote display math:
+> $$
+> \\int_0^1 x^2\\,dx = \\frac{1}{3}
+> $$
+`;
+
+const ARTICLE_FRONTMATTER_PARITY_SOURCE = `---
+title: 'Article Metadata $\\R$'
+subtitle: Quarto-shaped frontmatter
+description: |
+  Short presentation summary that should stay out of the title shell.
+abstract: |
+  A richer article abstract with math $x^2$.
+date: 2026-06-20
+date-format: long
+doi: 10.5555/coflat.1
+author:
+  - name: First Author
+    affiliation:
+      - ref: lab
+affiliations:
+  - id: lab
+    name: Coflat Lab
+citation: true
+google-scholar: true
+keywords:
+  - math writing
+math:
+  \\R: "\\\\mathbb{R}"
+---
+
+# Body
+
+The title presentation should remain reader/editor aligned.
+`;
 
 async function setEditorDoc(page: Page, doc: string, mode: "rich" | "source" = "rich") {
   await page.evaluate(({ doc, mode }) => {
@@ -91,11 +155,25 @@ async function expectTooltipWithinViewport(page: Page, tooltip: Locator): Promis
 }
 
 async function scrollThroughUntil(page: Page, yPositions: readonly number[], locator: Locator): Promise<void> {
+  const editorScroller = page.locator("#editor .cm-scroller");
   for (const y of yPositions) {
-    await page.evaluate((scrollY) => window.scrollTo(0, scrollY), y);
+    if (await editorScroller.isVisible().catch(() => false)) {
+      await editorScroller.evaluate((el, scrollY) => {
+        el.scrollTop = scrollY;
+      }, y);
+    } else {
+      await page.evaluate((scrollY) => window.scrollTo(0, scrollY), y);
+    }
     await page.waitForTimeout(100);
     if (await locator.count() > 0) return;
   }
+}
+
+async function scrollDemoEditorTo(page: Page, scrollTop: number): Promise<void> {
+  await page.locator("#editor .cm-scroller").evaluate((el, y) => {
+    el.scrollTop = y;
+  }, scrollTop);
+  await page.waitForTimeout(100);
 }
 
 async function settleLayout(page: Page): Promise<void> {
@@ -104,6 +182,48 @@ async function settleLayout(page: Page): Promise<void> {
     await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
     await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
   });
+}
+
+async function settleDemoReaderMath(page: Page): Promise<void> {
+  await page.waitForFunction(() => {
+    const math = Array.from(document.querySelectorAll<HTMLElement>("#reader [data-math]"));
+    return math.length > 0 && math.every((element) => element.dataset.mathHydrated === "true");
+  });
+  await settleLayout(page);
+}
+
+function demoHeading(page: Page, surface: "editor" | "reader", text: string): Locator {
+  const selector = surface === "reader" ? "#reader .cf-doc-heading" : "#editor .cm-line.cf-doc-heading";
+  return page.locator(selector, { hasText: text }).first();
+}
+
+async function alignDemoHeadingToViewportRatio(
+  page: Page,
+  surface: "editor" | "reader",
+  text: string,
+  viewportRatio: number,
+): Promise<void> {
+  await page.evaluate(({ surface, text, viewportRatio }) => {
+    const scroller = surface === "reader"
+      ? document.querySelector<HTMLElement>("#reader-viewport")
+      : document.querySelector<HTMLElement>("#editor .cm-scroller");
+    const selector = surface === "reader" ? "#reader .cf-doc-heading" : "#editor .cm-line.cf-doc-heading";
+    const heading = Array.from(document.querySelectorAll<HTMLElement>(selector))
+      .find((element) => element.textContent?.includes(text));
+    if (!scroller || !heading) throw new Error(`missing ${surface} heading ${text}`);
+    const scrollerRect = scroller.getBoundingClientRect();
+    scroller.scrollTop += heading.getBoundingClientRect().top
+      - (scrollerRect.top + scrollerRect.height * viewportRatio);
+  }, { surface, text, viewportRatio });
+  await settleLayout(page);
+}
+
+async function demoHeadingTop(page: Page, surface: "editor" | "reader", text: string): Promise<number> {
+  const heading = demoHeading(page, surface, text);
+  await expect(heading).toBeVisible();
+  const box = await heading.boundingBox();
+  if (!box) throw new Error(`missing ${surface} heading box for ${text}`);
+  return box.y;
 }
 
 async function expectLineHeightStableAfterClick(
@@ -139,6 +259,75 @@ async function expectLineHeightStableAfterClick(
   });
   expect(after.lineHeight, label).toBe(before.lineHeight);
   expect(Math.abs(after.height - before.height), label).toBeLessThanOrEqual(0.5);
+}
+
+async function expectVisibleDemoRowsKeepHeightOnCursorEntry(
+  page: Page,
+  scrollTop: number,
+): Promise<void> {
+  await scrollDemoEditorTo(page, scrollTop);
+  await settleLayout(page);
+  const samples = await page.evaluate(() => {
+    const scroller = document.querySelector("#editor .cm-scroller");
+    if (!(scroller instanceof HTMLElement)) throw new Error("missing editor scroller");
+    const scrollerRect = scroller.getBoundingClientRect();
+    return Array.from(document.querySelectorAll<HTMLElement>("#editor .cm-line"))
+      .map((el, index) => {
+        const rect = el.getBoundingClientRect();
+        return {
+          className: el.className,
+          from: el.getAttribute("data-source-from"),
+          height: rect.height,
+          index,
+          text: el.textContent ?? "",
+          to: el.getAttribute("data-source-to"),
+          visible: rect.bottom > scrollerRect.top + 4 && rect.top < scrollerRect.bottom - 4,
+        };
+      })
+      .filter((sample) => sample.visible && sample.height > 0);
+  });
+
+  for (const sample of samples) {
+    await scrollDemoEditorTo(page, scrollTop);
+    await settleLayout(page);
+    const before = await page.evaluate(({ from, index, text, to }) => {
+      const sourceTarget = from !== null && to !== null
+        ? Array.from(document.querySelectorAll<HTMLElement>(
+          `#editor .cm-line[data-source-from="${CSS.escape(from)}"][data-source-to="${CSS.escape(to)}"]`,
+        )).find((el) => (el.textContent ?? "") === text)
+        : null;
+      const target = sourceTarget ?? document.querySelectorAll<HTMLElement>("#editor .cm-line")[index];
+      if (!(target instanceof HTMLElement)) throw new Error("missing row before click");
+      const rect = target.getBoundingClientRect();
+      return {
+        className: target.className,
+        from: target.getAttribute("data-source-from"),
+        height: rect.height,
+        text: target.textContent ?? "",
+        to: target.getAttribute("data-source-to"),
+        x: Math.min(rect.right - 2, Math.max(rect.left + 2, rect.left + Math.min(96, rect.width / 2))),
+        y: rect.top + Math.max(1, Math.min(rect.height - 1, rect.height / 2)),
+      };
+    }, sample);
+
+    await page.mouse.click(before.x, before.y);
+    await settleLayout(page);
+
+    const after = await page.evaluate(({ from, text, to, x, y }) => {
+      const sourceTarget = from !== null && to !== null
+        ? Array.from(document.querySelectorAll<HTMLElement>(
+          `#editor .cm-line[data-source-from="${CSS.escape(from)}"][data-source-to="${CSS.escape(to)}"]`,
+        )).find((el) => (el.textContent ?? "") === text)
+        : null;
+      const target = sourceTarget ?? document.elementFromPoint(x, y)?.closest(".cm-line");
+      if (!(target instanceof HTMLElement)) throw new Error("missing clicked row");
+      return target.getBoundingClientRect().height;
+    }, before);
+    expect(
+      Math.abs(after - before.height),
+      `row ${sample.index} at scroll ${scrollTop}: ${before.className} ${JSON.stringify(before.text.slice(0, 80))}`,
+    ).toBeLessThanOrEqual(0.5);
+  }
 }
 
 async function textRect(locator: Locator, text: string) {
@@ -320,6 +509,51 @@ test("rich editor cursor movement never changes line height", async ({ page }) =
   }
 });
 
+test("rich editor keeps inline image row height stable when source is active", async ({ page }) => {
+  const doc = [
+    "Before",
+    "",
+    "![Local hover-preview figure](/showcase/hover-preview-figure.svg) suffix",
+    "",
+    "After",
+  ].join("\n");
+  await page.goto("/tests/e2e/fixtures/index.html");
+  await setEditorDoc(page, doc, "rich");
+  await settleLayout(page);
+
+  const imageLine = page.locator(".cm-line.cf-doc-paragraph:has-text('suffix')");
+  await expect(imageLine).toBeVisible();
+  const image = imageLine.locator("img.cf-image");
+  await expect(image).toBeVisible();
+  await expect.poll(() => image.evaluate((img) => ({
+    complete: img.complete,
+    height: img.naturalHeight,
+    width: img.naturalWidth,
+  }))).toMatchObject({ complete: true, height: expect.any(Number), width: expect.any(Number) });
+
+  const before = await imageLine.evaluate((el) => el.getBoundingClientRect().height);
+  await page.evaluate((pos) => {
+    (window as unknown as {
+      __coflatEditor: { scrollToPosition: (pos: number) => void };
+    }).__coflatEditor.scrollToPosition(pos);
+  }, doc.indexOf("Local hover-preview"));
+  await settleLayout(page);
+
+  await expect(imageLine).toContainText("![Local hover-preview figure]");
+  await expect(imageLine.locator("img.cf-image")).toBeVisible();
+  const after = await imageLine.evaluate((el) => el.getBoundingClientRect().height);
+  expect(Math.abs(after - before), "inline image source reveal row height").toBeLessThanOrEqual(0.5);
+});
+
+test("public demo cursor entry keeps visible row heights stable", async ({ page }) => {
+  await page.goto("/examples/simple/index.html?doc=showcase&surface=editor");
+  await expect(page.locator("#editor .cm-editor")).toBeVisible();
+
+  for (const scrollTop of [0, 900, 1800, 2700, 3600, 4500, 5200]) {
+    await expectVisibleDemoRowsKeepHeightOnCursorEntry(page, scrollTop);
+  }
+});
+
 test("rich editor does not reveal heading source while pointer is down", async ({ page }) => {
   await page.goto("/tests/e2e/fixtures/index.html");
   await setEditorDoc(page, "# Stable Heading\n\nPlain paragraph.", "rich");
@@ -412,7 +646,7 @@ test("rich editor extends paragraph-flow drag selection into the next block", as
 test("rich editor rerenders a block header after clicking body text", async ({ page }) => {
   await page.goto("/examples/simple/index.html?doc=showcase&surface=editor");
   await expect(page.locator("#editor .cm-editor")).toBeVisible();
-  await page.evaluate(() => window.scrollTo(0, 1900));
+  await scrollDemoEditorTo(page, 1900);
   await settleLayout(page);
 
   const header = page.locator("#editor .cm-line.cf-block-header", {
@@ -439,7 +673,7 @@ test("rich editor rerenders a block header after clicking body text", async ({ p
 test("rich editor rerenders a code header after clicking code body text", async ({ page }) => {
   await page.goto("/examples/simple/index.html?doc=showcase&surface=editor");
   await expect(page.locator("#editor .cm-editor")).toBeVisible();
-  await page.evaluate(() => window.scrollTo(0, 4050));
+  await scrollDemoEditorTo(page, 4050);
   await settleLayout(page);
 
   const language = page.locator("#editor .cf-codeblock-language", { hasText: "haskell" }).first();
@@ -471,10 +705,10 @@ test("rich editor keeps task-list point clicks on the clicked row", async ({ pag
   for (let rowIndex = 0; rowIndex < labels.length; rowIndex += 1) {
     await page.goto("/examples/simple/index.html?doc=showcase&surface=editor");
     await expect(page.locator("#editor .cm-editor")).toBeVisible();
-    await page.evaluate(() => window.scrollTo(0, 3589));
+    await scrollDemoEditorTo(page, 3589);
     await settleLayout(page);
 
-    const line = page.locator(".cm-line", { hasText: labels[rowIndex] });
+    const line = page.locator('.cm-line:has(input[type="checkbox"])', { hasText: labels[rowIndex] });
     await expect(line).toHaveCount(1);
     const point = await line.evaluate((el) => {
       const input = el.querySelector('input[type="checkbox"]');
@@ -547,7 +781,7 @@ test("public demo point clicks stay on representative rendered rows", async ({ p
   for (const item of cases) {
     await page.goto("/examples/simple/index.html?doc=showcase&surface=editor");
     await expect(page.locator("#editor .cm-editor")).toBeVisible();
-    await page.evaluate((scrollY) => window.scrollTo(0, scrollY), item.scrollY);
+    await scrollDemoEditorTo(page, item.scrollY);
     await settleLayout(page);
 
     const line = page.locator(".cm-line", { hasText: item.text }).first();
@@ -595,6 +829,30 @@ test("editor supports ordinary list exit and marker removal while writing", asyn
   await expect.poll(() => getEditorDoc(page)).toBe("- one\ntwo");
 });
 
+test("rich editor treats held Enter repeat as repeated list splitting", async ({ page }) => {
+  await page.goto("/tests/e2e/fixtures/index.html");
+  await setEditorDoc(page, "- item", "rich");
+
+  await page.locator(".cm-content").click();
+  await page.keyboard.press("Meta+ArrowRight");
+  await page.evaluate(() => {
+    const content = document.querySelector(".cm-content");
+    if (!content) throw new Error("missing editor content");
+    const init: KeyboardEventInit = {
+      key: "Enter",
+      code: "Enter",
+      bubbles: true,
+      cancelable: true,
+    };
+    content.dispatchEvent(new KeyboardEvent("keydown", { ...init, repeat: false }));
+    for (let i = 0; i < 3; i += 1) {
+      content.dispatchEvent(new KeyboardEvent("keydown", { ...init, repeat: true }));
+    }
+  });
+
+  await expect.poll(() => getEditorDoc(page)).toBe("- item\n\n\n\n");
+});
+
 test("rich editor supports ordinary fenced code and display math writing", async ({ page }) => {
   await page.goto("/tests/e2e/fixtures/index.html");
   await setEditorDoc(page, "", "rich");
@@ -634,7 +892,7 @@ test("rich editor keeps a usable writing column on narrow viewports", async ({ p
   expect(lineWidth).toBeGreaterThan(240);
 });
 
-test("public demo uses page-level scrolling over the editor", async ({ page }) => {
+test("public demo uses a real editor viewport instead of page-level virtualized scrolling", async ({ page }) => {
   await page.goto("/examples/simple/index.html");
 
   const scroller = page.locator("#editor > .cm-editor > .cm-scroller");
@@ -647,13 +905,15 @@ test("public demo uses page-level scrolling over the editor", async ({ page }) =
       overflowY: style.overflowY,
       overscrollBehaviorY: style.overscrollBehaviorY,
       scrollHeight: el.scrollHeight,
+      windowScrollHeight: document.documentElement.scrollHeight,
+      windowHeight: window.innerHeight,
     };
   });
-  expect(scrollStyles.overflowY).toBe("visible");
-  expect(scrollStyles.overscrollBehaviorY).toBe("auto");
-  expect(scrollStyles.scrollHeight).toBe(scrollStyles.clientHeight);
+  expect(scrollStyles.overflowY).toBe("auto");
+  expect(scrollStyles.overscrollBehaviorY).toBe("contain");
+  expect(scrollStyles.scrollHeight).toBeGreaterThan(scrollStyles.clientHeight);
+  expect(scrollStyles.windowScrollHeight).toBe(scrollStyles.windowHeight);
 
-  await page.evaluate(() => window.scrollTo(0, 0));
   const box = await scroller.boundingBox();
   if (!box) {
     throw new Error("Missing public demo editor scroller");
@@ -667,7 +927,8 @@ test("public demo uses page-level scrolling over the editor", async ({ page }) =
     await page.mouse.wheel(0, 700);
   }
 
-  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(1000);
+  await expect.poll(() => scroller.evaluate((el) => el.scrollTop)).toBeGreaterThan(1000);
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
   await expect
     .poll(() => page.evaluate(() => document.body.innerText.includes("This footnote has bold")))
     .toBe(true);
@@ -685,6 +946,7 @@ test("public demo sidebar switches to the format guide", async ({ page }) => {
     "aria-current",
     "page",
   );
+  await expect(page.getByRole("button", { name: "Readonly" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Reader" })).toBeVisible();
   await expect(page.getByRole("link", { name: "GitHub" })).toBeVisible();
   await expect(page.getByRole("link", { name: "FORMAT.md" })).toBeVisible();
@@ -705,6 +967,146 @@ test("public demo sidebar switches to the format guide", async ({ page }) => {
   await expect(page).toHaveURL(/doc=showcase/);
   await expect(page).toHaveTitle("Coflat Editor Showcase");
   await expect(page.locator(".cm-content")).toContainText("Coflat Feature Showcase");
+});
+
+test("public demo readonly surface uses CM6 rich rendering without editing", async ({ page }) => {
+  await page.goto("/examples/simple/index.html?doc=showcase&surface=readonly");
+
+  const editor = page.locator("#editor");
+  const content = editor.locator(".cm-content");
+  await expect(editor).toBeVisible();
+  await expect(page.locator("#reader")).toBeHidden();
+  await expect(page.getByRole("button", { name: "Readonly" })).toHaveAttribute(
+    "aria-current",
+    "page",
+  );
+  await expect(content).toHaveAttribute("contenteditable", "false");
+  await expect(content).toContainText("Coflat Feature Showcase");
+
+  const tableCell = page.locator("#editor .cf-table-widget td", {
+    hasText: "Edit this cell",
+  }).first();
+  await scrollThroughUntil(page, [2500, 3000, 3500, 4000, 4500], tableCell);
+  await tableCell.scrollIntoViewIfNeeded();
+  await tableCell.click();
+  await expect(page.locator("#editor .cf-table-cell-editing")).toHaveCount(0);
+  await expect(tableCell.locator(".cm-editor")).toHaveCount(0);
+  await expect(content).toHaveAttribute("contenteditable", "false");
+
+  await content.click();
+  await page.keyboard.type("not inserted");
+  await expect(editor).not.toContainText("not inserted");
+
+  await page.getByRole("button", { name: "Editor" }).click();
+  await expect(page).toHaveURL(/surface=editor/);
+  await expect(content).toHaveAttribute("contenteditable", "true");
+});
+
+test("public demo surface switch preserves the visible document position", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto("/examples/simple/index.html?doc=showcase&surface=editor");
+  await settleLayout(page);
+
+  await scrollThroughUntil(page, [800, 1000, 1200, 1400, 1600, 1800], demoHeading(page, "editor", "Math in Lists"));
+  await alignDemoHeadingToViewportRatio(page, "editor", "Math in Lists", 0.2);
+  const editorTop = await demoHeadingTop(page, "editor", "Math in Lists");
+
+  await page.getByRole("button", { name: "Reader" }).click();
+  await expect(page).toHaveURL(/surface=reader/);
+  await settleDemoReaderMath(page);
+  await expect
+    .poll(async () => Math.abs(await demoHeadingTop(page, "reader", "Math in Lists") - editorTop))
+    .toBeLessThanOrEqual(2);
+
+  await page.getByRole("button", { name: "Readonly" }).click();
+  await expect(page).toHaveURL(/surface=readonly/);
+  await settleLayout(page);
+  await expect(demoHeading(page, "editor", "Math in Lists")).not.toContainText("# Math in Lists");
+  await expect
+    .poll(async () => Math.abs(await demoHeadingTop(page, "editor", "Math in Lists") - editorTop))
+    .toBeLessThanOrEqual(2);
+
+  await scrollThroughUntil(page, [2200, 2400, 2600, 2800, 3000, 3200], demoHeading(page, "editor", "Tables"));
+  await alignDemoHeadingToViewportRatio(page, "editor", "Tables", 0.2);
+  const readonlyTop = await demoHeadingTop(page, "editor", "Tables");
+
+  await page.getByRole("button", { name: "Reader" }).click();
+  await expect(page).toHaveURL(/surface=reader/);
+  await settleDemoReaderMath(page);
+  await expect
+    .poll(async () => Math.abs(await demoHeadingTop(page, "reader", "Tables") - readonlyTop))
+    .toBeLessThanOrEqual(2);
+});
+
+test("public demo reveals reader only after math is hydrated", async ({ page }) => {
+  await page.goto("/examples/simple/index.html?doc=showcase&surface=editor");
+  await settleLayout(page);
+  await page.evaluate(() => {
+    const state = window as unknown as { __coflatRawReaderMathVisible?: boolean };
+    state.__coflatRawReaderMathVisible = false;
+    const detectVisibleRawMath = () => {
+      const viewport = document.querySelector<HTMLElement>("#reader-viewport");
+      const reader = document.querySelector<HTMLElement>("#reader");
+      if (!viewport || !reader || viewport.hidden) return;
+      if (reader.querySelector('[data-math]:not([data-math-hydrated="true"])')) {
+        state.__coflatRawReaderMathVisible = true;
+      }
+    };
+    const observer = new MutationObserver(() => {
+      detectVisibleRawMath();
+    });
+    observer.observe(document.body, {
+      attributes: true,
+      attributeFilter: ["hidden", "data-math-hydrated"],
+      childList: true,
+      subtree: true,
+    });
+    const sampleVisibleFrames = () => {
+      detectVisibleRawMath();
+      requestAnimationFrame(sampleVisibleFrames);
+    };
+    requestAnimationFrame(sampleVisibleFrames);
+  });
+
+  await page.getByRole("button", { name: "Reader" }).click();
+  await settleDemoReaderMath(page);
+  await expect(page.locator("#reader-viewport")).toBeVisible();
+  await expect
+    .poll(() => page.evaluate(() =>
+      Boolean((window as unknown as { __coflatRawReaderMathVisible?: boolean }).__coflatRawReaderMathVisible)
+    ))
+    .toBe(false);
+
+  await page.getByRole("button", { name: "Readonly" }).click();
+  await expect(page.locator("#editor")).toBeVisible();
+  await page.evaluate(() => {
+    (window as unknown as { __coflatRawReaderMathVisible?: boolean }).__coflatRawReaderMathVisible = false;
+  });
+  await page.getByRole("button", { name: "Reader" }).click();
+  await settleDemoReaderMath(page);
+  await expect(page.locator("#reader-viewport")).toBeVisible();
+  await expect
+    .poll(() => page.evaluate(() =>
+      Boolean((window as unknown as { __coflatRawReaderMathVisible?: boolean }).__coflatRawReaderMathVisible)
+    ))
+    .toBe(false);
+
+  const cachedReaderBlock = page.locator('#reader [id="thm:hover-preview"]');
+  await cachedReaderBlock.scrollIntoViewIfNeeded();
+  const cachedReaderBlockButton = cachedReaderBlock.locator("> .cf-doc-block-heading > .cf-block-disclosure-toggle");
+  await expect(cachedReaderBlockButton).toHaveAttribute("aria-expanded", "true");
+  await cachedReaderBlockButton.click({ force: true });
+  await expect(cachedReaderBlockButton).toHaveAttribute("aria-expanded", "false");
+  expect(await cachedReaderBlock.evaluate((block) => {
+    const body = block.querySelector(":scope > .cf-block-disclosure-body");
+    return {
+      expanded: block.getAttribute("data-cf-block-open"),
+      hidden: body instanceof HTMLElement ? body.hidden : null,
+    };
+  })).toEqual({
+    expanded: "false",
+    hidden: true,
+  });
 });
 
 test("public demo reader surface shows shared hover previews", async ({ page }) => {
@@ -825,6 +1227,16 @@ test("public demo reader resolves internal references without broken math", asyn
   }
 });
 
+test("public demo reader labels cited entries as a bibliography", async ({ page }) => {
+  await page.goto("/examples/simple/index.html?doc=showcase&surface=reader");
+
+  const bibliography = page.locator("#reader .cf-bibliography");
+  await expect(bibliography).toBeVisible();
+  await expect(bibliography).toHaveAttribute("aria-label", "Bibliography");
+  await expect(bibliography.locator(".cf-bibliography-heading")).toHaveText("Bibliography");
+  await expect(bibliography.locator(".cf-bibliography-entry").first()).toContainText("cormen2009");
+});
+
 test("public demo reader aligns the collapse rail with the disclosure triangle", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto("/examples/simple/index.html?doc=showcase&surface=reader");
@@ -940,7 +1352,7 @@ test("public demo editor shows matching collapse rails", async ({ page }) => {
   });
   expect(headingAfterHover).toEqual(headingBeforeHover);
 
-  await page.evaluate(() => window.scrollTo(0, 1950));
+  await scrollDemoEditorTo(page, 1950);
   await settleLayout(page);
   await page.mouse.move(10, 10);
 
@@ -1095,7 +1507,7 @@ test("public demo exposes matching section and block disclosure controls", async
   await page.goto("/examples/simple/index.html?doc=showcase&surface=editor");
   await expect(page.locator("#editor .cm-editor")).toBeVisible();
   await settleLayout(page);
-  await page.evaluate(() => window.scrollTo(0, 2400));
+  await scrollDemoEditorTo(page, 2400);
   await settleLayout(page);
 
   await expect.poll(() => page.locator("#editor .cf-fold-block").count()).toBeGreaterThan(0);
@@ -1111,6 +1523,37 @@ test("public demo exposes matching section and block disclosure controls", async
   await expect(editorSectionButton).toHaveAttribute("aria-label", "Fold section");
   await editorSectionButton.click({ force: true });
   await expect(editorSectionButton).toHaveAttribute("aria-label", "Unfold section");
+});
+
+test("public demo keeps reader disclosure controls inside zero-padding embeds", async ({ page }) => {
+  await page.goto("/examples/simple/index.html?doc=showcase&surface=reader");
+  const reader = page.locator("#reader");
+  await expect(reader).toBeVisible();
+
+  await reader.evaluate((el) => {
+    (el as HTMLElement).style.setProperty("--cf-doc-content-padding-inline", "0px");
+  });
+  await settleLayout(page);
+
+  const geometry = await page.locator("#reader .cf-doc-section-heading-collapsible").first().evaluate((heading) => {
+    const readerRoot = heading.closest("#reader");
+    const toggle = heading.querySelector(":scope > .cf-section-disclosure-toggle");
+    if (!(readerRoot instanceof HTMLElement) || !(toggle instanceof HTMLElement)) {
+      throw new Error("missing reader section disclosure geometry");
+    }
+    const readerBox = readerRoot.getBoundingClientRect();
+    const toggleBox = toggle.getBoundingClientRect();
+    return {
+      paddingInlineStart: getComputedStyle(readerRoot).paddingInlineStart,
+      readerLeft: readerBox.left,
+      toggleLeft: toggleBox.left,
+      toggleRight: toggleBox.right,
+    };
+  });
+
+  expect(Number.parseFloat(geometry.paddingInlineStart)).toBeGreaterThan(0);
+  expect(geometry.toggleLeft).toBeGreaterThanOrEqual(geometry.readerLeft - 0.5);
+  expect(geometry.toggleRight).toBeGreaterThan(geometry.toggleLeft);
 });
 
 test("public demo table cell editing does not inherit page-height scrolling", async ({ page }) => {
@@ -1160,10 +1603,10 @@ test("public demo hydrates bibliography citations", async ({ page }) => {
   await page.goto("/examples/simple/index.html");
 
   await expect.poll(() =>
-    page.locator('[data-ref-key="cormen2009"]').count()
+    page.locator('.cf-citation[aria-label="cormen2009"], [data-ref-key="cormen2009"]').count()
   ).toBeGreaterThan(0);
 
-  const firstCitation = page.locator('[data-ref-key="cormen2009"]').first();
+  const firstCitation = page.locator('.cf-citation[aria-label="cormen2009"], [data-ref-key="cormen2009"]').first();
   await expect(firstCitation).toContainText("[1]");
   await expect(firstCitation).toHaveClass(/cf-citation/);
   await expect(firstCitation).not.toHaveClass(/cf-crossref-unresolved/);
@@ -1173,6 +1616,91 @@ test("public demo hydrates bibliography citations", async ({ page }) => {
   await expect(tooltip).toContainText("Introduction to Algorithms");
   await expect(tooltip).toContainText("Cormen");
   await expectTooltipWithinViewport(page, tooltip);
+
+  await page.getByRole("button", { name: "Reader" }).click();
+  const reader = page.locator("#reader");
+  await expect(reader.locator(".cf-bibliography")).toContainText("References");
+  await expect(reader.locator(".cf-bibliography-entry").first()).toContainText("Introduction to Algorithms");
+  const readerEndMatter = await page.locator("#reader").evaluate(async (readerRoot) => {
+    const viewport = document.querySelector("#reader-viewport");
+    if (viewport instanceof HTMLElement) {
+      viewport.scrollTop = viewport.scrollHeight;
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    }
+    return ((root: Element) => {
+      const properties = ["font-size", "line-height", "white-space", "width"] as const;
+      const snap = (selector: string) => {
+        const el = root.querySelector(selector);
+        if (!(el instanceof HTMLElement)) throw new Error(`missing ${selector}`);
+        const style = getComputedStyle(el);
+        const box = el.getBoundingClientRect();
+        return {
+          box: {
+            height: Math.round(box.height * 100) / 100,
+            width: Math.round(box.width * 100) / 100,
+          },
+          style: Object.fromEntries(properties.map((property) => [
+            property,
+            style.getPropertyValue(property),
+          ])),
+          text: (el.textContent ?? "").replace(/\s+/g, " ").trim(),
+        };
+      };
+      return {
+        bibliography: snap(".cf-bibliography"),
+        footnotes: snap(".cf-footnote-section"),
+      };
+    })(readerRoot);
+  });
+
+  await page.getByRole("button", { name: "Editor" }).click();
+  await expect(page.locator("#editor .cm-editor")).toBeVisible();
+  await expect.poll(() => page.locator("#editor").evaluate(async (editor) => {
+    const scroller = editor.querySelector(".cm-scroller");
+    if (!(scroller instanceof HTMLElement)) return 0;
+    scroller.scrollTop = scroller.scrollHeight;
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    return editor.querySelectorAll(".cf-bibliography, .cf-footnote-section").length;
+  })).toBeGreaterThanOrEqual(2);
+  const editorOrder = await page.locator("#editor").evaluate((editor) => {
+    const scroller = editor.querySelector(".cm-scroller");
+    if (!(scroller instanceof HTMLElement)) throw new Error("missing editor scroller");
+    const bibliography = editor.querySelector(".cf-bibliography");
+    const footnotes = editor.querySelector(".cf-footnote-section");
+    if (!(bibliography instanceof HTMLElement) || !(footnotes instanceof HTMLElement)) {
+      throw new Error("missing generated reference sections");
+    }
+    const properties = ["font-size", "line-height", "white-space", "width"] as const;
+    const snap = (selector: string) => {
+      const el = editor.querySelector(selector);
+      if (!(el instanceof HTMLElement)) throw new Error(`missing ${selector}`);
+      const style = getComputedStyle(el);
+      const box = el.getBoundingClientRect();
+      return {
+        box: {
+          height: Math.round(box.height * 100) / 100,
+          width: Math.round(box.width * 100) / 100,
+        },
+        style: Object.fromEntries(properties.map((property) => [
+          property,
+          style.getPropertyValue(property),
+        ])),
+        text: (el.textContent ?? "").replace(/\s+/g, " ").trim(),
+      };
+    };
+    return {
+      bibliography: snap(".cf-bibliography"),
+      footnotes: snap(".cf-footnote-section"),
+      bibliographyTop: bibliography.getBoundingClientRect().top,
+      footnotesTop: footnotes.getBoundingClientRect().top,
+    };
+  });
+  expect(editorOrder.bibliography.text).toContain("References");
+  expect(editorOrder.bibliography.text).toContain("Introduction to Algorithms");
+  expect(editorOrder.footnotes.text).toContain("Footnotes");
+  expect(editorOrder.bibliographyTop).toBeLessThan(editorOrder.footnotesTop);
+  expect(editorOrder.bibliography).toEqual(readerEndMatter.bibliography);
+  expect(editorOrder.footnotes).toEqual(readerEndMatter.footnotes);
 });
 
 test("public demo shows hover panels for cross-references", async ({ page }) => {
@@ -1374,7 +1902,7 @@ test("theme presets keep reader and CM6 rich editor surfaces visually aligned", 
     [".parity-reader .cf-doc-list--ordered .cf-doc-list-item", ".parity-editor .cf-doc-list--ordered.cf-doc-list-item", ["font-family", "font-size", "line-height"]],
     [".parity-reader .cf-list-bullet", ".parity-editor .cf-list-bullet", ["color", "font-family", "font-weight"]],
     [".parity-reader .cf-list-number", ".parity-editor .cf-list-number", ["color", "font-family", "font-weight", "font-variant-numeric"]],
-    [".parity-reader input[type='checkbox']", ".parity-editor input[type='checkbox']", ["vertical-align", "margin-right"]],
+    [".parity-reader input[type='checkbox']", ".parity-editor input[type='checkbox']", ["height", "margin-right", "vertical-align", "width"]],
     [".parity-reader .cf-doc-code-block code", ".parity-editor .cf-codeblock-last", ["background-color", "font-family", "font-size", "line-height", "white-space", "word-break", "overflow-wrap"]],
     [".parity-reader .cf-doc-table-block", ".parity-editor .cf-table-widget table", ["border-collapse", "font-size"]],
     [".parity-reader .cf-doc-table-header", ".parity-editor .cf-doc-table-header", ["border-bottom-color", "border-bottom-style", "border-bottom-width", "font-weight", "line-height", "padding-left", "padding-right"]],
@@ -1382,6 +1910,7 @@ test("theme presets keep reader and CM6 rich editor surfaces visually aligned", 
     [".parity-reader .cf-doc-display-math", ".parity-editor .cf-doc-display-math.cf-math-display", ["font-family", "font-size", "line-height", "text-align", "margin-top", "margin-bottom"]],
     [".parity-reader .cf-doc-display-math .katex-display", ".parity-editor .cf-doc-display-math.cf-math-display .katex-display", ["font-size", "margin-top", "margin-bottom", "text-align"]],
     [".parity-reader .cf-doc-display-math .katex-display > .katex", ".parity-editor .cf-doc-display-math.cf-math-display .katex-display > .katex", ["color", "font-size"]],
+    [".parity-reader .cf-doc-blockquote", ".parity-editor .cf-doc-blockquote", ["border-left-color", "border-left-style", "border-left-width", "color", "font-family", "font-size", "line-height", "padding-left"]],
     [".parity-reader .cf-doc-block--theorem", ".parity-editor .cm-line.cf-doc-block--theorem", ["border-left-color", "border-left-style", "border-left-width", "font-style", "padding-left"]],
     [".parity-reader .cf-doc-block--theorem .cf-doc-inline-math .katex", ".parity-editor .cm-line.cf-doc-block--theorem .cf-doc-inline-math .katex", ["color", "font-size", "font-style", "font-weight"]],
     [".parity-reader .cf-doc-block--proof", ".parity-editor .cm-line.cf-doc-block--proof", ["border-left-color", "border-left-style", "border-left-width", "font-style", "padding-left"]],
@@ -1412,6 +1941,19 @@ test("theme presets keep full reader and CM6 content pixels aligned", async ({ p
     await loadParityPairSurface(page, preset);
     await expectLoadedSplitContentPixelsMatch(page, preset);
   }
+});
+
+test("fast rich-readonly entry keeps full document pixels aligned with CM6 readonly", async ({ page }) => {
+  await page.setViewportSize({ width: 2560, height: 7200 });
+
+  await loadParityPairSurface(
+    page,
+    "default",
+    PUBLIC_SHOWCASE_PARITY_SOURCE,
+    "rich-readonly",
+    "rich-readonly",
+  );
+  await expectLoadedSplitContentPixelsMatch(page, "fast rich-readonly public showcase");
 });
 
 test("reader and CM6 rich editor keep image and caption surfaces aligned", async ({ page }) => {
@@ -1453,16 +1995,323 @@ test("reader and CM6 rich editor keep image and caption surfaces aligned", async
   await expectLoadedSplitContentPixelsMatch(page, "image caption parity");
 });
 
+test("reader and CM6 rich editor keep indented display math in lists aligned", async ({ page }) => {
+  await page.setViewportSize({ width: 2560, height: 1600 });
+  await loadParityPairSurface(page, "default", INDENTED_DISPLAY_MATH_PARITY_SOURCE);
+
+  const result = await page.evaluate((finalItemFrom) => {
+    const rounded = (value: number) => Math.round(value * 100) / 100;
+    const snap = (selector: string) => {
+      const el = document.querySelector(selector);
+      if (!(el instanceof HTMLElement)) throw new Error(`missing ${selector}`);
+      const rect = el.getBoundingClientRect();
+      return {
+        height: rounded(rect.height),
+        text: (el.textContent ?? "").replace(/\s+/g, " ").trim(),
+        top: rounded(rect.top),
+      };
+    };
+    return {
+      displayMath: {
+        reader: snap("#reader-root .cf-doc-display-math"),
+        editor: snap("#editor-root .cf-doc-display-math"),
+      },
+      finalItem: {
+        reader: snap(`#reader-root .cf-doc-list-item[data-source-from='${finalItemFrom}']`),
+        editor: snap(`#editor-root .cm-line[data-source-from='${finalItemFrom}']`),
+      },
+    };
+  }, INDENTED_DISPLAY_MATH_FINAL_ITEM_FROM);
+
+  expect(result.displayMath.editor.text).toBe(result.displayMath.reader.text);
+  expect(result.displayMath.editor.height).toBe(result.displayMath.reader.height);
+  expect(result.displayMath.editor.top).toBe(result.displayMath.reader.top);
+  expect(result.finalItem.editor.top).toBe(result.finalItem.reader.top);
+  await expectLoadedSelectorsPixelsMatch(page, "indented display math in list", {
+    reader: "#reader-root .cf-doc-display-math",
+    editor: "#editor-root .cf-doc-display-math",
+  });
+});
+
+test("parity fixture applies initial editor mode from the URL", async ({ page }) => {
+  await page.setViewportSize({ width: 2560, height: 7200 });
+
+  await loadParityPairSurface(page, "default", PUBLIC_SHOWCASE_PARITY_SOURCE, "rich-readonly");
+  await expect(page.locator("#editor-root .cm-content")).toHaveAttribute("contenteditable", "false");
+  await expect(page.locator("#editor-root .cf-footnote-section")).toBeVisible();
+  await expect(page.locator("#editor-root .cf-sidenote-def-line")).toHaveCount(2);
+
+  await loadParitySurface(page, "default", "editor", "# Source Mode\n\n| A | B |\n|---|---|\n| 1 | 2 |\n", "source");
+  await expect(page.locator("#editor-root .cm-editor")).toHaveClass(/cf-source-mode/);
+  await expect(page.locator("#editor-root .cm-content")).toContainText("| A | B |");
+
+  await setParitySource(page, "# Invalid Mode\n\nBody");
+  await page.goto("/tests/e2e/fixtures/parity.html?surface=editor&mode=invalid");
+  await expect(page.locator("#editor-root .cm-editor")).not.toHaveClass(/cf-source-mode/);
+  await expect(page.locator("#editor-root .cm-content")).toHaveAttribute("contenteditable", "true");
+});
+
+test("reader and CM6 rich editor keep blockquote display math aligned", async ({ page }) => {
+  for (const width of [2560, 1200]) {
+    await page.setViewportSize({ width, height: 1600 });
+    await loadParityPairSurface(page, "default", BLOCKQUOTE_DISPLAY_MATH_PARITY_SOURCE);
+
+    const result = await page.evaluate(() => {
+      const rounded = (value: number) => Math.round(value * 100) / 100;
+      const snapAll = (rootSelector: string) =>
+        Array.from(document.querySelectorAll<HTMLElement>(`${rootSelector} .cf-doc-display-math`))
+          .map((el) => {
+            const rect = el.getBoundingClientRect();
+            return {
+              className: el.className,
+              height: rounded(rect.height),
+              text: (el.textContent ?? "").replace(/\s+/g, " ").trim(),
+              top: rounded(rect.top),
+              width: rounded(rect.width),
+            };
+          });
+      return {
+        reader: snapAll("#reader-root"),
+        editor: snapAll("#editor-root"),
+      };
+    });
+
+    expect(result.reader).toHaveLength(2);
+    expect(result.editor).toHaveLength(2);
+    for (const [index, reader] of result.reader.entries()) {
+      const editor = result.editor[index];
+      expect(editor.text, `${width}px math ${index} text`).toBe(reader.text);
+      expect(editor.width, `${width}px math ${index} width`).toBe(reader.width);
+      expect(editor.height, `${width}px math ${index} height`).toBe(reader.height);
+      expect(editor.top, `${width}px math ${index} top`).toBe(reader.top);
+    }
+
+    await expectLoadedSelectorsPixelsMatch(page, `${width}px fenced blockquote display math`, {
+      reader: "#reader-root .cf-doc-display-math",
+      editor: "#editor-root .cf-doc-display-math",
+    });
+    await expectLoadedSelectorsPixelsMatch(page, `${width}px standard blockquote display math`, {
+      reader: "#reader-root .cf-doc-display-math",
+      editor: "#editor-root .cf-doc-display-math",
+      readerIndex: 1,
+      editorIndex: 1,
+    });
+    await expectLoadedSelectorsPixelsMatch(page, `${width}px standard blockquote surface`, {
+      reader: "#reader-root .cf-doc-blockquote",
+      editor: "#editor-root .cf-doc-blockquote",
+    });
+  }
+});
+
+test("reader and CM6 rich editor render root-relative browser images the same way", async ({ page }) => {
+  await page.setViewportSize({ width: 2560, height: 1600 });
+  await loadParityPairSurface(page, "default", ROOT_IMAGE_PARITY_SOURCE);
+
+  const result = await page.evaluate(() => {
+    const rounded = (value: number) => Math.round(value * 100) / 100;
+    const snapImage = (selector: string) => {
+      const img = document.querySelector(selector);
+      if (!(img instanceof HTMLImageElement)) throw new Error(`missing ${selector}`);
+      const rect = img.getBoundingClientRect();
+      return {
+        complete: img.complete,
+        height: rounded(rect.height),
+        naturalHeight: img.naturalHeight,
+        naturalWidth: img.naturalWidth,
+        src: img.getAttribute("src") ?? "",
+        width: rounded(rect.width),
+      };
+    };
+    const snapParagraph = (selector: string) => {
+      const el = document.querySelector(selector);
+      if (!(el instanceof HTMLElement)) throw new Error(`missing ${selector}`);
+      const rect = el.getBoundingClientRect();
+      return {
+        height: rounded(rect.height),
+        text: (el.textContent ?? "").replace(/\s+/g, " ").trim(),
+        width: rounded(rect.width),
+      };
+    };
+    return {
+      images: {
+        reader: snapImage("#reader-root img.cf-image"),
+        editor: snapImage("#editor-root img.cf-image"),
+      },
+      paragraphs: {
+        reader: snapParagraph("#reader-root .cf-doc-paragraph"),
+        editor: snapParagraph("#editor-root .cm-line.cf-doc-paragraph"),
+      },
+    };
+  });
+
+  expect(result.images.reader.complete).toBe(true);
+  expect(result.images.editor.complete).toBe(true);
+  expect(result.images.editor.src).toBe(result.images.reader.src);
+  expect(result.images.editor.naturalWidth).toBe(result.images.reader.naturalWidth);
+  expect(result.images.editor.naturalHeight).toBe(result.images.reader.naturalHeight);
+  expect(result.images.editor.width).toBe(result.images.reader.width);
+  expect(result.images.editor.height).toBe(result.images.reader.height);
+  expect(result.paragraphs.editor.text).toBe(result.paragraphs.reader.text);
+  expect(result.paragraphs.editor.height).toBe(result.paragraphs.reader.height);
+  await expectLoadedSelectorsPixelsMatch(page, "root-relative inline image paragraph", {
+    reader: "#reader-root .cf-doc-paragraph",
+    editor: "#editor-root .cm-line.cf-doc-paragraph",
+  });
+});
+
+test("reader and CM6 rich editor share tall inline image metrics", async ({ page }) => {
+  await page.setViewportSize({ width: 2560, height: 1600 });
+  await loadParityPairSurface(page, "default", TALL_IMAGE_PARITY_SOURCE);
+
+  const result = await page.evaluate(() => {
+    const rounded = (value: number) => Math.round(value * 100) / 100;
+    const snapImage = (selector: string) => {
+      const img = document.querySelector(selector);
+      if (!(img instanceof HTMLImageElement)) throw new Error(`missing ${selector}`);
+      const rect = img.getBoundingClientRect();
+      return {
+        display: getComputedStyle(img).display,
+        height: rounded(rect.height),
+        maxHeight: getComputedStyle(img).maxHeight,
+        naturalHeight: img.naturalHeight,
+        naturalWidth: img.naturalWidth,
+        width: rounded(rect.width),
+      };
+    };
+    return {
+      reader: snapImage("#reader-root img.cf-image"),
+      editor: snapImage("#editor-root img.cf-image"),
+    };
+  });
+
+  expect(result.editor).toEqual(result.reader);
+  expect(result.reader.height).toBe(400);
+  await expectLoadedSelectorsPixelsMatch(page, "tall inline image paragraph", {
+    reader: "#reader-root .cf-doc-paragraph",
+    editor: "#editor-root .cm-line.cf-doc-paragraph",
+  });
+});
+
+test("article metadata frontmatter keeps current title presentation aligned", async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 1200 });
+  await loadParityPairSurface(page, "default", ARTICLE_FRONTMATTER_PARITY_SOURCE);
+
+  for (const selector of ["#reader-root .cf-doc-title", "#editor-root .cf-doc-title"]) {
+    const title = page.locator(selector);
+    await expect(title).toHaveCount(1);
+    await expect(title).toContainText("Article Metadata");
+    await expect(title).not.toContainText("Quarto-shaped frontmatter");
+    await expect(title.locator(".katex")).toBeVisible();
+  }
+
+  await expect(page.locator("#reader-root")).not.toContainText("Short presentation summary");
+  await expect(page.locator("#editor-root")).not.toContainText("Short presentation summary");
+  await expectLoadedSplitContentPixelsMatch(page, "article metadata frontmatter");
+});
+
+test("public showcase keeps reader and rich editor aligned while scrolling", async ({ page }) => {
+  const rowLabels = [
+    "Tables",
+    "Tasks",
+    "Code Blocks",
+    "Code Block Click Mapping",
+    "Blockquote with Math",
+    "Links and Images",
+    "Footnotes",
+    "Bibliography",
+  ];
+  const scenarios = [
+    {
+      name: "desktop",
+      scrollTargets: [0, 2400, 4200, 4800, 9999],
+      viewport: { width: 1600, height: 900 },
+    },
+    {
+      name: "mobile",
+      scrollTargets: [0, 2400, 4800, 6200, 9999],
+      viewport: { width: 390, height: 844 },
+    },
+  ];
+
+  async function sample(surface: "reader" | "editor", top: number) {
+    await page.goto(`/examples/simple/index.html?doc=showcase&surface=${surface}`, {
+      waitUntil: "networkidle",
+    });
+    await page.waitForTimeout(100);
+    await page.evaluate((scrollTop) => window.scrollTo(0, scrollTop), top);
+    await page.waitForTimeout(100);
+    return page.evaluate((labels) => {
+      const root = document.querySelector<HTMLElement>("#reader:not([hidden]), #editor:not([hidden])");
+      if (!root) throw new Error("missing active public demo surface");
+      const rowFor = (label: string) => {
+        const rows = Array.from(root.querySelectorAll<HTMLElement>([
+          ".cf-doc-heading",
+          ".cm-line.cf-doc-heading",
+          ".cf-footnotes",
+          ".cf-bibliography",
+        ].join(",")));
+        const row = rows.find((candidate) =>
+          (candidate.textContent ?? "").replace(/\s+/g, " ").includes(label)
+        );
+        if (!row) return null;
+        const rect = row.getBoundingClientRect();
+        return {
+          height: Math.round(rect.height * 1000) / 1000,
+          y: Math.round(rect.y * 1000) / 1000,
+        };
+      };
+      return {
+        maxScroll: document.documentElement.scrollHeight - window.innerHeight,
+        rows: Object.fromEntries(labels.map((label) => [label, rowFor(label)])),
+        scrollHeight: document.documentElement.scrollHeight,
+        scrollY: window.scrollY,
+      };
+    }, rowLabels);
+  }
+
+  for (const scenario of scenarios) {
+    await page.setViewportSize(scenario.viewport);
+    for (const top of scenario.scrollTargets) {
+      const reader = await sample("reader", top);
+      const editor = await sample("editor", top);
+      expect(editor.scrollHeight, `${scenario.name} scroll height at ${top}`).toBe(reader.scrollHeight);
+      expect(editor.maxScroll, `${scenario.name} max scroll at ${top}`).toBe(reader.maxScroll);
+      expect(editor.scrollY, `${scenario.name} scroll offset at ${top}`).toBe(reader.scrollY);
+
+      for (const label of rowLabels) {
+        const readerRow = reader.rows[label];
+        const editorRow = editor.rows[label];
+        expect(editorRow, `${scenario.name} editor row ${label} at ${top}`).not.toBeNull();
+        expect(readerRow, `${scenario.name} reader row ${label} at ${top}`).not.toBeNull();
+        expect(
+          Math.abs((editorRow?.y ?? 0) - (readerRow?.y ?? 0)),
+          `${scenario.name} ${label} y drift at ${top}`,
+        ).toBeLessThanOrEqual(1);
+        expect(
+          Math.abs((editorRow?.height ?? 0) - (readerRow?.height ?? 0)),
+          `${scenario.name} ${label} height drift at ${top}`,
+        ).toBeLessThanOrEqual(1);
+      }
+    }
+  }
+});
+
 test("public showcase keeps reader and CM6 rich editor block geometry aligned", async ({ page }) => {
   await page.setViewportSize({ width: 2560, height: 7200 });
 
   await loadParityPairSurface(page, "default", PUBLIC_SHOWCASE_PARITY_SOURCE);
+  await expect(
+    page.locator("#editor-root .cf-image-loading", { hasText: "Local hover-preview figure" }),
+  ).toHaveCount(0);
   const result = await page.evaluate((sourceEnd) => {
     type Row = {
       readonly className: string;
+      readonly from: number;
       readonly h: number;
       readonly range: string;
       readonly text: string;
+      readonly to: number;
+      readonly w: number;
       readonly y: number;
     };
     type EditorViewLike = {
@@ -1487,7 +2336,7 @@ test("public showcase keeps reader and CM6 rich editor block geometry aligned", 
       .slice(0, 80);
     const rect = (el: Element) => {
       const r = el.getBoundingClientRect();
-      return { h: rounded(r.height), y: rounded(r.y) };
+      return { h: rounded(r.height), w: rounded(r.width), y: rounded(r.y) };
     };
     const readerRows = Array.from(document.querySelectorAll<HTMLElement>([
       "#reader-root .cf-doc-title",
@@ -1497,14 +2346,17 @@ test("public showcase keeps reader and CM6 rich editor block geometry aligned", 
       "#reader-root .cf-doc-display-math",
       "#reader-root .cf-doc-table-block",
       "#reader-root .cf-doc-code-block",
+      "#reader-root .cf-doc-block-heading",
     ].join(","))).flatMap((el): Row[] => {
       const from = Number(el.dataset.sourceFrom);
       const to = Number(el.dataset.sourceTo);
       if (!Number.isFinite(from) || !Number.isFinite(to) || from >= sourceEnd) return [];
       return [{
         className: el.className,
+        from,
         range: `${from}:${to}`,
         text: text(el),
+        to,
         ...rect(el),
       }];
     });
@@ -1513,9 +2365,13 @@ test("public showcase keeps reader and CM6 rich editor block geometry aligned", 
       "#editor-root .cm-line.cf-doc-heading",
       "#editor-root .cm-line.cf-doc-paragraph",
       "#editor-root .cf-paragraph-flow-widget .cf-doc-paragraph",
+      "#editor-root .cm-line.cf-doc-list-item",
+      "#editor-root .cf-doc-blockquote",
       "#editor-root .cf-doc-display-math",
       "#editor-root .cf-table-widget",
-      "#editor-root .cf-doc-code-block",
+      "#editor-root .cm-line.cf-codeblock-header",
+      "#editor-root .cm-line.cf-codeblock-body",
+      "#editor-root .cm-line.cf-codeblock-last",
     ].join(","))).flatMap((el): Row[] => {
       if (el.getBoundingClientRect().height <= 0) return [];
       let from: number | undefined;
@@ -1537,23 +2393,150 @@ test("public showcase keeps reader and CM6 rich editor block geometry aligned", 
       ) return [];
       return [{
         className: el.className,
+        from,
         range: `${from}:${to}`,
         text: text(el),
+        to,
         ...rect(el),
       }];
     });
-    const editorByRange = new Map(editorRows.map((row) => [row.range, row]));
-    const mismatches = readerRows.flatMap((reader) => {
+    const comparableReaderRows = readerRows.filter((row) =>
+      !row.className.includes("cf-doc-code-block") &&
+      !row.className.includes("cf-doc-blockquote")
+    );
+    const comparableEditorRows = editorRows.filter((row) =>
+      !row.className.includes("cf-codeblock-")
+    );
+    const rangesOverlap = (left: Row, right: Row): boolean =>
+      left.from < right.to && right.from < left.to;
+    const editorByRange = new Map(comparableEditorRows.map((row) => [row.range, row]));
+    const missingEditorRows = readerRows.filter((reader) =>
+      !editorRows.some((editor) => rangesOverlap(reader, editor))
+    );
+    const missingReaderRows = editorRows.filter((editor) =>
+      !editor.className.includes("cf-block-header") &&
+      !readerRows.some((reader) => rangesOverlap(editor, reader))
+    );
+    const mismatches = comparableReaderRows.flatMap((reader) => {
       const editor = editorByRange.get(reader.range);
       if (!editor) return [];
       const dy = rounded(editor.y - reader.y);
       const dh = rounded(editor.h - reader.h);
-      if (Math.abs(dy) <= 1 && Math.abs(dh) <= 2.5) return [];
-      return [{ dh, dy, editor, reader }];
+      const dw = rounded(editor.w - reader.w);
+      const textMatches = editor.text === reader.text;
+      if (Math.abs(dy) <= 1 && Math.abs(dh) <= 2.5 && Math.abs(dw) <= 1 && textMatches) {
+        return [];
+      }
+      return [{ dh, dw, dy, textMatches, editor, reader }];
     });
-    return { compared: readerRows.length, mismatches };
+    return {
+      compared: comparableReaderRows.length - missingEditorRows.length,
+      mismatches,
+      missingEditorRows,
+      missingReaderRows,
+      totalReaderRows: readerRows.length,
+    };
   }, PUBLIC_SHOWCASE_PARITY_END);
 
-  expect(result.compared).toBeGreaterThan(80);
+  expect(result.totalReaderRows).toBeGreaterThan(80);
+  expect(result.missingEditorRows).toEqual([]);
+  expect(result.missingReaderRows).toEqual([]);
+  expect(result.compared).toBeGreaterThan(70);
   expect(result.mismatches).toEqual([]);
+});
+
+test("public showcase keeps reader and rich editor footnote sections aligned", async ({ page }) => {
+  await page.setViewportSize({ width: 2560, height: 7200 });
+  await loadParityPairSurface(page, "default", PUBLIC_SHOWCASE_PARITY_SOURCE);
+
+  await page.evaluate(async () => {
+    const mounted = (
+      window as typeof window & {
+        __coflatEditor?: { setMode?: (mode: "rich" | "rich-readonly") => void };
+      }
+    ).__coflatEditor;
+    mounted?.setMode?.("rich-readonly");
+    mounted?.setMode?.("rich");
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+  });
+
+  await expectLoadedSelectorsPixelsMatch(page, "showcase footnote section rich editor", {
+    reader: "#reader-root .cf-footnote-section",
+    editor: "#editor-root .cf-footnote-section",
+  });
+
+  await page.evaluate(async () => {
+    const mounted = (
+      window as typeof window & {
+        __coflatEditor?: { setMode?: (mode: "rich-readonly") => void };
+      }
+    ).__coflatEditor;
+    mounted?.setMode?.("rich-readonly");
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+  });
+
+  const result = await page.evaluate(() => {
+    const properties = [
+      "color",
+      "cursor",
+      "display",
+      "font-family",
+      "font-size",
+      "font-style",
+      "font-weight",
+      "line-height",
+      "margin-bottom",
+      "margin-top",
+      "padding-left",
+      "padding-right",
+      "text-align",
+      "vertical-align",
+    ] as const;
+    const rounded = (value: number) => Math.round(value * 100) / 100;
+    const style = (el: Element) => {
+      const computed = getComputedStyle(el);
+      return Object.fromEntries(properties.map((property) => [
+        property,
+        computed.getPropertyValue(property),
+      ]));
+    };
+    const box = (el: Element) => {
+      const rect = el.getBoundingClientRect();
+      return { height: rounded(rect.height), width: rounded(rect.width) };
+    };
+    const snap = (selector: string) => {
+      const el = document.querySelector(selector);
+      if (!(el instanceof HTMLElement)) throw new Error(`missing ${selector}`);
+      return {
+        box: box(el),
+        style: style(el),
+        text: (el.textContent ?? "").replace(/\s+/g, " ").trim(),
+      };
+    };
+    const pairs = [
+      ["section", "#reader-root .cf-footnote-section", "#editor-root .cf-footnote-section"],
+      ["heading", "#reader-root .cf-footnote-section .cf-bibliography-heading", "#editor-root .cf-footnote-section .cf-bibliography-heading"],
+      ["entry", "#reader-root .cf-footnote-section .cf-bibliography-entry", "#editor-root .cf-footnote-section .cf-bibliography-entry"],
+      ["number", "#reader-root .cf-footnote-section .cf-bibliography-entry-number", "#editor-root .cf-footnote-section .cf-bibliography-entry-number"],
+      ["content", "#reader-root .cf-footnote-section .cf-bibliography-entry span", "#editor-root .cf-footnote-section .cf-bibliography-entry span"],
+      ["backref", "#reader-root .cf-footnote-section .cf-footnote-backref", "#editor-root .cf-footnote-section .cf-footnote-backref"],
+    ] as const;
+    return Object.fromEntries(pairs.map(([name, readerSelector, editorSelector]) => [
+      name,
+      { reader: snap(readerSelector), editor: snap(editorSelector) },
+    ]));
+  });
+
+  for (const [name, pair] of Object.entries(result)) {
+    expect(pair.editor.text, `${name} text`).toBe(pair.reader.text);
+    expect(pair.editor.box, `${name} box`).toEqual(pair.reader.box);
+    expect(pair.editor.style, `${name} style`).toEqual(pair.reader.style);
+  }
+
+  await expectLoadedSelectorsPixelsMatch(page, "showcase footnote section rich-readonly", {
+    reader: "#reader-root .cf-footnote-section",
+    editor: "#editor-root .cf-footnote-section",
+  });
 });

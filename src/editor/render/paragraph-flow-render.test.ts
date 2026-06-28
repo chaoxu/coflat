@@ -64,7 +64,7 @@ function createReferenceAwareParagraphFlowView(doc: string, cursorPos = doc.leng
 
 function paragraphFlowSpecs(target: EditorView) {
   return getDecorationSpecs(target.state.field(_paragraphFlowFieldForTest))
-    .filter((spec) => spec.widgetClass === "ParagraphFlowWidget");
+    .filter((spec) => spec.widgetClass === "ParagraphFlowWidget" || spec.widgetClass === "BlockquoteFlowWidget");
 }
 
 describe("paragraph flow render", () => {
@@ -117,6 +117,44 @@ describe("paragraph flow render", () => {
     expect(math?.dataset.sourceAtomic).toBe("true");
   });
 
+  it("updates paragraph-flow widgets when the cursor moves between paragraphs", () => {
+    const first = "first source line\nsecond source line";
+    const second = "third source line\nfourth source line";
+    const doc = `${first}\n\n${second}`;
+    const target = createParagraphFlowView(doc, doc.length);
+
+    expect(paragraphFlowSpecs(target)).toEqual([
+      expect.objectContaining({ from: 0, to: first.length }),
+    ]);
+
+    target.dispatch({ selection: { anchor: doc.indexOf("second") } });
+    expect(paragraphFlowSpecs(target)).toEqual([
+      expect.objectContaining({
+        from: first.length + 2,
+        to: doc.length,
+      }),
+    ]);
+
+    target.dispatch({ selection: { anchor: doc.length } });
+    expect(paragraphFlowSpecs(target)).toEqual([
+      expect.objectContaining({ from: 0, to: first.length }),
+    ]);
+  });
+
+  it("exposes paragraph-flow replacements as atomic ranges", () => {
+    const doc = "first source line\nsecond source line\n\nnext";
+    const target = createParagraphFlowView(doc, doc.length);
+    let atomicRangeCount = 0;
+
+    for (const provider of target.state.facet(EditorView.atomicRanges)) {
+      provider(target).between(0, doc.length, () => {
+        atomicRangeCount++;
+      });
+    }
+
+    expect(atomicRangeCount).toBeGreaterThan(0);
+  });
+
   it("renders reference-bearing paragraphs with full-document reference labels", () => {
     const doc = [
       "::: {.theorem #thm:main}",
@@ -151,6 +189,31 @@ describe("paragraph flow render", () => {
   it("does not replace list item paragraphs", () => {
     const doc = "- first source line\n  second source line\n\nnext";
     const target = createParagraphFlowView(doc, doc.length);
+
+    expect(paragraphFlowSpecs(target)).toEqual([]);
+  });
+
+  it("replaces an inactive top-level blockquote with the shared preview blockquote surface", () => {
+    const doc = "> quoted *text*\n>\n> $$\n> x^2\n> $$\n\nnext";
+    const target = createParagraphFlowView(doc, doc.length);
+
+    expect(paragraphFlowSpecs(target)).toEqual([
+      expect.objectContaining({
+        from: 0,
+        to: doc.indexOf("\n\nnext"),
+        block: true,
+        widgetClass: "BlockquoteFlowWidget",
+      }),
+    ]);
+    const blockquote = target.dom.querySelector<HTMLElement>(".cf-blockquote-flow-widget .cf-doc-blockquote");
+    expect(blockquote?.textContent?.replace(/\s+/g, " ")).toContain("quoted text");
+    expect(blockquote?.dataset.sourceFrom).toBe("0");
+    expect(blockquote?.dataset.sourceTo).toBe(String(doc.indexOf("\n\nnext")));
+  });
+
+  it("reveals source for the active blockquote", () => {
+    const doc = "> quoted *text*\n>\n> second paragraph\n\nnext";
+    const target = createParagraphFlowView(doc, doc.indexOf("second"));
 
     expect(paragraphFlowSpecs(target)).toEqual([]);
   });

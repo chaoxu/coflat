@@ -118,6 +118,23 @@ describe("collectMathRanges", () => {
     expect(displayWidget?.from).toBeLessThan(displayWidget?.to ?? 0);
   });
 
+  it("replaces indentation-only prefixes before indented display math", () => {
+    const doc = "1. text\n   $$\n   x^2\n   $$";
+    const state = createMathRenderState(doc);
+    const specs = getDecorationSpecs(state.field(mathDecorationField));
+    const displayWidget = specs.find((spec) => spec.widgetClass === "MathWidget");
+
+    const openerLine = state.doc.line(2);
+    const delimiterFrom = openerLine.from + openerLine.text.indexOf("$$");
+    expect(displayWidget).toMatchObject({
+      block: true,
+      from: openerLine.from,
+      to: doc.length,
+      widgetClass: "MathWidget",
+    });
+    expect(displayWidget?.from).toBeLessThan(delimiterFrom);
+  });
+
   it("collects display math with backslash-bracket syntax", () => {
     const doc = "before\n\n\\[x^2\\]\n\nafter";
     view = createMathView(doc, doc.length);
@@ -141,6 +158,23 @@ describe("collectMathRanges", () => {
     const ranges = collectMathRanges(view);
     expect(countWidgets(ranges)).toBe(1);
     expect(countSourceMarks(ranges)).toBeGreaterThan(1);
+  });
+
+  it("rebuilds quoted display math when the cursor enters an inactive blockquote flow", () => {
+    const doc = "> quoted prose\n> $$\n> x^2\n> $$\n\nnext";
+    view = createMathRenderView(doc, doc.length);
+
+    expect(
+      getDecorationSpecs(view.state.field(mathDecorationField))
+        .filter((spec) => spec.widgetClass === "MathWidget"),
+    ).toHaveLength(0);
+
+    view.dispatch({ selection: { anchor: doc.indexOf("quoted") } });
+
+    expect(
+      getDecorationSpecs(view.state.field(mathDecorationField))
+        .filter((spec) => spec.widgetClass === "MathWidget"),
+    ).toHaveLength(1);
   });
 
   it("keeps display-math label/body on cf-math-source but delimiters on cf-source-delimiter during structure edit (#789)", () => {
@@ -468,4 +502,3 @@ describe("math decoration invalidation", () => {
     expect(after).toHaveLength(20);
   });
 });
-

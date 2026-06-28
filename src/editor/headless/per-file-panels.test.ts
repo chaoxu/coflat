@@ -1,11 +1,15 @@
 import { afterEach, describe, expect, it } from "vitest";
+import type { EditorView } from "@codemirror/view";
 
 import { mountEditor, type MountedEditor } from "../../../editor";
+import { createTestView, destroyAllTestViews } from "../test-utils";
+import { createPerFilePanelApi } from "./per-file-panels";
 
 const cleanups: Array<() => void> = [];
 
 afterEach(() => {
   while (cleanups.length) cleanups.pop()?.();
+  destroyAllTestViews();
 });
 
 function mount(doc: string): MountedEditor {
@@ -85,6 +89,18 @@ describe("mounted editor outline", () => {
     ]);
   });
 
+  it("can emit the current outline to late subscribers", () => {
+    const editor = mount("# Alpha\n\nbody");
+    const values: string[][] = [];
+
+    const unsubscribe = editor.outline.subscribe((outline) => {
+      values.push(outline.map((entry) => entry.text));
+    }, { emitCurrent: true });
+    cleanups.push(unsubscribe);
+
+    expect(values).toEqual([["Alpha"]]);
+  });
+
   it("can mount with collapsed sidenotes and shared footnote section chrome", () => {
     const parent = document.body.appendChild(document.createElement("div"));
     const editor = mountEditor({
@@ -99,5 +115,61 @@ describe("mounted editor outline", () => {
 
     expect(parent.querySelector(".cf-footnote-section")).not.toBeNull();
     expect(parent.querySelector(".cf-bibliography-entry")).not.toBeNull();
+  });
+});
+
+describe("mounted editor scroll helpers", () => {
+  it("can scroll without moving the editor selection", () => {
+    const editor = mount([
+      "# Start",
+      "",
+      "middle paragraph",
+      "",
+      "# Target",
+      "",
+      "after",
+    ].join("\n"));
+    const target = editor.getDoc().indexOf("# Target");
+
+    editor.scrollToPosition(target, { center: true, select: false });
+    expect(editor.cursorContext.get().from).toBe(0);
+
+    editor.scrollToLine(5, { select: false });
+    expect(editor.cursorContext.get().from).toBe(0);
+
+    editor.scrollToPosition(target);
+    expect(editor.cursorContext.get().from).toBe(target);
+  });
+});
+
+describe("per-file panel scroll helpers", () => {
+  it("dispatches an explicit scroll effect when scrolling without selecting", () => {
+    const panelApi = createPerFilePanelApi();
+    const doc = [
+      "# Start",
+      "",
+      "middle paragraph",
+      "",
+      "# Target",
+      "",
+      "after",
+    ].join("\n");
+    const target = doc.indexOf("# Target");
+    const view = createTestView(doc, {
+      cursorPos: 0,
+      extensions: panelApi.extension,
+    });
+    const originalDispatch = view.dispatch.bind(view);
+    const dispatchSpecs: Parameters<EditorView["dispatch"]> = [];
+    view.dispatch = ((...specs: Parameters<EditorView["dispatch"]>) => {
+      dispatchSpecs.push(...specs);
+      originalDispatch(...specs);
+    }) as EditorView["dispatch"];
+    panelApi.attach(view);
+
+    panelApi.scrollToPosition(target, { select: false });
+
+    expect(view.state.selection.main.head).toBe(0);
+    expect(dispatchSpecs.some((spec) => "effects" in spec && spec.effects !== undefined)).toBe(true);
   });
 });

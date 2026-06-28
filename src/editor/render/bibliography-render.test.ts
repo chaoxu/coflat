@@ -1,9 +1,11 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { EditorState } from "@codemirror/state";
+import { EditorView } from "@codemirror/view";
 import { markdown } from "@codemirror/lang-markdown";
 
 import {
   BibliographyWidget,
+  bibliographyPlugin,
   bibliographyDependenciesChanged,
   buildBibliographyDecorations,
 } from "./bibliography-render";
@@ -48,13 +50,13 @@ afterEach(() => {
 });
 
 describe("BibliographyWidget.createDOM", () => {
-  it("renders empty list with the References heading when there are no entries", () => {
+  it("renders empty list with the Bibliography heading when there are no entries", () => {
     const widget = new BibliographyWidget([], [], emptyBacklinks());
     const dom = widget.createDOM();
 
     expect(dom.classList.contains(CSS.bibliography)).toBe(true);
     const heading = dom.querySelector(`.${CSS.bibliographyHeading}`);
-    expect(heading?.textContent).toBe("References");
+    expect(heading?.textContent).toBe("Bibliography");
     const list = dom.querySelector(`.${CSS.bibliographyList}`);
     expect(list).not.toBeNull();
     expect(list?.children.length).toBe(0);
@@ -163,6 +165,36 @@ describe("buildBibliographyDecorations", () => {
     expect(cursor.to).toBe(state.doc.length);
     cursor.next();
     expect(cursor.value).toBeNull();
+  });
+});
+
+describe("bibliographyPlugin", () => {
+  it("renders references for citations that only appear inside footnote definitions", () => {
+    const parent = document.body.appendChild(document.createElement("div"));
+    const state = EditorState.create({
+      doc: [
+        "Body with a note[^n].",
+        "",
+        "[^n]: Footnote cites [@karger2000].",
+      ].join("\n"),
+      extensions: [
+        markdown({ extensions: markdownExtensions }),
+        documentAnalysisField,
+        bibDataField,
+        bibliographyPlugin,
+      ],
+    });
+    const view = new EditorView({ state, parent });
+    view.dispatch({
+      effects: bibDataEffect.of({
+        store: makeBibStore([karger]),
+        formatter: new CslProcessor([karger]),
+      }),
+    });
+
+    expect(parent.querySelector(`.${CSS.bibliography}`)?.textContent).toContain("Bibliography");
+    expect(parent.querySelector(`.${CSS.bibliographyEntry}`)?.textContent).toContain("Karger");
+    view.destroy();
   });
 });
 

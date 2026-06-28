@@ -1,11 +1,18 @@
-import type { Extension } from "@codemirror/state";
-import { EditorView } from "@codemirror/view";
+import type { ChangeSet, Extension } from "@codemirror/state";
+import { EditorView, type ViewUpdate } from "@codemirror/view";
 
 import {
   createEditor,
   editorModeField,
   setEditorMode,
+  type EditorConfig,
+  type EditorLazyFeature,
 } from "./src/editor";
+import type {
+  EditorPlugin,
+  EditorPluginLifecycleEvent,
+} from "./src/editor/editor-plugin";
+import type { EditorPluginPresetName } from "./src/editor/editor-plugin-presets";
 import {
   createPerFilePanelApi,
   type Counts,
@@ -31,12 +38,19 @@ import {
   type Command,
 } from "./src/editor/command-registry";
 import type { DocumentContext } from "./src/core/document-context-types";
+import type { CslJsonItem } from "./src/core/citations/csl-json";
+import type { FileSystem } from "./src/core/lib/file-system-types";
+import {
+  sourceElementAtPosition,
+  visibleSourcePositionInScroller,
+} from "./src/core/source-range-surface";
 import {
   documentContextExtension,
   setDocumentContext,
 } from "./src/editor/document-context";
-import { documentPathFacet } from "./src/editor/lib/types";
-import { createSaveController, saveExtension } from "./src/editor/save-handler";
+import { documentPathFacet, fileSystemFacet } from "./src/editor/lib/types";
+import { bibDataEffect, type BibData } from "./src/editor/state/bib-data";
+import { createSaveController, dirtyStateExtension, saveExtension } from "./src/editor/save-handler";
 import {
   assetUploaderExtension,
   type AssetUploader,
@@ -44,26 +58,47 @@ import {
 import { autocompleteSourceExtension } from "./src/editor/autocomplete-source-controller";
 import { sidenotesCollapsedField } from "./src/editor/render";
 
-export type StandaloneEditorMode = "rich" | "source";
+export type StandaloneEditorMode = "rich" | "rich-readonly" | "source";
+
+export interface MountedDocumentChange {
+  /** CodeMirror change set for hosts that can update incrementally. */
+  readonly changes: ChangeSet;
+  /** The original CodeMirror update for hosts that need transaction metadata. */
+  readonly update: ViewUpdate;
+  /** Materializes the full document only when the host explicitly needs it. */
+  readonly getDoc: () => string;
+}
 
 export interface MountEditorOptions {
   /** DOM element that receives the mounted editor. */
   parent: HTMLElement;
   /** Initial markdown content. Defaults to an empty document. */
   doc?: string;
-  /** Initial display mode. Standalone support is limited to rich/source. */
+  /**
+   * Initial display mode. `rich-readonly` uses the same CM6-rendered document
+   * surface as rich mode, disables editing, and collapses footnotes into the
+   * reader-style document-tail section.
+   */
   mode?: StandaloneEditorMode;
   /** Extra CodeMirror extensions supplied by the host. */
   extensions?: readonly Extension[];
+  /** Built-in plugin preset for optional editor features. */
+  pluginPreset?: EditorPluginPresetName;
+  /** Explicit plugin descriptors. Overrides `pluginPreset` when supplied. */
+  plugins?: readonly EditorPlugin[];
   /** Initial sidenote layout. Collapsed renders footnotes in the document tail. */
   sidenotesCollapsed?: boolean;
   /** Host context for links, references, citations, file I/O, and math. */
   context?: DocumentContext;
+  /** Host-backed file system for local media previews and repository assets. */
+  fileSystem?: FileSystem;
   /** Host commands; ids matching built-ins override the library command. */
   commands?: readonly Command[];
   /** Called for direct user edits only. */
   onChange?: (doc: string) => void;
-  /** Called whenever the effective rich/source mode changes. */
+  /** Called for direct user edits with CodeMirror change metadata. */
+  onDocumentChange?: (change: MountedDocumentChange) => void;
+  /** Called whenever the effective rich/rich-readonly/source mode changes. */
   onModeChange?: (mode: StandaloneEditorMode) => void;
   /**
    * Host UI for request/response intents (link picker, upload toast,
@@ -100,11 +135,49 @@ export interface MountEditorOptions {
    */
   autocompleteSources?: readonly AutocompleteSource[];
   /**
+   * Called as dynamically imported editor features attach after first mount.
+   * Useful for measuring progressive editor readiness.
+   */
+  onLazyFeatureReady?: (feature: EditorLazyFeature) => void;
+  /** Called as lazy editor plugins become active. */
+  onPluginReady?: (event: EditorPluginLifecycleEvent) => void;
+  /**
    * Optional source-file identifier passed into
    * {@link AutocompleteEnv.from}. Usually the path the document was
    * loaded from.
    */
   from?: string;
+}
+
+export interface EditorSourcePosition {
+  /** Absolute UTF-16 source offset in the current document. */
+  readonly pos: number;
+  /** 1-based source line containing `pos`. */
+  readonly line: number;
+  /** Vertical viewport ratio of the rendered source carrier, when available. */
+  readonly viewportRatio?: number;
+  /** Absolute viewport y coordinate of the rendered source carrier, when available. */
+  readonly viewportY?: number;
+}
+
+export interface VisibleSourcePositionOptions {
+  /**
+   * Vertical viewport ratio to sample inside the editor scroller. Defaults to
+   * 0.5 so hosts can map "the content I am looking at" across read/edit modes.
+   */
+  readonly viewportRatio?: number;
+  /** Absolute viewport x coordinate. Defaults to the editor scroller center. */
+  readonly x?: number;
+  /** Absolute viewport y coordinate. Overrides `viewportRatio` when supplied. */
+  readonly y?: number;
+}
+
+export interface ScrollToSourcePositionOptions extends ScrollToPositionOptions {
+  readonly pos?: number;
+  readonly line?: number;
+  readonly viewportRatio?: number;
+  readonly viewportY?: number;
+  readonly select?: boolean;
 }
 
 export interface MountedEditor {
@@ -113,6 +186,8 @@ export interface MountedEditor {
   setContext: (context: DocumentContext) => void;
   getMode: () => StandaloneEditorMode;
   setMode: (mode: StandaloneEditorMode) => void;
+  getVisibleSourcePosition: (opts?: VisibleSourcePositionOptions) => EditorSourcePosition | null;
+  scrollToSourcePosition: (position: EditorSourcePosition | ScrollToSourcePositionOptions) => void;
   outline: HeadlessPanelStore<readonly OutlineEntry[]>;
   counts: HeadlessPanelStore<Counts>;
   cursorContext: HeadlessPanelStore<CursorContext>;
@@ -127,13 +202,70 @@ export interface MountedEditor {
 }
 
 function toStandaloneMode(mode: string | undefined): StandaloneEditorMode {
-  return mode === "source" ? "source" : "rich";
+  if (mode === "source" || mode === "rich-readonly") return mode;
+  return "rich";
+}
+
+function clampRatio(value: number): number {
+  if (!Number.isFinite(value)) return 0.5;
+  return Math.max(0, Math.min(1, value));
+}
+
+function bibDataFromDocumentContext(context: DocumentContext | undefined): BibData | null {
+  if (!context?.citationFormatter || !context.citationKeys || context.citationKeys.size === 0) {
+    return null;
+  }
+  const store = new Map<string, CslJsonItem>();
+  for (const id of context.citationKeys) {
+    store.set(id, { id, type: "article" });
+  }
+  return { store, formatter: context.citationFormatter };
+}
+
+function applyDocumentContext(view: EditorView, context: DocumentContext): void {
+  setDocumentContext(view, context);
+  const bibData = bibDataFromDocumentContext(context);
+  if (bibData) view.dispatch({ effects: bibDataEffect.of(bibData) });
+}
+
+function getVisibleSourcePosition(
+  view: EditorView,
+  opts: VisibleSourcePositionOptions = {},
+): EditorSourcePosition | null {
+  if (opts.x === undefined && opts.y === undefined) {
+    const renderedPosition = visibleSourcePositionInScroller(view.scrollDOM, { viewportRatio: opts.viewportRatio });
+    if (renderedPosition) {
+      const pos = Math.max(0, Math.min(view.state.doc.length, renderedPosition.pos));
+      return {
+        pos,
+        line: view.state.doc.lineAt(pos).number,
+        viewportRatio: renderedPosition.viewportRatio,
+        viewportY: renderedPosition.viewportY,
+      };
+    }
+  }
+  const rect = view.scrollDOM.getBoundingClientRect();
+  const x = opts.x ?? rect.left + Math.max(1, rect.width / 2);
+  const y = opts.y ?? rect.top + rect.height * clampRatio(opts.viewportRatio ?? 0.5);
+  let rawPos = view.viewport.from;
+  try {
+    rawPos = view.posAtCoords({ x, y }, false) ?? view.viewport.from;
+  } catch (_error) {
+    rawPos = view.viewport.from;
+  }
+  if (!Number.isFinite(rawPos)) return null;
+  const pos = Math.max(0, Math.min(view.state.doc.length, rawPos));
+  return {
+    pos,
+    line: view.state.doc.lineAt(pos).number,
+  };
 }
 
 export function mountEditor(options: MountEditorOptions): MountedEditor {
   const initialDoc = options.doc ?? "";
   const initialMode = options.mode ?? "rich";
-  let currentDoc = initialDoc;
+  const initialSidenotesCollapsed = options.sidenotesCollapsed ?? initialMode === "rich-readonly";
+  let currentDoc: string | null = initialDoc;
   let currentMode: StandaloneEditorMode = "rich";
   let suppressModeCallback = false;
   const panelApi = createPerFilePanelApi();
@@ -142,13 +274,28 @@ export function mountEditor(options: MountEditorOptions): MountedEditor {
 
   const updateListener = EditorView.updateListener.of((update) => {
     if (update.docChanged) {
-      const nextDoc = update.state.doc.toString();
-      currentDoc = nextDoc;
+      currentDoc = null;
       const programmaticDocChange = update.transactions.some((tr) =>
         tr.annotation(programmaticDocumentChangeAnnotation),
       );
-      if (!programmaticDocChange) {
+      let nextDoc: string | null = null;
+      if (!programmaticDocChange && options.onChange) {
+        nextDoc = update.state.doc.toString();
+        currentDoc = nextDoc;
         options.onChange?.(nextDoc);
+      }
+      if (!programmaticDocChange && options.onDocumentChange) {
+        let updateDoc = nextDoc;
+        options.onDocumentChange({
+          changes: update.changes,
+          update,
+          getDoc: () => {
+            if (updateDoc === null) {
+              updateDoc = update.state.doc.toString();
+            }
+            return updateDoc;
+          },
+        });
       }
     }
 
@@ -161,9 +308,13 @@ export function mountEditor(options: MountEditorOptions): MountedEditor {
     }
   });
 
-  let view: EditorView | null = createEditor({
+  const editorConfig: EditorConfig = {
     parent: options.parent,
     doc: initialDoc,
+    pluginPreset: options.pluginPreset ?? "full",
+    plugins: options.plugins,
+    onLazyFeatureReady: options.onLazyFeatureReady,
+    onPluginReady: options.onPluginReady,
     extensions: [
       updateListener,
       panelApi.extension,
@@ -176,7 +327,11 @@ export function mountEditor(options: MountEditorOptions): MountedEditor {
       ...(options.saveHandler
         ? [saveHandlerFacet.of(options.saveHandler)]
         : []),
-      saveExtension(),
+      ...(options.saveHandler
+        ? [saveExtension()]
+        : options.statusEvents?.onDirtyChange
+          ? [dirtyStateExtension()]
+          : []),
       ...(options.assetUploader
         ? [assetUploaderExtension(options.assetUploader)]
         : []),
@@ -187,15 +342,17 @@ export function mountEditor(options: MountEditorOptions): MountedEditor {
           ]
         : []),
       ...(options.from ? [documentPathFacet.of(options.from)] : []),
-      ...(options.sidenotesCollapsed === undefined
-        ? []
-        : [sidenotesCollapsedField.init(() => options.sidenotesCollapsed ?? false)]),
+      ...(options.fileSystem ? [fileSystemFacet.of(options.fileSystem)] : []),
+      [sidenotesCollapsedField.init(() => initialSidenotesCollapsed)],
       ...(options.extensions ?? []),
       ...(options.commands ? [commandRegistryExtension(options.commands)] : []),
       documentContextExtension(options.context),
     ],
-  });
+  };
+  let view: EditorView | null = createEditor(editorConfig);
   panelApi.attach(view);
+  const initialBibData = bibDataFromDocumentContext(options.context);
+  if (initialBibData) view.dispatch({ effects: bibDataEffect.of(initialBibData) });
 
   if (initialMode !== "rich") {
     suppressModeCallback = true;
@@ -209,15 +366,23 @@ export function mountEditor(options: MountEditorOptions): MountedEditor {
 
   return {
     getDoc() {
+      if (currentDoc === null) {
+        currentDoc = view?.state.doc.toString() ?? "";
+      }
       return currentDoc;
     },
 
     setDoc(doc) {
-      currentDoc = doc;
-      if (!view || doc === view.state.doc.toString()) {
+      if (!view || currentDoc === doc) {
+        currentDoc = doc;
+        return;
+      }
+      if (doc.length === view.state.doc.length && doc === view.state.doc.toString()) {
+        currentDoc = doc;
         return;
       }
 
+      currentDoc = doc;
       view.dispatch({
         changes: {
           from: 0,
@@ -232,7 +397,7 @@ export function mountEditor(options: MountEditorOptions): MountedEditor {
 
     setContext(context) {
       if (!view) return;
-      setDocumentContext(view, context);
+      applyDocumentContext(view, context);
     },
 
     getMode() {
@@ -245,6 +410,61 @@ export function mountEditor(options: MountEditorOptions): MountedEditor {
         return;
       }
       setEditorMode(view, mode);
+    },
+
+    getVisibleSourcePosition(opts) {
+      return view ? getVisibleSourcePosition(view, opts) : null;
+    },
+
+    scrollToSourcePosition(position) {
+      if (!view) return;
+      const pos = typeof position.pos === "number"
+        ? position.pos
+        : typeof position.line === "number"
+          ? view.state.doc.line(Math.max(1, Math.min(view.state.doc.lines, position.line))).from
+          : 0;
+      const center = "center" in position ? position.center : true;
+      const target = Math.max(0, Math.min(view.state.doc.length, pos));
+      const select = "select" in position ? position.select !== false : true;
+      view.dispatch({
+        selection: select ? { anchor: target } : undefined,
+        effects: center || !select
+          ? EditorView.scrollIntoView(target, center ? { y: "center" } : undefined)
+          : undefined,
+        scrollIntoView: select && !center,
+      });
+      const viewportY = "viewportY" in position ? position.viewportY : undefined;
+      const viewportRatio = "viewportRatio" in position ? position.viewportRatio : undefined;
+      if (typeof viewportRatio === "number") {
+        const ratio = clampRatio(viewportRatio);
+        const align = () => {
+          if (!view) return;
+          const targetY = typeof viewportY === "number" && Number.isFinite(viewportY) ? viewportY : undefined;
+          const element = sourceElementAtPosition(view.scrollDOM, target);
+          if (element) {
+            const rect = view.scrollDOM.getBoundingClientRect();
+            const elementRect = element.getBoundingClientRect();
+            view.scrollDOM.scrollTop += elementRect.top - (targetY ?? (rect.top + rect.height * ratio));
+            return;
+          }
+          let coords: ReturnType<EditorView["coordsAtPos"]>;
+          try {
+            coords = view.coordsAtPos(target);
+          } catch (_error) {
+            return;
+          }
+          if (!coords) return;
+          const rect = view.scrollDOM.getBoundingClientRect();
+          view.scrollDOM.scrollTop += coords.top - (targetY ?? (rect.top + rect.height * ratio));
+        };
+        let frames = 0;
+        const alignFrame = () => {
+          align();
+          frames += 1;
+          if (frames < 8) requestAnimationFrame(alignFrame);
+        };
+        requestAnimationFrame(alignFrame);
+      }
     },
 
     outline: panelApi.outline,

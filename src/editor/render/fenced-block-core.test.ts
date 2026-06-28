@@ -365,4 +365,5 @@ describe("addCollapsedStructureLine widget", () => {
     const dom = widget.toDOM();
     expect(dom.style.margin).toBe("0px");
   });
+
 });

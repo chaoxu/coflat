@@ -8,7 +8,6 @@
 
 import { STYLED_BLOCK_NAMES } from "../core/constants/block-manifest";
 import {
-  IMAGE_MAX_HEIGHT,
   IMAGE_PREVIEW_RESERVED_HEIGHT,
 } from "../core/constants/layout";
 
@@ -111,8 +110,8 @@ export const blockThemeStyles: Record<string, Record<string, string>> = {
 
   /* Blockquote plugin styling: fenced div blockquote blocks */
   ".cf-doc-block--blockquote": {
-    borderLeft: "var(--cf-border-width-accent) solid var(--cf-blockquote-border)",
-    paddingLeft: "1em",
+    borderLeft: "var(--cf-doc-blockquote-border-width, 3px) solid var(--cf-blockquote-border)",
+    paddingLeft: "var(--cf-doc-blockquote-padding-left, 1em)",
     fontStyle: "italic",
   },
 
@@ -162,7 +161,6 @@ export const blockThemeStyles: Record<string, Record<string, string>> = {
   ".cf-image": {
     display: "block",
     maxWidth: "100%",
-    maxHeight: IMAGE_MAX_HEIGHT,
   },
   ".cf-doc-block--figure .cf-image-wrapper:not(.cf-image-loading):not(.cf-image-placeholder)": {
     display: "block",
@@ -196,6 +194,7 @@ export const blockThemeStyles: Record<string, Record<string, string>> = {
 
   ".cf-table-widget table": {
     borderCollapse: "collapse",
+    margin: "0",
     width: "100%",
     fontSize: "var(--cf-table-font-size, 0.9em)",
   },

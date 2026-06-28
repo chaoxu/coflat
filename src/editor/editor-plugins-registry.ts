@@ -1,9 +1,6 @@
 import type { EditorPlugin } from "./editor-plugin";
 import { focusModeExtension } from "./render/focus-mode";
-import { debugInspectorPlugin } from "./render/debug-inspector";
-import { hoverPreviewExtension } from "./render/hover-preview";
 import { spellcheckExtension } from "./spellcheck";
-import { findReplaceExtension } from "./find-replace";
 import {
   debugInspectorPluginMetadata,
   findReplacePluginMetadata,
@@ -19,12 +16,16 @@ export const focusModePlugin: EditorPlugin = {
 
 export const debugInspectorEditorPlugin: EditorPlugin = {
   ...debugInspectorPluginMetadata,
-  extensions: () => debugInspectorPlugin,
+  loadTiming: "after-mount",
+  readyPhase: "debug-inspector-ready",
+  load: async () => (await import("./render/debug-inspector")).debugInspectorPlugin,
 };
 
 export const hoverPreviewPlugin: EditorPlugin = {
   ...hoverPreviewPluginMetadata,
-  extensions: () => hoverPreviewExtension,
+  loadTiming: "after-mount",
+  readyPhase: "hover-preview-ready",
+  load: async () => (await import("./render/hover-preview")).hoverPreviewExtension,
 };
 
 export const spellcheckPlugin: EditorPlugin = {
@@ -34,7 +35,9 @@ export const spellcheckPlugin: EditorPlugin = {
 
 export const findReplacePlugin: EditorPlugin = {
   ...findReplacePluginMetadata,
-  extensions: () => findReplaceExtension,
+  loadTiming: "after-mount",
+  readyPhase: "find-replace-ready",
+  load: async () => (await import("./find-replace")).findReplaceExtension,
 };
 
 export const defaultEditorPlugins: EditorPlugin[] = [

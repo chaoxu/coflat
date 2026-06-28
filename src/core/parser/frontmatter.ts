@@ -22,8 +22,106 @@ export interface BlockConfig {
 /** How numbered blocks are counted across the document. */
 export type NumberingScheme = "global" | "grouped";
 
+type FrontmatterTextList = string | string[];
+
+interface FrontmatterAffiliation {
+  id?: string;
+  ref?: string;
+  name?: string;
+  department?: string;
+  group?: string;
+  city?: string;
+  state?: string;
+  country?: string;
+  url?: string;
+  [key: string]: unknown;
+}
+
+type FrontmatterAffiliationValue =
+  | string
+  | FrontmatterAffiliation
+  | Array<string | FrontmatterAffiliation>;
+
+interface FrontmatterAuthor {
+  id?: string;
+  name?: string | Record<string, unknown>;
+  email?: string;
+  phone?: string;
+  fax?: string;
+  url?: string;
+  degrees?: FrontmatterTextList;
+  orcid?: string;
+  note?: string;
+  acknowledgements?: string;
+  funding?: string;
+  corresponding?: boolean;
+  affiliation?: FrontmatterAffiliationValue;
+  "affiliation-url"?: string;
+  [key: string]: unknown;
+}
+
+type FrontmatterAuthorValue =
+  | string
+  | FrontmatterAuthor
+  | Array<string | FrontmatterAuthor>;
+
+type FrontmatterCopyright =
+  | string
+  | {
+    statement?: string;
+    holder?: string;
+    year?: string | number | Array<string | number>;
+    [key: string]: unknown;
+  };
+
+type FrontmatterLicense =
+  | string
+  | {
+    text?: string;
+    type?: string;
+    url?: string;
+    [key: string]: unknown;
+  };
+
+type FrontmatterCitation = boolean | Record<string, unknown>;
+
+interface FrontmatterTitleBlockConfig {
+  style?: string;
+  banner?: boolean | string;
+  bannerColor?: string;
+  labels?: {
+    abstract?: string;
+    author?: string;
+    affiliation?: string;
+    description?: string;
+    published?: string;
+    doi?: string;
+  };
+}
+
 export interface FrontmatterConfig {
   title?: string;
+  subtitle?: string;
+  description?: string;
+  abstract?: string;
+  date?: string;
+  doi?: string;
+  author?: FrontmatterAuthorValue;
+  affiliations?: FrontmatterAffiliationValue;
+  keywords?: string[];
+  funding?: string;
+  acknowledgements?: string;
+  relatedversion?: string;
+  copyright?: FrontmatterCopyright;
+  license?: FrontmatterLicense;
+  citation?: FrontmatterCitation;
+  googleScholar?: boolean;
+  dateFormat?: string;
+  titleBlock?: FrontmatterTitleBlockConfig;
+  titlerunning?: string;
+  authorrunning?: string;
+  category?: string;
+  ccsdesc?: Array<Record<string, unknown>>;
   bibliography?: string;
   csl?: string;
   latex?: {
@@ -175,6 +273,31 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+function isStringRecordArray(value: unknown): value is Array<string | Record<string, unknown>> {
+  return Array.isArray(value) && value.every((item) => typeof item === "string" || isRecord(item));
+}
+
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((item) => typeof item === "string");
+}
+
+function metadataObjectOrString<T extends Record<string, unknown>>(
+  value: unknown,
+): string | T | undefined {
+  if (typeof value === "string") return value;
+  if (isRecord(value)) return value as T;
+  return undefined;
+}
+
+function metadataObjectStringOrList<T extends Record<string, unknown>>(
+  value: unknown,
+): string | T | Array<string | T> | undefined {
+  if (typeof value === "string") return value;
+  if (isRecord(value)) return value as T;
+  if (isStringRecordArray(value)) return value as Array<string | T>;
+  return undefined;
+}
+
 function errorMessage(error: unknown): string {
   return error instanceof Error && error.message ? error.message : "Invalid YAML frontmatter";
 }
@@ -276,8 +399,83 @@ export function parseFrontmatter(doc: string): FrontmatterResult {
   const config: FrontmatterConfig = {};
 
   // String fields
-  for (const key of ["title", "bibliography", "csl"] as const) {
+  for (const key of [
+    "title",
+    "subtitle",
+    "description",
+    "abstract",
+    "date",
+    "doi",
+    "funding",
+    "acknowledgements",
+    "relatedversion",
+    "titlerunning",
+    "authorrunning",
+    "category",
+    "bibliography",
+    "csl",
+  ] as const) {
     if (typeof raw[key] === "string") config[key] = raw[key] as string;
+  }
+
+  // Quarto-compatible article metadata aliases and display options.
+  const author = metadataObjectStringOrList<FrontmatterAuthor>(raw["author"] ?? raw["authors"]);
+  if (author !== undefined) config.author = author;
+
+  const affiliations = metadataObjectStringOrList<FrontmatterAffiliation>(
+    raw["affiliations"] ?? raw["affiliation"],
+  );
+  if (affiliations !== undefined) config.affiliations = affiliations;
+
+  if (isStringArray(raw["keywords"])) config.keywords = raw["keywords"];
+
+  const copyright = metadataObjectOrString<Exclude<FrontmatterCopyright, string>>(raw["copyright"]);
+  if (copyright !== undefined) config.copyright = copyright;
+
+  const license = metadataObjectOrString<Exclude<FrontmatterLicense, string>>(raw["license"]);
+  if (license !== undefined) config.license = license;
+
+  const citation = raw["citation"];
+  if (typeof citation === "boolean" || isRecord(citation)) config.citation = citation;
+
+  if (typeof raw["google-scholar"] === "boolean") config.googleScholar = raw["google-scholar"];
+  if (typeof raw["date-format"] === "string") config.dateFormat = raw["date-format"];
+  const titleBlock: FrontmatterTitleBlockConfig = {};
+  if (typeof raw["title-block-style"] === "string") {
+    titleBlock.style = raw["title-block-style"];
+  }
+  const titleBlockBanner = raw["title-block-banner"];
+  if (typeof titleBlockBanner === "boolean" || typeof titleBlockBanner === "string") {
+    titleBlock.banner = titleBlockBanner;
+  }
+  if (typeof raw["title-block-banner-color"] === "string") {
+    titleBlock.bannerColor = raw["title-block-banner-color"];
+  }
+  for (const [yamlKey, configKey] of [
+    ["abstract-title", "abstract"],
+    ["author-title", "author"],
+    ["affiliation-title", "affiliation"],
+    ["description-title", "description"],
+    ["published-title", "published"],
+    ["doi-title", "doi"],
+  ] as const) {
+    if (typeof raw[yamlKey] === "string") {
+      titleBlock.labels = {
+        ...titleBlock.labels,
+        [configKey]: raw[yamlKey],
+      };
+    }
+  }
+  if (
+    titleBlock.style !== undefined ||
+    titleBlock.banner !== undefined ||
+    titleBlock.bannerColor !== undefined ||
+    titleBlock.labels !== undefined
+  ) {
+    config.titleBlock = titleBlock;
+  }
+  if (Array.isArray(raw["ccsdesc"]) && raw["ccsdesc"].every(isRecord)) {
+    config.ccsdesc = raw["ccsdesc"];
   }
 
   // LaTeX export options.
@@ -289,6 +487,9 @@ export function parseFrontmatter(doc: string): FrontmatterResult {
     }
     if (typeof latex["template"] === "string") {
       latexConfig.template = latex["template"];
+    }
+    if (typeof latex["csl"] === "string") {
+      latexConfig.csl = latex["csl"];
     }
     if (Object.keys(latexConfig).length > 0) {
       config.latex = latexConfig;
