@@ -20,6 +20,7 @@ import {
 } from "../../core/math-inline-surface";
 import {
   createImageSurfaceElement,
+  createPdfSurfaceElement,
   isUnresolvedLocalMediaUrl,
   mediaKindForSrc,
   renderMediaLoadingInto,
@@ -353,9 +354,11 @@ function renderFragment(
           renderedSrc = referenceContext?.imageUrlOverrides?.get(resolvedPath) ?? "";
         }
         if (renderedSrc) {
-          const image = createImageSurfaceElement(document, "span", renderedSrc, fragment.rawAlt);
-          applyFragmentSourceAttrs(image, fragment, options, true);
-          container.appendChild(image);
+          const media = mediaKindForSrc(renderedSrc) === "pdf" && !isUnresolvedLocalMediaUrl(renderedSrc)
+            ? createPdfSurfaceElement(document, "span", renderedSrc, fragment.rawAlt)
+            : createImageSurfaceElement(document, "span", renderedSrc, fragment.rawAlt);
+          applyFragmentSourceAttrs(media, fragment, options, true);
+          container.appendChild(media);
           return;
         }
         const loading = document.createElement("span");

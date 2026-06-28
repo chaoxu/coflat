@@ -78,6 +78,27 @@ export function createImageSurfaceElement(
   return wrapper;
 }
 
+export function createPdfSurfaceElement(
+  ownerDocument: Document,
+  tagName: MediaWrapperTag,
+  src: string,
+  alt: string,
+): HTMLElement {
+  const wrapper = createMediaWrapperElement(ownerDocument, tagName);
+  const object = ownerDocument.createElement("object");
+  const label = alt || "PDF preview";
+  object.className = `${CSS.image} cf-pdf-preview`;
+  object.data = src;
+  object.type = "application/pdf";
+  object.setAttribute("aria-label", label);
+  const fallback = ownerDocument.createElement("a");
+  fallback.href = src;
+  fallback.textContent = label;
+  object.appendChild(fallback);
+  wrapper.appendChild(object);
+  return wrapper;
+}
+
 export function renderImageSurfaceHtml(
   src: string,
   alt: string,
