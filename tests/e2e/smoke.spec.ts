@@ -2204,6 +2204,14 @@ test("article metadata frontmatter keeps current title presentation aligned", as
     await expect(title.locator(".katex")).toBeVisible();
   }
 
+  for (const selector of ["#reader-root .cf-doc-abstract", "#editor-root .cf-doc-abstract"]) {
+    const abstract = page.locator(selector);
+    await expect(abstract).toHaveCount(1);
+    await expect(abstract.locator(".cf-doc-abstract-label")).toContainText("Abstract");
+    await expect(abstract).toContainText("A richer article abstract with math");
+    await expect(abstract.locator(".katex")).toBeVisible();
+  }
+
   await expect(page.locator("#reader-root")).not.toContainText("Short presentation summary");
   await expect(page.locator("#editor-root")).not.toContainText("Short presentation summary");
   await expectLoadedSplitContentPixelsMatch(page, "article metadata frontmatter");

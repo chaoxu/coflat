@@ -90,6 +90,21 @@ export function renderImageSurfaceHtml(
   );
 }
 
+export function renderPdfSurfaceHtml(
+  src: string,
+  alt: string,
+  attrs = "",
+): string {
+  const label = alt || "PDF preview";
+  return (
+    `<span class="${CSS.imageWrapper}"${attrs}>` +
+    `<object class="${CSS.image} cf-pdf-preview" data="${escapeHtml(src)}" type="application/pdf" aria-label="${escapeHtml(label)}">` +
+    `<a href="${escapeHtml(src)}">${escapeHtml(label)}</a>` +
+    `</object>` +
+    `</span>`
+  );
+}
+
 export function renderMediaLoadingHtml(
   src: string,
   alt: string,

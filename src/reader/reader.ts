@@ -179,8 +179,10 @@ import { renderInlineMathPlaceholderHtml } from "../core/math-inline-surface";
 import { displayMathLatexRange } from "../core/math-source";
 import {
   isUnresolvedLocalMediaUrl,
+  mediaKindForSrc,
   renderImageSurfaceHtml,
   renderMediaLoadingHtml,
+  renderPdfSurfaceHtml,
   syncInlineImageSizeOnLoad,
 } from "../core/media-surface";
 import { renderParagraphHtml } from "../core/paragraph-surface";
@@ -971,6 +973,8 @@ function renderInlineFragmentsForReader(
             : escapeHtml(alt);
         } else if (isUnresolvedLocalMediaUrl(src)) {
           html += renderMediaLoadingHtml(src, alt, sourceAttrsFor(fragment));
+        } else if (mediaKindForSrc(src) === "pdf") {
+          html += renderPdfSurfaceHtml(src, alt, sourceAttrsFor(fragment));
         } else {
           html += renderImageSurfaceHtml(src, alt, sourceAttrsFor(fragment));
         }
@@ -1849,10 +1853,16 @@ function walkDocument(
     // (like fenced-div block titles and the editor's title widget), not as a
     // full block document, so it never sprouts headings/lists/paragraphs.
     const renderedTitle = renderInlineSnippet(ctx, title);
+    const abstract = frontmatter.config.abstract;
+    const renderedAbstract = abstract !== undefined ? renderInlineSnippet(ctx, abstract) : null;
+    const label = frontmatter.config.titleBlock?.labels?.abstract ?? "Abstract";
+    const abstractHtml = renderedAbstract
+      ? `<div class="${CSS.docAbstract}"><div class="${CSS.docAbstractLabel}">${escapeHtml(label)}</div><div class="${CSS.docAbstractBody}">${renderedAbstract.html}</div></div>`
+      : "";
     blocks.push({
-      html: `<div class="${CSS.docTitle}"${blockSourceAttrs(ctx, 0, frontmatterEnd, "document-title")}>${renderedTitle.html}</div>`,
-      text: title,
-      hasMath: renderedTitle.hasMath,
+      html: `<div class="${CSS.docHeader}"${blockSourceAttrs(ctx, 0, frontmatterEnd, "document-title")}><div class="${CSS.docTitle}">${renderedTitle.html}</div>${abstractHtml}</div>`,
+      text: abstract !== undefined ? `${title}\n${label}\n${abstract}` : title,
+      hasMath: renderedTitle.hasMath || Boolean(renderedAbstract?.hasMath),
     });
   }
   let topCount = blocks.length;
@@ -2000,14 +2010,14 @@ const ALLOWED_TAGS = [
   "blockquote",
   "pre", "code",
   "em", "strong", "del", "mark", "i", "b",
-  "a", "img", "button",
+  "a", "img", "object", "button",
   "hr",
   "table", "thead", "tbody", "tr", "th", "td",
   "sup", "sub",
   "input",
 ];
 const ALLOWED_ATTR = [
-  "href", "src", "alt", "title", "class", "id", "start", "open",
+  "href", "src", "data", "alt", "title", "class", "id", "start", "open",
   "type", "checked", "disabled", "tabindex", "aria-disabled", "aria-expanded", "aria-label",
   "data-math", "data-lang", "data-checked", "data-align",
   "data-ref-key", "data-ref-mode", "data-source-line",
@@ -2030,6 +2040,8 @@ function getPurify(): ReturnType<typeof createDOMPurify> | null {
       if (href && !isSafeUrl(href)) node.removeAttribute("href");
       const src = node.getAttribute("src");
       if (src && !isSafeUrl(src)) node.removeAttribute("src");
+      const data = node.getAttribute("data");
+      if (data && !isSafeUrl(data)) node.removeAttribute("data");
     });
     _purify = p;
     return p;

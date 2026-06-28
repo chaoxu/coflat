@@ -13,6 +13,11 @@ const inlineSourceTypography = {
  * header markers, horizontal rules, hidden markers, lists, and highlights.
  */
 export const typographyThemeStyles = {
+  ".cf-doc-header": {
+    display: "block",
+    marginBottom: "var(--cf-spacing-md)",
+  },
+
   /* Document title from frontmatter — distinct from # section headings.
    * Scaled down to academic proportions (was 2.4em, now 1.6em). */
   ".cf-doc-title": {
@@ -26,6 +31,42 @@ export const typographyThemeStyles = {
     display: "block",
     cursor: "text",
     userSelect: "text",
+  },
+
+  ".cf-doc-abstract": {
+    marginTop: "var(--cf-spacing-sm)",
+    color: "var(--cf-fg)",
+  },
+
+  ".cf-doc-abstract-label": {
+    fontFamily: "var(--cf-ui-font, ui-sans-serif, system-ui, sans-serif)",
+    fontSize: "0.76em",
+    fontWeight: "650",
+    letterSpacing: "0.08em",
+    lineHeight: "1.4",
+    marginBottom: "0.25em",
+    textTransform: "uppercase",
+    color: "var(--cf-muted)",
+  },
+
+  ".cf-doc-abstract-body": {
+    fontSize: "0.98em",
+    lineHeight: "1.55",
+    color: "var(--cf-fg)",
+  },
+
+  ".cf-doc-abstract-editor": {
+    width: "100%",
+    minHeight: "72px",
+    resize: "vertical",
+    boxSizing: "border-box",
+    border: "var(--cf-border-width) solid var(--cf-border)",
+    borderRadius: "var(--cf-radius-sm)",
+    background: "var(--cf-bg)",
+    color: "var(--cf-fg)",
+    font: "inherit",
+    lineHeight: "1.55",
+    padding: "var(--cf-spacing-xs) var(--cf-spacing-sm)",
   },
 
   /* Frontmatter YAML lines — monospace when editing (structured data, not prose) */
