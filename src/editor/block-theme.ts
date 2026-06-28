@@ -162,6 +162,14 @@ export const blockThemeStyles: Record<string, Record<string, string>> = {
     display: "block",
     maxWidth: "100%",
   },
+  ".cf-pdf-preview": {
+    width: "min(100%, 900px)",
+    height: "min(72vh, 720px)",
+    minHeight: "360px",
+    border: "var(--cf-border-width) solid var(--cf-border)",
+    borderRadius: "var(--cf-border-radius)",
+    background: "var(--cf-bg)",
+  },
   ".cf-doc-block--figure .cf-image-wrapper:not(.cf-image-loading):not(.cf-image-placeholder)": {
     display: "block",
     width: "fit-content",

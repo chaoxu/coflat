@@ -205,6 +205,11 @@ export const CSS = {
 
   /** Document title from frontmatter. */
   docTitle: "cf-doc-title",
+  docHeader: "cf-doc-header",
+  docAbstract: "cf-doc-abstract",
+  docAbstractLabel: "cf-doc-abstract-label",
+  docAbstractBody: "cf-doc-abstract-body",
+  docAbstractEditor: "cf-doc-abstract-editor",
 
   /** Hidden elements (markers, URLs, etc. collapsed when cursor is away). */
   hidden: "cf-hidden",

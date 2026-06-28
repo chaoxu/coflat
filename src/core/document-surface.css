@@ -329,6 +329,11 @@
   font-weight: var(--cf-h6-weight, 600);
 }
 
+.cf-doc-header {
+  display: block;
+  margin-bottom: var(--cf-spacing-md);
+}
+
 .cf-doc-title {
   font-size: 1.6em;
   font-weight: 700;
@@ -340,6 +345,42 @@
   display: block;
   cursor: text;
   user-select: text;
+}
+
+.cf-doc-abstract {
+  margin-top: var(--cf-spacing-sm);
+  color: var(--cf-fg);
+}
+
+.cf-doc-abstract-label {
+  font-family: var(--cf-ui-font, ui-sans-serif, system-ui, sans-serif);
+  font-size: 0.76em;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  line-height: 1.4;
+  margin-bottom: 0.25em;
+  text-transform: uppercase;
+  color: var(--cf-muted);
+}
+
+.cf-doc-abstract-body {
+  font-size: 0.98em;
+  line-height: 1.55;
+  color: var(--cf-fg);
+}
+
+.cf-doc-abstract-editor {
+  width: 100%;
+  min-height: 72px;
+  resize: vertical;
+  box-sizing: border-box;
+  border: var(--cf-border-width) solid var(--cf-border);
+  border-radius: var(--cf-radius-sm);
+  background: var(--cf-bg);
+  color: var(--cf-fg);
+  font: inherit;
+  line-height: 1.55;
+  padding: var(--cf-spacing-xs) var(--cf-spacing-sm);
 }
 
 .cf-reader .cf-doc-heading:not(.cf-doc-heading--unnumbered)::before {

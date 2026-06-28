@@ -9,6 +9,7 @@ import {
   mediaKindForSrc,
   mediaLoadingLabel,
   renderImagePlaceholderInto,
+  renderPdfSurfaceHtml,
   renderImageSurfaceHtml,
   renderMediaLoadingHtml,
   renderMediaLoadingInto,
@@ -33,6 +34,9 @@ describe("media surface", () => {
   it("renders reader image and loading HTML with the same class contract", () => {
     expect(renderImageSurfaceHtml("figure.png", "Figure")).toBe(
       '<span class="cf-image-wrapper"><img class="cf-image" src="figure.png" alt="Figure"></span>',
+    );
+    expect(renderPdfSurfaceHtml('paper"1.pdf', "Paper <1>")).toBe(
+      '<span class="cf-image-wrapper"><object class="cf-image cf-pdf-preview" data="paper&quot;1.pdf" type="application/pdf" aria-label="Paper &lt;1&gt;"><a href="paper&quot;1.pdf">Paper &lt;1&gt;</a></object></span>',
     );
     expect(renderMediaLoadingHtml("figure.pdf", "")).toBe(
       '<span class="cf-image-wrapper cf-image-loading">[Loading PDF: preview]</span>',

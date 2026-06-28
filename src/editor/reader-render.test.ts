@@ -107,12 +107,34 @@ describe("renderToHtml — slow path (Lezer)", () => {
   it("omits YAML frontmatter from document rendering", () => {
     const source = "---\ntitle: Hidden\nstatus: accepted\n---\n# Visible\n\nbody";
     const r = renderToHtml(source, undefined, { sourcePositions: true });
+    expect(r.html).toContain('class="cf-doc-header"');
     expect(r.html).toContain('class="cf-doc-title"');
     expect(r.html).toContain(">Hidden</div>");
     expect(r.html).toContain("Visible");
     expect(r.html).toContain("body");
     expect(r.html).not.toContain("status: accepted");
     expect(r.html).toContain(`data-source-from="${source.indexOf("# Visible")}"`);
+  });
+
+  it("renders frontmatter abstract in the article header", () => {
+    const source = [
+      "---",
+      "title: Article",
+      "abstract-title: Summary",
+      "abstract: |",
+      "  A richer abstract with $x^2$.",
+      "---",
+      "",
+      "Body",
+    ].join("\n");
+    const r = renderToHtml(source);
+
+    expect(r.html).toContain('class="cf-doc-header"');
+    expect(r.html).toContain('class="cf-doc-abstract"');
+    expect(r.html).toContain('class="cf-doc-abstract-label">Summary</div>');
+    expect(r.html).toContain("A richer abstract");
+    expect(r.html).toContain('data-math="x^2"');
+    expect(r.hasMath).toBe(true);
   });
 
   it("surfaces frontmatter `math:` macros as result.mathMacros", () => {
@@ -318,6 +340,18 @@ describe("renderToHtml — slow path (Lezer)", () => {
     const r = renderToHtml("![Paper](figures/paper.pdf)", ctx, { documentPath: "posts/math.md" });
     expect(seen).toEqual(["display:posts/figures/paper.pdf"]);
     expect(r.html).toContain('src="https://cdn/posts/figures/paper.png"');
+  });
+
+  it("renders PDF image assets as embedded PDF objects when no image preview is available", () => {
+    const ctx = {
+      fileSystem: {
+        resolveAssetUrl: (path: string) => `https://cdn/${path}`,
+      } as unknown as FileSystem,
+    };
+    const r = renderToHtml("![Paper](figures/paper.pdf)", ctx, { documentPath: "posts/math.md" });
+    expect(r.html).toContain('data="https://cdn/posts/figures/paper.pdf"');
+    expect(r.html).toContain('type="application/pdf"');
+    expect(r.html).not.toContain('<img class="cf-image" src="https://cdn/posts/figures/paper.pdf"');
   });
 
   it("resolves root-relative reader image assets from the workspace root", () => {

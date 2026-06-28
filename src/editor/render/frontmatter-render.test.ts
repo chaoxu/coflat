@@ -1,4 +1,5 @@
 import { EditorState } from "@codemirror/state";
+import { EditorView } from "@codemirror/view";
 import { describe, expect, it } from "vitest";
 
 import { frontmatterDecoration, frontmatterDecorationField } from "./frontmatter-render";
@@ -17,12 +18,14 @@ function createState(doc: string): EditorState {
   });
 }
 
-function getTitleWidget(state: EditorState): { eq(other: unknown): boolean } {
+function getArticleHeaderWidget(
+  state: EditorState,
+): { eq(other: unknown): boolean; toDOM(view?: EditorView): HTMLElement } {
   const iter = state.field(frontmatterDecorationField).iter();
-  const widget = iter.value?.spec.widget as { eq(other: unknown): boolean } | undefined;
+  const widget = iter.value?.spec.widget as { eq(other: unknown): boolean; toDOM(): HTMLElement } | undefined;
   expect(widget).toBeDefined();
   if (!widget) {
-    throw new Error("expected frontmatter title widget");
+    throw new Error("expected frontmatter article header widget");
   }
   return widget;
 }
@@ -68,13 +71,13 @@ describe("frontmatterDecoration", () => {
       "Content",
     ].join("\n");
     const state = createState(originalDoc);
-    const oldWidget = getTitleWidget(state);
+    const oldWidget = getArticleHeaderWidget(state);
 
     const nextDoc = originalDoc.replace("\\mathbb{R}", "\\mathbf{R}");
     const tr = state.update({
       changes: { from: 0, to: originalDoc.length, insert: nextDoc },
     });
-    const newWidget = getTitleWidget(tr.state);
+    const newWidget = getArticleHeaderWidget(tr.state);
 
     expect(oldWidget.eq(newWidget)).toBe(false);
   });
@@ -82,12 +85,12 @@ describe("frontmatterDecoration", () => {
   it("maps the title widget through edits after frontmatter instead of rebuilding it", () => {
     const doc = "---\ntitle: Hello\n---\nContent";
     const state = createState(doc);
-    const oldWidget = getTitleWidget(state);
+    const oldWidget = getArticleHeaderWidget(state);
 
     const tr = state.update({
       changes: { from: doc.length, insert: " more" },
     });
-    const newWidget = getTitleWidget(tr.state);
+    const newWidget = getArticleHeaderWidget(tr.state);
 
     expect(newWidget).toBe(oldWidget);
   });
@@ -101,7 +104,48 @@ describe("frontmatterDecoration", () => {
     });
     const iter = state.field(frontmatterDecorationField).iter();
 
-    expect(iter.value?.spec.widget?.constructor?.name).toBe("TitleWidget");
+    expect(iter.value?.spec.widget?.constructor?.name).toBe("ArticleHeaderWidget");
+  });
+
+  it("renders the frontmatter abstract in the article header widget", () => {
+    const state = createState("---\ntitle: Hello\nabstract: |\n  Short $x^2$ abstract.\nabstract-title: Summary\n---\nContent");
+    const widget = getArticleHeaderWidget(state);
+    const dom = widget.toDOM();
+
+    expect(dom.querySelector(".cf-doc-title")?.textContent).toContain("Hello");
+    expect(dom.querySelector(".cf-doc-abstract-label")?.textContent).toBe("Summary");
+    expect(dom.querySelector(".cf-doc-abstract-body")?.textContent).toContain("Short");
+    expect(dom.querySelector(".cf-doc-abstract-body .katex")).not.toBeNull();
+  });
+
+  it("edits the frontmatter abstract through the article header widget", () => {
+    const parent = document.createElement("div");
+    document.body.appendChild(parent);
+    const view = new EditorView({
+      state: createState("---\ntitle: Hello\nabstract: |\n  Old abstract.\n---\nContent"),
+      parent,
+    });
+    try {
+      const widget = getArticleHeaderWidget(view.state);
+      const dom = widget.toDOM(view);
+      const body = dom.querySelector<HTMLElement>(".cf-doc-abstract-body");
+      expect(body).not.toBeNull();
+      body?.click();
+
+      const textarea = body?.querySelector<HTMLTextAreaElement>("textarea");
+      expect(textarea).not.toBeNull();
+      if (!textarea) throw new Error("expected abstract editor");
+      textarea.value = "New abstract.\nWith a second line.";
+      textarea.dispatchEvent(new Event("blur"));
+
+      expect(view.state.doc.toString()).toContain(
+        "abstract: |\n  New abstract.\n  With a second line.\n",
+      );
+      expect(view.state.doc.toString()).not.toContain("Old abstract");
+    } finally {
+      view.destroy();
+      parent.remove();
+    }
   });
 
   it("reveals raw YAML only when frontmatter structure edit is active", () => {

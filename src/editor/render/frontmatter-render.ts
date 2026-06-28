@@ -6,7 +6,7 @@
  * entirely when there is no title).
  */
 import { EditorState, type Extension, type Range } from "@codemirror/state";
-import { Decoration, DecorationSet } from "@codemirror/view";
+import { Decoration, DecorationSet, type EditorView } from "@codemirror/view";
 import { renderDocumentFragmentToDom } from "../document-surfaces";
 import { CSS } from "../../core/constants/css-classes";
 
@@ -25,10 +25,95 @@ import {
 } from "../state/cm-structure-edit";
 import { isFrontmatterActive } from "../state/shell-ownership";
 
-/** Widget that renders the document title from frontmatter. */
-class TitleWidget extends ShellMacroAwareWidget {
+interface YamlKeyRange {
+  readonly from: number;
+  readonly to: number;
+}
+
+function findLineEnd(doc: string, from: number): { lineEnd: number; next: number } {
+  const lineFeed = doc.indexOf("\n", from);
+  if (lineFeed === -1) return { lineEnd: doc.length, next: doc.length };
+  const lineEnd = lineFeed > from && doc[lineFeed - 1] === "\r" ? lineFeed - 1 : lineFeed;
+  return { lineEnd, next: lineFeed + 1 };
+}
+
+function frontmatterBodyStart(doc: string): number | null {
+  if (!doc.startsWith("---")) return null;
+  const opening = findLineEnd(doc, 0);
+  return opening.next < doc.length ? opening.next : null;
+}
+
+function frontmatterClosingStart(doc: string, frontmatterEnd: number): number {
+  let closingEnd = frontmatterEnd;
+  if (closingEnd > 0 && doc[closingEnd - 1] === "\n") closingEnd -= 1;
+  if (closingEnd > 0 && doc[closingEnd - 1] === "\r") closingEnd -= 1;
+  const previousLineBreak = doc.lastIndexOf("\n", closingEnd - 1);
+  return previousLineBreak < 0 ? 0 : previousLineBreak + 1;
+}
+
+function topLevelYamlKey(line: string): string | null {
+  if (/^\s/.test(line)) return null;
+  const match = /^([A-Za-z0-9_-]+)\s*:/.exec(line);
+  return match?.[1] ?? null;
+}
+
+function findFrontmatterKeyRange(
+  doc: string,
+  frontmatterEnd: number,
+  key: string,
+): YamlKeyRange | null {
+  const bodyStart = frontmatterBodyStart(doc);
+  if (bodyStart === null || frontmatterEnd <= bodyStart) return null;
+  const closingStart = frontmatterClosingStart(doc, frontmatterEnd);
+  let pos = bodyStart;
+  while (pos < closingStart) {
+    const line = findLineEnd(doc, pos);
+    const lineText = doc.slice(pos, line.lineEnd);
+    const lineKey = topLevelYamlKey(lineText);
+    if (lineKey === key) {
+      let to = line.next;
+      while (to < closingStart) {
+        const nextLine = findLineEnd(doc, to);
+        const nextText = doc.slice(to, nextLine.lineEnd);
+        const nextKey = topLevelYamlKey(nextText);
+        if (nextKey !== null) break;
+        to = nextLine.next;
+      }
+      return { from: pos, to };
+    }
+    pos = line.next;
+  }
+  return null;
+}
+
+function yamlBlockScalar(key: string, value: string): string {
+  const lines = value.replace(/\r\n?/g, "\n").split("\n");
+  return `${key}: |\n${lines.map((line) => line.length === 0 ? "" : `  ${line}`).join("\n")}\n`;
+}
+
+function updateFrontmatterStringField(
+  doc: string,
+  frontmatterEnd: number,
+  key: string,
+  value: string,
+): { from: number; to: number; insert: string } | null {
+  const bodyStart = frontmatterBodyStart(doc);
+  if (bodyStart === null || frontmatterEnd <= bodyStart) return null;
+  const replacement = yamlBlockScalar(key, value);
+  const existing = findFrontmatterKeyRange(doc, frontmatterEnd, key);
+  if (existing) return { ...existing, insert: replacement };
+
+  const title = findFrontmatterKeyRange(doc, frontmatterEnd, "title");
+  const insertAt = title?.to ?? bodyStart;
+  return { from: insertAt, to: insertAt, insert: replacement };
+}
+
+/** Widget that renders article frontmatter fields. */
+class ArticleHeaderWidget extends ShellMacroAwareWidget {
   constructor(
     private readonly title: string,
+    private readonly abstract: string | undefined,
+    private readonly abstractLabel: string,
     private readonly macros: Record<string, string>,
     private readonly active: boolean = false,
   ) {
@@ -38,33 +123,154 @@ class TitleWidget extends ShellMacroAwareWidget {
   createDOM(): HTMLElement {
     return this.createCachedDOM(() => {
       const el = document.createElement("div");
-      el.className = this.active ? `${CSS.docTitle} ${CSS.activeShellWidget}` : CSS.docTitle;
-      renderDocumentFragmentToDom(el, {
+      el.className = this.active ? `${CSS.docHeader} ${CSS.activeShellWidget}` : CSS.docHeader;
+
+      const titleEl = document.createElement("div");
+      titleEl.className = CSS.docTitle;
+      renderDocumentFragmentToDom(titleEl, {
         kind: "title",
         text: this.title,
         macros: this.macros,
       });
+      el.appendChild(titleEl);
+
+      if (this.abstract !== undefined) {
+        el.appendChild(this.createAbstractDom());
+      }
+
       return el;
     });
   }
 
-  eq(other: TitleWidget): boolean {
+  private createAbstractDom(): HTMLElement {
+    const section = document.createElement("div");
+    section.className = CSS.docAbstract;
+
+    const label = document.createElement("div");
+    label.className = CSS.docAbstractLabel;
+    label.textContent = this.abstractLabel;
+    section.appendChild(label);
+
+    const body = document.createElement("div");
+    body.className = CSS.docAbstractBody;
+    renderDocumentFragmentToDom(body, {
+      kind: "title",
+      text: this.abstract ?? "",
+      macros: this.macros,
+    });
+    section.appendChild(body);
+    return section;
+  }
+
+  eq(other: ArticleHeaderWidget): boolean {
     return (
       this.title === other.title &&
+      this.abstract === other.abstract &&
+      this.abstractLabel === other.abstractLabel &&
       this.macrosKey === other.macrosKey &&
       this.active === other.active
     );
   }
 
+  override toDOM(view?: EditorView): HTMLElement {
+    const el = this.createDOM();
+    this.syncWidgetAttrs(el, view);
+    const title = el.querySelector<HTMLElement>(`.${CSS.docTitle}`);
+    if (title && view) {
+      this.bindSourceReveal(title, view);
+    }
+    const abstract = el.querySelector<HTMLElement>(`.${CSS.docAbstract}`);
+    if (abstract && view) {
+      this.bindAbstractEditor(abstract, view);
+    }
+    return el;
+  }
+
   protected override bindSourceReveal(
     el: HTMLElement,
-    view: import("@codemirror/view").EditorView,
+    view: EditorView,
   ): void {
     el.style.cursor = "pointer";
     el.addEventListener("mousedown", (event) => {
       event.preventDefault();
+      event.stopPropagation();
       view.focus();
       activateFrontmatterStructureEdit(view);
+    });
+  }
+
+  private bindAbstractEditor(section: HTMLElement, view: EditorView): void {
+    const body = section.querySelector<HTMLElement>(`.${CSS.docAbstractBody}`);
+    if (!body) return;
+    body.style.cursor = "text";
+    body.addEventListener("mousedown", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+    });
+    body.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      this.beginAbstractEdit(body, view);
+    });
+  }
+
+  private beginAbstractEdit(body: HTMLElement, view: EditorView): void {
+    const textarea = document.createElement("textarea");
+    textarea.className = CSS.docAbstractEditor;
+    textarea.value = this.abstract ?? "";
+    body.replaceChildren(textarea);
+    textarea.focus();
+    textarea.setSelectionRange(0, textarea.value.length);
+
+    const autosize = () => {
+      textarea.style.height = "auto";
+      textarea.style.height = `${Math.max(72, textarea.scrollHeight)}px`;
+    };
+    autosize();
+    textarea.addEventListener("input", autosize);
+
+    let committed = false;
+    const commit = () => {
+      if (committed) return;
+      committed = true;
+      const frontmatter = view.state.field(frontmatterField, false);
+      const change = frontmatter
+        ? updateFrontmatterStringField(
+          view.state.doc.toString(),
+          frontmatter.end,
+          "abstract",
+          textarea.value,
+        )
+        : null;
+      if (change) {
+        view.dispatch({
+          changes: change,
+          scrollIntoView: false,
+        });
+      }
+      view.focus();
+    };
+    const cancel = () => {
+      if (committed) return;
+      committed = true;
+      renderDocumentFragmentToDom(body, {
+        kind: "title",
+        text: this.abstract ?? "",
+        macros: this.macros,
+      });
+      view.focus();
+    };
+
+    textarea.addEventListener("blur", commit);
+    textarea.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        cancel();
+      }
+      if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+        event.preventDefault();
+        commit();
+      }
     });
   }
 }
@@ -158,7 +364,13 @@ function buildDecorations(state: EditorState): DecorationSet {
 
   if (config.title) {
     const macros = config.math ?? {};
-    const widget = new TitleWidget(config.title, macros, active);
+    const widget = new ArticleHeaderWidget(
+      config.title,
+      config.abstract,
+      config.titleBlock?.labels?.abstract ?? "Abstract",
+      macros,
+      active,
+    );
     widget.updateSourceRange(0, end);
     return Decoration.set([
       Decoration.replace({
