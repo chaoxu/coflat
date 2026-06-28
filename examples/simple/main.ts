@@ -1,5 +1,5 @@
 import "katex/dist/katex.min.css";
-import { ViewPlugin } from "@codemirror/view";
+import { ViewPlugin, type EditorView, type PluginValue, type ViewUpdate } from "@codemirror/view";
 import "../../src/editor/editor-theme.css";
 import { mountEditor } from "../../editor";
 import {
@@ -107,6 +107,7 @@ const publicFileSystem: FileSystem = {
 const bibliographyText = await publicFileSystem.readFile("reference.bib");
 const bibliographyItems = parseBibTeX(bibliographyText);
 const bibliographyStore: BibStore = new Map(bibliographyItems.map((item) => [item.id, item]));
+const citationKeys = new Set(bibliographyStore.keys());
 const citationFormatter = createNumericCitationFormatter(bibliographyItems);
 const referenceCatalogs = new Map<DemoDocId, ReturnType<typeof buildReferenceCatalog>>();
 
@@ -137,7 +138,7 @@ const documentContext = {
   fileSystem: publicFileSystem,
   refResolver: demoRefResolver,
   citationFormatter,
-  citationKeys: new Set(bibliographyStore.keys()),
+  citationKeys,
 } satisfies DocumentContext;
 const bibliographyBootstrap = ViewPlugin.define((view) => {
   queueMicrotask(() => {
@@ -150,6 +151,44 @@ const bibliographyBootstrap = ViewPlugin.define((view) => {
     });
   });
   return {};
+});
+type FullDocumentEditorView = EditorView & {
+  viewState?: {
+    printing?: boolean;
+  };
+  measure?: () => void;
+};
+const fullDocumentViewportPlugin = ViewPlugin.fromClass(class implements PluginValue {
+  private destroyed = false;
+
+  constructor(private readonly view: EditorView) {
+    this.enable();
+  }
+
+  update(_update: ViewUpdate): void {
+    this.enable();
+  }
+
+  destroy(): void {
+    this.destroyed = true;
+    const view = this.view as FullDocumentEditorView;
+    if (view.viewState) {
+      view.viewState.printing = false;
+    }
+    view.requestMeasure();
+  }
+
+  private enable(): void {
+    const view = this.view as FullDocumentEditorView;
+    if (!view.viewState) return;
+    view.viewState.printing = true;
+    view.requestMeasure();
+    queueMicrotask(() => {
+      if (!this.destroyed) {
+        view.measure?.();
+      }
+    });
+  }
 });
 
 function setCurrentPageAttribute(el: HTMLElement, active: boolean): void {
@@ -222,13 +261,19 @@ function restoreSurfaceScroll(anchor: SourcePosition | null, isReader: boolean, 
   }
 }
 
+function focusEditorForKeyboardInput(): void {
+  if (window.matchMedia("(max-width: 760px), (pointer: coarse)").matches) return;
+  editor.focus();
+}
+
 const editor = mountEditor({
   parent: mountedEditorRoot,
   doc: initialDoc,
   mode: "rich",
-  context: documentContext,
   sidenotesCollapsed: true,
+  context: documentContext,
   extensions: [
+    fullDocumentViewportPlugin,
     fileSystemFacet.of(publicFileSystem),
     bibliographyBootstrap,
   ],
@@ -340,7 +385,7 @@ function setActiveSurface(id: DemoSurfaceId, options: { preserveScroll?: boolean
     mountedEditorRoot.hidden = false;
     mountedReaderViewport.hidden = true;
     editor.setMode(id === "readonly" ? "rich-readonly" : "rich");
-    editor.focus();
+    focusEditorForKeyboardInput();
     if (scrollAnchor) {
       restoreSurfaceScroll(scrollAnchor, false, switchVersion);
     } else {
@@ -375,7 +420,7 @@ function setActiveDoc(id: DemoDocId): void {
       resetSurfaceScroll();
     });
   } else {
-    editor.focus();
+    focusEditorForKeyboardInput();
   }
 }
 

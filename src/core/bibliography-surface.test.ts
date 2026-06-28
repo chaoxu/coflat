@@ -16,7 +16,7 @@ describe("bibliography surface", () => {
     expect(renderBibliographySectionHtml([
       { id: "smith:2024", html: "<span>[1] Smith</span>" },
     ])).toBe(
-      '<div class="cf-bibliography" aria-label="References"><h2 class="cf-bibliography-heading">References</h2><div class="cf-bibliography-list"><div class="cf-bibliography-entry" id="bib-smith%3A2024" data-citation-key="smith:2024"><span>[1] Smith</span></div></div></div>',
+      '<div class="cf-bibliography" aria-label="Bibliography"><h2 class="cf-bibliography-heading">Bibliography</h2><div class="cf-bibliography-list"><div class="cf-bibliography-entry" id="bib-smith%3A2024" data-citation-key="smith:2024"><span>[1] Smith</span></div></div></div>',
     );
   });
 
@@ -34,8 +34,8 @@ describe("bibliography surface", () => {
     list.appendChild(entry);
 
     expect(section.className).toBe(CSS.bibliography);
-    expect(section.getAttribute("aria-label")).toBe("References");
-    expect(section.querySelector(`.${CSS.bibliographyHeading}`)?.textContent).toBe("References");
+    expect(section.getAttribute("aria-label")).toBe("Bibliography");
+    expect(section.querySelector(`.${CSS.bibliographyHeading}`)?.textContent).toBe("Bibliography");
     expect(section.querySelector(`.${CSS.bibliographyList}`)).toBe(list);
     expect(entry.className).toBe(CSS.bibliographyEntry);
     expect(entry.id).toBe(bibliographyEntryId("smith:2024"));

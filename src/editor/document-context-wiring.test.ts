@@ -130,7 +130,7 @@ describe("mountEditor document context bibliography bridge", () => {
       sidenotesCollapsed: true,
     });
 
-    expect(parent.querySelector(".cf-bibliography")?.textContent).toContain("References");
+    expect(parent.querySelector(".cf-bibliography")?.textContent).toContain("Bibliography");
     expect(parent.querySelector(".cf-bibliography")?.textContent).toContain("Karger paper.");
     editor.unmount();
   });

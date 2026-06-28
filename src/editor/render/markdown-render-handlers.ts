@@ -398,6 +398,12 @@ function handleImage(node: SyntaxNodeRef, ctx: MarkdownHandlerContext) {
   return false as const;
 }
 
+function handleBlockquote(node: SyntaxNodeRef, ctx: MarkdownHandlerContext) {
+  if (!cursorInMarkdownRange(ctx.state, ctx.focused, node.from, node.to)) {
+    return false as const;
+  }
+}
+
 function handleFencedCode() {
   return false as const;
 }
@@ -443,6 +449,7 @@ MARKDOWN_HANDLERS.set("HeaderMark", { cursorSensitive: false, handle: handleHead
 MARKDOWN_HANDLERS.set("Highlight", { cursorSensitive: true, handle: handleHighlight });
 MARKDOWN_HANDLERS.set("Link", { cursorSensitive: true, handle: handleLink });
 MARKDOWN_HANDLERS.set("Image", { cursorSensitive: true, handle: handleImage });
+MARKDOWN_HANDLERS.set("Blockquote", { cursorSensitive: true, handle: handleBlockquote });
 for (const name of ["Emphasis", "StrongEmphasis", "InlineCode", "Strikethrough"]) {
   MARKDOWN_HANDLERS.set(name, { cursorSensitive: true, handle: handleElement });
 }

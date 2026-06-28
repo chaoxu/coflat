@@ -75,6 +75,8 @@ export function resolveLocalMediaPreview(
 ): MediaPreviewResult | null {
   const resolvedPath = resolveLocalMediaPathFromState(view.state, src);
   if (!resolvedPath) return null;
+  const rootRelativeDisplay = rootRelativeImageDisplayUrlWithoutFileSystem(view.state, src);
+  if (rootRelativeDisplay) return { kind: "image", resolvedPath, dataUrl: rootRelativeDisplay };
   const display = resolveDisplayImageUrlFromState(view.state, resolvedPath);
   if (display) return { kind: "image", resolvedPath, dataUrl: display };
   if (classifyLocalMediaTarget(src) === "pdf") return resolvePdfPreview(view, src, resolvedPath);
@@ -87,6 +89,8 @@ export function resolveLocalMediaPreviewFromState(
 ): MediaPreviewResult | null {
   const resolvedPath = resolveLocalMediaPathFromState(state, src);
   if (!resolvedPath) return null;
+  const rootRelativeDisplay = rootRelativeImageDisplayUrlWithoutFileSystem(state, src);
+  if (rootRelativeDisplay) return { kind: "image", resolvedPath, dataUrl: rootRelativeDisplay };
   const display = resolveDisplayImageUrlFromState(state, resolvedPath);
   if (display) return { kind: "image", resolvedPath, dataUrl: display };
   if (classifyLocalMediaTarget(src) === "pdf") return resolvePdfPreviewFromState(state, src, resolvedPath);
@@ -132,6 +136,15 @@ export function getLocalMediaPreviewDependencyKey(
 }
 
 // ── Internal ────────────────────────────────────────────────────────────────
+
+function rootRelativeImageDisplayUrlWithoutFileSystem(
+  state: EditorState,
+  src: string,
+): string | null {
+  if (!src.startsWith("/") || src.startsWith("//")) return null;
+  if (state.facet(fileSystemFacet)) return null;
+  return mediaKindForSrc(src) === "image" ? src : null;
+}
 
 function resolveDisplayImageUrlFromState(state: EditorState, resolvedPath: string): string | null {
   try {

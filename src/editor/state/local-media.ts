@@ -1,7 +1,7 @@
 import type { EditorState } from "@codemirror/state";
 import { resolveMarkdownReferencePathFromDocument } from "../lib/markdown-reference-paths";
 import { isPdfTarget, isRelativeFilePath } from "../lib/pdf-target";
-import { documentPathFacet, fileSystemFacet } from "../lib/types";
+import { documentPathFacet } from "../lib/types";
 
 export type LocalMediaCacheKind = "image" | "pdf";
 
@@ -36,7 +36,6 @@ export function resolveLocalMediaPathFromState(
   src: string,
 ): string | null {
   if (!classifyLocalMediaTarget(src)) return null;
-  if (src.startsWith("/") && !state.facet(fileSystemFacet)) return null;
   const docPath = state.facet(documentPathFacet);
   return resolveMarkdownReferencePathFromDocument(docPath, src);
 }

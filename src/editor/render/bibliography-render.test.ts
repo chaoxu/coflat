@@ -50,13 +50,13 @@ afterEach(() => {
 });
 
 describe("BibliographyWidget.createDOM", () => {
-  it("renders empty list with the References heading when there are no entries", () => {
+  it("renders empty list with the Bibliography heading when there are no entries", () => {
     const widget = new BibliographyWidget([], [], emptyBacklinks());
     const dom = widget.createDOM();
 
     expect(dom.classList.contains(CSS.bibliography)).toBe(true);
     const heading = dom.querySelector(`.${CSS.bibliographyHeading}`);
-    expect(heading?.textContent).toBe("References");
+    expect(heading?.textContent).toBe("Bibliography");
     const list = dom.querySelector(`.${CSS.bibliographyList}`);
     expect(list).not.toBeNull();
     expect(list?.children.length).toBe(0);
@@ -192,7 +192,7 @@ describe("bibliographyPlugin", () => {
       }),
     });
 
-    expect(parent.querySelector(`.${CSS.bibliography}`)?.textContent).toContain("References");
+    expect(parent.querySelector(`.${CSS.bibliography}`)?.textContent).toContain("Bibliography");
     expect(parent.querySelector(`.${CSS.bibliographyEntry}`)?.textContent).toContain("Karger");
     view.destroy();
   });
