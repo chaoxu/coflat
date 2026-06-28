@@ -2056,6 +2056,7 @@ function sanitize(html: string): string {
   return p.sanitize(html, {
     ALLOWED_TAGS,
     ALLOWED_ATTR,
+    ADD_TAGS: ALLOWED_TAGS,
     ALLOW_DATA_ATTR: true,
     ADD_ATTR: ALLOWED_ATTR,
   });
