@@ -1,6 +1,5 @@
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
-import { markdown } from "@codemirror/lang-markdown";
 import { describe, expect, it } from "vitest";
 
 import { frontmatterDecoration, frontmatterDecorationField } from "./frontmatter-render";
@@ -10,21 +9,7 @@ import {
   createStructureEditTargetAt,
   setStructureEditTargetEffect,
 } from "../state/cm-structure-edit";
-import { type CslJsonItem } from "../../core/citations/csl-json";
-import { CslProcessor } from "../citations/csl-processor";
-import { bibDataEffect, bibDataField } from "../state/bib-data";
-import { applyStateEffects, makeBibStore } from "../test-utils";
-import { markdownExtensions } from "../../core/parser";
-import { documentAnalysisField } from "../state/document-analysis";
-
-const karger: CslJsonItem = {
-  id: "karger2000",
-  type: "article-journal",
-  author: [{ family: "Karger", given: "David R." }],
-  title: "Minimum cuts in near-linear time",
-  issued: { "date-parts": [[2000]] },
-  "container-title": "JACM",
-};
+import { applyStateEffects } from "../test-utils";
 
 function createState(doc: string): EditorState {
   return EditorState.create({
@@ -130,76 +115,15 @@ describe("frontmatterDecoration", () => {
     expect(iter.value?.spec.widget?.constructor?.name).toBe("ArticleHeaderWidget");
   });
 
-  it("renders the frontmatter abstract in the article header widget", () => {
+  it("ignores frontmatter abstract in the article header widget", () => {
     const state = createState("---\ntitle: Hello\nabstract: |\n  Short $x^2$ abstract.\nabstract-title: Summary\n---\nContent");
     const widget = getArticleHeaderWidget(state);
     const dom = widget.toDOM();
 
     expect(dom.querySelector(".cf-doc-title")?.textContent).toContain("Hello");
-    expect(dom.querySelector(".cf-doc-abstract-label")?.textContent).toBe("Summary");
-    expect(dom.querySelector(".cf-doc-abstract-body")?.textContent).toContain("Short");
-    expect(dom.querySelector(".cf-doc-abstract-body .katex")).not.toBeNull();
-  });
-
-  it("renders frontmatter abstract citations with local bibliography data", async () => {
-    const parent = document.createElement("div");
-    document.body.appendChild(parent);
-    const view = new EditorView({
-      state: EditorState.create({
-        doc: "---\ntitle: Hello\nabstract: |\n  Cites [@karger2000].\n---\nContent",
-        extensions: [
-          frontmatterField,
-          activeStructureEditField,
-          bibDataField,
-          frontmatterDecoration,
-        ],
-      }),
-      parent,
-    });
-    const formatter = new CslProcessor([karger]);
-    await formatter.ensureReady();
-    view.dispatch({
-      effects: bibDataEffect.of({
-        store: makeBibStore([karger]),
-        formatter,
-      }),
-    });
-    const widget = getArticleHeaderWidget(view.state);
-    const dom = widget.toDOM(view);
-
-    const abstract = dom.querySelector(".cf-doc-abstract-body");
-    expect(abstract?.textContent).toContain("[1]");
-    expect(abstract?.textContent).not.toContain("karger2000");
-    expect(abstract?.querySelector(".cf-citation")).not.toBeNull();
-    view.destroy();
-    parent.remove();
-  });
-
-  it("does not render legacy frontmatter abstract when an abstract block exists", () => {
-    const state = EditorState.create({
-      doc: [
-        "---",
-        "title: Hello",
-        "abstract: Legacy abstract.",
-        "---",
-        "",
-        "::: {.abstract}",
-        "Body abstract.",
-        ":::",
-      ].join("\n"),
-      extensions: [
-        markdown({ extensions: markdownExtensions }),
-        frontmatterField,
-        activeStructureEditField,
-        documentAnalysisField,
-        frontmatterDecoration,
-      ],
-    });
-    const widget = getArticleHeaderWidget(state);
-    const dom = widget.toDOM();
-
-    expect(dom.querySelector(".cf-doc-title")?.textContent).toContain("Hello");
     expect(dom.querySelector(".cf-doc-abstract")).toBeNull();
+    expect(dom.textContent).not.toContain("Short");
+    expect(dom.textContent).not.toContain("Summary");
   });
 
   it("reveals raw YAML only when frontmatter structure edit is active", () => {

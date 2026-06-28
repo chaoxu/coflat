@@ -117,7 +117,7 @@ describe("renderToHtml — slow path (Lezer)", () => {
     expect(r.html).toContain(`data-source-from="${source.indexOf("# Visible")}"`);
   });
 
-  it("renders frontmatter abstract in the article header", () => {
+  it("ignores frontmatter abstract in the article header", () => {
     const source = [
       "---",
       "title: Article",
@@ -131,11 +131,10 @@ describe("renderToHtml — slow path (Lezer)", () => {
     const r = renderToHtml(source);
 
     expect(r.html).toContain('class="cf-doc-header"');
-    expect(r.html).toContain('class="cf-doc-abstract"');
-    expect(r.html).toContain('class="cf-doc-abstract-label">Summary</div>');
-    expect(r.html).toContain("A richer abstract");
-    expect(r.html).toContain('data-math="x^2"');
-    expect(r.hasMath).toBe(true);
+    expect(r.html).not.toContain('class="cf-doc-abstract"');
+    expect(r.html).not.toContain("Summary");
+    expect(r.html).not.toContain("A richer abstract");
+    expect(r.html).not.toContain('data-math="x^2"');
   });
 
   it("renders abstract body blocks as document prose blocks", () => {
@@ -160,7 +159,7 @@ describe("renderToHtml — slow path (Lezer)", () => {
     expect(r.hasMath).toBe(true);
   });
 
-  it("prefers abstract body blocks over legacy frontmatter abstract", () => {
+  it("renders abstract body blocks without frontmatter fallback", () => {
     const source = [
       "---",
       "title: Article",

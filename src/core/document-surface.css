@@ -349,11 +349,6 @@
   user-select: text;
 }
 
-.cf-doc-abstract {
-  margin-top: var(--cf-spacing-sm);
-  color: var(--cf-fg);
-}
-
 .cf-doc-abstract-label {
   font-family: var(--cf-ui-font, ui-sans-serif, system-ui, sans-serif);
   font-size: 0.76em;
@@ -363,12 +358,6 @@
   margin-bottom: 0.25em;
   text-transform: uppercase;
   color: var(--cf-muted);
-}
-
-.cf-doc-abstract-body {
-  font-size: 0.92em;
-  line-height: 1.55;
-  color: var(--cf-fg);
 }
 
 .cf-reader .cf-doc-heading:not(.cf-doc-heading--unnumbered)::before {

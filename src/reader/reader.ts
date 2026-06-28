@@ -341,22 +341,6 @@ function computeReaderBlockNumbers(
   return computeBlockNumbers(blocks, getSpec, numbering);
 }
 
-function hasAbstractBlock(source: string, tree: Tree): boolean {
-  let found = false;
-  tree.iterate({
-    enter(node) {
-      if (found) return false;
-      if (node.name !== NODE.FencedDiv) return;
-      const info = fencedDivNumberingInfo(source, node.node);
-      if (info?.primaryClass === "abstract") {
-        found = true;
-        return false;
-      }
-    },
-  });
-  return found;
-}
-
 function renderInlineSnippet(ctx: WalkContext, source: string): BlockResult {
   const tree = parseSource(source);
   const snippetCtx: WalkContext = {
@@ -1868,23 +1852,16 @@ function walkDocument(
 
   const root = tree.topNode;
   const blocks: BlockResult[] = [];
-  const renderFrontmatterAbstract = !hasAbstractBlock(source, tree);
   if (frontmatter.config.title) {
     const title = frontmatter.config.title;
     // A document title is a single line of inline markdown — render it inline
     // (like fenced-div block titles and the editor's title widget), not as a
     // full block document, so it never sprouts headings/lists/paragraphs.
     const renderedTitle = renderInlineSnippet(ctx, title);
-    const abstract = renderFrontmatterAbstract ? frontmatter.config.abstract : undefined;
-    const renderedAbstract = abstract !== undefined ? renderInlineSnippet(ctx, abstract) : null;
-    const label = frontmatter.config.titleBlock?.labels?.abstract ?? "Abstract";
-    const abstractHtml = renderedAbstract
-      ? `<div class="${CSS.docAbstract}"><div class="${CSS.docAbstractLabel}">${escapeHtml(label)}</div><div class="${CSS.docAbstractBody}">${renderedAbstract.html}</div></div>`
-      : "";
     blocks.push({
-      html: `<div class="${CSS.docHeader}"${blockSourceAttrs(ctx, 0, frontmatterEnd, "document-title")}><div class="${CSS.docTitle}">${renderedTitle.html}</div>${abstractHtml}</div>`,
-      text: abstract !== undefined ? `${title}\n${label}\n${abstract}` : title,
-      hasMath: renderedTitle.hasMath || Boolean(renderedAbstract?.hasMath),
+      html: `<div class="${CSS.docHeader}"${blockSourceAttrs(ctx, 0, frontmatterEnd, "document-title")}><div class="${CSS.docTitle}">${renderedTitle.html}</div></div>`,
+      text: title,
+      hasMath: renderedTitle.hasMath,
     });
   }
   let topCount = blocks.length;

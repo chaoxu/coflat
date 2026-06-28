@@ -120,7 +120,6 @@ rewriting.
 | `title` | string | Document title. Rendered by the built-in reader/editor title shell. |
 | `subtitle` | string | Optional subtitle for title-block/export hosts. |
 | `description` | string | Short summary for listings, previews, and citation metadata. |
-| `abstract` | string | Legacy scholarly abstract fallback. New documents should use an `::: {.abstract}` body block so the abstract edits like normal Coflat prose. |
 | `date` | string | Publication or document date. ISO `YYYY-MM-DD` is preferred; Quarto-style `today`, `now`, and `last-modified` are accepted by hosts that can resolve them. |
 | `date-format` | string | Quarto-compatible date formatting hint. |
 | `author` / `authors` | string, object, or list | Author metadata. `author` is canonical; `authors` is an accepted alias for existing Coflat/LIPIcs documents. |
@@ -184,7 +183,7 @@ definitions merge additively (file adds to or overrides project).
 The built-in reader/editor presentation currently renders a title-only shell
 from `title`. Full-document reader/export hosts that render a richer article
 title block should use `title`, `subtitle`, `author`, `date`, `doi`,
-`abstract`, and `description`. The following Quarto-compatible keys customize
+and `description`. The following Quarto-compatible keys customize
 title-block display when a host supports them:
 
 | Key | Type | Description |
@@ -192,7 +191,7 @@ title-block display when a host supports them:
 | `title-block-style` | `"default"` \| `"plain"` \| `"none"` | Controls title-block processing/styling. |
 | `title-block-banner` | boolean or string | Enables a banner title block; a string is interpreted as a banner image path. |
 | `title-block-banner-color` | string | Foreground color for banner text. |
-| `author-title`, `affiliation-title`, `abstract-title`, `description-title`, `published-title`, `doi-title` | string | Label overrides for title-block metadata. |
+| `author-title`, `affiliation-title`, `description-title`, `published-title`, `doi-title` | string | Label overrides for title-block metadata. |
 
 ### Template-specific metadata
 

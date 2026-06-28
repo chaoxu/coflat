@@ -170,14 +170,16 @@ describe("buildBibliographyDecorations", () => {
 });
 
 describe("bibliographyPlugin", () => {
-  it("renders and backlinks citations that only appear inside the abstract", () => {
+  it("renders and backlinks citations that only appear inside an abstract block", () => {
     const parent = document.body.appendChild(document.createElement("div"));
     const doc = [
       "---",
       "title: Abstract Citation",
-      "abstract: |",
-      "  Abstract cites [@karger2000].",
       "---",
+      "",
+      "::: {.abstract}",
+      "Abstract cites [@karger2000].",
+      ":::",
       "",
       "Body.",
     ].join("\n");
@@ -204,7 +206,7 @@ describe("bibliographyPlugin", () => {
     expect(links.length).toBe(1);
     const sourceFrom = Number(links[0].dataset.sourceFrom ?? "-1");
     expect(sourceFrom).toBeGreaterThanOrEqual(doc.indexOf("[@karger2000]"));
-    expect(sourceFrom).toBeLessThan(doc.indexOf("---", 4));
+    expect(sourceFrom).toBeLessThan(doc.indexOf(":::", doc.indexOf("[@karger2000]")));
     view.destroy();
   });
 

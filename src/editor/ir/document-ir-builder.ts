@@ -63,7 +63,6 @@ function extractMetadata(docText: string): DocumentMetadata {
     title: typeof raw["title"] === "string" ? raw["title"] : undefined,
     author: typeof raw["author"] === "string" ? raw["author"] : undefined,
     date: typeof raw["date"] === "string" ? raw["date"] : undefined,
-    abstract: typeof raw["abstract"] === "string" ? raw["abstract"] : undefined,
     raw,
   };
 }

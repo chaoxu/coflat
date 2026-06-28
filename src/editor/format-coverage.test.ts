@@ -38,6 +38,7 @@ const testPlugins: readonly BlockPlugin[] = [
   makeBlockPlugin({ name: "example", numbered: false, title: "Example" }),
   makeBlockPlugin({ name: "remark", numbered: false, title: "Remark" }),
   makeBlockPlugin({ name: "blockquote", numbered: false, title: "Blockquote" }),
+  makeBlockPlugin({ name: "abstract", numbered: false, title: "Abstract" }),
   makeBlockPlugin({ name: "algorithm", title: "Algorithm" }),
 ];
 
@@ -49,8 +50,6 @@ title: Test Document
 subtitle: Quarto-shaped frontmatter
 description: |
   A short summary for article listings and citation metadata.
-abstract: |
-  This is a longer abstract with $x^2$ in it.
 date: 2026-06-20
 date-format: long
 doi: 10.5555/coflat.1
@@ -85,7 +84,6 @@ google-scholar: true
 title-block-style: plain
 title-block-banner: banner.png
 title-block-banner-color: white
-abstract-title: Summary
 author-title: Contributors
 funding: No external funding.
 acknowledgements: We thank the reviewers.
@@ -104,6 +102,10 @@ blocks:
 ---
 
 # Introduction
+
+::: {.abstract}
+This is a longer abstract with $x^2$ in it.
+:::
 
 ## Background {-}
 
@@ -267,7 +269,7 @@ describe("FORMAT.md coverage: Frontmatter", () => {
     const fm = masterState.field(frontmatterField);
     expect(fm.config.subtitle).toBe("Quarto-shaped frontmatter");
     expect(fm.config.description).toContain("short summary");
-    expect(fm.config.abstract).toContain("longer abstract");
+    expect(fm.config).not.toHaveProperty("abstract");
     expect(fm.config.date).toBe("2026-06-20");
     expect(fm.config.dateFormat).toBe("long");
     expect(fm.config.doi).toBe("10.5555/coflat.1");
@@ -289,7 +291,6 @@ describe("FORMAT.md coverage: Frontmatter", () => {
       banner: "banner.png",
       bannerColor: "white",
       labels: {
-        abstract: "Summary",
         author: "Contributors",
       },
     });

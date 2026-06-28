@@ -33,11 +33,6 @@ export const typographyThemeStyles = {
     userSelect: "text",
   },
 
-  ".cf-doc-abstract": {
-    marginTop: "var(--cf-spacing-sm)",
-    color: "var(--cf-fg)",
-  },
-
   ".cf-doc-abstract-label": {
     fontFamily: "var(--cf-ui-font, ui-sans-serif, system-ui, sans-serif)",
     fontSize: "0.76em",
@@ -47,12 +42,6 @@ export const typographyThemeStyles = {
     marginBottom: "0.25em",
     textTransform: "uppercase",
     color: "var(--cf-muted)",
-  },
-
-  ".cf-doc-abstract-body": {
-    fontSize: "0.92em",
-    lineHeight: "1.55",
-    color: "var(--cf-fg)",
   },
 
   /* Frontmatter YAML lines — monospace when editing (structured data, not prose) */

@@ -93,8 +93,6 @@ title: 'Article Metadata $\\R$'
 subtitle: Quarto-shaped frontmatter
 description: |
   Short presentation summary that should stay out of the title shell.
-abstract: |
-  A richer article abstract with math $x^2$.
 date: 2026-06-20
 date-format: long
 doi: 10.5555/coflat.1
@@ -112,6 +110,10 @@ keywords:
 math:
   \\R: "\\\\mathbb{R}"
 ---
+
+::: {.abstract}
+A richer article abstract with math $x^2$.
+:::
 
 # Body
 
@@ -2207,7 +2209,7 @@ test("article metadata frontmatter keeps current title presentation aligned", as
     await expect(title.locator(".katex")).toBeVisible();
   }
 
-  for (const selector of ["#reader-root .cf-doc-abstract", "#editor-root .cf-doc-abstract"]) {
+  for (const selector of ["#reader-root .cf-doc-block--abstract", "#editor-root .cf-doc-block--abstract"]) {
     const abstract = page.locator(selector);
     await expect(abstract).toHaveCount(1);
     await expect(abstract.locator(".cf-doc-abstract-label")).toContainText("Abstract");

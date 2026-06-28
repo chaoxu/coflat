@@ -330,6 +330,13 @@ describe("treeToIR: metadata from frontmatter", () => {
     expect(ir.metadata.abstract).toBe("Block abstract.");
     expect(ir.metadata.raw.abstract).toBe("Legacy abstract");
   });
+
+  it("does not derive metadata abstract from frontmatter", () => {
+    const ir = parseDoc("---\ntitle: T\nabstract: Frontmatter abstract\n---\n\nBody.\n");
+
+    expect(ir.metadata.abstract).toBeUndefined();
+    expect(ir.metadata.raw.abstract).toBe("Frontmatter abstract");
+  });
 });
 
 // ---------------------------------------------------------------------------

@@ -90,7 +90,6 @@ interface FrontmatterTitleBlockConfig {
   banner?: boolean | string;
   bannerColor?: string;
   labels?: {
-    abstract?: string;
     author?: string;
     affiliation?: string;
     description?: string;
@@ -103,7 +102,6 @@ export interface FrontmatterConfig {
   title?: string;
   subtitle?: string;
   description?: string;
-  abstract?: string;
   date?: string;
   doi?: string;
   author?: FrontmatterAuthorValue;
@@ -403,7 +401,6 @@ export function parseFrontmatter(doc: string): FrontmatterResult {
     "title",
     "subtitle",
     "description",
-    "abstract",
     "date",
     "doi",
     "funding",
@@ -452,7 +449,6 @@ export function parseFrontmatter(doc: string): FrontmatterResult {
     titleBlock.bannerColor = raw["title-block-banner-color"];
   }
   for (const [yamlKey, configKey] of [
-    ["abstract-title", "abstract"],
     ["author-title", "author"],
     ["affiliation-title", "affiliation"],
     ["description-title", "description"],
