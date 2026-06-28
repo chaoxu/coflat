@@ -382,6 +382,19 @@ describe("renderInlineMarkdown — surface policies", () => {
     );
   });
 
+  it("renders PDF image overrides as embedded PDF objects in document-body", () => {
+    const html = renderWithReferenceContext("![Paper](figures/paper.pdf)", {
+      ...inlineReferenceContext,
+      documentPath: "posts/math.md",
+      imageUrlOverrides: new Map([
+        ["posts/figures/paper.pdf", "/raw/posts/figures/paper.pdf"],
+      ]),
+    });
+    expect(html).toBe(
+      '<span class="cf-image-wrapper"><object class="cf-image cf-pdf-preview" data="/raw/posts/figures/paper.pdf" type="application/pdf" aria-label="Paper"><a href="/raw/posts/figures/paper.pdf">Paper</a></object></span>',
+    );
+  });
+
   it("escapes raw inline HTML because it is not canonical FORMAT.md", () => {
     const html = render("H<sub>2</sub>O x<sup>2</sup><br>next");
     expect(html).toBe("H&lt;sub&gt;2&lt;/sub&gt;O x&lt;sup&gt;2&lt;/sup&gt;&lt;br&gt;next");

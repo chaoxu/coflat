@@ -4,6 +4,7 @@ import {
   createImageElement,
   createImageSurfaceElement,
   createMediaWrapperElement,
+  createPdfSurfaceElement,
   imageUnavailableLabel,
   isUnresolvedLocalMediaUrl,
   mediaKindForSrc,
@@ -28,6 +29,9 @@ describe("media surface", () => {
 
     expect(createImageSurfaceElement(document, "span", "figure.png", "Figure").outerHTML).toBe(
       '<span class="cf-image-wrapper"><img class="cf-image" src="figure.png" alt="Figure"></span>',
+    );
+    expect(createPdfSurfaceElement(document, "span", "paper.pdf", "Paper").outerHTML).toBe(
+      '<span class="cf-image-wrapper"><object class="cf-image cf-pdf-preview" data="paper.pdf" type="application/pdf" aria-label="Paper"><a href="paper.pdf">Paper</a></object></span>',
     );
   });
 
