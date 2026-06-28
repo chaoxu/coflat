@@ -3,6 +3,7 @@ import { EditorView } from "@codemirror/view";
 import { describe, expect, it } from "vitest";
 
 import { frontmatterDecoration, frontmatterDecorationField } from "./frontmatter-render";
+import { focusEffect } from "./focus-state";
 import { frontmatterField } from "../state/frontmatter-state";
 import {
   activeStructureEditField,
@@ -32,9 +33,17 @@ function createState(doc: string): EditorState {
 
 function getArticleHeaderWidget(
   state: EditorState,
-): { eq(other: unknown): boolean; toDOM(view?: EditorView): HTMLElement } {
+): {
+  eq(other: unknown): boolean;
+  toDOM(view?: EditorView): HTMLElement;
+  updateDOM(dom: HTMLElement, view?: EditorView, from?: unknown): boolean;
+} {
   const iter = state.field(frontmatterDecorationField).iter();
-  const widget = iter.value?.spec.widget as { eq(other: unknown): boolean; toDOM(): HTMLElement } | undefined;
+  const widget = iter.value?.spec.widget as {
+    eq(other: unknown): boolean;
+    toDOM(view?: EditorView): HTMLElement;
+    updateDOM(dom: HTMLElement, view?: EditorView, from?: unknown): boolean;
+  } | undefined;
   expect(widget).toBeDefined();
   if (!widget) {
     throw new Error("expected frontmatter article header widget");
@@ -175,9 +184,13 @@ describe("frontmatterDecoration", () => {
       const widget = getArticleHeaderWidget(view.state);
       const dom = widget.toDOM(view);
       parent.appendChild(dom);
+      const section = dom.querySelector<HTMLElement>(".cf-doc-abstract");
       const body = dom.querySelector<HTMLElement>(".cf-doc-abstract-body");
+      expect(section).not.toBeNull();
       expect(body).not.toBeNull();
-      body?.click();
+      expect(section?.getAttribute("aria-label")).toBe("Edit abstract");
+      expect(section?.title).toBe("Edit abstract");
+      section?.click();
 
       const editorDom = body?.querySelector<HTMLElement>(".cm-editor");
       expect(editorDom).not.toBeNull();
@@ -206,6 +219,36 @@ describe("frontmatterDecoration", () => {
         "abstract: |\n  New abstract.\n  With a second line.\n",
       );
       expect(view.state.doc.toString()).not.toContain("Old abstract");
+    } finally {
+      view.destroy();
+      parent.remove();
+    }
+  });
+
+  it("keeps the abstract inline editor open across active shell refreshes", () => {
+    const parent = document.createElement("div");
+    document.body.appendChild(parent);
+    const view = new EditorView({
+      state: createState("---\ntitle: Hello\nabstract: |\n  Old $x^2$ abstract.\n---\nContent"),
+      parent,
+    });
+    try {
+      const widget = getArticleHeaderWidget(view.state);
+      const dom = widget.toDOM(view);
+      parent.appendChild(dom);
+      const section = dom.querySelector<HTMLElement>(".cf-doc-abstract");
+      const body = dom.querySelector<HTMLElement>(".cf-doc-abstract-body");
+      section?.click();
+      const editorDom = body?.querySelector<HTMLElement>(".cm-editor");
+      expect(editorDom).not.toBeNull();
+
+      const refreshedState = applyStateEffects(view.state, focusEffect.of(true));
+      const refreshedWidget = getArticleHeaderWidget(refreshedState);
+      expect(refreshedWidget.eq(widget)).toBe(true);
+      expect(refreshedWidget.updateDOM(dom, view, widget)).toBe(true);
+
+      expect(body?.classList.contains("cf-doc-abstract-editor")).toBe(true);
+      expect(body?.querySelector(".cm-editor")).toBe(editorDom);
     } finally {
       view.destroy();
       parent.remove();

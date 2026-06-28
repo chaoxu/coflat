@@ -38,6 +38,18 @@ export const typographyThemeStyles = {
     color: "var(--cf-fg)",
   },
 
+  ".cm-editor .cf-doc-abstract": {
+    borderRadius: "var(--cf-radius-sm)",
+    marginLeft: "calc(-1 * var(--cf-spacing-xs))",
+    marginRight: "calc(-1 * var(--cf-spacing-xs))",
+    padding: "2px var(--cf-spacing-xs)",
+  },
+
+  ".cm-editor .cf-doc-abstract:hover, .cm-editor .cf-doc-abstract:focus": {
+    background: "color-mix(in srgb, var(--cf-accent) 7%, transparent)",
+    outline: "none",
+  },
+
   ".cf-doc-abstract-label": {
     fontFamily: "var(--cf-ui-font, ui-sans-serif, system-ui, sans-serif)",
     fontSize: "0.76em",
@@ -50,7 +62,7 @@ export const typographyThemeStyles = {
   },
 
   ".cf-doc-abstract-body": {
-    fontSize: "0.98em",
+    fontSize: "0.92em",
     lineHeight: "1.55",
     color: "var(--cf-fg)",
   },

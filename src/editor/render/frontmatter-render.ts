@@ -6,7 +6,7 @@
  * entirely when there is no title).
  */
 import { EditorState, type Extension, type Range } from "@codemirror/state";
-import { Decoration, DecorationSet, EditorView } from "@codemirror/view";
+import { Decoration, DecorationSet, EditorView, type WidgetType } from "@codemirror/view";
 import { renderDocumentFragmentToDom } from "../document-surfaces";
 import { CSS } from "../../core/constants/css-classes";
 import { createInlineEditorController, type InlineEditorController } from "../inline-editor";
@@ -201,9 +201,23 @@ class ArticleHeaderWidget extends ShellMacroAwareWidget {
       this.abstract === other.abstract &&
       this.abstractLabel === other.abstractLabel &&
       this.macrosKey === other.macrosKey &&
-      this.referenceKey === other.referenceKey &&
-      this.active === other.active
+      this.referenceKey === other.referenceKey
     );
+  }
+
+  updateDOM(dom: HTMLElement, view?: EditorView, from?: WidgetType): boolean {
+    if (!(from instanceof ArticleHeaderWidget)) return false;
+    dom.className = this.active ? `${CSS.docHeader} ${CSS.activeShellWidget}` : CSS.docHeader;
+    this.syncWidgetAttrs(dom, view);
+    const title = dom.querySelector<HTMLElement>(`.${CSS.docTitle}`);
+    if (title && view) {
+      this.bindSourceReveal(title, view);
+    }
+    const abstract = dom.querySelector<HTMLElement>(`.${CSS.docAbstract}`);
+    if (abstract && view) {
+      this.bindAbstractEditor(abstract, view);
+    }
+    return true;
   }
 
   override toDOM(view?: EditorView): HTMLElement {
@@ -253,19 +267,39 @@ class ArticleHeaderWidget extends ShellMacroAwareWidget {
     const body = section.querySelector<HTMLElement>(`.${CSS.docAbstractBody}`);
     if (!body) return;
     if (isEditorReadOnly(view)) return;
+    section.setAttribute("aria-label", "Edit abstract");
+    section.title = "Edit abstract";
+    section.style.cursor = "text";
     body.style.cursor = "text";
-    body.addEventListener("mousedown", (event) => {
+    const isEditing = (): boolean =>
+      this.abstractEditors.has(body) || body.classList.contains(CSS.docAbstractEditor);
+    const open = (event: Event): void => {
+      if (isEditing()) return;
+      event.preventDefault();
+      event.stopPropagation();
+      this.beginAbstractEdit(
+        body,
+        view,
+        event instanceof MouseEvent ? { x: event.clientX, y: event.clientY } : undefined,
+      );
+    };
+    section.addEventListener("mousedown", (event) => {
+      if (isEditing()) return;
       event.preventDefault();
       event.stopPropagation();
     });
-    body.addEventListener("click", (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      this.beginAbstractEdit(body, view);
+    section.addEventListener("click", open);
+    section.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      open(event);
     });
   }
 
-  private beginAbstractEdit(body: HTMLElement, view: EditorView): void {
+  private beginAbstractEdit(
+    body: HTMLElement,
+    view: EditorView,
+    clickCoords?: { readonly x: number; readonly y: number },
+  ): void {
     if (this.abstractEditors.has(body)) return;
     body.classList.add(CSS.docAbstractEditor);
     body.replaceChildren();
@@ -285,6 +319,12 @@ class ArticleHeaderWidget extends ShellMacroAwareWidget {
       },
     });
     this.abstractEditors.set(body, controller);
+    let opening = true;
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        opening = false;
+      });
+    });
 
     const restoreRendered = (): void => {
       body.classList.remove(CSS.docAbstractEditor);
@@ -331,6 +371,7 @@ class ArticleHeaderWidget extends ShellMacroAwareWidget {
         currentDoc = newDoc;
       },
       onBlur: () => {
+        if (opening) return;
         requestAnimationFrame(() => {
           requestAnimationFrame(() => {
             if (
@@ -360,8 +401,18 @@ class ArticleHeaderWidget extends ShellMacroAwareWidget {
       },
     });
 
-    controller.view.dispatch({ selection: { anchor: controller.view.state.doc.length } });
-    controller.view.focus();
+    requestAnimationFrame(() => {
+      let anchor = controller.view.state.doc.length;
+      if (clickCoords) {
+        try {
+          anchor = controller.view.posAtCoords(clickCoords) ?? anchor;
+        } catch (_error) {
+          anchor = controller.view.state.doc.length;
+        }
+      }
+      controller.view.dispatch({ selection: { anchor } });
+      controller.view.focus();
+    });
   }
 
   override destroy(dom: HTMLElement): void {
