@@ -153,14 +153,90 @@ export function hoistMathMacros(markdown) {
   return `${FRONTMATTER_FENCE}\n${newYaml}\n${FRONTMATTER_FENCE}\n${rest}`;
 }
 
+function splitFrontmatter(markdown) {
+  const lines = markdown.split("\n");
+  if (!isFrontmatterDelimiterLine(lines[0] ?? "")) {
+    return { doc: {}, bodyLines: lines };
+  }
+  let closeIdx = -1;
+  for (let i = 1; i < lines.length; i += 1) {
+    if (isFrontmatterDelimiterLine(lines[i])) {
+      closeIdx = i;
+      break;
+    }
+  }
+  if (closeIdx === -1) return { doc: {}, bodyLines: lines };
+  try {
+    const parsed = parseYaml(lines.slice(1, closeIdx).join("\n"));
+    return {
+      doc: parsed && typeof parsed === "object" ? parsed : {},
+      bodyLines: lines.slice(closeIdx + 1),
+    };
+  } catch (_error) {
+    return { doc: {}, bodyLines: lines };
+  }
+}
+
+function isAbstractFenceOpener(line) {
+  return /^(:{3,})\s*\{[^}]*\.abstract(?:[\s#.][^}]*)?\}\s*$/.exec(line);
+}
+
+function isFenceCloser(line, fence) {
+  const match = /^(:{3,})\s*$/.exec(line);
+  return Boolean(match && match[1].length >= fence.length);
+}
+
 /**
- * Full pre-pandoc pipeline: hoist math macros, promote labeled display math,
- * then lift fenced-div titles. The root frontmatter is preserved (minus
- * `math:`, which is rewritten into `header-includes`) so pandoc reads it as
- * metadata.
+ * Export path compatibility: Coflat treats `::: {.abstract}` as normal document
+ * prose, while Pandoc templates expect an `abstract` metadata field. Hoist the
+ * first abstract block body into YAML and remove that block from the body.
+ */
+export function hoistAbstractBlock(markdown) {
+  const { doc, bodyLines } = splitFrontmatter(markdown);
+  const out = [];
+  let abstractLines = null;
+
+  for (let i = 0; i < bodyLines.length; i += 1) {
+    if (abstractLines !== null) {
+      out.push(bodyLines[i]);
+      continue;
+    }
+    const opener = isAbstractFenceOpener(bodyLines[i]);
+    if (!opener) {
+      out.push(bodyLines[i]);
+      continue;
+    }
+    const fence = opener[1];
+    let closeIdx = -1;
+    for (let j = i + 1; j < bodyLines.length; j += 1) {
+      if (isFenceCloser(bodyLines[j], fence)) {
+        closeIdx = j;
+        break;
+      }
+    }
+    if (closeIdx === -1) {
+      out.push(bodyLines[i]);
+      continue;
+    }
+    abstractLines = bodyLines.slice(i + 1, closeIdx);
+    i = closeIdx;
+  }
+
+  if (abstractLines === null) return markdown;
+  doc.abstract = abstractLines.join("\n").trim();
+  const newYaml = yamlStringify(doc).trimEnd();
+  return `${FRONTMATTER_FENCE}\n${newYaml}\n${FRONTMATTER_FENCE}\n${out.join("\n").replace(/^\n+/, "")}`;
+}
+
+/**
+ * Full pre-pandoc pipeline: hoist math macros, hoist abstract blocks, promote
+ * labeled display math, then lift fenced-div titles. The root frontmatter is
+ * preserved (minus `math:`, which is rewritten into `header-includes`) so
+ * pandoc reads it as metadata.
  */
 export async function preprocessWithReadFile(markdown) {
   const withMacros = hoistMathMacros(markdown);
-  const withEquations = promoteLabeledDisplayMath(withMacros);
+  const withAbstract = hoistAbstractBlock(withMacros);
+  const withEquations = promoteLabeledDisplayMath(withAbstract);
   return liftFencedDivTitles(withEquations);
 }

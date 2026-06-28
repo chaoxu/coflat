@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  hoistAbstractBlock,
   hoistMathMacros,
   liftFencedDivTitles,
   preprocess,
@@ -109,6 +110,35 @@ describe("hoistMathMacros", () => {
   });
 });
 
+describe("hoistAbstractBlock", () => {
+  it("moves the first abstract block into YAML metadata", () => {
+    const src = [
+      "---",
+      "title: Paper",
+      "---",
+      "",
+      "::: {.abstract}",
+      "This is the abstract with $x^2$.",
+      ":::",
+      "",
+      "Body.",
+    ].join("\n");
+    const out = hoistAbstractBlock(src);
+
+    expect(out).toContain("title: Paper");
+    expect(out).toContain("abstract: This is the abstract with $x^2$.");
+    expect(out).toContain("Body.");
+    expect(out).not.toContain("::: {.abstract}");
+  });
+
+  it("creates YAML metadata when the source has no frontmatter", () => {
+    const src = "::: {.abstract}\nAbstract body.\n:::\n\nBody.";
+    const out = hoistAbstractBlock(src);
+
+    expect(out.startsWith("---\nabstract: Abstract body.\n---\nBody.")).toBe(true);
+  });
+});
+
 describe("promoteLabeledDisplayMath", () => {
   it("wraps a $$...$$ block with a trailing {#eq:id} into an equation env", () => {
     const src = "Before.\n\n$$\na + b = c\n$$ {#eq:sum}\n\nAfter.\n";
@@ -169,5 +199,24 @@ describe("preprocess", () => {
     expect(out).toContain("\\newcommand{\\R}{\\mathbb{R}}");
     expect(out).toContain('::: {#thm:x .theorem title="Inside"}');
     expect(out).toContain("\\begin{equation}\\label{eq:x}");
+  });
+
+  it("hoists abstract blocks before pandoc export", async () => {
+    const body = [
+      "---",
+      "title: Paper",
+      "---",
+      "",
+      "::: {.abstract}",
+      "Exported abstract.",
+      ":::",
+      "",
+      "Body.",
+    ].join("\n");
+    const out = await preprocess(body, "main.md");
+
+    expect(out).toContain("abstract: Exported abstract.");
+    expect(out).not.toContain("::: {.abstract}");
+    expect(out).toContain("Body.");
   });
 });

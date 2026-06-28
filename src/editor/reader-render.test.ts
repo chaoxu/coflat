@@ -138,6 +138,45 @@ describe("renderToHtml — slow path (Lezer)", () => {
     expect(r.hasMath).toBe(true);
   });
 
+  it("renders abstract body blocks as document prose blocks", () => {
+    const source = [
+      "---",
+      "title: Article",
+      "---",
+      "",
+      "::: {.abstract}",
+      "A block abstract with $x^2$ and **bold** text.",
+      ":::",
+      "",
+      "Body",
+    ].join("\n");
+    const r = renderToHtml(source);
+
+    expect(r.html).toContain('class="cf-doc-block cf-doc-block--abstract"');
+    expect(r.html).toContain('class="cf-doc-abstract-label"');
+    expect(r.html).toContain('<div class="cf-doc-abstract-label">Abstract</div>');
+    expect(r.html).toContain("A block abstract");
+    expect(r.html).toContain('data-math="x^2"');
+    expect(r.hasMath).toBe(true);
+  });
+
+  it("prefers abstract body blocks over legacy frontmatter abstract", () => {
+    const source = [
+      "---",
+      "title: Article",
+      "abstract: Legacy abstract.",
+      "---",
+      "",
+      "::: {.abstract}",
+      "Block abstract.",
+      ":::",
+    ].join("\n");
+    const r = renderToHtml(source);
+
+    expect(r.html).toContain("Block abstract");
+    expect(r.html).not.toContain("Legacy abstract");
+  });
+
   it("surfaces frontmatter `math:` macros as result.mathMacros", () => {
     const source = [
       "---",

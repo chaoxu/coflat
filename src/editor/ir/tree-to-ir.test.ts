@@ -313,6 +313,23 @@ describe("treeToIR: metadata from frontmatter", () => {
       custom: "value",
     });
   });
+
+  it("derives metadata abstract from an abstract body block", () => {
+    const doc = [
+      "---",
+      "title: T",
+      "abstract: Legacy abstract",
+      "---",
+      "",
+      "::: {.abstract}",
+      "Block abstract.",
+      ":::",
+    ].join("\n");
+    const ir = parseDoc(doc);
+
+    expect(ir.metadata.abstract).toBe("Block abstract.");
+    expect(ir.metadata.raw.abstract).toBe("Legacy abstract");
+  });
 });
 
 // ---------------------------------------------------------------------------

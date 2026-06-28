@@ -77,9 +77,12 @@ export interface BlockManifestEntry {
  * - "theorem": theorem, lemma, corollary, proposition, conjecture, problem
  * - "definition": definition
  * - "algorithm": algorithm
- * - unnumbered: proof, remark, example, blockquote
+ * - unnumbered: abstract, proof, remark, example, blockquote
  */
 export const BLOCK_MANIFEST = [
+  // Document prose blocks — unnumbered
+  { name: "abstract",   counterGroup: undefined,    numbered: false, bodyStyle: "normal", latexExportKind: "none", searchIndexed: false },
+
   // Theorem family — shared counter, italic body
   { name: "theorem",     counterGroup: "theorem",    numbered: true,  bodyStyle: "italic", latexExportKind: "environment", latexEnvironment: "theorem" },
   { name: "lemma",       counterGroup: "theorem",    numbered: true,  bodyStyle: "italic", latexExportKind: "environment", latexEnvironment: "lemma" },

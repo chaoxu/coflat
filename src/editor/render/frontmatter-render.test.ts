@@ -1,9 +1,9 @@
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
+import { markdown } from "@codemirror/lang-markdown";
 import { describe, expect, it } from "vitest";
 
 import { frontmatterDecoration, frontmatterDecorationField } from "./frontmatter-render";
-import { focusEffect } from "./focus-state";
 import { frontmatterField } from "../state/frontmatter-state";
 import {
   activeStructureEditField,
@@ -14,6 +14,8 @@ import { type CslJsonItem } from "../../core/citations/csl-json";
 import { CslProcessor } from "../citations/csl-processor";
 import { bibDataEffect, bibDataField } from "../state/bib-data";
 import { applyStateEffects, makeBibStore } from "../test-utils";
+import { markdownExtensions } from "../../core/parser";
+import { documentAnalysisField } from "../state/document-analysis";
 
 const karger: CslJsonItem = {
   id: "karger2000",
@@ -173,87 +175,31 @@ describe("frontmatterDecoration", () => {
     parent.remove();
   });
 
-  it("edits the frontmatter abstract through the article header widget", () => {
-    const parent = document.createElement("div");
-    document.body.appendChild(parent);
-    const view = new EditorView({
-      state: createState("---\ntitle: Hello\nabstract: |\n  Old $x^2$ abstract.\n---\nContent"),
-      parent,
+  it("does not render legacy frontmatter abstract when an abstract block exists", () => {
+    const state = EditorState.create({
+      doc: [
+        "---",
+        "title: Hello",
+        "abstract: Legacy abstract.",
+        "---",
+        "",
+        "::: {.abstract}",
+        "Body abstract.",
+        ":::",
+      ].join("\n"),
+      extensions: [
+        markdown({ extensions: markdownExtensions }),
+        frontmatterField,
+        activeStructureEditField,
+        documentAnalysisField,
+        frontmatterDecoration,
+      ],
     });
-    try {
-      const widget = getArticleHeaderWidget(view.state);
-      const dom = widget.toDOM(view);
-      parent.appendChild(dom);
-      const section = dom.querySelector<HTMLElement>(".cf-doc-abstract");
-      const body = dom.querySelector<HTMLElement>(".cf-doc-abstract-body");
-      expect(section).not.toBeNull();
-      expect(body).not.toBeNull();
-      expect(section?.getAttribute("aria-label")).toBe("Edit abstract");
-      expect(section?.title).toBe("Edit abstract");
-      section?.click();
+    const widget = getArticleHeaderWidget(state);
+    const dom = widget.toDOM();
 
-      const editorDom = body?.querySelector<HTMLElement>(".cm-editor");
-      expect(editorDom).not.toBeNull();
-      if (!editorDom) throw new Error("expected abstract inline editor");
-      expect(editorDom.classList.contains("cf-inline-editor")).toBe(true);
-      expect(editorDom.querySelector(".katex")).not.toBeNull();
-
-      const inlineView = EditorView.findFromDOM(editorDom);
-      expect(inlineView).not.toBeNull();
-      if (!inlineView) throw new Error("expected abstract inline EditorView");
-      expect(inlineView.state.doc.toString()).toBe("Old $x^2$ abstract.");
-      inlineView.dispatch({
-        changes: {
-          from: 0,
-          to: inlineView.state.doc.length,
-          insert: "New abstract.\nWith a second line.",
-        },
-      });
-      inlineView.contentDOM.dispatchEvent(new KeyboardEvent("keydown", {
-        bubbles: true,
-        cancelable: true,
-        key: "Enter",
-        metaKey: true,
-      }));
-
-      expect(view.state.doc.toString()).toContain(
-        "abstract: |\n  New abstract.\n  With a second line.\n",
-      );
-      expect(view.state.doc.toString()).not.toContain("Old abstract");
-    } finally {
-      view.destroy();
-      parent.remove();
-    }
-  });
-
-  it("keeps the abstract inline editor open across active shell refreshes", () => {
-    const parent = document.createElement("div");
-    document.body.appendChild(parent);
-    const view = new EditorView({
-      state: createState("---\ntitle: Hello\nabstract: |\n  Old $x^2$ abstract.\n---\nContent"),
-      parent,
-    });
-    try {
-      const widget = getArticleHeaderWidget(view.state);
-      const dom = widget.toDOM(view);
-      parent.appendChild(dom);
-      const section = dom.querySelector<HTMLElement>(".cf-doc-abstract");
-      const body = dom.querySelector<HTMLElement>(".cf-doc-abstract-body");
-      section?.click();
-      const editorDom = body?.querySelector<HTMLElement>(".cm-editor");
-      expect(editorDom).not.toBeNull();
-
-      const refreshedState = applyStateEffects(view.state, focusEffect.of(true));
-      const refreshedWidget = getArticleHeaderWidget(refreshedState);
-      expect(refreshedWidget.eq(widget)).toBe(true);
-      expect(refreshedWidget.updateDOM(dom, view, widget)).toBe(true);
-
-      expect(body?.classList.contains("cf-doc-abstract-editor")).toBe(true);
-      expect(body?.querySelector(".cm-editor")).toBe(editorDom);
-    } finally {
-      view.destroy();
-      parent.remove();
-    }
+    expect(dom.querySelector(".cf-doc-title")?.textContent).toContain("Hello");
+    expect(dom.querySelector(".cf-doc-abstract")).toBeNull();
   });
 
   it("reveals raw YAML only when frontmatter structure edit is active", () => {

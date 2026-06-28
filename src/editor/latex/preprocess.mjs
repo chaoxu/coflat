@@ -1,4 +1,5 @@
 export {
+  hoistAbstractBlock,
   hoistMathMacros,
   liftFencedDivTitles,
   promoteLabeledDisplayMath,

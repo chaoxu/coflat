@@ -94,6 +94,7 @@ export interface DocumentMetadata {
   readonly title?: string;
   readonly author?: string;
   readonly date?: string;
+  readonly abstract?: string;
   /** All raw key-value pairs from the frontmatter. */
   readonly raw: Readonly<Record<string, unknown>>;
 }

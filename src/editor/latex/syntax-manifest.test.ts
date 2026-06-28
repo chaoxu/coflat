@@ -34,10 +34,12 @@ function readLuaStringMap(name: string): Record<string, string> {
 describe("LaTeX syntax manifest", () => {
   it("keeps LaTeX block kinds synchronized with the TypeScript manifest", () => {
     const expected = Object.fromEntries(
-      BLOCK_MANIFEST_ENTRIES.map((entry) => [
-        entry.name,
-        LATEX_KIND_BY_BLOCK[entry.name] ?? "environment",
-      ]),
+      BLOCK_MANIFEST_ENTRIES
+        .filter((entry) => entry.latexExportKind !== "none")
+        .map((entry) => [
+          entry.name,
+          entry.latexExportKind ?? LATEX_KIND_BY_BLOCK[entry.name] ?? "environment",
+        ]),
     );
     expect(readLuaStringMap("latex_kind_by_block")).toEqual(expected);
   });
@@ -45,8 +47,8 @@ describe("LaTeX syntax manifest", () => {
   it("keeps LaTeX environments synchronized with the TypeScript manifest", () => {
     const expected = Object.fromEntries(
       BLOCK_MANIFEST_ENTRIES
-        .filter((entry) => (LATEX_KIND_BY_BLOCK[entry.name] ?? "environment") === "environment")
-        .map((entry) => [entry.name, entry.name]),
+        .filter((entry) => (entry.latexExportKind ?? LATEX_KIND_BY_BLOCK[entry.name] ?? "environment") === "environment")
+        .map((entry) => [entry.name, entry.latexEnvironment ?? entry.name]),
     );
 
     expect(readLuaStringMap("latex_environment_by_block")).toEqual(expected);

@@ -9,19 +9,19 @@ import { EditorState, type Extension, type Range } from "@codemirror/state";
 import { Decoration, DecorationSet, EditorView, type WidgetType } from "@codemirror/view";
 import { renderDocumentFragmentToDom } from "../document-surfaces";
 import { CSS } from "../../core/constants/css-classes";
-import { createInlineEditorController, type InlineEditorController } from "../inline-editor";
 import { documentContextFacet } from "../document-context";
-import { getEditorDocumentReferenceCatalog } from "../semantics/editor-reference-catalog";
 import {
   createCatalogReferencePresentationController,
   createEditorReferencePresentationController,
 } from "../references/presentation";
+import { getEditorDocumentReferenceCatalog } from "../semantics/editor-reference-catalog";
 import {
   collectCitationClusters,
   getCitationRegistrationKey,
   type CitationReferenceToken,
 } from "../citations/citation-matching";
 import { bibDataEffect, bibDataField } from "../state/bib-data";
+import { documentAnalysisField } from "../state/document-analysis";
 import { scanReferenceTokens } from "../lib/reference-tokens";
 import type { InlineReferenceRenderContext } from "./inline-render";
 
@@ -40,93 +40,8 @@ import {
 } from "../state/cm-structure-edit";
 import { isFrontmatterActive } from "../state/shell-ownership";
 
-interface YamlKeyRange {
-  readonly from: number;
-  readonly to: number;
-}
-
-function findLineEnd(doc: string, from: number): { lineEnd: number; next: number } {
-  const lineFeed = doc.indexOf("\n", from);
-  if (lineFeed === -1) return { lineEnd: doc.length, next: doc.length };
-  const lineEnd = lineFeed > from && doc[lineFeed - 1] === "\r" ? lineFeed - 1 : lineFeed;
-  return { lineEnd, next: lineFeed + 1 };
-}
-
-function frontmatterBodyStart(doc: string): number | null {
-  if (!doc.startsWith("---")) return null;
-  const opening = findLineEnd(doc, 0);
-  return opening.next < doc.length ? opening.next : null;
-}
-
-function frontmatterClosingStart(doc: string, frontmatterEnd: number): number {
-  let closingEnd = frontmatterEnd;
-  if (closingEnd > 0 && doc[closingEnd - 1] === "\n") closingEnd -= 1;
-  if (closingEnd > 0 && doc[closingEnd - 1] === "\r") closingEnd -= 1;
-  const previousLineBreak = doc.lastIndexOf("\n", closingEnd - 1);
-  return previousLineBreak < 0 ? 0 : previousLineBreak + 1;
-}
-
-function topLevelYamlKey(line: string): string | null {
-  if (/^\s/.test(line)) return null;
-  const match = /^([A-Za-z0-9_-]+)\s*:/.exec(line);
-  return match?.[1] ?? null;
-}
-
-function findFrontmatterKeyRange(
-  doc: string,
-  frontmatterEnd: number,
-  key: string,
-): YamlKeyRange | null {
-  const bodyStart = frontmatterBodyStart(doc);
-  if (bodyStart === null || frontmatterEnd <= bodyStart) return null;
-  const closingStart = frontmatterClosingStart(doc, frontmatterEnd);
-  let pos = bodyStart;
-  while (pos < closingStart) {
-    const line = findLineEnd(doc, pos);
-    const lineText = doc.slice(pos, line.lineEnd);
-    const lineKey = topLevelYamlKey(lineText);
-    if (lineKey === key) {
-      let to = line.next;
-      while (to < closingStart) {
-        const nextLine = findLineEnd(doc, to);
-        const nextText = doc.slice(to, nextLine.lineEnd);
-        const nextKey = topLevelYamlKey(nextText);
-        if (nextKey !== null) break;
-        to = nextLine.next;
-      }
-      return { from: pos, to };
-    }
-    pos = line.next;
-  }
-  return null;
-}
-
-function yamlBlockScalar(key: string, value: string): string {
-  const lines = value.replace(/\r\n?/g, "\n").split("\n");
-  return `${key}: |\n${lines.map((line) => line.length === 0 ? "" : `  ${line}`).join("\n")}\n`;
-}
-
-function updateFrontmatterStringField(
-  doc: string,
-  frontmatterEnd: number,
-  key: string,
-  value: string,
-): { from: number; to: number; insert: string } | null {
-  const bodyStart = frontmatterBodyStart(doc);
-  if (bodyStart === null || frontmatterEnd <= bodyStart) return null;
-  const replacement = yamlBlockScalar(key, value);
-  const existing = findFrontmatterKeyRange(doc, frontmatterEnd, key);
-  if (existing) return { ...existing, insert: replacement };
-
-  const title = findFrontmatterKeyRange(doc, frontmatterEnd, "title");
-  const insertAt = title?.to ?? bodyStart;
-  return { from: insertAt, to: insertAt, insert: replacement };
-}
-
 /** Widget that renders article frontmatter fields. */
 class ArticleHeaderWidget extends ShellMacroAwareWidget {
-  private readonly abstractEditors = new WeakMap<HTMLElement, InlineEditorController>();
-
   constructor(
     private readonly title: string,
     private readonly abstract: string | undefined,
@@ -213,10 +128,6 @@ class ArticleHeaderWidget extends ShellMacroAwareWidget {
     if (title && view) {
       this.bindSourceReveal(title, view);
     }
-    const abstract = dom.querySelector<HTMLElement>(`.${CSS.docAbstract}`);
-    if (abstract && view) {
-      this.bindAbstractEditor(abstract, view);
-    }
     return true;
   }
 
@@ -234,7 +145,7 @@ class ArticleHeaderWidget extends ShellMacroAwareWidget {
         this.renderTitle(titleForRender, referenceContext);
       }
       const bodyForRender = el.querySelector<HTMLElement>(`.${CSS.docAbstractBody}`);
-      if (bodyForRender && !this.abstractEditors.has(bodyForRender)) {
+      if (bodyForRender) {
         bodyForRender.replaceChildren();
         this.renderAbstractBody(bodyForRender, referenceContext);
       }
@@ -242,10 +153,6 @@ class ArticleHeaderWidget extends ShellMacroAwareWidget {
     const title = el.querySelector<HTMLElement>(`.${CSS.docTitle}`);
     if (title && view) {
       this.bindSourceReveal(title, view);
-    }
-    const abstract = el.querySelector<HTMLElement>(`.${CSS.docAbstract}`);
-    if (abstract && view) {
-      this.bindAbstractEditor(abstract, view);
     }
     return el;
   }
@@ -261,177 +168,6 @@ class ArticleHeaderWidget extends ShellMacroAwareWidget {
       view.focus();
       activateFrontmatterStructureEdit(view);
     });
-  }
-
-  private bindAbstractEditor(section: HTMLElement, view: EditorView): void {
-    const body = section.querySelector<HTMLElement>(`.${CSS.docAbstractBody}`);
-    if (!body) return;
-    if (isEditorReadOnly(view)) return;
-    section.setAttribute("aria-label", "Edit abstract");
-    section.title = "Edit abstract";
-    section.style.cursor = "text";
-    body.style.cursor = "text";
-    const isEditing = (): boolean =>
-      this.abstractEditors.has(body) || body.classList.contains(CSS.docAbstractEditor);
-    const open = (event: Event): void => {
-      if (isEditing()) return;
-      event.preventDefault();
-      event.stopPropagation();
-      this.beginAbstractEdit(
-        body,
-        view,
-        event instanceof MouseEvent ? { x: event.clientX, y: event.clientY } : undefined,
-      );
-    };
-    section.addEventListener("mousedown", (event) => {
-      if (isEditing()) return;
-      event.preventDefault();
-      event.stopPropagation();
-    });
-    section.addEventListener("click", open);
-    section.addEventListener("keydown", (event) => {
-      if (event.key !== "Enter" && event.key !== " ") return;
-      open(event);
-    });
-  }
-
-  private beginAbstractEdit(
-    body: HTMLElement,
-    view: EditorView,
-    clickCoords?: { readonly x: number; readonly y: number },
-  ): void {
-    if (this.abstractEditors.has(body)) return;
-    body.classList.add(CSS.docAbstractEditor);
-    body.replaceChildren();
-
-    const originalDoc = (this.abstract ?? "").replace(/\n$/, "");
-    let currentDoc = originalDoc;
-    let closed = false;
-    const bibData = view.state.field(bibDataField, false);
-    const controller = createInlineEditorController({
-      parent: body,
-      doc: currentDoc,
-      macros: this.macros,
-      bibData: bibData ?? undefined,
-      documentContext: view.state.facet(documentContextFacet),
-      referenceCatalog: getEditorDocumentReferenceCatalog(view.state),
-      onChange: (newDoc) => {
-        currentDoc = newDoc;
-      },
-    });
-    this.abstractEditors.set(body, controller);
-    let opening = true;
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        opening = false;
-      });
-    });
-
-    const restoreRendered = (): void => {
-      body.classList.remove(CSS.docAbstractEditor);
-      body.replaceChildren();
-      registerAbstractCitations(view.state, this.abstract);
-      this.renderAbstractBody(body, createFrontmatterReferenceContext(view.state));
-    };
-
-    const commit = () => {
-      if (closed) return;
-      closed = true;
-      this.abstractEditors.delete(body);
-      controller.destroy();
-      const frontmatter = view.state.field(frontmatterField, false);
-      const change = frontmatter
-        ? updateFrontmatterStringField(
-          view.state.doc.toString(),
-          frontmatter.end,
-          "abstract",
-          currentDoc,
-        )
-        : null;
-      if (change && currentDoc !== originalDoc) {
-        view.dispatch({
-          changes: change,
-          scrollIntoView: false,
-        });
-      } else {
-        restoreRendered();
-      }
-      view.focus();
-    };
-    const cancel = () => {
-      if (closed) return;
-      closed = true;
-      this.abstractEditors.delete(body);
-      controller.destroy();
-      restoreRendered();
-      view.focus();
-    };
-
-    controller.setCallbacks({
-      onChange: (newDoc) => {
-        currentDoc = newDoc;
-      },
-      onBlur: () => {
-        if (opening) return;
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            if (
-              document.activeElement instanceof HTMLElement &&
-              body.contains(document.activeElement)
-            ) {
-              return;
-            }
-            commit();
-          });
-        });
-      },
-      onKeydown: (event) => {
-        if (event.key === "Escape") {
-          event.preventDefault();
-          event.stopPropagation();
-          cancel();
-          return true;
-        }
-        if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
-          event.preventDefault();
-          event.stopPropagation();
-          commit();
-          return true;
-        }
-        return false;
-      },
-    });
-
-    requestAnimationFrame(() => {
-      let anchor = controller.view.state.doc.length;
-      if (clickCoords) {
-        try {
-          anchor = controller.view.posAtCoords(clickCoords) ?? anchor;
-        } catch (_error) {
-          anchor = controller.view.state.doc.length;
-        }
-      }
-      controller.view.dispatch({ selection: { anchor } });
-      controller.view.focus();
-    });
-  }
-
-  override destroy(dom: HTMLElement): void {
-    for (const body of dom.querySelectorAll<HTMLElement>(`.${CSS.docAbstractBody}`)) {
-      const controller = this.abstractEditors.get(body);
-      if (!controller) continue;
-      controller.destroy();
-      this.abstractEditors.delete(body);
-    }
-  }
-}
-
-function isEditorReadOnly(view: EditorView): boolean {
-  try {
-    return view.state.facet(EditorState.readOnly) === true ||
-      view.state.facet(EditorView.editable) === false;
-  } catch (_error) {
-    return false;
   }
 }
 
@@ -574,6 +310,12 @@ function createFrontmatterReferenceContext(state: EditorState): InlineReferenceR
   );
 }
 
+function hasAbstractBlock(state: EditorState): boolean {
+  return Boolean(
+    state.field(documentAnalysisField, false)?.fencedDivs.some((div) => div.primaryClass === "abstract"),
+  );
+}
+
 /** Build decorations for the frontmatter region. */
 function buildDecorations(state: EditorState): DecorationSet {
   const { end, config } = state.field(frontmatterField);
@@ -602,11 +344,12 @@ function buildDecorations(state: EditorState): DecorationSet {
 
   if (config.title) {
     const macros = config.math ?? {};
-    registerAbstractCitations(state, config.abstract);
+    const abstract = hasAbstractBlock(state) ? undefined : config.abstract;
+    registerAbstractCitations(state, abstract);
     const referenceContext = createFrontmatterReferenceContext(state);
     const widget = new ArticleHeaderWidget(
       config.title,
-      config.abstract,
+      abstract,
       config.titleBlock?.labels?.abstract ?? "Abstract",
       macros,
       referenceContext,

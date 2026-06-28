@@ -341,6 +341,22 @@ function computeReaderBlockNumbers(
   return computeBlockNumbers(blocks, getSpec, numbering);
 }
 
+function hasAbstractBlock(source: string, tree: Tree): boolean {
+  let found = false;
+  tree.iterate({
+    enter(node) {
+      if (found) return false;
+      if (node.name !== NODE.FencedDiv) return;
+      const info = fencedDivNumberingInfo(source, node.node);
+      if (info?.primaryClass === "abstract") {
+        found = true;
+        return false;
+      }
+    },
+  });
+  return found;
+}
+
 function renderInlineSnippet(ctx: WalkContext, source: string): BlockResult {
   const tree = parseSource(source);
   const snippetCtx: WalkContext = {
@@ -1702,7 +1718,12 @@ function renderFencedDiv(ctx: WalkContext, node: SyntaxNode): BlockResult {
   const blockBodyHtml = selfClosingTitle.html
     ? renderParagraphHtml(selfClosingTitle.html)
     : body.html;
-  const bodyHtml = standaloneTitle.html
+  const abstractLabelHtml = normalizedClassName === "abstract" && summary.text
+    ? `<div class="${CSS.docAbstractLabel}">${escapeHtml(summary.text)}</div>`
+    : "";
+  const bodyHtml = abstractLabelHtml
+    ? abstractLabelHtml + blockBodyHtml + caption.html
+    : standaloneTitle.html
     ? renderBlockLabelContentHtml(standaloneTitle.html) + body.html + caption.html
     : blockBodyHtml + caption.html;
   const html = chrome.bodySlot === "inline-heading"
@@ -1847,13 +1868,14 @@ function walkDocument(
 
   const root = tree.topNode;
   const blocks: BlockResult[] = [];
+  const renderFrontmatterAbstract = !hasAbstractBlock(source, tree);
   if (frontmatter.config.title) {
     const title = frontmatter.config.title;
     // A document title is a single line of inline markdown — render it inline
     // (like fenced-div block titles and the editor's title widget), not as a
     // full block document, so it never sprouts headings/lists/paragraphs.
     const renderedTitle = renderInlineSnippet(ctx, title);
-    const abstract = frontmatter.config.abstract;
+    const abstract = renderFrontmatterAbstract ? frontmatter.config.abstract : undefined;
     const renderedAbstract = abstract !== undefined ? renderInlineSnippet(ctx, abstract) : null;
     const label = frontmatter.config.titleBlock?.labels?.abstract ?? "Abstract";
     const abstractHtml = renderedAbstract

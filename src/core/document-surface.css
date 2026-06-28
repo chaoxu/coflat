@@ -70,7 +70,8 @@
    * These tokens match the STYLED_BLOCK_NAMES list derived from
    * BLOCK_MANIFEST in src/constants/block-manifest.ts. When adding
    * a new block type, add its entry to the manifest and corresponding
-   * --cf-block-{name}-accent and --cf-block-{name}-style tokens here. */
+  * --cf-block-{name}-accent and --cf-block-{name}-style tokens here. */
+  --cf-block-abstract-accent: var(--cf-block-header-accent);
   --cf-block-theorem-accent: var(--cf-block-header-accent);
   --cf-block-lemma-accent: var(--cf-block-header-accent);
   --cf-block-corollary-accent: var(--cf-block-header-accent);
@@ -87,6 +88,7 @@
   --cf-block-title-color: var(--cf-fg);
   --cf-block-title-weight: 700;
   /* Per-block-type body font style — must match BLOCK_MANIFEST bodyStyle values */
+  --cf-block-abstract-style: normal;
   --cf-block-theorem-style: italic;
   --cf-block-lemma-style: italic;
   --cf-block-corollary-style: italic;
@@ -367,14 +369,6 @@
   font-size: 0.92em;
   line-height: 1.55;
   color: var(--cf-fg);
-}
-
-.cf-doc-abstract-editor {
-  display: block;
-  min-height: 1.55em;
-  color: var(--cf-fg);
-  font-family: inherit;
-  line-height: 1.55;
 }
 
 .cf-reader .cf-doc-heading:not(.cf-doc-heading--unnumbered)::before {
@@ -876,6 +870,7 @@
 /* ── Fenced div blocks (theorem, proof, etc.) — shared surface DOM ──
  * Unscoped cf-doc-block--* rules apply to reader output and non-CM6 preview DOM. */
 .cf-doc-block--theorem { font-style: var(--cf-block-theorem-style); border-left-color: var(--cf-block-theorem-accent); }
+.cf-doc-block--abstract { font-style: var(--cf-block-abstract-style); border-left-color: var(--cf-block-abstract-accent); }
 .cf-doc-block--lemma { font-style: var(--cf-block-lemma-style); border-left-color: var(--cf-block-lemma-accent); }
 .cf-doc-block--corollary { font-style: var(--cf-block-corollary-style); border-left-color: var(--cf-block-corollary-accent); }
 .cf-doc-block--proposition { font-style: var(--cf-block-proposition-style); border-left-color: var(--cf-block-proposition-accent); }
@@ -893,6 +888,34 @@
 .cf-doc-block {
   border-left: var(--cf-block-header-border-width) solid var(--cf-block-header-accent);
   margin: var(--cf-block-margin);
+}
+
+.cf-doc-block--abstract {
+  color: var(--cf-fg);
+  font-size: 0.92em;
+  line-height: 1.55;
+  margin-top: var(--cf-spacing-sm);
+}
+
+.cf-doc-block--abstract .cf-doc-abstract-label,
+.cf-doc-block--abstract.cf-block-header .cf-block-header-rendered {
+  font-family: var(--cf-ui-font, ui-sans-serif, system-ui, sans-serif);
+  font-size: 0.76em;
+  font-style: normal;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  line-height: 1.4;
+  text-transform: uppercase;
+  color: var(--cf-muted);
+}
+
+.cf-doc-block--abstract .cf-doc-abstract-label .cf-block-header-rendered {
+  display: inline;
+  line-height: inherit;
+}
+
+.cf-doc-block--abstract .cf-doc-abstract-label {
+  margin-bottom: 0.25em;
 }
 
 .cf-doc-flow .cf-doc-block {

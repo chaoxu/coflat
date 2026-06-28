@@ -55,14 +55,6 @@ export const typographyThemeStyles = {
     color: "var(--cf-fg)",
   },
 
-  ".cf-doc-abstract-editor": {
-    display: "block",
-    minHeight: "1.55em",
-    color: "var(--cf-fg)",
-    fontFamily: "inherit",
-    lineHeight: "1.55",
-  },
-
   /* Frontmatter YAML lines — monospace when editing (structured data, not prose) */
   ".cf-frontmatter-line": {
     fontFamily: monoFont,

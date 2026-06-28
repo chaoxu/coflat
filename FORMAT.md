@@ -43,8 +43,6 @@ title: Document Title
 subtitle: Optional subtitle
 description: |
   Short summary for listings, previews, and citation metadata.
-abstract: |
-  Scholarly abstract. Markdown and math are allowed.
 date: 2026-06-20
 date-format: long
 
@@ -103,6 +101,14 @@ blocks:
 ---
 ```
 
+Put the scholarly abstract in the document body as a normal Coflat block:
+
+```markdown
+::: {.abstract}
+Scholarly abstract. Markdown, citations, and math like $x^2$ are allowed.
+:::
+```
+
 ### Article metadata
 
 These keys describe the article itself. They are intentionally close to
@@ -114,7 +120,7 @@ rewriting.
 | `title` | string | Document title. Rendered by the built-in reader/editor title shell. |
 | `subtitle` | string | Optional subtitle for title-block/export hosts. |
 | `description` | string | Short summary for listings, previews, and citation metadata. |
-| `abstract` | string | Scholarly abstract. Prefer YAML block style (`|`) for multi-line text. |
+| `abstract` | string | Legacy scholarly abstract fallback. New documents should use an `::: {.abstract}` body block so the abstract edits like normal Coflat prose. |
 | `date` | string | Publication or document date. ISO `YYYY-MM-DD` is preferred; Quarto-style `today`, `now`, and `last-modified` are accepted by hosts that can resolve them. |
 | `date-format` | string | Quarto-compatible date formatting hint. |
 | `author` / `authors` | string, object, or list | Author metadata. `author` is canonical; `authors` is an accepted alias for existing Coflat/LIPIcs documents. |

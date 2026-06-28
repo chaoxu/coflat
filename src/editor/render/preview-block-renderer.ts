@@ -437,6 +437,12 @@ function renderFencedDiv(
     if (chrome.bodySlot === "disclosure" && summary) {
       appendBlockHeader(block, summary, body);
     } else {
+      if (plan.primaryClassName === "abstract" && summary) {
+        const label = block.ownerDocument.createElement("div");
+        label.className = CSS.docAbstractLabel;
+        label.appendChild(summary);
+        block.appendChild(label);
+      }
       if (chrome.titleSlot === "standalone-label") {
         const strong = createBlockLabelElement(document);
         appendInlineFragments(strong, plan.titleFragments, context, policy.labelInlineSurface);

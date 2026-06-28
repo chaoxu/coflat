@@ -63,6 +63,7 @@ function extractMetadata(docText: string): DocumentMetadata {
     title: typeof raw["title"] === "string" ? raw["title"] : undefined,
     author: typeof raw["author"] === "string" ? raw["author"] : undefined,
     date: typeof raw["date"] === "string" ? raw["date"] : undefined,
+    abstract: typeof raw["abstract"] === "string" ? raw["abstract"] : undefined,
     raw,
   };
 }
@@ -201,6 +202,10 @@ export function buildDocumentIR({
     range: { from: div.from, to: div.to },
     content: extractDivBody(docText, div.openFenceTo, div.closeFenceFrom, div.to),
   }));
+  const abstractBlock = blocks.find((block) => block.type === "abstract");
+  const metadataWithAbstract: DocumentMetadata = abstractBlock
+    ? { ...metadata, abstract: abstractBlock.content.trim() }
+    : metadata;
 
   const math: MathNode[] = analysis.equations.map((equation) => ({
     latex: equation.latex,
@@ -218,7 +223,7 @@ export function buildDocumentIR({
   }));
 
   return {
-    metadata,
+    metadata: metadataWithAbstract,
     sections,
     blocks,
     math,

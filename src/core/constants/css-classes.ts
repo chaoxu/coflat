@@ -209,7 +209,6 @@ export const CSS = {
   docAbstract: "cf-doc-abstract",
   docAbstractLabel: "cf-doc-abstract-label",
   docAbstractBody: "cf-doc-abstract-body",
-  docAbstractEditor: "cf-doc-abstract-editor",
 
   /** Hidden elements (markers, URLs, etc. collapsed when cursor is away). */
   hidden: "cf-hidden",

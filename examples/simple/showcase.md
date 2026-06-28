@@ -1,10 +1,12 @@
 ---
 id: coflat-feature-showcase
 title: "Coflat Feature Showcase"
-abstract: |
-  This abstract is editable in place in the rich editor. It intentionally includes inline math like $x^2 + y^2 = z^2$, a citation [@cormen2009], and **emphasized text** so the abstract exercises the same WYSIWYG inline rendering path as normal document prose.
 bibliography: reference.bib
 ---
+
+::: {.abstract}
+This abstract is a normal Coflat block. It intentionally includes inline math like $x^2 + y^2 = z^2$, a citation [@cormen2009], and **emphasized text** so the abstract exercises the same WYSIWYG rendering and editing path as document prose.
+:::
 
 This is the canonical single-page Coflat showcase from the Cosheaf seed, adapted for the public editor demo. It exercises the editor's main document surfaces in one place: frontmatter, inline rendering, display math, semantic blocks, figures, tables, code, references, citations, footnotes, and structure-edit behavior.
 
