@@ -16,6 +16,7 @@ import { CSS } from "../../core/constants/css-classes";
 import { markdownExtensions } from "../../core/parser";
 import { bibDataEffect, bibDataField } from "../state/bib-data";
 import { documentAnalysisField } from "../state/document-analysis";
+import { frontmatterField } from "../state/frontmatter-state";
 import { applyStateEffects, createEditorState, makeBibStore } from "../test-utils";
 
 const karger: CslJsonItem = {
@@ -169,6 +170,44 @@ describe("buildBibliographyDecorations", () => {
 });
 
 describe("bibliographyPlugin", () => {
+  it("renders and backlinks citations that only appear inside the abstract", () => {
+    const parent = document.body.appendChild(document.createElement("div"));
+    const doc = [
+      "---",
+      "title: Abstract Citation",
+      "abstract: |",
+      "  Abstract cites [@karger2000].",
+      "---",
+      "",
+      "Body.",
+    ].join("\n");
+    const state = EditorState.create({
+      doc,
+      extensions: [
+        markdown({ extensions: markdownExtensions }),
+        frontmatterField,
+        documentAnalysisField,
+        bibDataField,
+        bibliographyPlugin,
+      ],
+    });
+    const view = new EditorView({ state, parent });
+    view.dispatch({
+      effects: bibDataEffect.of({
+        store: makeBibStore([karger]),
+        formatter: new CslProcessor([karger]),
+      }),
+    });
+
+    expect(parent.querySelector(`.${CSS.bibliographyEntry}`)?.textContent).toContain("Karger");
+    const links = parent.querySelectorAll<HTMLAnchorElement>(`.${CSS.bibliographyBacklink}`);
+    expect(links.length).toBe(1);
+    const sourceFrom = Number(links[0].dataset.sourceFrom ?? "-1");
+    expect(sourceFrom).toBeGreaterThanOrEqual(doc.indexOf("[@karger2000]"));
+    expect(sourceFrom).toBeLessThan(doc.indexOf("---", 4));
+    view.destroy();
+  });
+
   it("renders references for citations that only appear inside footnote definitions", () => {
     const parent = document.body.appendChild(document.createElement("div"));
     const state = EditorState.create({

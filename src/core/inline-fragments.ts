@@ -3,6 +3,7 @@ import { parseMarkdownSource } from "./parser";
 import { MARK_NODES } from "./parser/inline-mark-nodes";
 import {
   BRACKETED_REFERENCE_EXACT_RE,
+  BRACKETED_REFERENCE_GLOBAL_RE,
   extractReferenceCluster,
   NARRATIVE_REFERENCE_GLOBAL_RE,
 } from "./lib/reference-grammar";
@@ -265,6 +266,63 @@ function buildInlineFragment(
   }
 }
 
+function textFragment(
+  base: Extract<InlineFragment, { kind: "text" }>,
+  from: number,
+  to: number,
+): InlineFragment | null {
+  if (to <= from) return null;
+  return {
+    kind: "text",
+    text: base.text.slice(from, to),
+    ...(base.sourceRange
+      ? { sourceRange: { from: base.sourceRange.from + from, to: base.sourceRange.from + to } }
+      : {}),
+  };
+}
+
+function referenceSourceRange(
+  base: Extract<InlineFragment, { kind: "text" }>,
+  from: number,
+  to: number,
+): InlineFragmentMeta {
+  return base.sourceRange
+    ? { sourceRange: { from: base.sourceRange.from + from, to: base.sourceRange.from + to } }
+    : {};
+}
+
+function splitBracketedReferenceText(fragment: Extract<InlineFragment, { kind: "text" }>): InlineFragment[] {
+  const { text } = fragment;
+  if (!text) return [];
+
+  const fragments: InlineFragment[] = [];
+  let pos = 0;
+
+  BRACKETED_REFERENCE_GLOBAL_RE.lastIndex = 0;
+  let match: RegExpExecArray | null;
+  while ((match = BRACKETED_REFERENCE_GLOBAL_RE.exec(text)) !== null) {
+    const from = match.index;
+    const to = from + match[0].length;
+    const before = textFragment(fragment, pos, from);
+    if (before) fragments.push(before);
+
+    const referenceParts = extractReferenceCluster(match[1] ?? "");
+    fragments.push({
+      kind: "reference",
+      parenthetical: true,
+      rawText: match[1] ?? "",
+      ids: referenceParts.ids,
+      locators: referenceParts.locators,
+      ...referenceSourceRange(fragment, from, to),
+    });
+    pos = to;
+  }
+
+  const rest = textFragment(fragment, pos, text.length);
+  if (rest) fragments.push(rest);
+  return fragments.length > 0 ? fragments : [fragment];
+}
+
 function splitNarrativeReferenceText(fragment: Extract<InlineFragment, { kind: "text" }>): InlineFragment[] {
   const { text } = fragment;
   if (!text) return [];
@@ -277,42 +335,26 @@ function splitNarrativeReferenceText(fragment: Extract<InlineFragment, { kind: "
   while ((match = NARRATIVE_REFERENCE_GLOBAL_RE.exec(text)) !== null) {
     const from = match.index;
     const to = from + match[0].length;
-    if (from > pos) {
-      fragments.push({
-        kind: "text",
-        text: text.slice(pos, from),
-        ...(fragment.sourceRange
-          ? { sourceRange: { from: fragment.sourceRange.from + pos, to: fragment.sourceRange.from + from } }
-          : {}),
-      });
-    }
+    const before = textFragment(fragment, pos, from);
+    if (before) fragments.push(before);
     fragments.push({
       kind: "reference",
       parenthetical: false,
       rawText: match[0],
       ids: [match[1]],
       locators: [undefined],
-      ...(fragment.sourceRange
-        ? { sourceRange: { from: fragment.sourceRange.from + from, to: fragment.sourceRange.from + to } }
-        : {}),
+      ...referenceSourceRange(fragment, from, to),
     });
     pos = to;
   }
 
-  if (pos < text.length) {
-    fragments.push({
-      kind: "text",
-      text: text.slice(pos),
-      ...(fragment.sourceRange
-        ? { sourceRange: { from: fragment.sourceRange.from + pos, to: fragment.sourceRange.to } }
-        : {}),
-    });
-  }
+  const rest = textFragment(fragment, pos, text.length);
+  if (rest) fragments.push(rest);
 
   return fragments.length > 0 ? fragments : [fragment];
 }
 
-function normalizeNarrativeReferences(
+function normalizeReferences(
   fragments: readonly InlineFragment[],
 ): InlineFragment[] {
   const normalized: InlineFragment[] = [];
@@ -320,7 +362,9 @@ function normalizeNarrativeReferences(
   for (const fragment of fragments) {
     switch (fragment.kind) {
       case "text":
-        normalized.push(...splitNarrativeReferenceText(fragment));
+        normalized.push(...splitBracketedReferenceText(fragment).flatMap((part) =>
+          part.kind === "text" ? splitNarrativeReferenceText(part) : [part],
+        ));
         break;
 
       case "emphasis":
@@ -329,7 +373,7 @@ function normalizeNarrativeReferences(
       case "highlight":
         normalized.push({
           ...fragment,
-          children: normalizeNarrativeReferences(fragment.children),
+          children: normalizeReferences(fragment.children),
         });
         break;
 
@@ -403,7 +447,7 @@ export function buildInlineFragments(
   rangeTo?: number,
   options: InlineFragmentBuildOptions = {},
 ): InlineFragment[] {
-  return normalizeNarrativeReferences(
+  return normalizeReferences(
     mergeAdjacentTextFragments(buildInlineFragmentsRaw(
       node,
       doc,
@@ -424,7 +468,7 @@ export function parseInlineFragments(
   const doc = tree.topNode;
   const para = doc.firstChild;
   if (!para) {
-    return normalizeNarrativeReferences([{
+    return normalizeReferences([{
       kind: "text",
       text,
       ...sourceRange(0, text.length, options),
@@ -439,7 +483,7 @@ export function parseInlineFragments(
   if (para.to < text.length) {
     fragments.push({ kind: "text", text: text.slice(para.to), ...sourceRange(para.to, text.length, options) });
   }
-  return normalizeNarrativeReferences(mergeAdjacentTextFragments(fragments));
+  return normalizeReferences(mergeAdjacentTextFragments(fragments));
 }
 
 export function inlineFragmentsPlainText(fragments: readonly InlineFragment[]): string {

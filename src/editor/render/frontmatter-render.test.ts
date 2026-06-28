@@ -9,7 +9,19 @@ import {
   createStructureEditTargetAt,
   setStructureEditTargetEffect,
 } from "../state/cm-structure-edit";
-import { applyStateEffects } from "../test-utils";
+import { type CslJsonItem } from "../../core/citations/csl-json";
+import { CslProcessor } from "../citations/csl-processor";
+import { bibDataEffect, bibDataField } from "../state/bib-data";
+import { applyStateEffects, makeBibStore } from "../test-utils";
+
+const karger: CslJsonItem = {
+  id: "karger2000",
+  type: "article-journal",
+  author: [{ family: "Karger", given: "David R." }],
+  title: "Minimum cuts in near-linear time",
+  issued: { "date-parts": [[2000]] },
+  "container-title": "JACM",
+};
 
 function createState(doc: string): EditorState {
   return EditorState.create({
@@ -116,6 +128,40 @@ describe("frontmatterDecoration", () => {
     expect(dom.querySelector(".cf-doc-abstract-label")?.textContent).toBe("Summary");
     expect(dom.querySelector(".cf-doc-abstract-body")?.textContent).toContain("Short");
     expect(dom.querySelector(".cf-doc-abstract-body .katex")).not.toBeNull();
+  });
+
+  it("renders frontmatter abstract citations with local bibliography data", async () => {
+    const parent = document.createElement("div");
+    document.body.appendChild(parent);
+    const view = new EditorView({
+      state: EditorState.create({
+        doc: "---\ntitle: Hello\nabstract: |\n  Cites [@karger2000].\n---\nContent",
+        extensions: [
+          frontmatterField,
+          activeStructureEditField,
+          bibDataField,
+          frontmatterDecoration,
+        ],
+      }),
+      parent,
+    });
+    const formatter = new CslProcessor([karger]);
+    await formatter.ensureReady();
+    view.dispatch({
+      effects: bibDataEffect.of({
+        store: makeBibStore([karger]),
+        formatter,
+      }),
+    });
+    const widget = getArticleHeaderWidget(view.state);
+    const dom = widget.toDOM(view);
+
+    const abstract = dom.querySelector(".cf-doc-abstract-body");
+    expect(abstract?.textContent).toContain("[1]");
+    expect(abstract?.textContent).not.toContain("karger2000");
+    expect(abstract?.querySelector(".cf-citation")).not.toBeNull();
+    view.destroy();
+    parent.remove();
   });
 
   it("edits the frontmatter abstract through the article header widget", () => {

@@ -1611,7 +1611,8 @@ test("public demo hydrates bibliography citations", async ({ page }) => {
   await expect(firstCitation).toHaveClass(/cf-citation/);
   await expect(firstCitation).not.toHaveClass(/cf-crossref-unresolved/);
 
-  await firstCitation.hover();
+  const hoverCitation = page.locator('.cf-citation[aria-label="cormen2009"], [data-ref-key="cormen2009"]').nth(1);
+  await hoverCitation.hover();
   const tooltip = page.locator('.cf-hover-preview-tooltip[data-visible="true"]');
   await expect(tooltip).toContainText("Introduction to Algorithms");
   await expect(tooltip).toContainText("Cormen");

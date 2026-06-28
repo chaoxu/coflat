@@ -12,7 +12,18 @@ import { CSS } from "../../core/constants/css-classes";
 import { createInlineEditorController, type InlineEditorController } from "../inline-editor";
 import { documentContextFacet } from "../document-context";
 import { getEditorDocumentReferenceCatalog } from "../semantics/editor-reference-catalog";
-import { bibDataField } from "../state/bib-data";
+import {
+  createCatalogReferencePresentationController,
+  createEditorReferencePresentationController,
+} from "../references/presentation";
+import {
+  collectCitationClusters,
+  getCitationRegistrationKey,
+  type CitationReferenceToken,
+} from "../citations/citation-matching";
+import { bibDataEffect, bibDataField } from "../state/bib-data";
+import { scanReferenceTokens } from "../lib/reference-tokens";
+import type { InlineReferenceRenderContext } from "./inline-render";
 
 import { frontmatterField } from "../state/frontmatter-state";
 import {
@@ -121,6 +132,8 @@ class ArticleHeaderWidget extends ShellMacroAwareWidget {
     private readonly abstract: string | undefined,
     private readonly abstractLabel: string,
     private readonly macros: Record<string, string>,
+    private readonly referenceContext: InlineReferenceRenderContext | undefined,
+    private readonly referenceKey: string,
     private readonly active: boolean = false,
   ) {
     super(macros);
@@ -133,11 +146,7 @@ class ArticleHeaderWidget extends ShellMacroAwareWidget {
 
       const titleEl = document.createElement("div");
       titleEl.className = CSS.docTitle;
-      renderDocumentFragmentToDom(titleEl, {
-        kind: "title",
-        text: this.title,
-        macros: this.macros,
-      });
+      this.renderTitle(titleEl, this.referenceContext);
       el.appendChild(titleEl);
 
       if (this.abstract !== undefined) {
@@ -145,6 +154,28 @@ class ArticleHeaderWidget extends ShellMacroAwareWidget {
       }
 
       return el;
+    });
+  }
+
+  private renderTitle(target: HTMLElement, referenceContext: InlineReferenceRenderContext | undefined): void {
+    renderDocumentFragmentToDom(target, {
+      kind: "title",
+      text: this.title,
+      macros: this.macros,
+      referenceContext,
+    });
+  }
+
+  private renderAbstractBody(
+    target: HTMLElement,
+    referenceContext: InlineReferenceRenderContext | undefined,
+  ): void {
+    renderDocumentFragmentToDom(target, {
+      kind: "title",
+      text: this.abstract ?? "",
+      macros: this.macros,
+      referenceContext,
+      surface: "document-inline",
     });
   }
 
@@ -159,11 +190,7 @@ class ArticleHeaderWidget extends ShellMacroAwareWidget {
 
     const body = document.createElement("div");
     body.className = CSS.docAbstractBody;
-    renderDocumentFragmentToDom(body, {
-      kind: "title",
-      text: this.abstract ?? "",
-      macros: this.macros,
-    });
+    this.renderAbstractBody(body, this.referenceContext);
     section.appendChild(body);
     return section;
   }
@@ -174,6 +201,7 @@ class ArticleHeaderWidget extends ShellMacroAwareWidget {
       this.abstract === other.abstract &&
       this.abstractLabel === other.abstractLabel &&
       this.macrosKey === other.macrosKey &&
+      this.referenceKey === other.referenceKey &&
       this.active === other.active
     );
   }
@@ -181,6 +209,22 @@ class ArticleHeaderWidget extends ShellMacroAwareWidget {
   override toDOM(view?: EditorView): HTMLElement {
     const el = this.createDOM();
     this.syncWidgetAttrs(el, view);
+    const referenceContext = view
+      ? createFrontmatterReferenceContext(view.state)
+      : this.referenceContext;
+    if (view) {
+      registerAbstractCitations(view.state, this.abstract);
+      const titleForRender = el.querySelector<HTMLElement>(`.${CSS.docTitle}`);
+      if (titleForRender) {
+        titleForRender.replaceChildren();
+        this.renderTitle(titleForRender, referenceContext);
+      }
+      const bodyForRender = el.querySelector<HTMLElement>(`.${CSS.docAbstractBody}`);
+      if (bodyForRender && !this.abstractEditors.has(bodyForRender)) {
+        bodyForRender.replaceChildren();
+        this.renderAbstractBody(bodyForRender, referenceContext);
+      }
+    }
     const title = el.querySelector<HTMLElement>(`.${CSS.docTitle}`);
     if (title && view) {
       this.bindSourceReveal(title, view);
@@ -245,11 +289,8 @@ class ArticleHeaderWidget extends ShellMacroAwareWidget {
     const restoreRendered = (): void => {
       body.classList.remove(CSS.docAbstractEditor);
       body.replaceChildren();
-      renderDocumentFragmentToDom(body, {
-        kind: "title",
-        text: this.abstract ?? "",
-        macros: this.macros,
-      });
+      registerAbstractCitations(view.state, this.abstract);
+      this.renderAbstractBody(body, createFrontmatterReferenceContext(view.state));
     };
 
     const commit = () => {
@@ -384,6 +425,18 @@ function frontmatterShouldRebuild(tr: Transaction): boolean {
   if (hasStructureEditEffect(tr)) {
     return true;
   }
+  if (tr.effects.some((effect) => effect.is(bibDataEffect))) {
+    return true;
+  }
+  const beforeBib = tr.startState.field(bibDataField, false);
+  const afterBib = tr.state.field(bibDataField, false);
+  if (
+    beforeBib?.store !== afterBib?.store ||
+    beforeBib?.formatter !== afterBib?.formatter ||
+    beforeBib?.formatterRevision !== afterBib?.formatterRevision
+  ) {
+    return true;
+  }
   if (tr.state.field(frontmatterField) !== tr.startState.field(frontmatterField)) {
     return true;
   }
@@ -401,6 +454,72 @@ function frontmatterVisualEnd(state: EditorState, frontmatterEnd: number): numbe
     visualEnd = line.to < doc.length ? line.to + 1 : line.to;
   }
   return visualEnd;
+}
+
+function frontmatterReferenceKey(state: EditorState): string {
+  const bibData = state.field(bibDataField, false);
+  if (!bibData) return "";
+  return [
+    bibData.store.size,
+    Array.from(bibData.store.keys()).join("\0"),
+    bibData.formatterRevision,
+    bibData.formatter?.citationRegistrationKey ?? "",
+  ].join("\u0001");
+}
+
+function registerAbstractCitations(state: EditorState, abstract: string | undefined): void {
+  if (!abstract) return;
+  const bibData = state.field(bibDataField, false);
+  if (!bibData?.formatter || bibData.store.size === 0) return;
+  const tokens: CitationReferenceToken[] = scanReferenceTokens(abstract).map((token) => ({
+    id: token.id,
+    clusterFrom: token.clusterFrom,
+    clusterTo: token.clusterTo,
+    clusterIndex: token.clusterIndex,
+    locator: token.locator,
+  }));
+  const clusters = collectCitationClusters(tokens, bibData.store);
+  if (clusters.length === 0) return;
+  const key = getCitationRegistrationKey(clusters);
+  if (bibData.formatter.citationRegistrationKey === key) return;
+  bibData.formatter.registerCitations(clusters);
+}
+
+function createFrontmatterReferenceContext(state: EditorState): InlineReferenceRenderContext {
+  const bibData = state.field(bibDataField, false);
+  const formatter = bibData?.formatter ?? null;
+  if (!bibData || !formatter) {
+    return createEditorReferencePresentationController(state, {
+      surface: "editor-header",
+    });
+  }
+
+  const cite = (ids: readonly string[], locators: readonly (string | undefined)[]): string => {
+    const rendered = formatter.cite([...ids], [...locators]);
+    if (rendered) return rendered;
+    formatter.registerCitations([{ ids: [...ids], locators: [...locators] }]);
+    return formatter.cite([...ids], [...locators]);
+  };
+
+  const citeNarrative = (id: string): string => {
+    const rendered = formatter.citeNarrative(id);
+    if (rendered && rendered !== id) return rendered;
+    if (!bibData.store.has(id)) return rendered;
+    formatter.registerCitations([{ ids: [id], locators: [] }]);
+    return formatter.citeNarrative(id);
+  };
+
+  return createCatalogReferencePresentationController(
+    getEditorDocumentReferenceCatalog(state),
+    {
+      bibliography: bibData.store,
+      citationKeys: bibData.store,
+      documentContext: state.facet(documentContextFacet),
+      cite,
+      citeNarrative,
+      surface: "editor-header",
+    },
+  );
 }
 
 /** Build decorations for the frontmatter region. */
@@ -431,11 +550,15 @@ function buildDecorations(state: EditorState): DecorationSet {
 
   if (config.title) {
     const macros = config.math ?? {};
+    registerAbstractCitations(state, config.abstract);
+    const referenceContext = createFrontmatterReferenceContext(state);
     const widget = new ArticleHeaderWidget(
       config.title,
       config.abstract,
       config.titleBlock?.labels?.abstract ?? "Abstract",
       macros,
+      referenceContext,
+      frontmatterReferenceKey(state),
       active,
     );
     widget.updateSourceRange(0, end);
