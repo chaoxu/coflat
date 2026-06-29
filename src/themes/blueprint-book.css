@@ -203,6 +203,19 @@
   margin: var(--cf-block-margin);
 }
 
+.cf-theme-blueprint-book .cf-doc-flow .cf-doc-block--abstract,
+.cf-theme-blueprint-book .cf-doc-block--abstract:not(.cm-line) {
+  box-sizing: border-box;
+  inline-size: var(--cf-doc-abstract-width, 88%);
+  margin-inline: auto;
+  max-inline-size: var(--cf-doc-abstract-max-width, 42rem);
+}
+
+.cf-theme-blueprint-book .cf-doc-flow .cf-doc-block--abstract .cf-doc-abstract-label,
+.cf-theme-blueprint-book .cf-doc-block--abstract:not(.cm-line) .cf-doc-abstract-label {
+  text-align: center;
+}
+
 .cf-theme-blueprint-book .cf-doc-flow .cf-doc-block-collapsible,
 .cf-theme-blueprint-book .cf-doc-flow details.cf-doc-block {
   display: block;

@@ -140,6 +140,26 @@
   margin: 0;
 }
 
+.cm-line.cf-doc-block--abstract {
+  box-sizing: border-box;
+  inline-size: var(--cf-doc-abstract-width, 88%);
+  margin-inline: auto;
+  max-inline-size: var(--cf-doc-abstract-max-width, 42rem);
+}
+
+.cm-line.cf-doc-block--abstract.cf-block-header {
+  color: var(--cf-muted);
+  font-family: var(--cf-ui-font, ui-sans-serif, system-ui, sans-serif);
+  font-size: 0.76em;
+  font-style: normal;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  line-height: 1.4;
+  padding-bottom: 0.18em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
 .cm-line.cf-doc-block--blockquote {
   padding-left: var(--cf-doc-blockquote-padding-left, 1em);
 }

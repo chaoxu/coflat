@@ -65,6 +65,8 @@
   /* Theme-owned special surfaces */
   --cf-block-header-accent: var(--cf-fg);
   --cf-block-header-border-width: 0px;
+  --cf-doc-abstract-max-width: 42rem;
+  --cf-doc-abstract-width: 88%;
 
   /* Per-block-type accent colors (default to shared fallback).
    * These tokens match the STYLED_BLOCK_NAMES list derived from
@@ -909,6 +911,17 @@
 
 .cf-doc-flow .cf-doc-block {
   margin: 0;
+}
+
+.cf-doc-flow .cf-doc-block--abstract {
+  box-sizing: border-box;
+  inline-size: var(--cf-doc-abstract-width);
+  margin-inline: auto;
+  max-inline-size: var(--cf-doc-abstract-max-width);
+}
+
+.cf-doc-flow .cf-doc-block--abstract .cf-doc-abstract-label {
+  text-align: center;
 }
 
 .cf-doc-flow .cf-doc-blank-line {

@@ -2210,11 +2210,33 @@ test("article metadata frontmatter keeps current title presentation aligned", as
   }
 
   for (const selector of ["#reader-root .cf-doc-block--abstract", "#editor-root .cf-doc-block--abstract"]) {
-    const abstract = page.locator(selector);
-    await expect(abstract).toHaveCount(1);
-    await expect(abstract.locator(".cf-doc-abstract-label")).toContainText("Abstract");
-    await expect(abstract).toContainText("A richer article abstract with math");
-    await expect(abstract.locator(".katex")).toBeVisible();
+    const abstract = page.locator(selector).filter({ visible: true });
+    await expect.poll(() => abstract.count()).toBeGreaterThan(0);
+    const abstractText = (await abstract.allTextContents()).join(" ");
+    expect(abstractText).toContain("Abstract");
+    expect(abstractText).toContain("A richer article abstract with math");
+    await expect(abstract.locator(".katex").first()).toBeVisible();
+    const metrics = await abstract.evaluateAll((elements) => {
+      return elements.map((element) => {
+        const abstractRect = element.getBoundingClientRect();
+        const flowRect = element.closest(".cf-doc-flow")?.getBoundingClientRect();
+        return flowRect
+          ? {
+              centerDelta: Math.abs(
+                abstractRect.left + abstractRect.width / 2 - (flowRect.left + flowRect.width / 2),
+              ),
+              flowWidth: flowRect.width,
+              width: abstractRect.width,
+            }
+          : null;
+      });
+    });
+    for (const metric of metrics) {
+      expect(metric).not.toBeNull();
+      if (!metric) throw new Error("expected abstract layout metrics");
+      expect(metric.width).toBeLessThan(metric.flowWidth * 0.94);
+      expect(metric.centerDelta).toBeLessThan(2);
+    }
   }
 
   await expect(page.locator("#reader-root")).not.toContainText("Short presentation summary");
