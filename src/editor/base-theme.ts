@@ -108,4 +108,16 @@ export const baseThemeStyles = {
     opacity: "0.3",
     transition: "opacity var(--cf-transition, 0.15s ease)",
   },
+
+  /* Title-less frontmatter is hidden in rich mode by collapsing its lines.
+   * Non-empty lines collapse via a 0-height block widget; empty separator lines
+   * carry no text to replace, so they collapse to zero height here. */
+  ".cm-line.cf-frontmatter-hidden": {
+    height: "0",
+    minHeight: "0",
+    padding: "0",
+    lineHeight: "0",
+    fontSize: "0",
+    overflow: "hidden",
+  },
 };

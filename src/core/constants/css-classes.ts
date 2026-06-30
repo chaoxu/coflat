@@ -50,6 +50,8 @@ export const CSS = {
   activeShellBottom: "cf-active-shell-bottom",
   activeShellWidget: "cf-active-shell-widget",
   activeShellFooter: "cf-active-shell-footer",
+  /** Collapsed (hidden) title-less frontmatter / separator line in rich mode. */
+  frontmatterHidden: "cf-frontmatter-hidden",
 
   /** Block header line (rendered mode). */
   blockHeader: "cf-block-header",

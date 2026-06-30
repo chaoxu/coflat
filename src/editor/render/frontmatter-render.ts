@@ -32,6 +32,7 @@ import {
   focusTracker,
   ShellMacroAwareWidget,
 } from "./render-core";
+import { addCollapsedStructureLine } from "./fenced-block-core.js";
 
 /** Widget that renders article frontmatter fields. */
 class ArticleHeaderWidget extends ShellMacroAwareWidget {
@@ -282,12 +283,32 @@ function buildDecorations(state: EditorState): DecorationSet {
     widget.updateSourceRange(0, end);
   }
 
-  // `block: true` keeps the hidden frontmatter region a clean block so the first
-  // body line retains its own line decorations (paragraph classification and
-  // selection hit-testing). Both branches must set it — without it the title-less
-  // hide bleeds into the first line and breaks its selection (cosheaf #200).
-  const replaceSpec = widget
-    ? { widget, block: true, inclusiveEnd: false }
-    : { block: true, inclusiveEnd: false };
-  return Decoration.set([Decoration.replace(replaceSpec).range(0, visualEnd)]);
+  if (widget) {
+    return Decoration.set([
+      Decoration.replace({ widget, block: true, inclusiveEnd: false }).range(0, visualEnd),
+    ]);
+  }
+
+  // Title-less hide. Collapse each frontmatter (and trailing separator) line
+  // individually rather than with one block replace spanning [0, visualEnd]:
+  //   - Per-line block replacements that cover line text but NOT the trailing
+  //     line break keep the break outside the decoration, so the first body
+  //     line's own line decorations (paragraph-flow classification, selection
+  //     hit-testing) compose normally — fixing cosheaf #200.
+  //   - A single block replace over the whole region instead crashes CM6 when
+  //     the region is edited at its boundary (insert at position 0).
+  // Empty separator lines carry no text to replace, so they collapse via a
+  // height-0 line class; they sit at the top of the document and are always
+  // drawn, so the line-class height (vs. the block-model height) is safe here.
+  const items: Range<Decoration>[] = [];
+  for (let pos = 0; pos < visualEnd; ) {
+    const line = state.doc.lineAt(pos);
+    if (line.to > line.from) {
+      addCollapsedStructureLine(state, line, CSS.frontmatterHidden, items);
+    } else {
+      items.push(Decoration.line({ class: CSS.frontmatterHidden }).range(line.from));
+    }
+    pos = line.to + 1;
+  }
+  return Decoration.set(items);
 }

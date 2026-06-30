@@ -92,3 +92,20 @@ test("first line after frontmatter is mouse-drag selectable", async ({ page }) =
 
   await expect.poll(() => selectedText(page)).toContain("motivated by a workshop");
 });
+
+test("title-less frontmatter is hidden without a visible gap", async ({ page }) => {
+  await page.goto("/tests/e2e/fixtures/index.html");
+  await setDoc(page, DOC);
+  await settle(page);
+
+  // Every collapsed frontmatter line (delimiters, content, and the empty
+  // separator) renders at zero height — no leading blank line above the body.
+  const maxHeight = await page.evaluate(() => {
+    const hidden = [...document.querySelectorAll(".cf-frontmatter-hidden")] as HTMLElement[];
+    return hidden.length === 0
+      ? -1
+      : Math.max(...hidden.map((el) => el.getBoundingClientRect().height));
+  });
+  expect(maxHeight).toBeGreaterThanOrEqual(0);
+  expect(maxHeight).toBeLessThanOrEqual(1);
+});
