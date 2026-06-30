@@ -6,15 +6,10 @@
  * entirely when there is no title).
  */
 
-import { syntaxTree, syntaxTreeAvailable } from "@codemirror/language";
 import type { Transaction } from "@codemirror/state";
 import { EditorState, type Extension, type Range } from "@codemirror/state";
 import { Decoration, DecorationSet, EditorView, type WidgetType } from "@codemirror/view";
 import { CSS } from "../../core/constants/css-classes";
-import {
-  DOCUMENT_SURFACE_CLASS,
-  documentSurfaceClassNames,
-} from "../../core/document-surface-classes";
 import { documentContextFacet } from "../document-context";
 import { renderDocumentFragmentToDom } from "../document-surfaces";
 import {
@@ -30,6 +25,7 @@ import {
 } from "../state/cm-structure-edit";
 import { frontmatterField } from "../state/frontmatter-state";
 import { isFrontmatterActive } from "../state/shell-ownership";
+import { addCollapsedStructureLine } from "./fenced-block-core.js";
 import type { InlineReferenceRenderContext } from "./inline-render";
 import {
   createDecorationsField,
@@ -210,54 +206,6 @@ function frontmatterReferenceKey(state: EditorState): string {
   ].join("\u0001");
 }
 
-function firstVisibleParagraphLineDecoration(
-  state: EditorState,
-  visualEnd: number,
-): Range<Decoration> | null {
-  if (visualEnd >= state.doc.length) return null;
-  const line = state.doc.lineAt(visualEnd);
-  if (line.from !== visualEnd || line.text.trim() === "") return null;
-
-  let isTopLevelParagraph = false;
-  if (syntaxTreeAvailable(state, line.to)) {
-    syntaxTree(state).iterate({
-      from: line.from,
-      to: line.to,
-      enter(node) {
-        if (
-          node.type.name === "Paragraph" &&
-          node.node.parent?.name === "Document" &&
-          node.from <= line.from &&
-          node.to >= line.to
-        ) {
-          isTopLevelParagraph = true;
-          return false;
-        }
-        return undefined;
-      },
-    });
-  } else {
-    isTopLevelParagraph = looksLikePlainParagraphLine(line.text);
-  }
-  if (!isTopLevelParagraph) return null;
-  return Decoration.line({
-    attributes: { "data-tag-name": "p" },
-    class: documentSurfaceClassNames(DOCUMENT_SURFACE_CLASS.paragraph),
-  }).range(line.from);
-}
-
-function looksLikePlainParagraphLine(text: string): boolean {
-  const trimmed = text.trimStart();
-  return !(
-    /^#{1,6}(?:\s|$)/.test(trimmed) ||
-    /^[-*_]{3,}\s*$/.test(trimmed) ||
-    /^(```|~~~)/.test(trimmed) ||
-    /^>/.test(trimmed) ||
-    /^([-+*]|\d+[.)])\s/.test(trimmed) ||
-    /^(\$\$|\\\[|:::)/.test(trimmed)
-  );
-}
-
 function createFrontmatterReferenceContext(state: EditorState): InlineReferenceRenderContext {
   const bibData = state.field(bibDataField, false);
   const formatter = bibData?.formatter ?? null;
@@ -301,7 +249,6 @@ function buildDecorations(state: EditorState): DecorationSet {
   if (end <= 0) return Decoration.none;
   const active = isFrontmatterActive(state);
   const visualEnd = frontmatterVisualEnd(state, end);
-  const replaceEnd = Math.max(end, visualEnd > end ? visualEnd - 1 : visualEnd);
 
   if (shouldShowFrontmatterSource(state)) {
     const decos: Range<Decoration>[] = [];
@@ -322,10 +269,11 @@ function buildDecorations(state: EditorState): DecorationSet {
     return Decoration.set(decos);
   }
 
+  let widget: ArticleHeaderWidget | undefined;
   if (config.title) {
     const macros = config.math ?? {};
     const referenceContext = createFrontmatterReferenceContext(state);
-    const widget = new ArticleHeaderWidget(
+    widget = new ArticleHeaderWidget(
       config.title,
       macros,
       referenceContext,
@@ -333,18 +281,34 @@ function buildDecorations(state: EditorState): DecorationSet {
       active,
     );
     widget.updateSourceRange(0, end);
-    return Decoration.set([
-      Decoration.replace({
-        widget,
-        block: true,
-        inclusiveEnd: false,
-      }).range(0, replaceEnd),
-      firstVisibleParagraphLineDecoration(state, visualEnd),
-    ].filter((deco): deco is Range<Decoration> => deco !== null));
   }
 
-  return Decoration.set([
-    Decoration.replace({ inclusiveEnd: false }).range(0, replaceEnd),
-    firstVisibleParagraphLineDecoration(state, visualEnd),
-  ].filter((deco): deco is Range<Decoration> => deco !== null));
+  if (widget) {
+    return Decoration.set([
+      Decoration.replace({ widget, block: true, inclusiveEnd: false }).range(0, visualEnd),
+    ]);
+  }
+
+  // Title-less hide. Collapse each frontmatter (and trailing separator) line
+  // individually rather than with one block replace spanning [0, visualEnd]:
+  //   - Per-line block replacements that cover line text but NOT the trailing
+  //     line break keep the break outside the decoration, so the first body
+  //     line's own line decorations (paragraph-flow classification, selection
+  //     hit-testing) compose normally — fixing cosheaf #200.
+  //   - A single block replace over the whole region instead crashes CM6 when
+  //     the region is edited at its boundary (insert at position 0).
+  // Empty separator lines carry no text to replace, so they collapse via a
+  // height-0 line class; they sit at the top of the document and are always
+  // drawn, so the line-class height (vs. the block-model height) is safe here.
+  const items: Range<Decoration>[] = [];
+  for (let pos = 0; pos < visualEnd; ) {
+    const line = state.doc.lineAt(pos);
+    if (line.to > line.from) {
+      addCollapsedStructureLine(state, line, CSS.frontmatterHidden, items);
+    } else {
+      items.push(Decoration.line({ class: CSS.frontmatterHidden }).range(line.from));
+    }
+    pos = line.to + 1;
+  }
+  return Decoration.set(items);
 }
