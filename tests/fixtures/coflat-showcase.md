@@ -27,6 +27,8 @@ For a right triangle, $a^2 + b^2 = c^2$.
 
 Pandoc heading attributes should not be visible.
 
-# Appendix {-}
+# Appendix {.appendix}
 
-This heading is also unnumbered.
+# Smoke Appendix
+
+This heading is lettered as appendix A.

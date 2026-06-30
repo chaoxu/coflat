@@ -263,6 +263,16 @@ This problem title uses the `title=` attribute and should render "3SUM" in bold.
 This block body keeps rich inline coverage with [a link](https://example.com), [@cormen2009], `code`, and $x^2$.
 :::
 
+# Appendix {.appendix}
+
+# Parser Notes
+
+Appendix sections should use lettered heading numbers while preserving the same reader/editor layout.
+
+## Attribute Handling
+
+The appendix boundary marker should not be visible, and nested appendix headings should continue as dotted lettered numbers.
+
 # Footnotes
 
 This has a footnote[^1] and a richer footnote[^2].
