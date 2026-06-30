@@ -1236,7 +1236,10 @@ test("public demo reader labels cited entries as a bibliography", async ({ page 
   await expect(bibliography).toBeVisible();
   await expect(bibliography).toHaveAttribute("aria-label", "Bibliography");
   await expect(bibliography.locator(".cf-bibliography-heading")).toHaveText("Bibliography");
-  await expect(bibliography.locator(".cf-bibliography-entry").first()).toContainText("cormen2009");
+  await expect(bibliography.locator(".cf-bibliography-entry").first()).toHaveAttribute(
+    "data-citation-key",
+    "cormen2009",
+  );
 });
 
 test("public demo reader aligns the collapse rail with the disclosure triangle", async ({ page }) => {
@@ -1513,7 +1516,13 @@ test("public demo exposes matching section and block disclosure controls", async
   await settleLayout(page);
 
   await expect.poll(() => page.locator("#editor .cf-fold-block").count()).toBeGreaterThan(0);
-  const editorBlockButton = page.locator("#editor .cf-fold-block").first();
+  const editorBlockHeader = page.locator("#editor .cm-line.cf-fold-line", {
+    hasText: "Hover Preview Stress Test",
+  });
+  await expect(editorBlockHeader).toBeVisible();
+  await editorBlockHeader.scrollIntoViewIfNeeded();
+  await editorBlockHeader.hover();
+  const editorBlockButton = editorBlockHeader.locator(".cf-fold-block");
   await expect(editorBlockButton).toHaveAttribute("aria-label", "Fold block");
   await expect(editorBlockButton).toHaveCSS("font-style", "normal");
   await editorBlockButton.click({ force: true });
