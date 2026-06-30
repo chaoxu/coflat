@@ -1,4 +1,4 @@
-import { findInlineNeutralAnchor } from "../inline-fragments";
+import { findInlineNeutralAnchor, findNearestInlineSafeAnchor } from "../inline-fragments";
 import {
   type InlineReferenceRenderContext,
   renderInlineMarkdown,
@@ -47,4 +47,11 @@ export function isRenderedTableInlineTarget(target: EventTarget | null): boolean
 
 export function findTableInlineNeutralAnchor(content: string): number | null {
   return findInlineNeutralAnchor(content);
+}
+
+export function findNearestTableInlineSafeAnchor(
+  content: string,
+  target: number,
+): number | null {
+  return findNearestInlineSafeAnchor(content, target);
 }

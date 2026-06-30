@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { findInlineNeutralAnchor, parseInlineFragments } from "./inline-fragments";
+import {
+  findInlineNeutralAnchor,
+  findNearestInlineSafeAnchor,
+  parseInlineFragments,
+} from "./inline-fragments";
 
 describe("parseInlineFragments", () => {
   it("builds shared fragments for emphasis, math, and code", () => {
@@ -97,5 +101,23 @@ describe("parseInlineFragments", () => {
   it("returns null when inline content has no safe plain-text gap", () => {
     expect(findInlineNeutralAnchor("$x^2$")).toBeNull();
     expect(findInlineNeutralAnchor("**Bold**")).toBeNull();
+  });
+
+  it("clamps a clicked position to the nearest safe boundary near the click", () => {
+    const text = "**Bold** and $x^2$";
+    // A click landing inside the bold atom snaps to its nearest edge, not the
+    // fixed first gap, so the cursor tracks where the user pointed.
+    expect(findNearestInlineSafeAnchor(text, 2)).toBe(0);
+    expect(findNearestInlineSafeAnchor(text, 6)).toBe(8);
+    // A click inside the math atom snaps to that atom's edge.
+    expect(findNearestInlineSafeAnchor(text, 15)).toBe(13);
+  });
+
+  it("clamps to an atom boundary even when there is no plain-text gap", () => {
+    // findInlineNeutralAnchor returns null here (no gap); the nearest-safe
+    // variant still clamps to the lone atom's start/end nearest the click.
+    expect(findInlineNeutralAnchor("[link](http://x)")).toBeNull();
+    expect(findNearestInlineSafeAnchor("[link](http://x)", 5)).toBe(0);
+    expect(findNearestInlineSafeAnchor("[link](http://x)", 14)).toBe(16);
   });
 });
