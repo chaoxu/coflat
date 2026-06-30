@@ -6,19 +6,16 @@ import {
   createTableRowSurfaceElement,
   createTableSurfaceElement,
 } from "../../core/table-surface";
-import { createInlineEditorController } from "../inline-editor";
 import { documentContextFacet } from "../document-context";
+import { createInlineEditorController } from "../inline-editor";
 import { coarseHitTestPosition, preciseHitTestPosition } from "../lib/editor-hit-test";
 import { getEditorDocumentReferenceCatalog } from "../semantics/editor-reference-catalog";
 import { bibDataField } from "../state/bib-data";
 import type { InlineReferenceRenderContext } from "./inline-render";
 import type { TableRange } from "./table-discovery";
 import type { ParsedTable } from "./table-utils";
+import { consumeTableKeyboardEvent } from "./table-widget-keyboard-entry";
 import { appendTableWidgetRowAndFocus, showTableWidgetContextMenu } from "./table-widget-mutations";
-import {
-  findTableInlineNeutralAnchor,
-  isRenderedTableInlineTarget,
-} from "./table-widget-preview";
 import {
   createTableNavigationModel,
   moveTableCellByTab,
@@ -28,6 +25,10 @@ import {
   type TableCellAddress,
   type TableCellNavigationIntent,
 } from "./table-widget-navigation";
+import {
+  findTableInlineNeutralAnchor,
+  isRenderedTableInlineTarget,
+} from "./table-widget-preview";
 import {
   clearActivePreviewCell,
   commitDestroyedInlineEditor,
@@ -41,7 +42,6 @@ import {
   shouldCommitBlurredInlineEditor,
   type TableWidgetSessionOwner,
 } from "./table-widget-session";
-import { consumeTableKeyboardEvent } from "./table-widget-keyboard-entry";
 
 export interface TableWidgetDomOptions {
   readonly view: EditorView;

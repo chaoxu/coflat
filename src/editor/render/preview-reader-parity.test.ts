@@ -9,8 +9,8 @@
  *  - reader-only disclosure <button>s.
  */
 import { describe, expect, it } from "vitest";
-import type { FileSystem } from "../../core/lib/file-system-types";
 import { CSS } from "../../core/constants/css-classes";
+import type { FileSystem } from "../../core/lib/file-system-types";
 import {
   parseMarkdownSource,
 } from "../../core/parser";

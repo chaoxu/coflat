@@ -1,5 +1,5 @@
-import { type DecorationSet, type EditorView, ViewPlugin, type ViewUpdate } from "@codemirror/view";
 import { type Extension, type StateField } from "@codemirror/state";
+import { type DecorationSet, type EditorView, ViewPlugin, type ViewUpdate } from "@codemirror/view";
 import { CSS } from "../../core/constants/css-classes";
 import {
   applySourceRangeAttrs,

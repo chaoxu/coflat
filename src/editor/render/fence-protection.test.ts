@@ -11,36 +11,36 @@
  * Extended to cover display math (#777).
  */
 
-import { describe, expect, it } from "vitest";
 import { markdown } from "@codemirror/lang-markdown";
 import { EditorView } from "@codemirror/view";
+import { describe, expect, it } from "vitest";
 import { markdownExtensions } from "../../core/parser";
 import {
+  _docChangeCouldAffectDisplayMathFencesForTest as docChangeCouldAffectDisplayMathFences,
   fenceOperationAnnotation,
+  _fenceProtectionCacheFieldForTest as fenceProtectionCacheField,
   fenceProtectionExtension,
   getClosingFenceRanges,
   getOpeningFenceBacktickRanges,
   getOpeningMathDelimiterRanges,
-  _docChangeCouldAffectDisplayMathFencesForTest as docChangeCouldAffectDisplayMathFences,
-  _fenceProtectionCacheFieldForTest as fenceProtectionCacheField,
 } from "../plugins/fence-protection";
-import { _blockDecorationFieldForTest as blockDecorationField } from "./plugin-render";
 import { blockCounterField } from "../state/block-counter";
-import { createPluginRegistryField } from "../state/plugin-registry";
-import { documentAnalysisField } from "../state/document-analysis";
-import { mathMacrosField } from "../state/math-macros";
-import { editorFocusField } from "./render-core";
-import { _codeBlockStructureFieldForTest as codeBlockStructureField } from "./code-block-render";
-import { frontmatterField } from "../state/frontmatter-state";
 import {
   activeStructureEditField,
   getActiveStructureEditTarget,
 } from "../state/cm-structure-edit";
+import { documentAnalysisField } from "../state/document-analysis";
+import { frontmatterField } from "../state/frontmatter-state";
+import { mathMacrosField } from "../state/math-macros";
+import { createPluginRegistryField } from "../state/plugin-registry";
 import {
   createEditorState,
   createTestView,
   makeBlockPlugin,
 } from "../test-utils";
+import { _codeBlockStructureFieldForTest as codeBlockStructureField } from "./code-block-render";
+import { _blockDecorationFieldForTest as blockDecorationField } from "./plugin-render";
+import { editorFocusField } from "./render-core";
 
 /**
  * Create an EditorState with fence protection filters active.

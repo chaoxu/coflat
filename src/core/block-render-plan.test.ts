@@ -1,14 +1,12 @@
 import { describe, expect, it } from "vitest";
-
-import { parseMarkdownSource } from "./parser";
 import {
   blockLineCost,
   blockNodeRenderKind,
   blockquoteRenderPlan,
   codeBlockRenderPlan,
   dispatchBlockNodeRender,
-  documentRenderPlan,
   displayMathRenderPlan,
+  documentRenderPlan,
   emitBlockChildrenRenderPlan,
   emitDocumentRenderPlan,
   fencedDivRenderPlan,
@@ -22,6 +20,7 @@ import {
   paragraphRenderPlan,
   tableRenderPlan,
 } from "./block-render-plan";
+import { parseMarkdownSource } from "./parser";
 
 function documentNode(source: string) {
   return parseMarkdownSource(source, "html-render").topNode;

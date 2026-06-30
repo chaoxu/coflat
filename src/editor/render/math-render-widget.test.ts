@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { CSS } from "../../core/constants/css-classes";
-import { MathWidget, renderKatex, renderKatexToHtml } from "./math-render";
 import { createMockEditorView } from "../test-utils";
+import { MathWidget, renderKatex, renderKatexToHtml } from "./math-render";
 import { widgetSourceMap } from "./render-core";
 
 describe("MathWidget (inline)", () => {

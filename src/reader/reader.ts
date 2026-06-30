@@ -9,24 +9,29 @@
 
 import type { SyntaxNode, Tree } from "@lezer/common";
 import createDOMPurify from "dompurify";
-
 import {
-  buildInlineFragments,
-  inlineFragmentsPlainText,
-  type InlineFragment,
-} from "../core/inline-fragments";
+  appendBibliographyBacklinks,
+  bibliographyEntryId,
+  renderBibliographySectionHtml,
+} from "../core/bibliography-surface";
 import {
-  documentSurfacePolicy,
-  type DocumentSurfacePolicy,
-} from "../core/document-surface-policy";
-import { inlineSurfacePolicy } from "../core/inline-surface-policy";
+  renderBlockCaptionHtml,
+} from "../core/block-caption-surface";
+import {
+  renderBlockDisclosureHtml,
+  renderBlockLabelContentHtml,
+  renderBlockLabelHtml,
+  renderBlockSummaryHtml as renderBlockSummarySurfaceHtml,
+  renderInlineBlockHeadingContainerHtml,
+} from "../core/block-heading-surface";
+import { blockPresentationPlan } from "../core/block-presentation";
 import {
   blockLineCost,
   blockquoteRenderPlan,
   codeBlockRenderPlan,
   dispatchBlockNodeRender,
-  documentRenderPlan,
   displayMathRenderPlan,
+  documentRenderPlan,
   emitBlockChildrenRenderPlan,
   emitDocumentRenderPlan,
   fencedDivNumberingInfo,
@@ -35,145 +40,82 @@ import {
   headingLevelFor,
   headingRenderPlan,
   horizontalRuleRenderPlan,
-  listRenderPlan,
   type ListItemRenderPlan,
+  listRenderPlan,
   paragraphRenderPlan,
-  tableRenderPlan,
   type TableRowRenderPlan,
+  tableRenderPlan,
 } from "../core/block-render-plan";
-import {
-  listSurfaceEmissionPlan,
-  type ListItemSurfaceEmissionPlan,
-} from "../core/list-emission-plan";
-import {
-  fencedDivContainerOptions,
-  fencedDivSurfaceChromePlan,
-} from "../core/fenced-div-surface";
-import { parseFrontmatter, parseMarkdownSource } from "../core/parser";
-import {
-  renderBlockCaptionHtml,
-} from "../core/block-caption-surface";
-import {
-  renderBlockDisclosureHtml,
-  renderBlockLabelContentHtml,
-  renderBlockLabelHtml,
-  renderInlineBlockHeadingContainerHtml,
-  renderBlockSummaryHtml as renderBlockSummarySurfaceHtml,
-} from "../core/block-heading-surface";
-import { NODE } from "../core/constants/node-types";
-import { isSafeUrl } from "../core/lib/url-utils";
-import { escapeHtml } from "../core/lib/html-escape";
-import { buildLineOffsets, lineAt } from "../core/lib/line-offsets";
-import { buildKatexOptions } from "../core/lib/katex-options";
-import {
-  CSS,
-  hostReferenceClassNames,
-} from "../core/constants/css-classes";
-import {
-  createDisclosureToggleButton,
-  READER_BLOCK_DISCLOSURE_LABELS,
-  READER_SECTION_DISCLOSURE_LABELS,
-  syncDisclosureToggle,
-  type DisclosureToggleLabels,
-} from "../core/disclosure-toggle";
-import { applyLinkSurface, renderLinkSurfaceHtml } from "../core/link-surface";
-import type { NumberingScheme } from "../core/parser/frontmatter";
-import {
-  blockTitleOverridesFromConfig,
-  computeBlockNumbers,
-  createConfiguredBlockNumberingSpecLookup,
-  displayTitleForBlockType,
-  type BlockCounterState,
-  type BlockNumberingSpecLookup,
-  type FencedDivNumberingInfo,
-} from "../core/semantics/block-numbering";
-import {
-  initialHeadingNumberCounters,
-  nextHeadingNumber,
-  type HeadingNumberCounters,
-} from "../core/semantics/heading-numbering";
-import {
-  initialEquationNumberCounter,
-  nextEquationNumber,
-  type EquationNumberCounter,
-} from "../core/semantics/equation-numbering";
-import {
-  reserveExplicitHeadingAnchorIds,
-} from "../core/semantics/heading-anchors";
-import {
-  createFootnoteEmissionState,
-  footnoteEmissionSectionEntries,
-  registerFootnoteDefinition,
-  registerFootnoteReference,
-  snapshotFootnoteEmissionState,
-  type MutableFootnoteEmissionState,
-} from "../core/semantics/footnote-emission-state";
-import {
-  nextHeadingOutlineProjectionEntry,
-} from "../core/semantics/outline-plan";
-import { blockPresentationPlan } from "../core/block-presentation";
-import {
-  appendCitedKeysFromReferenceIds as coreAppendCitedKeysFromReferenceIds,
-  bibliographyEntries as coreBibliographyEntries,
-  bibliographyEntryFor as coreBibliographyEntryFor,
-  citeInline as coreCiteInline,
-  isCitationKey as coreIsCitationKey,
-} from "../core/references/citation-rendering";
-import {
-  classifyReferenceTarget,
-  createHostReferenceRouteResolver,
-  planReferencePresentation,
-  type ReferencePresentationContext,
-  type ReferencePresentationInput,
-  type ReferencePresentationRoute,
-  type ResolvedCrossref,
-} from "../core/references/presentation";
-import {
-  appendBibliographyBacklinks,
-  bibliographyEntryId,
-  renderBibliographySectionHtml,
-} from "../core/bibliography-surface";
-import {
-  formatBlockReferenceLabel,
-} from "../core/references/format";
-import {
-  DOCUMENT_SURFACE_CLASS,
-} from "../core/document-surface-classes";
-import { renderInlineMarkHtml } from "../core/inline-mark-surface";
 import {
   blockContainerSurfaceAttrs,
   renderBlankLineHtml,
   renderBlockquoteHtml,
   renderHorizontalRuleHtml,
 } from "../core/block-surface";
-import {
-  renderHeadingSurfaceHtml,
-} from "../core/heading-surface";
-import {
-  type DocumentOutlineEntry,
-} from "../core/outline-surface";
-import {
-  blockReferenceTarget,
-  equationReferenceTarget,
-  headingReferenceTarget,
-  resolvedCrossrefFromReferenceTarget,
-  setPreferredDocumentReferenceTarget,
-  type DocumentReferenceTarget,
-} from "../core/reference-targets";
-import {
-  renderReadOnlyTaskCheckboxHtml,
-  renderListItemSurfaceHtml,
-  renderListSurfaceHtml,
-} from "../core/list-surface";
 import { renderCodeBlockHtml } from "../core/code-block-surface";
+import {
+  CSS,
+  hostReferenceClassNames,
+} from "../core/constants/css-classes";
+import { NODE } from "../core/constants/node-types";
+import {
+  createDisclosureToggleButton,
+  type DisclosureToggleLabels,
+  READER_BLOCK_DISCLOSURE_LABELS,
+  READER_SECTION_DISCLOSURE_LABELS,
+  syncDisclosureToggle,
+} from "../core/disclosure-toggle";
+import {
+  DOCUMENT_SURFACE_CLASS,
+} from "../core/document-surface-classes";
+import {
+  type DocumentSurfacePolicy,
+  documentSurfacePolicy,
+} from "../core/document-surface-policy";
+import {
+  fencedDivContainerOptions,
+  fencedDivSurfaceChromePlan,
+} from "../core/fenced-div-surface";
 import { renderReaderFootnoteReferenceHtml } from "../core/footnote-reference-surface";
 import {
   footnoteSectionPlanFromNumberedEntries,
   renderFootnoteSectionHtml,
 } from "../core/footnote-section-surface";
 import {
-  replaceDisplayMathContent,
+  renderHeadingSurfaceHtml,
+} from "../core/heading-surface";
+import {
+  createHoverPreviewBodyElement,
+  createHoverPreviewCitationBodyElement,
+  createHoverPreviewElementWithChild,
+  createHoverPreviewHeaderElement,
+  createHoverPreviewTextElement,
+  createUnresolvedHoverPreviewElement,
+} from "../core/hover-preview-surface";
+import {
+  buildInlineFragments,
+  type InlineFragment,
+  inlineFragmentsPlainText,
+} from "../core/inline-fragments";
+import { renderInlineMarkHtml } from "../core/inline-mark-surface";
+import { inlineSurfacePolicy } from "../core/inline-surface-policy";
+import { escapeHtml } from "../core/lib/html-escape";
+import { buildKatexOptions } from "../core/lib/katex-options";
+import { buildLineOffsets, lineAt } from "../core/lib/line-offsets";
+import { isSafeUrl } from "../core/lib/url-utils";
+import { applyLinkSurface, renderLinkSurfaceHtml } from "../core/link-surface";
+import {
+  type ListItemSurfaceEmissionPlan,
+  listSurfaceEmissionPlan,
+} from "../core/list-emission-plan";
+import {
+  renderListItemSurfaceHtml,
+  renderListSurfaceHtml,
+  renderReadOnlyTaskCheckboxHtml,
+} from "../core/list-surface";
+import {
   renderDisplayMathPlaceholderHtml,
+  replaceDisplayMathContent,
 } from "../core/math-display-surface";
 import { renderInlineMathPlaceholderHtml } from "../core/math-inline-surface";
 import { displayMathLatexRange } from "../core/math-source";
@@ -185,105 +127,166 @@ import {
   renderPdfSurfaceHtml,
   syncInlineImageSizeOnLoad,
 } from "../core/media-surface";
+import {
+  type DocumentOutlineEntry,
+} from "../core/outline-surface";
 import { renderParagraphHtml } from "../core/paragraph-surface";
+import { parseFrontmatter, parseMarkdownSource } from "../core/parser";
+import type { NumberingScheme } from "../core/parser/frontmatter";
 import {
-  referencePresentationRouteSurfacePlan,
-  referencePresentationRouteText,
-  renderReferenceRouteSurfaceHtml,
-} from "../core/reference-surface";
-import {
-  renderTablePlanHtml,
-} from "../core/table-surface";
-import {
-  createHoverPreviewBodyElement,
-  createHoverPreviewCitationBodyElement,
-  createHoverPreviewElementWithChild,
-  createHoverPreviewHeaderElement,
-  createHoverPreviewTextElement,
-  createUnresolvedHoverPreviewElement,
-} from "../core/hover-preview-surface";
-import {
-  type ReferencePreviewEntry,
-  type ReferencePreviewContentPlan,
   fencedDivPreviewBodyRange,
+  type ReferencePreviewContentPlan,
+  type ReferencePreviewEntry,
   referencePreviewContentPlanFromEntry,
   referencePreviewContentPlanFromSource,
   referencePreviewEntryFromTarget,
   referencePreviewSurfacePlan,
 } from "../core/reference-preview-source";
 import {
-  sourceRangeAttrs,
-  sourceRangeFromElement,
+  referencePresentationRouteSurfacePlan,
+  referencePresentationRouteText,
+  renderReferenceRouteSurfaceHtml,
+} from "../core/reference-surface";
+import {
+  blockReferenceTarget,
+  type DocumentReferenceTarget,
+  equationReferenceTarget,
+  headingReferenceTarget,
+  resolvedCrossrefFromReferenceTarget,
+  setPreferredDocumentReferenceTarget,
+} from "../core/reference-targets";
+import {
+  appendCitedKeysFromReferenceIds as coreAppendCitedKeysFromReferenceIds,
+  bibliographyEntries as coreBibliographyEntries,
+  bibliographyEntryFor as coreBibliographyEntryFor,
+  citeInline as coreCiteInline,
+  isCitationKey as coreIsCitationKey,
+} from "../core/references/citation-rendering";
+import {
+  formatBlockReferenceLabel,
+} from "../core/references/format";
+import {
+  classifyReferenceTarget,
+  createHostReferenceRouteResolver,
+  planReferencePresentation,
+  type ReferencePresentationContext,
+  type ReferencePresentationInput,
+  type ReferencePresentationRoute,
+  type ResolvedCrossref,
+} from "../core/references/presentation";
+import {
+  type BlockCounterState,
+  type BlockNumberingSpecLookup,
+  blockTitleOverridesFromConfig,
+  computeBlockNumbers,
+  createConfiguredBlockNumberingSpecLookup,
+  displayTitleForBlockType,
+  type FencedDivNumberingInfo,
+} from "../core/semantics/block-numbering";
+import {
+  type EquationNumberCounter,
+  initialEquationNumberCounter,
+  nextEquationNumber,
+} from "../core/semantics/equation-numbering";
+import {
+  createFootnoteEmissionState,
+  footnoteEmissionSectionEntries,
+  type MutableFootnoteEmissionState,
+  registerFootnoteDefinition,
+  registerFootnoteReference,
+  snapshotFootnoteEmissionState,
+} from "../core/semantics/footnote-emission-state";
+import {
+  reserveExplicitHeadingAnchorIds,
+} from "../core/semantics/heading-anchors";
+import {
+  type HeadingNumberCounters,
+  initialHeadingNumberCounters,
+  nextHeadingNumber,
+} from "../core/semantics/heading-numbering";
+import {
+  nextHeadingOutlineProjectionEntry,
+} from "../core/semantics/outline-plan";
+import {
   type RenderedSourceAnchor,
   type RenderedSourceAnchorGranularity,
   type SourceLineRange,
+  sourceRangeAttrs,
+  sourceRangeFromElement,
+} from "../core/source-range-surface";
+import {
+  renderTablePlanHtml,
+} from "../core/table-surface";
+
+export type {
+  SourcePosition,
+  SourcePositionScrollOptions,
 } from "../core/source-range-surface";
 export {
-  applySourceRangeAttrs,
   applyReaderSourceDecorations,
+  applySourceRangeAttrs,
   closestMathSourceCarrier,
   closestSourceRangeCarrier,
+  type ElementSourceRangeOptions,
   isSourceRangeCarrier,
-  mapDomRangeToSource,
   mapDomNodeToSource,
   mapDomPointToSource,
+  mapDomRangeToSource,
+  type ParseSourceRangeOptions,
   parseSourceOffset,
+  type ReaderSourceDecoration,
+  type RenderedSourceAnchor,
+  type RenderedSourceAnchorGranularity,
+  type RenderedSourceAnchorLookupOptions,
   renderedAnchorsForSourceLineRange,
   renderedAnchorsForSourceRange,
   renderedSourceAnchorsFromDom,
+  type SourceLineRange,
+  type SourceRange,
+  type SourceRangeAttrsOptions,
+  type SourceRangeCarrierOptions,
+  scrollReaderToSourcePosition,
+  sourceElementAtPosition,
   sourceLineRangeFromElement,
   sourceRangeAttrs,
   sourceRangeFromDataset,
   sourceRangeFromElement,
   sourceRangeFromValues,
-  visibleSourcePositionInScroller,
-  type ElementSourceRangeOptions,
-  type ParseSourceRangeOptions,
-  type ReaderSourceDecoration,
-  type RenderedSourceAnchor,
-  type RenderedSourceAnchorGranularity,
-  type RenderedSourceAnchorLookupOptions,
-  type SourceLineRange,
-  type SourceRange,
-  type SourceRangeAttrsOptions,
-  type SourceRangeCarrierOptions,
   type VisibleSourcePositionOptions,
+  visibleSourcePositionInScroller,
 } from "../core/source-range-surface";
-export {
-  scrollReaderToSourcePosition,
-  sourceElementAtPosition,
-} from "../core/source-range-surface";
-export type {
-  SourcePosition,
-  SourcePositionScrollOptions,
-} from "../core/source-range-surface";
+
 import type {
   CitationFormatter,
   DocumentContext,
   LinkResolver,
   RefResolver,
 } from "../core/document-context-types";
+
+export type { CoflatThemeManifest, CoflatThemeTarget } from "../core/theme-manifest";
 export {
+  blueprintBookThemeManifest,
   COFLAT_READER_CLASS,
   COFLAT_READER_DOCUMENT_CLASS,
   COFLAT_READER_SHELL_CLASS,
   COFLAT_READER_TOC_CLASS,
   COFLAT_THEME_SCOPE_CLASS,
-  blueprintBookThemeManifest,
 } from "../core/theme-manifest";
-export type { CoflatThemeManifest, CoflatThemeTarget } from "../core/theme-manifest";
-import { noteLezerInvocation } from "./reader-internal";
+
 import {
   orderElementsVisibleFirst,
   scheduleHydrationYield,
 } from "./hydration-scheduler";
+import { noteLezerInvocation } from "./reader-internal";
 
 export type {
   DocumentContext,
   LinkResolver,
   RefResolver,
 } from "../core/document-context-types";
+
 import type { TooltipPlan } from "../core/hover-tooltip";
+
 export type {
   BlockCounterEntry,
   ConditionalWriteResult,

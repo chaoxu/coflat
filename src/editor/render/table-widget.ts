@@ -1,25 +1,38 @@
 import { EditorView } from "@codemirror/view";
+import { CSS } from "../../core/constants/css-classes";
 import {
   documentSurfaceClassNames,
 } from "../../core/document-surface-classes";
 import { documentSurfacePolicy } from "../../core/document-surface-policy";
-import { CSS } from "../../core/constants/css-classes";
+import { documentContextFacet } from "../document-context";
+import {
+  createEditorReferencePresentationController,
+  ensureEditorReferencePresentationCitationsRegistered,
+} from "../references/presentation";
+import { getOptionalReferenceRenderState } from "../state/reference-render-state";
 import type { InlineReferenceRenderContext } from "./inline-render";
-import type { TableRange } from "./table-discovery";
-import type { ParsedTable } from "./table-utils";
+import { ShellWidget } from "./shell-widget";
 import {
   syncActiveFenceGuideClasses,
 } from "./source-widget";
-import { ShellWidget } from "./shell-widget";
+import type { TableRange } from "./table-discovery";
+import type { ParsedTable } from "./table-utils";
 import {
   cellEditAnnotation,
   TableWidgetController,
 } from "./table-widget-controller";
+import { buildTableWidgetDOM } from "./table-widget-dom";
 import { focusRootOutsideTableWithRange } from "./table-widget-focus";
 import {
   bindTableKeyboardEntry,
   type TableKeyboardEntryController,
 } from "./table-widget-keyboard-entry";
+import {
+  readTableCellAddress,
+  type TableBoundaryHandoffDirection,
+  type TableCellAddress,
+} from "./table-widget-navigation";
+import { restoreRenderedTableCell } from "./table-widget-preview";
 import {
   clearPreviewCellForOwner,
   destroyActiveInlineEditor,
@@ -27,23 +40,10 @@ import {
   getActiveInlineEditor,
   setActivePreviewCell,
   shouldCommitBlurredInlineEditor,
-  transferTableWidgetSessionOwner,
   type TableWidgetSessionOwner,
+  transferTableWidgetSessionOwner,
 } from "./table-widget-session";
-import { restoreRenderedTableCell } from "./table-widget-preview";
-import {
-  readTableCellAddress,
-  type TableBoundaryHandoffDirection,
-  type TableCellAddress,
-} from "./table-widget-navigation";
 import { TableWidgetShellAdapter } from "./table-widget-shell-adapter";
-import { getOptionalReferenceRenderState } from "../state/reference-render-state";
-import { documentContextFacet } from "../document-context";
-import {
-  createEditorReferencePresentationController,
-  ensureEditorReferencePresentationCitationsRegistered,
-} from "../references/presentation";
-import { buildTableWidgetDOM } from "./table-widget-dom";
 
 export { cellEditAnnotation, shouldCommitBlurredInlineEditor };
 

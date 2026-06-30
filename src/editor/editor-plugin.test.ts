@@ -1,8 +1,8 @@
-import { describe, expect, it } from "vitest";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
+import { describe, expect, it } from "vitest";
 
-import { EditorPluginManager, type EditorPlugin } from "./editor-plugin";
+import { type EditorPlugin, EditorPluginManager } from "./editor-plugin";
 
 describe("EditorPluginManager", () => {
   it("keeps lazy plugins out of the initial state and loads them after mount", async () => {

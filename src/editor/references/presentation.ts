@@ -1,56 +1,52 @@
-import { StateField, type EditorState, type Transaction } from "@codemirror/state";
+import { type EditorState, StateField, type Transaction } from "@codemirror/state";
 import type { CslJsonItem } from "../../core/citations/csl-json";
-import { formatCitationPreview } from "../citations/citation-preview";
-import {
-  collectCitationMatches,
-  collectCitationMatchesFromAnalysis,
-  getCitationRegistrationKey,
-  type CitationCollectionOptions,
-  type CitationIdLookup,
-} from "../citations/citation-matching";
 import type {
   CitationFormatter,
   DocumentContext,
   LinkResolver,
 } from "../../core/document-context-types";
 import type { BlockCounterEntry } from "../../core/lib/file-system-types";
-import type {
-  DocumentAnalysis,
-  DocumentSemantics,
-  ReferenceSemantics,
-} from "../semantics/document";
-import { documentContextFacet } from "../document-context";
-import { documentPathFacet } from "../lib/types";
-import { sanitizeCslHtml } from "../lib/sanitize-csl-html";
-import {
-  documentReferenceCatalogField,
-  getEditorDocumentReferenceCatalog,
-} from "../semantics/editor-reference-catalog";
-import {
-  formatBlockReferenceLabel,
-  formatEquationReferenceLabel,
-  formatHeadingReferenceLabel,
-  getPreferredDocumentReferenceTarget,
-  type DocumentReferenceCatalog,
-} from "../semantics/reference-catalog";
 import { resolvedCrossrefFromReferenceTarget } from "../../core/reference-targets";
-import { type BibStore, bibDataField } from "../state/bib-data";
+import { bibliographyEntryFor } from "../../core/references/citation-rendering";
 import {
   classifyReferenceTarget as coreClassifyReferenceTarget,
-  createHostReferenceRouteResolver,
   planReferencePresentation as corePlanReferencePresentation,
+  createHostReferenceRouteResolver,
   type EquationEntry,
   type ReferencePresentationContext,
   type ReferencePresentationInput,
   type ReferencePresentationRoute,
   type ResolvedCrossref,
 } from "../../core/references/presentation";
-import { bibliographyEntryFor } from "../../core/references/citation-rendering";
+import {
+  type CitationCollectionOptions,
+  type CitationIdLookup,
+  collectCitationMatches,
+  collectCitationMatchesFromAnalysis,
+  getCitationRegistrationKey,
+} from "../citations/citation-matching";
+import { formatCitationPreview } from "../citations/citation-preview";
+import { documentContextFacet } from "../document-context";
+import { sanitizeCslHtml } from "../lib/sanitize-csl-html";
+import { documentPathFacet } from "../lib/types";
+import type {
+  DocumentAnalysis,
+  DocumentSemantics,
+  ReferenceSemantics,
+} from "../semantics/document";
+import {
+  documentReferenceCatalogField,
+  getEditorDocumentReferenceCatalog,
+} from "../semantics/editor-reference-catalog";
+import {
+  type DocumentReferenceCatalog,
+  formatBlockReferenceLabel,
+  formatEquationReferenceLabel,
+  formatHeadingReferenceLabel,
+  getPreferredDocumentReferenceTarget,
+} from "../semantics/reference-catalog";
+import { type BibStore, bibDataField } from "../state/bib-data";
 
-export {
-  coreClassifyReferenceTarget as classifyReferenceTarget,
-  corePlanReferencePresentation as planReferencePresentation,
-};
 
 export type {
   CrossrefKind,
@@ -65,6 +61,10 @@ export type {
   ReferencePresentationRoute,
   ResolvedCrossref,
 } from "../../core/references/presentation";
+export {
+  coreClassifyReferenceTarget as classifyReferenceTarget,
+  corePlanReferencePresentation as planReferencePresentation,
+};
 
 export interface ReferencePresentationController extends ReferencePresentationContext {
   readonly linkResolver?: LinkResolver;

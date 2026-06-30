@@ -7,10 +7,11 @@ import {
   createReadOnlyTaskCheckboxElement,
   editorListItemLineClassNames,
   editorListItemLineClassNamesFromNode,
-  listItemSurfaceOptionsFromNode,
-  listMarkerOrderedFromNode,
+  type ListTreeNodeLike,
   listItemSurfaceClassNames,
+  listItemSurfaceOptionsFromNode,
   listMarkerClassName,
+  listMarkerOrderedFromNode,
   listMarkerText,
   listSurfaceClassNames,
   renderListItemSurfaceHtml,
@@ -18,7 +19,6 @@ import {
   renderListSurfaceHtml,
   renderReadOnlyTaskCheckboxHtml,
   taskMarkerChecked,
-  type ListTreeNodeLike,
 } from "./list-surface";
 
 function treeNode(

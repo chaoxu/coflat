@@ -1,6 +1,8 @@
 import { EditorSelection, type EditorState, type SelectionRange } from "@codemirror/state";
 import { type EditorView } from "@codemirror/view";
-import { type TableRange } from "./state/table-discovery";
+import { CSS } from "../core/constants/css-classes";
+import { parseSourceOffset } from "../core/source-range-surface";
+import { getClosingFenceRanges } from "./plugins/fence-protection";
 import {
   activateStructureEditAt,
   activateStructureEditTarget,
@@ -8,12 +10,10 @@ import {
   createStructureEditTargetAt,
   getActiveStructureEditTarget,
 } from "./state/cm-structure-edit";
-import { getClosingFenceRanges } from "./plugins/fence-protection";
+import { type TableRange } from "./state/table-discovery";
 import { dispatchWidgetKeyboardEntry } from "./state/widget-keyboard-entry";
-import { type HiddenWidgetStop } from "./widget-stop-index";
 import { requestSelectionVisibility } from "./vertical-motion-scroll";
-import { CSS } from "../core/constants/css-classes";
-import { parseSourceOffset } from "../core/source-range-surface";
+import { type HiddenWidgetStop } from "./widget-stop-index";
 
 function tableWidgetContainerMatchesRange(
   container: HTMLElement,

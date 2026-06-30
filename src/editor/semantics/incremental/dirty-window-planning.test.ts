@@ -5,8 +5,8 @@ import {
   expandDirtyWindows,
 } from "./dirty-window-planning";
 import {
-  ZERO_REVISION_INFO,
   type IncrementalDocumentAnalysisState,
+  ZERO_REVISION_INFO,
 } from "./slice-registry";
 import type { DirtyWindow, SemanticDelta } from "./types";
 

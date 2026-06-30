@@ -1,17 +1,17 @@
+import { CSS, hostReferenceClassNames } from "./constants/css-classes";
 import { escapeHtml } from "./lib/html-escape";
 import { isSafeUrl } from "./lib/url-utils";
 import { renderLinkSurfaceHtml } from "./link-surface";
-import {
-  applySourceRangeAttrs,
-  clearSourceRangeAttrs,
-  sourceRangeAttrs,
-  type SourceRange,
-} from "./source-range-surface";
-import { CSS, hostReferenceClassNames } from "./constants/css-classes";
 import type {
   ReferencePresentationInput,
   ReferencePresentationRoute,
 } from "./references/presentation";
+import {
+  applySourceRangeAttrs,
+  clearSourceRangeAttrs,
+  type SourceRange,
+  sourceRangeAttrs,
+} from "./source-range-surface";
 
 export type ReferenceMode = "bracketed" | "narrative";
 

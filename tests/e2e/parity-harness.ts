@@ -1,6 +1,6 @@
-import { expect, type Page } from "@playwright/test";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
+import { expect, type Page } from "@playwright/test";
 import { CSS } from "../../src/core/constants/css-classes";
 import {
   getMarkdownParser,

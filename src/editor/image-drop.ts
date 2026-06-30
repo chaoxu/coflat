@@ -18,7 +18,7 @@
 
 import { type Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
-import { isImageMime, createImageHandler, type ImageSaveConfig } from "./image-save";
+import { createImageHandler, type ImageSaveConfig, isImageMime } from "./image-save";
 
 /**
  * Configuration for the image-drop extension.

@@ -9,25 +9,24 @@
 
 import { Compartment, EditorState, type Extension } from "@codemirror/state";
 import { drawSelection, EditorView } from "@codemirror/view";
-
+import { CSS } from "../core/constants/css-classes";
+import type { DocumentContext } from "../core/document-context-types";
 import {
   createMarkdownLanguageExtensions,
   createProjectConfigExtensions,
   inlineMarkdownExtensions,
   sharedInlineRenderExtensions,
 } from "./base-editor-extensions";
-import { CSS } from "../core/constants/css-classes";
+import { documentContextExtension } from "./document-context";
 import { referenceRenderPlugin } from "./render/reference-render";
-import { documentAnalysisField } from "./state/document-analysis";
-import { type BibData, bibDataEffect, bibDataField } from "./state/bib-data";
-import { frontmatterField } from "./state/frontmatter-state";
 import {
   externalDocumentReferenceCatalogField,
   setExternalDocumentReferenceCatalogEffect,
 } from "./semantics/editor-reference-catalog";
 import type { DocumentReferenceCatalog } from "./semantics/reference-catalog";
-import type { DocumentContext } from "../core/document-context-types";
-import { documentContextExtension } from "./document-context";
+import { type BibData, bibDataEffect, bibDataField } from "./state/bib-data";
+import { documentAnalysisField } from "./state/document-analysis";
+import { frontmatterField } from "./state/frontmatter-state";
 
 /** Options for creating a lightweight inline editor. */
 export interface InlineEditorOptions {

@@ -1,11 +1,11 @@
 import { type TableRange } from "./state/table-discovery";
 import {
-  type HiddenWidgetStop,
-  type WidgetStopIndex,
   firstHiddenWidgetStopBetweenLines,
   firstTableStopBetweenLines,
+  type HiddenWidgetStop,
   hiddenWidgetStopAtPos,
   tableStopAtPos,
+  type WidgetStopIndex,
 } from "./widget-stop-index";
 
 export const SUSPICIOUS_STRUCTURE_EXIT_LINE_DELTA = 25;

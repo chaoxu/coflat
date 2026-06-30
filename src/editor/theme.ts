@@ -1,9 +1,9 @@
 import { EditorView } from "@codemirror/view";
 import { baseThemeStyles } from "./base-theme";
-import { typographyThemeStyles } from "./typography-theme";
-import { codeThemeStyles } from "./code-theme";
 import { blockThemeStyles } from "./block-theme";
+import { codeThemeStyles } from "./code-theme";
 import { marginThemeStyles } from "./margin-theme";
+import { typographyThemeStyles } from "./typography-theme";
 
 export { monoFont } from "../core/constants/editor-constants";
 

@@ -1,9 +1,9 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { EditorState } from "@codemirror/state";
+import { markdown } from "@codemirror/lang-markdown";
 import * as language from "@codemirror/language";
+import { EditorState } from "@codemirror/state";
 import type { Decoration } from "@codemirror/view";
 import { EditorView } from "@codemirror/view";
-import { markdown } from "@codemirror/lang-markdown";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { markdownExtensions } from "../../core/parser";
 import { documentAnalysisField } from "../state/document-analysis";
 import {

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { CSS } from "../../core/constants/css-classes";
 import {
-  CrossrefWidget,
   ClusteredCrossrefWidget,
+  CrossrefWidget,
   MixedClusterWidget,
   UnresolvedRefWidget,
 } from "./crossref-render";

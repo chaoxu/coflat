@@ -12,37 +12,37 @@
  */
 
 import {
-  Decoration,
-  type DecorationSet,
-  EditorView,
-} from "@codemirror/view";
-import {
   type EditorState,
   type Extension,
   type Range,
   type Transaction,
 } from "@codemirror/state";
-import { buildDecorations } from "./decoration-core";
-import { createLifecycleDecorationStateField } from "./decoration-field";
-import { editorFocusField, focusTracker } from "./focus-state";
+import {
+  Decoration,
+  type DecorationSet,
+  EditorView,
+} from "@codemirror/view";
+import { preciseHitTestPosition } from "../lib/editor-hit-test";
+import { mathMacrosField } from "../state/math-macros";
 import {
   getTableReferenceRenderDependencySignature,
   tableReferenceRenderDependenciesChanged,
 } from "../state/reference-render-state";
-import { preciseHitTestPosition } from "../lib/editor-hit-test";
+import {
+  type TableRange,
+  tableDiscoveryField,
+  tableDiscoveryPendingParseField,
+} from "../state/table-discovery";
+import { buildDecorations } from "./decoration-core";
+import { createLifecycleDecorationStateField } from "./decoration-field";
+import { editorFocusField, focusTracker } from "./focus-state";
+import { showTableContextMenu } from "./table-actions";
 import {
   findTableAtCursor,
   findTablesInState,
   findTablesInView,
   tableDiscoveryParsePlugin,
 } from "./table-discovery";
-import { mathMacrosField } from "../state/math-macros";
-import {
-  tableDiscoveryField,
-  tableDiscoveryPendingParseField,
-  type TableRange,
-} from "../state/table-discovery";
-import { showTableContextMenu } from "./table-actions";
 import { tableKeybindings } from "./table-navigation";
 import { cellEditAnnotation, TableWidget } from "./table-widget";
 

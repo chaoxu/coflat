@@ -1,15 +1,15 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
 import { EditorView } from "@codemirror/view";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { CSS } from "../../core/constants/css-classes";
+import { clearFrontendPerf, getFrontendPerfSnapshot } from "../lib/perf";
+import { getDecorationSpecs } from "../test-utils";
 import {
+  clearKatexCache,
   collectMathRanges,
   _mathDecorationFieldForTest as mathDecorationField,
-  clearKatexCache,
 } from "./math-render";
-import { getDecorationSpecs } from "../test-utils";
-import { focusEffect, widgetSourceMap } from "./render-core";
-import { clearFrontendPerf, getFrontendPerfSnapshot } from "../lib/perf";
 import {
+  activateDisplayMathSourceView,
   countMarksWithClass,
   countSourceMarks,
   countWidgets,
@@ -17,8 +17,8 @@ import {
   createMathRenderView,
   createMathView,
   createMathViewWithLabels,
-  activateDisplayMathSourceView,
 } from "./math-render-test-utils";
+import { focusEffect, widgetSourceMap } from "./render-core";
 
 describe("collectMathRanges", () => {
   let view: EditorView | undefined;

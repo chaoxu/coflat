@@ -1,9 +1,9 @@
+import { CSS } from "./constants/css-classes";
+import { NODE } from "./constants/node-types";
 import {
   DOCUMENT_SURFACE_CLASS,
   documentSurfaceClassNames,
 } from "./document-surface-classes";
-import { CSS } from "./constants/css-classes";
-import { NODE } from "./constants/node-types";
 
 export interface ListSurfaceOptions {
   readonly ordered: boolean;

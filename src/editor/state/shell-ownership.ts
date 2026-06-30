@@ -1,10 +1,10 @@
-import type { EditorState } from "@codemirror/state";
 import { syntaxTree } from "@codemirror/language";
+import type { EditorState } from "@codemirror/state";
 import type { SyntaxNode } from "@lezer/common";
 import type { FencedDivInfo } from "../fenced-block/model";
 import { collectFencedDivs } from "../fenced-block/model";
-import { findAncestor, isFencedCode } from "../lib/syntax-tree-helpers";
 import { containsRange } from "../lib/range-helpers";
+import { findAncestor, isFencedCode } from "../lib/syntax-tree-helpers";
 import { editorFocusField } from "./editor-focus";
 import { frontmatterField } from "./frontmatter-state";
 

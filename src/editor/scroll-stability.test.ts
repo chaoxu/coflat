@@ -1,13 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
-  createTestView,
-  destroyAllTestViews,
-} from "./test-utils";
-import {
   computeScrollGuardPadding,
   guardDownwardHeightCollapse,
   scrollStabilityExtension,
 } from "./scroll-stability";
+import {
+  createTestView,
+  destroyAllTestViews,
+} from "./test-utils";
 
 function setScrollerGeometry(
   scroller: HTMLElement,

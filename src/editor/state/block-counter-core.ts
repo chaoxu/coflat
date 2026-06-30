@@ -1,17 +1,17 @@
 import { type EditorState } from "@codemirror/state";
 import type { NumberingScheme } from "../../core/parser/frontmatter";
-import type { FencedDivSemantics } from "../semantics/document";
 import {
+  type BlockCounterState,
   computeBlockNumberingKey,
   computeBlockNumbers as computeSemanticBlockNumbers,
   emptyCounterState,
   mapBlockCounterState,
-  type BlockCounterState,
   type NumberedBlock,
 } from "../../core/semantics/block-numbering";
+import type { FencedDivSemantics } from "../semantics/document";
+import { documentAnalysisField } from "./document-analysis";
 import type { PluginRegistryState } from "./plugin-registry-core";
 import { getPluginOrFallback } from "./plugin-registry-core";
-import { documentAnalysisField } from "./document-analysis";
 
 function getBlockNumberingSpec(
   registry: PluginRegistryState,
@@ -57,8 +57,8 @@ export function computeBlockNumbers(
 }
 
 export {
+  type BlockCounterState,
   emptyCounterState,
   mapBlockCounterState,
-  type BlockCounterState,
   type NumberedBlock,
 };

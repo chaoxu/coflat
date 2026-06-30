@@ -3,8 +3,8 @@ import { forceParsing } from "@codemirror/language";
 import type { EditorView } from "@codemirror/view";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { markdownExtensions } from "../../core/parser";
-import { createTestView } from "../test-utils";
 import { tableDiscoveryField } from "../state/table-discovery";
+import { createTestView } from "../test-utils";
 import { findCellBounds, findTablesInState } from "./table-discovery";
 import {
   addRow,

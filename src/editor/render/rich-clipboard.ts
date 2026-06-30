@@ -2,9 +2,9 @@ import { type EditorState, type Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { EXCLUDED_FROM_FALLBACK } from "../../core/constants/block-manifest";
 import { collectFencedDivs, getFencedDivStructuralOpenTo } from "../fenced-block/model";
-import { collectCodeBlocks } from "./code-block-render";
-import { getPluginOrFallback } from "../state/plugin-registry-core";
 import { pluginRegistryField } from "../state/plugin-registry";
+import { getPluginOrFallback } from "../state/plugin-registry-core";
+import { collectCodeBlocks } from "./code-block-render";
 
 interface ClipboardRange {
   readonly from: number;

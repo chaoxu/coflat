@@ -1,17 +1,17 @@
-import { afterEach, describe, expect, it } from "vitest";
-import { EditorState, StateEffect } from "@codemirror/state";
 import { forceParsing } from "@codemirror/language";
+import { EditorState, StateEffect } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
+import { afterEach, describe, expect, it } from "vitest";
 import { createMarkdownLanguageExtensions } from "../base-editor-extensions";
 import { tableDiscoveryField } from "../state/table-discovery";
-import { findTablesInState, findPipePositions } from "./table-discovery";
+import { createTestView, ensureFullSyntaxTree } from "../test-utils";
+import { findPipePositions, findTablesInState } from "./table-discovery";
 import {
   _computeDirtyTableGridUpdateForTest,
   deleteSelectedTableSelection,
   getTableDeleteRange,
   tableGridExtension,
 } from "./table-grid";
-import { createTestView, ensureFullSyntaxTree } from "../test-utils";
 
 const DOC = [
   "before",

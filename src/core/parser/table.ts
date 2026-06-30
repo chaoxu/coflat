@@ -14,6 +14,7 @@
  * those rows first.
  */
 
+import { tags as t } from "@lezer/highlight";
 import {
   BlockContext,
   Element,
@@ -22,9 +23,8 @@ import {
   Line,
   type MarkdownConfig,
 } from "@lezer/markdown";
-import { tags as t } from "@lezer/highlight";
-import { BACKSLASH, COLON, DASH, PIPE, SPACE, TAB } from "./char-utils";
 import { scanTableInlineSpan } from "../lib/table-inline-span";
+import { BACKSLASH, COLON, DASH, PIPE, SPACE, TAB } from "./char-utils";
 
 /**
  * Parse a table row, returning the cell count.

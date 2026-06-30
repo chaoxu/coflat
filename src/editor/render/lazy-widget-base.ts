@@ -1,9 +1,9 @@
 import type { EditorView } from "@codemirror/view";
 import {
+  type BlockWidgetHeightBinding,
   clearBlockWidgetHeightBinding,
   estimatedBlockWidgetHeight,
   observeBlockWidgetHeight,
-  type BlockWidgetHeightBinding,
 } from "./block-widget-height";
 import { ShellWidget } from "./shell-widget";
 import { serializeMacros } from "./source-widget";

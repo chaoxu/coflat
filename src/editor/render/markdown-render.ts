@@ -1,29 +1,29 @@
+import { ensureSyntaxTree, syntaxTree } from "@codemirror/language";
+import {
+  type EditorState,
+  type Extension,
+  type Range,
+  StateEffect,
+  StateField,
+  type Transaction,
+} from "@codemirror/state";
 import {
   Decoration,
   EditorView,
   ViewPlugin,
   type ViewUpdate,
 } from "@codemirror/view";
-import {
-  type EditorState,
-  type Range,
-  type Extension,
-  StateEffect,
-  StateField,
-  type Transaction,
-} from "@codemirror/state";
-import { ensureSyntaxTree, syntaxTree } from "@codemirror/language";
 import type { SyntaxNodeRef, Tree } from "@lezer/common";
-import {
-  normalizeDirtyRange,
-  type VisibleRange,
-  mergeRanges,
-} from "./viewport-diff";
+import { CSS } from "../../core/constants/css-classes";
+import { containsRange } from "../lib/range-helpers";
 import {
   buildDecorations,
 } from "./decoration-core";
 import { createLifecycleDecorationStateField } from "./decoration-field";
-import { containsRange } from "../lib/range-helpers";
+import {
+  editorFocusField,
+  focusTracker,
+} from "./focus-state";
 import {
   clearLinkDecorationCacheForTest,
   linkDecorationCacheSizeForTest,
@@ -36,10 +36,10 @@ import {
   type MarkdownHandlerContext,
 } from "./markdown-render-handlers";
 import {
-  editorFocusField,
-  focusTracker,
-} from "./focus-state";
-import { CSS } from "../../core/constants/css-classes";
+  mergeRanges,
+  normalizeDirtyRange,
+  type VisibleRange,
+} from "./viewport-diff";
 
 const MARKDOWN_LAYOUT_PARSE_TIMEOUT_MS = 1000;
 const MARKDOWN_REVEAL_FREEZE_TAIL_MS = 100;
@@ -522,8 +522,7 @@ function buildMarkdownDecorationsFromState(state: EditorState) {
   );
 }
 
-export { collectMarkdownItems as _collectMarkdownItemsForTest };
-export { markdownDocChangeNeedsContextMerge as _markdownDocChangeNeedsContextMergeForTest };
+export { collectMarkdownItems as _collectMarkdownItemsForTest, markdownDocChangeNeedsContextMerge as _markdownDocChangeNeedsContextMergeForTest };
 export function _clearLinkDecorationCacheForTest(): void {
   clearLinkDecorationCacheForTest();
 }

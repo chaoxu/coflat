@@ -3,11 +3,9 @@ import { EditorState } from "@codemirror/state";
 import { describe, expect, it } from "vitest";
 
 import { markdownExtensions } from "../../../core/parser";
-import { ensureFullSyntaxTree } from "../../test-utils";
 import { editorStateTextSource } from "../../state/document-analysis";
-import { getEquationNumbersCacheKey, type DocumentAnalysis } from "../document";
-import { buildSemanticDelta } from "./semantic-delta";
-import type { SemanticDelta } from "./types";
+import { ensureFullSyntaxTree } from "../../test-utils";
+import { type DocumentAnalysis, getEquationNumbersCacheKey } from "../document";
 import {
   createDocumentAnalysis,
   createDocumentAnalysisSnapshot,
@@ -15,9 +13,11 @@ import {
   type DocumentAnalysisSnapshot,
   getDocumentAnalysisRevision,
   getDocumentAnalysisSliceRevision,
-  updateDocumentArtifacts,
   updateDocumentAnalysis,
+  updateDocumentArtifacts,
 } from "./engine";
+import { buildSemanticDelta } from "./semantic-delta";
+import type { SemanticDelta } from "./types";
 
 function createState(doc: string): EditorState {
   return EditorState.create({

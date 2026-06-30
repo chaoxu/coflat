@@ -1,16 +1,16 @@
-import { describe, expect, it } from "vitest";
-import { EditorState } from "@codemirror/state";
 import { markdown } from "@codemirror/lang-markdown";
+import { EditorState } from "@codemirror/state";
 import type { Decoration, DecorationSet } from "@codemirror/view";
+import { describe, expect, it } from "vitest";
+import { semanticGlobalInvalidationAnnotation } from "../semantics/incremental/semantic-delta";
+import { documentAnalysisField } from "../state/document-analysis";
+import { ensureFullSyntaxTree } from "../test-utils";
 import {
   buildSectionDecorations,
   clearStickySectionNumbersEffect,
   sectionNumberField,
   sectionNumberPlugin,
 } from "./section-counter";
-import { documentAnalysisField } from "../state/document-analysis";
-import { semanticGlobalInvalidationAnnotation } from "../semantics/incremental/semantic-delta";
-import { ensureFullSyntaxTree } from "../test-utils";
 
 /** Create an EditorState with the markdown parser and a given document. */
 function createState(doc: string): EditorState {

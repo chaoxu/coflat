@@ -3,10 +3,10 @@ import type {
   Text,
   Transaction,
 } from "@codemirror/state";
+import { countColons } from "../../core/parser";
 import type {
   FencedBlockInfo,
 } from "../fenced-block/model";
-import { countColons } from "../../core/parser";
 import { forEachOverlappingOrderedRange } from "../lib/range-helpers";
 
 export interface FenceRange {

@@ -1,9 +1,9 @@
 import type { Tree } from "@lezer/common";
 import type { MathSemantics, TextSource } from "../../document-model";
 import {
+  type PositionMapper,
   rangesOverlap,
   replaceOverlappingRanges,
-  type PositionMapper,
 } from "../merge-utils";
 import type { DirtyWindow, SemanticDelta } from "../types";
 import {

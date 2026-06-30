@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
 import { parser } from "@lezer/markdown";
+import { describe, expect, it } from "vitest";
 import { strikethroughExtension } from "./strikethrough";
 
 /** Helper: parse text with strikethrough extension and return all nodes. */

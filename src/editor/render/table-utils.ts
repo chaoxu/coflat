@@ -1,4 +1,5 @@
 export {
+  type Alignment,
   addColumn,
   addRow,
   deleteColumn,
@@ -7,11 +8,10 @@ export {
   formatTable,
   moveColumn,
   moveRow,
+  type ParsedTable,
   parseTable,
   serializeTable,
   setAlignment,
-  type Alignment,
-  type ParsedTable,
   type TableCell,
   type TableParseResult,
   type TableRow,

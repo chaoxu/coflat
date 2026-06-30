@@ -1,12 +1,12 @@
+export type { CoflatThemeManifest, CoflatThemeTarget } from "../core/theme-manifest";
 export {
+  blueprintBookThemeManifest,
   COFLAT_READER_CLASS,
   COFLAT_READER_DOCUMENT_CLASS,
   COFLAT_READER_SHELL_CLASS,
   COFLAT_READER_TOC_CLASS,
   COFLAT_THEME_SCOPE_CLASS,
-  blueprintBookThemeManifest,
 } from "../core/theme-manifest";
-export type { CoflatThemeManifest, CoflatThemeTarget } from "../core/theme-manifest";
 
 export const themeFoundationTokens = [
   "--cf-bg",

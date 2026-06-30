@@ -1,9 +1,9 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import type { InlineRenderSurface } from "../inline-surface";
 import {
+  type InlineReferenceRenderContext,
   renderInlineMarkdown,
   splitByInlineMath,
-  type InlineReferenceRenderContext,
 } from "./inline-render";
 
 /** Render inline markdown into a div and return innerHTML. */

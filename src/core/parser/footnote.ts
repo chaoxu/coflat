@@ -1,13 +1,13 @@
 import { tags } from "@lezer/highlight";
 import type {
-  BlockParser,
-  InlineParser,
-  MarkdownConfig,
   BlockContext,
-  Line,
+  BlockParser,
   InlineContext,
+  InlineParser,
+  Line,
+  MarkdownConfig,
 } from "@lezer/markdown";
-import { OPEN_BRACKET, CARET, CLOSE_BRACKET, COLON, SPACE, NEWLINE, CR, TAB } from "./char-utils";
+import { CARET, CLOSE_BRACKET, COLON, CR, NEWLINE, OPEN_BRACKET, SPACE, TAB } from "./char-utils";
 import { closingFenceColonCountLine } from "./fenced-div";
 
 /**

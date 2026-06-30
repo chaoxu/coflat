@@ -6,12 +6,12 @@
  */
 
 import { type EditorState } from "@codemirror/state";
+import { documentAnalysisField } from "../state/document-analysis";
+import type { DocumentAnalysis } from "./document";
 import {
   findTrailingHeadingAttributes,
   hasUnnumberedHeadingAttributes,
 } from "./document";
-import type { DocumentAnalysis } from "./document";
-import { documentAnalysisField } from "../state/document-analysis";
 
 /** A single heading entry extracted from the document. */
 export interface HeadingEntry {

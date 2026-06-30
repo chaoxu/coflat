@@ -6,8 +6,8 @@
  */
 
 import type { EditorView } from "@codemirror/view";
-import { isImageMime, IMAGE_EXTENSIONS, logImageError, handleImageInsert } from "./image-save";
 import { IMAGE_TIMEOUT_MS } from "../core/constants";
+import { handleImageInsert, IMAGE_EXTENSIONS, isImageMime, logImageError } from "./image-save";
 
 /**
  * Open a file picker and insert the selected image into the editor.

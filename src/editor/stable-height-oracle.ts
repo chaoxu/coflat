@@ -1,8 +1,8 @@
 import { type Extension } from "@codemirror/state";
 import {
   EditorView,
-  ViewPlugin,
   type PluginValue,
+  ViewPlugin,
   type ViewUpdate,
 } from "@codemirror/view";
 

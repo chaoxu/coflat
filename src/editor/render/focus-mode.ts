@@ -6,20 +6,20 @@
  * are dimmed to 30% opacity.
  */
 
+import { type EditorState, type Extension, StateEffect } from "@codemirror/state";
 import {
   Decoration,
   type DecorationSet,
   type EditorView,
   type ViewUpdate,
 } from "@codemirror/view";
-import { type EditorState, type Extension, StateEffect } from "@codemirror/state";
 import { CSS } from "../../core/constants/css-classes";
 import { createBooleanToggleField } from "./focus-state";
 import {
+  type DirtyRange,
   dirtyRangesFromChanges,
   expandChangeRangeToLines,
   mergeDirtyRanges,
-  type DirtyRange,
 } from "./incremental-dirty-ranges";
 import { createIncrementalDecorationsViewPlugin } from "./view-plugin-factories";
 

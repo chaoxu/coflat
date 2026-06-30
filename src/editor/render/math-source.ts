@@ -1,9 +1,10 @@
 import type { SelectionRange } from "@codemirror/state";
 import type { EquationSemantics, MathSemantics } from "../semantics/document";
+
 export {
   DISPLAY_DELIMITERS,
-  INLINE_DELIMITERS,
   getDisplayMathContentEnd,
+  INLINE_DELIMITERS,
   stripMathDelimiters,
 } from "../../core/math-source";
 

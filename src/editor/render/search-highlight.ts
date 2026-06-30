@@ -12,8 +12,8 @@ import { getSearchQuery, searchPanelOpen } from "@codemirror/search";
 import { type Extension } from "@codemirror/state";
 import { Decoration, type DecorationSet, type EditorView, type ViewUpdate } from "@codemirror/view";
 import { collectVisibleSearchState } from "../search/search-matches";
-import { createSimpleViewPlugin } from "./view-plugin-factories";
 import { syncRegisteredWidgetSearchHighlights } from "./source-widget";
+import { createSimpleViewPlugin } from "./view-plugin-factories";
 
 function syncHighlights(
   view: EditorView,

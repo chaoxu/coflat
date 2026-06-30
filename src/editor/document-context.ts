@@ -10,11 +10,11 @@
  * See READER.md for the design rationale.
  */
 
-import { Compartment, Facet, type Extension } from "@codemirror/state";
+import { Compartment, type Extension, Facet } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
 import {
-  EMPTY_DOCUMENT_CONTEXT,
   type DocumentContext,
+  EMPTY_DOCUMENT_CONTEXT,
 } from "../core/document-context-types";
 
 /**

@@ -1,4 +1,3 @@
-import { afterEach, describe, expect, it } from "vitest";
 import { markdown } from "@codemirror/lang-markdown";
 import {
   codeFolding,
@@ -7,14 +6,15 @@ import {
   foldService,
 } from "@codemirror/language";
 import type { EditorView } from "@codemirror/view";
-import { createTestView, getDecorationSpecs, hasLineClassAt } from "./test-utils";
+import { afterEach, describe, expect, it } from "vitest";
+import { markdownExtensions } from "../core/parser";
 import {
   _activeFoldRailFieldForTest as activeFoldRailField,
+  headingFold,
   _headingFoldFieldForTest as headingFoldField,
   _setActiveFoldRailEffectForTest as setActiveFoldRailEffect,
-  headingFold,
 } from "./heading-fold";
-import { markdownExtensions } from "../core/parser";
+import { createTestView, getDecorationSpecs, hasLineClassAt } from "./test-utils";
 
 function getFoldRange(
   view: EditorView,

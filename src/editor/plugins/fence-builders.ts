@@ -1,10 +1,10 @@
 import { type EditorState, type Range, RangeSet } from "@codemirror/state";
 import { Decoration } from "@codemirror/view";
+import { countColons } from "../../core/parser";
 import type {
   DisplayMathBlockInfo,
   FencedDivInfo,
 } from "../fenced-block/model";
-import { countColons } from "../../core/parser";
 import type { CodeBlockInfo } from "../state/code-block-structure";
 import type { FenceRange } from "./fence-protection-pipeline";
 

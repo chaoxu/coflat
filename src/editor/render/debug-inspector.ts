@@ -9,18 +9,18 @@
  * - Red: headings (ATXHeading1-6)
  */
 
+import { syntaxTree } from "@codemirror/language";
+import {
+  type Extension,
+  type Range,
+  StateEffect,
+} from "@codemirror/state";
 import {
   Decoration,
   type DecorationSet,
   type EditorView,
   type ViewUpdate,
 } from "@codemirror/view";
-import {
-  type Extension,
-  type Range,
-  StateEffect,
-} from "@codemirror/state";
-import { syntaxTree } from "@codemirror/language";
 import { createBooleanToggleField } from "./focus-state";
 import { createSimpleViewPlugin } from "./view-plugin-factories";
 

@@ -3,16 +3,16 @@ import { type EditorState, StateField, type Transaction } from "@codemirror/stat
 import type { NumberingScheme } from "../../core/parser/frontmatter";
 import { docChangeTouchesFencedDivStructure } from "../fenced-block/model";
 import {
+  type BlockCounterState,
   computeBlockNumberingKeyFromFencedDivs,
   computeBlockNumbers,
   mapBlockCounterState,
-  type BlockCounterState,
 } from "./block-counter-core";
+import { createChangeChecker } from "./change-detection";
 import {
   documentAnalysisField,
   getDocumentAnalysisSliceRevision,
 } from "./document-analysis";
-import { createChangeChecker } from "./change-detection";
 import { frontmatterField } from "./frontmatter-state";
 import { pluginRegistryField } from "./plugin-registry";
 

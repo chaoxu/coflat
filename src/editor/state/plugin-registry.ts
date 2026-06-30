@@ -1,7 +1,7 @@
 import { type Extension, Facet, StateField } from "@codemirror/state";
 import type { BlockPlugin } from "./block-plugin";
-import { type PluginRegistryState, buildRegistry } from "./plugin-registry-core";
 import { frontmatterField } from "./frontmatter-state";
+import { buildRegistry, type PluginRegistryState } from "./plugin-registry-core";
 
 /**
  * Facet holding the built-in (default) plugins.

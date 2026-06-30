@@ -1,9 +1,10 @@
+import { type ChangeDesc, EditorState, type Range, type RangeSet, RangeSetBuilder } from "@codemirror/state";
 import { Decoration, type DecorationSet } from "@codemirror/view";
-import { EditorState, RangeSetBuilder, type ChangeDesc, type Range, type RangeSet } from "@codemirror/state";
 import { createSimpleTextWidget } from "./render-core";
 import { findCellAtPos, getCellBounds } from "./table-cell-geometry";
-import { findTableAtCursor, findPipePositions, findTablesInState, type TableRange } from "./table-discovery";
+import { findPipePositions, findTableAtCursor, findTablesInState, type TableRange } from "./table-discovery";
 import { mergeRanges, normalizeDirtyRange, rangeIntersectsRanges, type VisibleRange } from "./viewport-diff";
+
 // ---------------------------------------------------------------------------
 // Decorations (module-level singletons)
 // ---------------------------------------------------------------------------

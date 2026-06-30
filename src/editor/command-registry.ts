@@ -1,6 +1,6 @@
-import { Facet, Prec, type Extension } from "@codemirror/state";
-import { keymap, type KeyBinding } from "@codemirror/view";
+import { type Extension, Facet, Prec } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
+import { type KeyBinding, keymap } from "@codemirror/view";
 
 export type CommandSurface = "palette" | "slash" | "keymap" | "api";
 

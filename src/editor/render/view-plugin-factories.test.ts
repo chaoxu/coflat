@@ -1,4 +1,3 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
 import { markdown } from "@codemirror/lang-markdown";
 import type { EditorState } from "@codemirror/state";
 import {
@@ -8,6 +7,17 @@ import {
   type ViewPlugin,
   type ViewUpdate,
 } from "@codemirror/view";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  clearFrontendPerf,
+  getFrontendPerfSnapshot,
+} from "../lib/perf";
+import { programmaticDocumentChangeAnnotation } from "../state/programmatic-document-change";
+import {
+  createEditorState,
+  createTestView,
+  getDecorationSpecs,
+} from "../test-utils";
 import {
   createCursorSensitiveViewPlugin,
   createIncrementalDecorationsViewPlugin,
@@ -17,16 +27,6 @@ import {
   defaultShouldUpdate,
   planSemanticSensitiveUpdate,
 } from "./view-plugin-factories";
-import {
-  createEditorState,
-  createTestView,
-  getDecorationSpecs,
-} from "../test-utils";
-import { programmaticDocumentChangeAnnotation } from "../state/programmatic-document-change";
-import {
-  clearFrontendPerf,
-  getFrontendPerfSnapshot,
-} from "../lib/perf";
 
 /**
  * Build a minimal ViewUpdate stub for testing shouldUpdate predicates.

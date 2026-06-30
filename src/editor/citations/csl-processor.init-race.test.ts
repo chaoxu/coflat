@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { CitationJsModules, CitationJsLoader } from "./csl-processor";
+import type { CitationJsLoader, CitationJsModules } from "./csl-processor";
 
 beforeEach(() => {
   vi.resetModules();

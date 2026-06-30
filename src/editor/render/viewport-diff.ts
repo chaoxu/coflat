@@ -1,11 +1,11 @@
 import {
+  type DocumentRange,
   mapDocumentRanges,
   mergeDocumentRanges,
   normalizeDirtyDocumentRange,
   positionInDocumentRanges,
   rangeIntersectsDocumentRanges,
   snapshotDocumentRanges,
-  type DocumentRange,
 } from "../lib/document-ranges";
 
 /** A snapshot of a visible document range (matches CM6 visibleRanges shape). */

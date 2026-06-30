@@ -11,16 +11,17 @@
  * The full integration (tooltip positioning, hover delay) is verified via
  * browser testing since JSDOM does not implement hit-testing or layout.
  */
-import { EditorState } from "@codemirror/state";
+
 import { markdown } from "@codemirror/lang-markdown";
+import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { mountEditor } from "../../../editor";
+import type { CitationFormatter } from "../../core/document-context-types";
 import { equationLabelExtension } from "../../core/parser/equation-label";
 import { fencedDiv } from "../../core/parser/fenced-div";
 import { mathExtension } from "../../core/parser/math-backslash";
 import { documentAnalysisField } from "../state/document-analysis";
-import { mountEditor } from "../../../editor";
-import type { CitationFormatter } from "../../core/document-context-types";
 import {
   buildCrossrefPreviewContent,
   destroyHoverPreviewTooltipForTest,

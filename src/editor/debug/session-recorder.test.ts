@@ -1,12 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { DebugRenderState } from "../lib/debug-types";
 import {
-  _compactDebugContextForEventForTest as compactDebugContextForEvent,
-  _sanitizeDebugEventDetailForTest as sanitizeDebugEventDetail,
   clearDebugSessionEvents,
+  _compactDebugContextForEventForTest as compactDebugContextForEvent,
   flushDebugSessionEvents,
   getDebugSessionRecorderStatus,
   recordDebugSessionEvent,
+  _sanitizeDebugEventDetailForTest as sanitizeDebugEventDetail,
 } from "./session-recorder";
 
 const renderState: DebugRenderState = {

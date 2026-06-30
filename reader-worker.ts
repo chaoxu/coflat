@@ -40,7 +40,7 @@
  * inserting the worker's HTML.
  */
 
-import { renderToHtml, renderToText, type ReaderReferencePreviewIndex } from "./reader";
+import { type ReaderReferencePreviewIndex, renderToHtml, renderToText } from "./reader";
 
 // ---------------------------------------------------------------------------
 // Wire protocol.

@@ -15,11 +15,10 @@
  * `<input type="file">` element.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { EditorView } from "@codemirror/view";
-
-import * as imageSave from "./image-save";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { insertImageFromPicker } from "./image-insert";
+import * as imageSave from "./image-save";
 import { createTestView } from "./test-utils";
 
 const views: EditorView[] = [];

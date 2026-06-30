@@ -1,16 +1,15 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { StateField, type Extension } from "@codemirror/state";
-import { CSS } from "../../core/constants/css-classes";
-import { Decoration, EditorView, WidgetType } from "@codemirror/view";
 import { search } from "@codemirror/search";
-
-import { createTestView } from "../test-utils";
+import { type Extension, StateField } from "@codemirror/state";
+import { Decoration, EditorView, WidgetType } from "@codemirror/view";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { CSS } from "../../core/constants/css-classes";
 import {
   nextSearchMatch,
   openFindSearch,
   searchControllerExtensions,
   setSearchControllerQuery,
 } from "../find-replace";
+import { createTestView } from "../test-utils";
 import {
   MathWidget,
   searchHighlightPlugin,

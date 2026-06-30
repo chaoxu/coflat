@@ -1,7 +1,7 @@
 import { type WidgetType } from "@codemirror/view";
 import { appendReferenceListSurfaceDom } from "../../core/reference-surface";
-import { makeTextElement } from "./widget-core";
 import { RenderWidget } from "./source-widget";
+import { makeTextElement } from "./widget-core";
 
 export const REFERENCE_WIDGET_SELECTOR = "[data-reference-widget]";
 

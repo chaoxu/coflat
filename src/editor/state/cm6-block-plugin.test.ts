@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { createStandardPlugin } from "./plugin-factory";
 import { getCm6RenderDecorations, withCm6BlockPlugin } from "./cm6-block-plugin";
+import { createStandardPlugin } from "./plugin-factory";
 
 describe("CM6 block plugin hooks", () => {
   it("attaches render decoration hooks outside the neutral BlockPlugin type", () => {

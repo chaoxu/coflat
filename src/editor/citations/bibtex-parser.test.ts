@@ -1,11 +1,11 @@
-import { describe, expect, it, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import {
-  parseBibTeX,
+  cleanBibtex,
+  clearBibParseCache,
   extractFirstFamilyName,
   extractYear,
   formatCslAuthors,
-  cleanBibtex,
-  clearBibParseCache,
+  parseBibTeX,
 } from "../../core/citations/bibtex-parser";
 
 describe("parseBibTeX", () => {

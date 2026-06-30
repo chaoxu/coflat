@@ -6,12 +6,12 @@
  * through the same door cosheaf will use.
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { EditorState, Text } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { mountEditor, type MountedEditor } from "../../editor";
-import { saveHandlerFacet, statusEventsFacet, type SaveHandler, type StatusEvents } from "./editor-host-api";
+import { type MountedEditor, mountEditor } from "../../editor";
+import { type SaveHandler, type StatusEvents, saveHandlerFacet, statusEventsFacet } from "./editor-host-api";
 import { saveExtension } from "./save-handler";
 
 interface Harness {

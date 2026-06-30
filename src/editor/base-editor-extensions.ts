@@ -2,16 +2,16 @@ import { markdown } from "@codemirror/lang-markdown";
 import type { LanguageDescription } from "@codemirror/language";
 import { syntaxHighlighting } from "@codemirror/language";
 import type { Extension } from "@codemirror/state";
-import type { MarkdownExtension } from "@lezer/markdown";
 import { classHighlighter } from "@lezer/highlight";
-
+import type { MarkdownExtension } from "@lezer/markdown";
+import { markdownExtensions } from "../core/parser";
 import {
-  projectConfigFacet,
-  projectConfigStatusFacet,
   type ProjectConfig,
   type ProjectConfigStatus,
+  projectConfigFacet,
+  projectConfigStatusFacet,
 } from "./project-config";
-import { markdownExtensions } from "../core/parser";
+
 export { sharedInlineRenderExtensions } from "./render/inline-render-extensions";
 
 // Inline editors use the same semantic Markdown profile as inactive inline

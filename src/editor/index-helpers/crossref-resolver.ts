@@ -1,17 +1,17 @@
 import { type EditorState } from "@codemirror/state";
 import {
-  getEditorDocumentReferenceCatalog,
-  getDocumentAnalysisOrRecompute,
-} from "../semantics/editor-reference-catalog";
-import { documentAnalysisField } from "../state/document-analysis";
-import {
   classifyReferenceTarget,
   type EquationEntry,
-  resolveCatalogCrossref,
   type ReferenceClassification,
   type ReferenceClassificationOptions,
   type ResolvedCrossref,
+  resolveCatalogCrossref,
 } from "../references/presentation";
+import {
+  getDocumentAnalysisOrRecompute,
+  getEditorDocumentReferenceCatalog,
+} from "../semantics/editor-reference-catalog";
+import { documentAnalysisField } from "../state/document-analysis";
 
 export type {
   CrossrefKind,

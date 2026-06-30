@@ -15,8 +15,8 @@
 
 import { type CslJsonItem } from "../../core/citations/csl-json";
 import {
-  getCitationRegistrationKey,
   type CitationCluster,
+  getCitationRegistrationKey,
 } from "./citation-matching";
 import defaultCslStyle from "./ieee.csl?raw";
 
@@ -493,6 +493,11 @@ export function registerCitationsWithProcessor(
 }
 
 export {
+  type CitationBacklink,
+  type CitationBacklinkIndex,
+  type CitationCluster,
+  type CitationCollectionOptions,
+  type CitationIdLookup,
   collectCitationBacklinkIndexFromReferences,
   collectCitationBacklinksFromAnalysis,
   collectCitationBacklinksFromReferences,
@@ -504,9 +509,4 @@ export {
   getAnalysisCitationRegistrationKey,
   getCitationRegistrationKey,
   isLocalReferenceIndexTarget,
-  type CitationBacklink,
-  type CitationBacklinkIndex,
-  type CitationCollectionOptions,
-  type CitationCluster,
-  type CitationIdLookup,
 } from "./citation-matching";

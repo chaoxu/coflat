@@ -1,15 +1,15 @@
 import type { Tree } from "@lezer/common";
+import { parse as parseYaml } from "yaml";
 import {
   extractRawFrontmatter,
   parseFrontmatter,
 } from "../../core/parser/frontmatter";
-import { parse as parseYaml } from "yaml";
-import type { DocumentAnalysis, TextSource } from "../semantics/document-model";
 import {
   computeBlockNumbers,
   createConfiguredBlockNumberingSpecLookup,
 } from "../../core/semantics/block-numbering";
 import { headingSectionEndOffsets } from "../../core/semantics/section-boundaries";
+import type { DocumentAnalysis, TextSource } from "../semantics/document-model";
 import type {
   BlockNode,
   DocumentIR,

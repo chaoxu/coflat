@@ -9,26 +9,27 @@
  * Regression test for #406: table edit mode must render inline content
  * with visual parity to the main editor.
  */
-import { describe, expect, it, vi } from "vitest";
+
+import { syntaxTree } from "@codemirror/language";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
-import { syntaxTree } from "@codemirror/language";
+import { describe, expect, it, vi } from "vitest";
+import { CSS } from "../core/constants/css-classes";
+import { markdownExtensions } from "../core/parser";
 import {
   createMarkdownLanguageExtensions,
   createProjectConfigExtensions,
   inlineMarkdownExtensions,
   sharedInlineRenderExtensions,
 } from "./base-editor-extensions";
+import { CslProcessor } from "./citations/csl-processor";
 import { createInlineEditor } from "./inline-editor";
+import { referenceRenderPlugin } from "./render/reference-render";
+import type { DocumentReferenceCatalog } from "./semantics/reference-catalog";
 import { bibDataField } from "./state/bib-data";
 import { documentAnalysisField } from "./state/document-analysis";
-import { referenceRenderPlugin } from "./render/reference-render";
-import { CSS } from "../core/constants/css-classes";
-import { markdownExtensions } from "../core/parser";
-import { CSL_FIXTURES, makeBibStore } from "./test-utils";
-import { CslProcessor } from "./citations/csl-processor";
 import { frontmatterField } from "./state/frontmatter-state";
-import type { DocumentReferenceCatalog } from "./semantics/reference-catalog";
+import { CSL_FIXTURES, makeBibStore } from "./test-utils";
 
 // jsdom lacks ResizeObserver — provide a no-op stub.
 class ResizeObserverStub {

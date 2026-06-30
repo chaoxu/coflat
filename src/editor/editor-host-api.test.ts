@@ -14,12 +14,12 @@ import { EditorView } from "@codemirror/view";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   emitStatusEvent,
-  resolveOpenLinkPicker,
-  requestHandlerFacet,
-  statusEventsFacet,
   type LinkPickerRequest,
   type RequestHandler,
+  requestHandlerFacet,
+  resolveOpenLinkPicker,
   type StatusEvents,
+  statusEventsFacet,
 } from "./editor-host-api";
 
 function makeView(opts: { handler?: RequestHandler; events?: StatusEvents } = {}): {

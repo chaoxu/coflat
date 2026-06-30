@@ -1,8 +1,9 @@
 import "katex/dist/katex.min.css";
 import "../../../src/editor/editor-theme.css";
 import { EditorView } from "@codemirror/view";
-import { applyThemePreset, mountEditor, themePresets } from "../../../editor";
 import type { StandaloneEditorMode } from "../../../editor";
+import { applyThemePreset, mountEditor, themePresets } from "../../../editor";
+import { buildReferenceCatalog } from "../../../parse";
 import {
   hydrateMath,
   hydrateMedia,
@@ -10,9 +11,8 @@ import {
   renderToHtml,
 } from "../../../reader";
 import { mountRichReadonlyDocument } from "../../../rich-readonly";
-import { parseFrontmatter } from "../../../src/core/parser";
-import { buildReferenceCatalog } from "../../../parse";
 import { CSS } from "../../../src/core/constants/css-classes";
+import { parseFrontmatter } from "../../../src/core/parser";
 import {
   DEFAULT_PARITY_SOURCE,
   PARITY_SOURCE_KEY,

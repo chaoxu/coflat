@@ -1,23 +1,22 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { markdown } from "@codemirror/lang-markdown";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
-import { markdown } from "@codemirror/lang-markdown";
-
-import {
-  BibliographyWidget,
-  bibliographyPlugin,
-  bibliographyDependenciesChanged,
-  buildBibliographyDecorations,
-} from "./bibliography-render";
-import { type CitationBacklink } from "../citations/citation-matching";
+import { afterEach, describe, expect, it } from "vitest";
 import { type CslJsonItem } from "../../core/citations/csl-json";
-import { CslProcessor } from "../citations/csl-processor";
 import { CSS } from "../../core/constants/css-classes";
 import { markdownExtensions } from "../../core/parser";
+import { type CitationBacklink } from "../citations/citation-matching";
+import { CslProcessor } from "../citations/csl-processor";
 import { bibDataEffect, bibDataField } from "../state/bib-data";
 import { documentAnalysisField } from "../state/document-analysis";
 import { frontmatterField } from "../state/frontmatter-state";
 import { applyStateEffects, createEditorState, makeBibStore } from "../test-utils";
+import {
+  BibliographyWidget,
+  bibliographyDependenciesChanged,
+  bibliographyPlugin,
+  buildBibliographyDecorations,
+} from "./bibliography-render";
 
 const karger: CslJsonItem = {
   id: "karger2000",

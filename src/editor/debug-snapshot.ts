@@ -2,32 +2,32 @@ import { syntaxTree } from "@codemirror/language";
 import type { EditorView } from "@codemirror/view";
 import { CSS } from "../core/constants/css-classes";
 import { DOCUMENT_SURFACE_CLASS } from "../core/document-surface-classes";
-import { getClosingFenceRanges } from "./plugins/fence-protection";
 import {
-  documentAnalysisField,
-  getDocumentAnalysisRevisionInfo,
-} from "./state/document-analysis";
-import {
-  getActiveStructureEditTarget,
-  type StructureEditTarget,
-} from "./state/cm-structure-edit";
+  type DebugTimelineEvent,
+  getDebugTimelineEvents,
+} from "./debug-timeline";
 import type {
   DebugRenderState,
   SelectionInfo,
   VisibleRawFencedOpener,
 } from "./lib/debug-types";
+import { getClosingFenceRanges } from "./plugins/fence-protection";
 import {
   measureShellSurfaceSnapshot,
   type ShellSurfaceSnapshot,
 } from "./shell-surface-model";
 import {
+  getActiveStructureEditTarget,
+  type StructureEditTarget,
+} from "./state/cm-structure-edit";
+import {
+  documentAnalysisField,
+  getDocumentAnalysisRevisionInfo,
+} from "./state/document-analysis";
+import {
   getVerticalMotionGuardEvents,
   type VerticalMotionGuardEvent,
 } from "./vertical-motion";
-import {
-  getDebugTimelineEvents,
-  type DebugTimelineEvent,
-} from "./debug-timeline";
 
 export interface DebugDivInfo {
   readonly from: number;

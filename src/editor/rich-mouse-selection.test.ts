@@ -1,7 +1,7 @@
 import { EditorSelection } from "@codemirror/state";
 import { describe, expect, it } from "vitest";
-import { createTestView } from "./test-utils";
 import { richMouseSelectionStyle } from "./rich-mouse-selection";
+import { createTestView } from "./test-utils";
 
 describe("rich mouse selection", () => {
   it("does not collapse a non-empty drag selection on the follow-up click", () => {

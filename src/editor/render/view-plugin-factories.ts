@@ -10,20 +10,11 @@ import {
   type EditorView,
   type PluginSpec,
   type PluginValue,
-  type ViewUpdate,
   ViewPlugin,
+  type ViewUpdate,
 } from "@codemirror/view";
-import { buildDecorations } from "./decoration-core";
 import { measureSync } from "../lib/perf";
-import {
-  diffVisibleRanges,
-  isPositionInRanges,
-  mapVisibleRanges,
-  mergeRanges,
-  rangeIntersectsRanges,
-  snapshotRanges,
-  type VisibleRange,
-} from "./viewport-diff";
+import { buildDecorations } from "./decoration-core";
 import {
   type DecorationLifecycleContext,
   type DecorationLifecyclePlan,
@@ -35,6 +26,15 @@ import {
   planDecorationLifecycleUpdate,
   removeDecorationsInRanges,
 } from "./decoration-lifecycle";
+import {
+  diffVisibleRanges,
+  isPositionInRanges,
+  mapVisibleRanges,
+  mergeRanges,
+  rangeIntersectsRanges,
+  snapshotRanges,
+  type VisibleRange,
+} from "./viewport-diff";
 
 export type { DecorationRangeBounds } from "./decoration-lifecycle";
 export { filterDecorationSetInRanges } from "./decoration-lifecycle";

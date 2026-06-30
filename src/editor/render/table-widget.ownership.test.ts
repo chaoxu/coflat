@@ -1,9 +1,9 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { EditorView } from "@codemirror/view";
-import type { ParsedTable } from "./table-utils";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createMockEditorView } from "../test-utils";
+import type { ParsedTable } from "./table-utils";
 
 class ResizeObserverStub {
   observe() {}

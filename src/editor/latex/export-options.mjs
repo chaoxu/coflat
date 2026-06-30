@@ -1,7 +1,6 @@
 import { parse as parseYaml } from "yaml";
-
-import exportContract from "./export-contract.json" with { type: "json" };
 import { isFrontmatterDelimiterLine } from "../lib/frontmatter-delimiter.js";
+import exportContract from "./export-contract.json" with { type: "json" };
 
 export const EXPORT_CONTRACT = exportContract;
 // LaTeX export disables pandoc's `latex_macros` extension (on by default for

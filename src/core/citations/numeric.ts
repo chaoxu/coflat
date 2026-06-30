@@ -1,6 +1,6 @@
 import type { CitationFormatter } from "../document-context-types";
-import { type CslJsonItem, formatCslAuthors } from "./csl-json";
 import { escapeHtml } from "../lib/html-escape";
+import { type CslJsonItem, formatCslAuthors } from "./csl-json";
 
 export interface NumericCitationEntry {
   readonly id: string;

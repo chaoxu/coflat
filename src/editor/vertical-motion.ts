@@ -33,18 +33,18 @@ import {
   hiddenWidgetStopAtPos,
 } from "./widget-stop-index";
 
-export {
-  boundedDirectionalScrollTop,
-  correctedReverseVerticalScrollTop,
-  sumTraversedLineHeights,
-  type VerticalMotionSnapshot,
-} from "./vertical-motion-scroll-model";
 
 export {
   clearVerticalMotionGuardEvents,
   getVerticalMotionGuardEvents,
   type VerticalMotionGuardEvent,
 } from "./vertical-motion-scroll";
+export {
+  boundedDirectionalScrollTop,
+  correctedReverseVerticalScrollTop,
+  sumTraversedLineHeights,
+  type VerticalMotionSnapshot,
+} from "./vertical-motion-scroll-model";
 
 function fallbackVerticalCursor(
   view: EditorView,

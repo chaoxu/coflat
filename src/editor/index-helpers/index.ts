@@ -8,45 +8,42 @@
 // Cross-reference resolver (T12)
 export type {
   CrossrefKind,
-  ResolvedCrossref,
-  EquationEntry,
   CrossrefMatch,
+  EquationEntry,
+  ResolvedCrossref,
 } from "./crossref-resolver";
 export {
   collectEquationLabels,
-  resolveCrossref,
   findCrossrefs,
+  resolveCrossref,
 } from "./crossref-resolver";
-
-// Background indexer query API (T15)
-export {
-  getAllLabels,
-  queryIndex,
-  querySourceText,
-  resolveLabel,
-  resolveLabelResolution,
-  resolveLabelTargets,
-  findReferences,
-  type LabelResolution,
-  type IndexQuery,
-  type IndexEntry,
-  type IndexReference,
-  type SourceTextQuery,
-  type FileIndex,
-  type DocumentIndex,
-  type ResolvedReference,
-} from "./query-api";
-
 export {
   extractFileIndex,
   type FileIndexAnalysisInput,
-  updateFileInIndex,
   removeFileFromIndex,
+  updateFileInIndex,
 } from "./extract";
-
 export {
   BackgroundIndexer,
   type ChunkedBulkUpdateOptions,
   type DeferredUpdateFileOptions,
   type IndexFileSnapshot,
 } from "./indexer";
+// Background indexer query API (T15)
+export {
+  type DocumentIndex,
+  type FileIndex,
+  findReferences,
+  getAllLabels,
+  type IndexEntry,
+  type IndexQuery,
+  type IndexReference,
+  type LabelResolution,
+  queryIndex,
+  querySourceText,
+  type ResolvedReference,
+  resolveLabel,
+  resolveLabelResolution,
+  resolveLabelTargets,
+  type SourceTextQuery,
+} from "./query-api";

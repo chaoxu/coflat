@@ -3,18 +3,18 @@ import type { ChangeSpec, EditorState } from "@codemirror/state";
 import { EditorView, type ViewUpdate } from "@codemirror/view";
 import { expect } from "vitest";
 import type { CslJsonItem } from "../../core/citations/csl-json";
-import { bibDataEffect, bibDataField } from "../state/bib-data";
-import { CslProcessor } from "../citations/csl-processor";
-import { frontmatterField } from "../state/frontmatter-state";
-import {
-  activeStructureEditField,
-} from "../state/cm-structure-edit";
 import { equationLabelExtension } from "../../core/parser/equation-label";
 import { fencedDiv } from "../../core/parser/fenced-div";
 import { mathExtension } from "../../core/parser/math-backslash";
+import { CslProcessor } from "../citations/csl-processor";
 import type { BlockPlugin } from "../plugins/plugin-types";
+import { bibDataEffect, bibDataField } from "../state/bib-data";
 import { blockCounterField } from "../state/block-counter";
+import {
+  activeStructureEditField,
+} from "../state/cm-structure-edit";
 import { documentAnalysisField } from "../state/document-analysis";
+import { frontmatterField } from "../state/frontmatter-state";
 import {
   createPluginRegistryField,
 } from "../state/plugin-registry";

@@ -9,9 +9,8 @@ import {
   type DecorationSet,
   EditorView,
 } from "@codemirror/view";
-import { createChangeChecker } from "../state/change-detection";
-import { focusEffect } from "./focus-state";
 import { measureSync } from "../lib/perf";
+import { createChangeChecker } from "../state/change-detection";
 import {
   type DecorationLifecycleContext,
   type DecorationRangeBounds,
@@ -19,6 +18,7 @@ import {
   planDecorationLifecycleUpdate,
   removeDecorationsInRanges,
 } from "./decoration-lifecycle";
+import { focusEffect } from "./focus-state";
 
 const structuralChangeDetected = createChangeChecker({ doc: true, tree: true });
 

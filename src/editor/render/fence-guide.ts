@@ -14,38 +14,38 @@
  * Only crossing a fenced-div boundary or changing focus triggers a rebuild.
  */
 
-import {
-  type DecorationSet,
-  Decoration,
-  EditorView,
-  ViewPlugin,
-  type ViewUpdate,
-} from "@codemirror/view";
+import { syntaxTree, syntaxTreeAvailable } from "@codemirror/language";
 import {
   type EditorState,
   type Extension,
   type Range,
   StateField,
 } from "@codemirror/state";
-import { syntaxTree, syntaxTreeAvailable } from "@codemirror/language";
+import {
+  Decoration,
+  type DecorationSet,
+  EditorView,
+  ViewPlugin,
+  type ViewUpdate,
+} from "@codemirror/view";
+import { CSS } from "../../core/constants/css-classes";
+import { NODE } from "../../core/constants/node-types";
+import {
+  containsRange,
+  type RangeLike,
+  toRanges,
+} from "../lib/range-helpers";
+import { findAncestorByName } from "../lib/syntax-tree-helpers";
+import {
+  documentAnalysisField,
+  getDocumentAnalysisSliceRevision,
+} from "../state/document-analysis";
 import { buildDecorations } from "./decoration-core";
 import {
   editorFocusField,
   focusEffect,
   focusTracker,
 } from "./focus-state";
-import {
-  documentAnalysisField,
-  getDocumentAnalysisSliceRevision,
-} from "../state/document-analysis";
-import { NODE } from "../../core/constants/node-types";
-import { CSS } from "../../core/constants/css-classes";
-import { findAncestorByName } from "../lib/syntax-tree-helpers";
-import {
-  containsRange,
-  toRanges,
-  type RangeLike,
-} from "../lib/range-helpers";
 import {
   clearActiveFenceGuideClasses,
   resolveLiveWidgetSourceRange,
@@ -317,6 +317,4 @@ export const fenceGuidePlugin: Extension = [
 
 // ── Test exports ───────────────────────────────────────────────────────────
 
-export { computeActivePath as _computeActivePath_forTest };
-export { buildFenceGuides as _buildFenceGuides_forTest };
-export { fenceGuideField as _fenceGuideField_forTest };
+export { buildFenceGuides as _buildFenceGuides_forTest, computeActivePath as _computeActivePath_forTest, fenceGuideField as _fenceGuideField_forTest };

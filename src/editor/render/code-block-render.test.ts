@@ -1,31 +1,22 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { EditorState, type Extension } from "@codemirror/state";
+import { markdown } from "@codemirror/lang-markdown";
 import * as language from "@codemirror/language";
+import { EditorState, type Extension } from "@codemirror/state";
 import {
   type Decoration as CodeMirrorDecoration,
   type DecorationSet,
   EditorView,
 } from "@codemirror/view";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { COPY_RESET_MS } from "../../core/constants";
 import { CSS } from "../../core/constants/css-classes";
-import { markdown } from "@codemirror/lang-markdown";
 import { markdownExtensions } from "../../core/parser";
-import { editorFocusField, focusEffect } from "./render-core";
+import { fenceProtectionExtension } from "../plugins/fence-protection";
 import {
   activeStructureEditField,
   createStructureEditTargetAt,
   setStructureEditTargetEffect,
 } from "../state/cm-structure-edit";
-import {
-  collectCodeBlocks,
-  codeBlockRenderPlugin,
-  _codeBlockDecorationFieldForTest as codeBlockDecorationField,
-  _codeBlockStructureFieldForTest as codeBlockStructureField,
-  _computeCodeBlockDirtyRegionForTest as computeCodeBlockDirtyRegion,
-  _docChangeTouchesCodeBlockContentForTest as docChangeTouchesCodeBlockContent,
-  _incrementalCodeBlockUpdateForTest as incrementalCodeBlockUpdate,
-} from "./code-block-render";
-import { fenceProtectionExtension } from "../plugins/fence-protection";
+import { _updateCodeBlockStructureCacheForTest as updateCodeBlockStructureCache } from "../state/code-block-structure";
 import {
   applyStateEffects,
   createEditorState,
@@ -33,7 +24,16 @@ import {
   hasBlockReplacementClassAt,
   hasLineClassAt,
 } from "../test-utils";
-import { _updateCodeBlockStructureCacheForTest as updateCodeBlockStructureCache } from "../state/code-block-structure";
+import {
+  _codeBlockDecorationFieldForTest as codeBlockDecorationField,
+  codeBlockRenderPlugin,
+  _codeBlockStructureFieldForTest as codeBlockStructureField,
+  collectCodeBlocks,
+  _computeCodeBlockDirtyRegionForTest as computeCodeBlockDirtyRegion,
+  _docChangeTouchesCodeBlockContentForTest as docChangeTouchesCodeBlockContent,
+  _incrementalCodeBlockUpdateForTest as incrementalCodeBlockUpdate,
+} from "./code-block-render";
+import { editorFocusField, focusEffect } from "./render-core";
 
 function createTestState(doc: string, cursorPos = 0, focused = false) {
   const state = createEditorState(doc, {

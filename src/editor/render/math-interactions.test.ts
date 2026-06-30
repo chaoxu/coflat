@@ -1,15 +1,15 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
 import { markdown } from "@codemirror/lang-markdown";
 import { EditorSelection } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { CSS } from "../../core/constants/css-classes";
-import { frontmatterField } from "../state/frontmatter-state";
 import { equationLabelExtension } from "../../core/parser/equation-label";
 import { mathExtension } from "../../core/parser/math-backslash";
+import { documentAnalysisField } from "../state/document-analysis";
+import { frontmatterField } from "../state/frontmatter-state";
 import { createTestView } from "../test-utils";
 import { mathRenderPlugin } from "./math-render";
 import { clearKatexCache } from "./math-widget";
-import { documentAnalysisField } from "../state/document-analysis";
 
 function createMathRenderView(doc: string, cursorPos = 0): EditorView {
   return createTestView(doc, {

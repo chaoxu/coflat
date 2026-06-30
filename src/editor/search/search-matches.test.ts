@@ -1,13 +1,13 @@
-import { afterEach, describe, expect, it } from "vitest";
 import { search } from "@codemirror/search";
 import { EditorView } from "@codemirror/view";
-import { createTestView } from "../test-utils";
+import { afterEach, describe, expect, it } from "vitest";
 import {
   nextSearchMatch,
   openFindSearch,
   searchControllerExtensions,
   setSearchControllerQuery,
 } from "../find-replace";
+import { createTestView } from "../test-utils";
 import { collectVisibleSearchState } from "./search-matches";
 
 const views: EditorView[] = [];

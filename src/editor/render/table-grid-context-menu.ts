@@ -1,16 +1,6 @@
 import { EditorView } from "@codemirror/view";
 import type { ContextMenuItem } from "../lib/context-menu";
 import {
-  addColumn,
-  addRow,
-  deleteColumn,
-  deleteRow,
-  moveColumn,
-  moveRow,
-  setAlignment,
-  type ParsedTable,
-} from "./table-utils";
-import {
   findTableAtCursor,
   findTablesInState,
   getCursorColIndex,
@@ -18,6 +8,16 @@ import {
   type TableRange,
 } from "./table-discovery";
 import { guardTableGridMousePosition } from "./table-grid-click-guard";
+import {
+  addColumn,
+  addRow,
+  deleteColumn,
+  deleteRow,
+  moveColumn,
+  moveRow,
+  type ParsedTable,
+  setAlignment,
+} from "./table-utils";
 
 export interface TableGridContextMenuActions {
   readonly mutateTable: (

@@ -1,11 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
-import { createEditor } from "./editor";
 import {
   commandRegistryExtension,
   getPaletteCommands,
   getSlashCommands,
   runRegisteredCommand,
 } from "./command-registry";
+import { createEditor } from "./editor";
 
 describe("command registry", () => {
   it("dedupes host commands over built-ins and feeds palette/slash/api surfaces", () => {

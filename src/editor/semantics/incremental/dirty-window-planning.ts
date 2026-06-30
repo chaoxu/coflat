@@ -6,23 +6,23 @@ import type {
 } from "../document-model";
 import {
   lowerBoundByTo,
-  replaceOverlappingRanges,
   type PositionMapper,
+  replaceOverlappingRanges,
 } from "./merge-utils";
-import type { NarrativeRefExtraction } from "./slices/reference-slice";
+import type { IncrementalDocumentAnalysisState } from "./slice-registry";
 import {
   type ExtractedDirtyStructuralWindow,
   extractDirtyFencedDivWindows,
   mapFencedDivSemantics,
 } from "./slices/fenced-div-slice";
-import type { IncrementalDocumentAnalysisState } from "./slice-registry";
+import type { NarrativeRefExtraction } from "./slices/reference-slice";
 import type { DirtyWindow, SemanticDelta } from "./types";
 import {
   collectNarrativeRefsInWindow,
   computeNarrativeExtractionRange,
+  type ExcludedRange,
   expandRangeToParagraphBoundaries,
   extractInlineStructuralWindow,
-  type ExcludedRange,
   type StructuralWindowExtraction,
 } from "./window-extractor";
 

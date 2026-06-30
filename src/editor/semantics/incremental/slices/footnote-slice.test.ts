@@ -1,17 +1,17 @@
 import { markdown } from "@codemirror/lang-markdown";
-import { EditorState, type ChangeSpec } from "@codemirror/state";
+import { type ChangeSpec, EditorState } from "@codemirror/state";
 import { describe, expect, it } from "vitest";
 
 import { markdownExtensions } from "../../../../core/parser";
-import { ensureFullSyntaxTree } from "../../../test-utils";
 import { editorStateTextSource } from "../../../state/document-analysis";
+import { ensureFullSyntaxTree } from "../../../test-utils";
 import { buildSemanticDelta } from "../semantic-delta";
 import { extractStructuralWindow } from "../window-extractor";
 import {
   buildFootnoteSlice,
-  mergeFootnoteSlice,
   type DirtyFootnoteWindowExtraction,
   type FootnoteSlice,
+  mergeFootnoteSlice,
 } from "./footnote-slice";
 
 function createState(doc: string): EditorState {

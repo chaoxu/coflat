@@ -1,20 +1,20 @@
 import { markdown } from "@codemirror/lang-markdown";
-import { EditorState, type ChangeSpec } from "@codemirror/state";
+import { type ChangeSpec, EditorState } from "@codemirror/state";
 import { describe, expect, it } from "vitest";
 
 import { markdownExtensions } from "../../../../core/parser";
-import { ensureFullSyntaxTree } from "../../../test-utils";
 import { editorStateTextSource } from "../../../state/document-analysis";
+import { ensureFullSyntaxTree } from "../../../test-utils";
 import { buildSemanticDelta } from "../semantic-delta";
 import type { DirtyWindow } from "../types";
 import { extractStructuralWindow } from "../window-extractor";
-import { extractDirtyFencedDivWindows } from "./fenced-div-slice";
 import {
   buildEquationSlice,
+  type EquationSlice,
   mapEquationSemantics,
   mergeEquationSlice,
-  type EquationSlice,
 } from "./equation-slice";
+import { extractDirtyFencedDivWindows } from "./fenced-div-slice";
 
 function createState(doc: string): EditorState {
   return EditorState.create({

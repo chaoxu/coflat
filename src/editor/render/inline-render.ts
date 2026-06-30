@@ -6,14 +6,16 @@
  */
 
 import type { SyntaxNode } from "@lezer/common";
-import type { InlineRenderSurface } from "../inline-surface";
-import {
-  inlineSurfacePolicy,
-  type InlineSurfacePolicy,
-} from "../../core/inline-surface-policy";
 import { CSS } from "../../core/constants/css-classes";
+import type { LinkResolver } from "../../core/document-context-types";
 import { createReaderFootnoteReferenceElement } from "../../core/footnote-reference-surface";
 import { createInlineMarkElement } from "../../core/inline-mark-surface";
+import {
+  type InlineSurfacePolicy,
+  inlineSurfacePolicy,
+} from "../../core/inline-surface-policy";
+import { isSafeUrl } from "../../core/lib/url-utils";
+import { applyLinkSurface } from "../../core/link-surface";
 import {
   createInlineMathSurfaceElement,
   renderInlineMathErrorFallback,
@@ -26,21 +28,6 @@ import {
   renderMediaLoadingInto,
 } from "../../core/media-surface";
 import {
-  buildInlineFragments,
-  inlineFragmentsPlainText,
-  type InlineFragment,
-  parseInlineFragments,
-} from "../inline-fragments";
-import { isSafeUrl } from "../../core/lib/url-utils";
-import { applyLinkSurface } from "../../core/link-surface";
-import type { LinkResolver } from "../../core/document-context-types";
-import { resolveMarkdownReferencePathFromDocument } from "../lib/markdown-reference-paths";
-import {
-  planReferencePresentation,
-  type ReferencePresentationContext,
-} from "../references/presentation";
-import { renderKatexToHtml } from "./inline-shared";
-import {
   appendReferenceRouteSurfaceDom,
   referencePresentationRouteSurfacePlan,
 } from "../../core/reference-surface";
@@ -48,6 +35,19 @@ import {
   applySourceRangeAttrs,
   type SourceRange,
 } from "../../core/source-range-surface";
+import {
+  buildInlineFragments,
+  type InlineFragment,
+  inlineFragmentsPlainText,
+  parseInlineFragments,
+} from "../inline-fragments";
+import type { InlineRenderSurface } from "../inline-surface";
+import { resolveMarkdownReferencePathFromDocument } from "../lib/markdown-reference-paths";
+import {
+  planReferencePresentation,
+  type ReferencePresentationContext,
+} from "../references/presentation";
+import { renderKatexToHtml } from "./inline-shared";
 
 interface InlineSegment {
   isMath: boolean;

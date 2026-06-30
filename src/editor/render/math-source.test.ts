@@ -1,6 +1,6 @@
-import { describe, expect, it } from "vitest";
-import { parser as lezerParser } from "@lezer/markdown";
 import type { SyntaxNode } from "@lezer/common";
+import { parser as lezerParser } from "@lezer/markdown";
+import { describe, expect, it } from "vitest";
 import { equationLabelExtension } from "../../core/parser/equation-label";
 import { mathExtension } from "../../core/parser/math-backslash";
 import {

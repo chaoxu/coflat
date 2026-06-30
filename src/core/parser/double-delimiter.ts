@@ -1,10 +1,10 @@
+import { tags } from "@lezer/highlight";
 import type {
   InlineContext,
   InlineParser,
   MarkdownConfig,
   NodeSpec,
 } from "@lezer/markdown";
-import { tags } from "@lezer/highlight";
 import { scanDoubleDelimited } from "./char-utils";
 
 interface DoubleDelimiterExtensionConfig {

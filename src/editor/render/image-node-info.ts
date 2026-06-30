@@ -1,20 +1,20 @@
 import { syntaxTree } from "@codemirror/language";
 import type { EditorState } from "@codemirror/state";
 import type { SyntaxNode } from "@lezer/common";
+import { CSS } from "../../core/constants/css-classes";
+import { documentAnalysisField } from "../state/document-analysis";
 import {
   isStandaloneImageLine,
   readMarkdownImageContent,
 } from "../state/markdown-image";
-import { documentAnalysisField } from "../state/document-analysis";
-import { CSS } from "../../core/constants/css-classes";
+import {
+  type DirtyRange,
+  rangeIntersectsDirtyRanges,
+} from "./incremental-dirty-ranges";
 import {
   type MediaPreviewResult,
   resolveLocalMediaPreviewFromState,
 } from "./media-preview";
-import {
-  rangeIntersectsDirtyRanges,
-  type DirtyRange,
-} from "./incremental-dirty-ranges";
 
 export interface ImageNodeInfo {
   readonly from: number;

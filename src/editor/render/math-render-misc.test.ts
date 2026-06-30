@@ -1,21 +1,21 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
-import katex from "katex";
 import { EditorView } from "@codemirror/view";
 import { parser as lezerParser } from "@lezer/markdown";
+import katex from "katex";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { CSS } from "../../core/constants/css-classes";
+import { equationLabelExtension } from "../../core/parser/equation-label";
+import { mathExtension } from "../../core/parser/math-backslash";
+import { renderInlineMarkdown } from "./inline-render";
 import {
-  MathWidget,
   _snapToTokenBoundary,
   clearKatexCache,
   collectMathRanges,
   getDisplayMathContentEnd,
+  MathWidget,
   renderKatex,
   renderKatexToHtml,
   stripMathDelimiters,
 } from "./math-render";
-import { mathExtension } from "../../core/parser/math-backslash";
-import { equationLabelExtension } from "../../core/parser/equation-label";
-import { renderInlineMarkdown } from "./inline-render";
 import {
   createFullMarkdownMathView,
   createMathView,

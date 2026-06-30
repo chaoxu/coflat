@@ -1,14 +1,14 @@
-import type { EquationSemantics } from "../../document-model";
 import {
   initialEquationNumberCounter,
   nextEquationNumber,
 } from "../../../../core/semantics/equation-numbering";
+import type { EquationSemantics } from "../../document-model";
 import {
   firstOverlapIndex,
-  rangesOverlap,
-  replaceOverlappingRanges,
   type PositionMapper,
   type RangeLike,
+  rangesOverlap,
+  replaceOverlappingRanges,
 } from "../merge-utils";
 import type { DirtyWindow, SemanticDelta } from "../types";
 import type {

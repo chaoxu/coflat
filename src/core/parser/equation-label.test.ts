@@ -1,8 +1,8 @@
-import { describe, expect, it } from "vitest";
 import { parser } from "@lezer/markdown";
-import { mathExtension } from "./math-backslash";
+import { describe, expect, it } from "vitest";
 import { equationLabelExtension } from "./equation-label";
 import { fencedDiv } from "./fenced-div";
+import { mathExtension } from "./math-backslash";
 
 /** Parse text with both math and equation label extensions. */
 function parseNodes(text: string): Array<{ name: string; from: number; to: number }> {

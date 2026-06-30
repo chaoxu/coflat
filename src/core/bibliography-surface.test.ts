@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { CSS } from "./constants/css-classes";
 import {
   appendBibliographyBacklinks,
   BIBLIOGRAPHY_BACKLINK_TEXT,
@@ -10,6 +9,7 @@ import {
   createBibliographySectionElement,
   renderBibliographySectionHtml,
 } from "./bibliography-surface";
+import { CSS } from "./constants/css-classes";
 
 describe("bibliography surface", () => {
   it("renders reader bibliography HTML with the canonical section structure", () => {

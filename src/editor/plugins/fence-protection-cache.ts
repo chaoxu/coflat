@@ -1,29 +1,29 @@
 import {
   EditorState,
-  type Transaction,
   RangeSet,
   StateField,
+  type Transaction,
 } from "@codemirror/state";
 import type { Decoration } from "@codemirror/view";
+import { EXCLUDED_FROM_FALLBACK } from "../../core/constants/block-manifest";
 import {
   collectDisplayMathBlocks,
-  docChangeTouchesFencedDivStructure,
   collectFencedDivs,
+  type DisplayMathBlockInfo,
+  docChangeTouchesFencedDivStructure,
+  type FencedBlockInfo,
+  type FencedDivInfo,
   mapDisplayMathBlockInfo,
   mapFencedBlockInfo,
   mapFencedDivInfo,
-  type DisplayMathBlockInfo,
-  type FencedBlockInfo,
-  type FencedDivInfo,
 } from "../fenced-block/model";
-import { EXCLUDED_FROM_FALLBACK } from "../../core/constants/block-manifest";
+import { createChangeChecker } from "../state/change-detection";
 import {
+  type CodeBlockInfo,
   codeBlockStructureField,
   collectCodeBlocks,
   getCodeBlockStructureRevision,
-  type CodeBlockInfo,
 } from "../state/code-block-structure";
-import { createChangeChecker } from "../state/change-detection";
 import {
   documentAnalysisField,
   getDocumentAnalysisSliceRevision,
@@ -38,8 +38,8 @@ import {
 } from "./fence-builders";
 import type { FenceRange } from "./fence-protection-pipeline";
 import {
-  type PluginRegistryState,
   getPluginOrFallback,
+  type PluginRegistryState,
 } from "./plugin-registry";
 
 export interface FenceProtectionCache {

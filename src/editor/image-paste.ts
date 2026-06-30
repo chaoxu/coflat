@@ -22,8 +22,8 @@
 import { type Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import {
-  IMAGE_MIME_EXT,
   createImageHandler,
+  IMAGE_MIME_EXT,
   type ImageSaveConfig,
 } from "./image-save";
 

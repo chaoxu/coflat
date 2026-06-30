@@ -4,9 +4,9 @@ import { describe, expect, it } from "vitest";
 import {
   firstOverlapIndex,
   mapRangeObject,
+  type RangeLike,
   rangesOverlap,
   replaceOverlappingRanges,
-  type RangeLike,
 } from "./merge-utils";
 
 interface TestRange extends RangeLike {

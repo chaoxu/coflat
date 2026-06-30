@@ -1,3 +1,4 @@
+import { styleTags, tags } from "@lezer/highlight";
 import type {
   BlockContext,
   BlockParser,
@@ -5,8 +6,7 @@ import type {
   MarkdownConfig,
   NodeSpec,
 } from "@lezer/markdown";
-import { tags, styleTags } from "@lezer/highlight";
-import { COLON, OPEN_BRACE, findMatchingBrace, isSpaceTab, skipSpaceTab } from "./char-utils";
+import { COLON, findMatchingBrace, isSpaceTab, OPEN_BRACE, skipSpaceTab } from "./char-utils";
 
 /**
  * Lezer markdown extension for Pandoc-style fenced divs.

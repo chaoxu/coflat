@@ -20,8 +20,8 @@ import { EditorView, keymap, ViewPlugin } from "@codemirror/view";
 import {
   DEFAULT_AUTOSAVE_DEBOUNCE_MS,
   emitStatusEvent,
-  saveHandlerFacet,
   type SaveHandler,
+  saveHandlerFacet,
 } from "./editor-host-api";
 
 type SaveReason = "manual" | "command" | "autosave";

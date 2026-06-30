@@ -12,6 +12,7 @@
  * destroyed on every transition out of editing mode.
  */
 
+import { EditorView } from "@codemirror/view";
 import type { ReactElement } from "react";
 import {
   useCallback,
@@ -20,13 +21,12 @@ import {
   useRef,
   useState,
 } from "react";
-import { EditorView } from "@codemirror/view";
 
 import {
+  type DocumentContext,
   hydrateMath,
   mapDomRangeToSource,
   renderToHtml,
-  type DocumentContext,
 } from "./reader";
 
 export type EditableReaderMode = "reading" | "editing" | "committing";

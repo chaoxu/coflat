@@ -1,20 +1,20 @@
 import { syntaxTree } from "@codemirror/language";
 import { type EditorState } from "@codemirror/state";
 import { type EditorView, ViewPlugin } from "@codemirror/view";
-import {
-  type TableRange,
-  findTablesInState,
-} from "./state/table-discovery";
+import { collectFencedDivs } from "./fenced-block/model";
+import { mergeRanges, rangesOverlap } from "./lib/range-helpers";
 import { documentAnalysisField } from "./state/document-analysis";
 import { frontmatterField } from "./state/frontmatter-state";
 import {
   isStandaloneImageLine,
   readMarkdownImageContent,
 } from "./state/markdown-image";
-import { collectFencedDivs } from "./fenced-block/model";
-import { mergeRanges, rangesOverlap } from "./lib/range-helpers";
 import { pluginRegistryField } from "./state/plugin-registry";
 import { getPluginOrFallback } from "./state/plugin-registry-core";
+import {
+  findTablesInState,
+  type TableRange,
+} from "./state/table-discovery";
 
 export type HiddenWidgetStopKind =
   | "frontmatter"

@@ -5,25 +5,25 @@
  * cache (not in CM6 state, since DOM elements aren't serializable).
  */
 import type { EditorView } from "@codemirror/view";
-import { rasterizePdfPage1 } from "./pdf-rasterizer";
 import type { FileSystem } from "../../core/lib/file-system-types";
 import {
   ERROR_COOLDOWN_MS,
+  type PdfPreviewUpdate,
   pdfPreviewEffect,
   pdfPreviewField,
   pdfPreviewRemoveEffect,
-  type PdfPreviewUpdate,
 } from "../state/pdf-preview";
+import { rasterizePdfPage1 } from "./pdf-rasterizer";
 
 export {
   ERROR_COOLDOWN_MS,
-  pdfPreviewEffect,
-  pdfPreviewField,
-  pdfPreviewRemoveEffect,
   type MediaEntryBase,
   type PdfPreviewEntry,
   type PdfPreviewStatus,
   type PdfPreviewUpdate,
+  pdfPreviewEffect,
+  pdfPreviewField,
+  pdfPreviewRemoveEffect,
 } from "../state/pdf-preview";
 
 // ── Canvas cache (module-level, not in CM6 state) ────────────────────────────

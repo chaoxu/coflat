@@ -1,6 +1,6 @@
-import { expect, type Locator, type Page, test } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { expect, type Locator, type Page, test } from "@playwright/test";
 import {
   expectLoadedSelectorsPixelsMatch,
   expectLoadedSplitContentPixelsMatch,

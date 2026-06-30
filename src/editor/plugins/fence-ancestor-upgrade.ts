@@ -14,14 +14,15 @@
  * The opener and closer of each upgraded ancestor are rewritten together so
  * the partner fence keeps matching after the bump.
  */
+
+import { syntaxTree } from "@codemirror/language";
 import {
   EditorState,
   type Extension,
 } from "@codemirror/state";
-import { syntaxTree } from "@codemirror/language";
 import type { SyntaxNode, Tree } from "@lezer/common";
-import { fenceOperationAnnotation } from "./fence-protection";
 import { programmaticDocumentChangeAnnotation } from "../state/programmatic-document-change";
+import { fenceOperationAnnotation } from "./fence-protection";
 
 export interface AncestorFence {
   /** Position of the opener's first colon. */

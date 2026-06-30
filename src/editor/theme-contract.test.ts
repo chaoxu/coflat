@@ -1,17 +1,17 @@
 import { describe, expect, it } from "vitest";
+import type { CoflatThemeManifest } from "../core/theme-manifest";
 import {
+  blueprintBookThemeManifest,
   COFLAT_READER_CLASS,
   COFLAT_READER_DOCUMENT_CLASS,
   COFLAT_READER_SHELL_CLASS,
   COFLAT_READER_TOC_CLASS,
   COFLAT_THEME_SCOPE_CLASS,
-  blueprintBookThemeManifest,
   themeLayerTokenDefaults,
   themeLayerTokens,
   themeSurfaceTokenMap,
   themeTokenNames,
 } from "./theme-contract";
-import type { CoflatThemeManifest } from "../core/theme-manifest";
 
 describe("theme contract", () => {
   it("keeps shared layer tokens explicit and defaulted", () => {

@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
 import { parser } from "@lezer/markdown";
+import { describe, expect, it } from "vitest";
 import { highlightExtension } from "./highlight";
 
 /** Helper: parse text with highlight extension and return all node names at their ranges. */

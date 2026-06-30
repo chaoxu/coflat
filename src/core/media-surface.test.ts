@@ -10,10 +10,10 @@ import {
   mediaKindForSrc,
   mediaLoadingLabel,
   renderImagePlaceholderInto,
-  renderPdfSurfaceHtml,
   renderImageSurfaceHtml,
   renderMediaLoadingHtml,
   renderMediaLoadingInto,
+  renderPdfSurfaceHtml,
   syncInlineImageSize,
 } from "./media-surface";
 

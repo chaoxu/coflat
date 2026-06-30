@@ -1,24 +1,24 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
-import type { EditorView } from "@codemirror/view";
 import { markdown } from "@codemirror/lang-markdown";
+import type { EditorView } from "@codemirror/view";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { CSS } from "../../core/constants/css-classes";
 import { IMAGE_PREVIEW_RESERVED_HEIGHT_PX } from "../../core/constants/layout";
 import { markdownExtensions } from "../../core/parser";
-import {
-  ImagePreviewWidget,
-  _imageDecorationFieldForTest,
-  imageRenderPlugin,
-} from "./image-render";
 import { resolveMarkdownReferencePathFromDocument } from "../lib/markdown-reference-paths";
 import { isPdfTarget, isRelativeFilePath } from "../lib/pdf-target";
 import { documentPathFacet } from "../lib/types";
+import { documentAnalysisField } from "../state/document-analysis";
 import { imageUrlEffect, imageUrlField } from "../state/image-url";
 import { pdfPreviewEffect, pdfPreviewField } from "../state/pdf-preview";
-import { documentAnalysisField } from "../state/document-analysis";
 import { createTestView, getDecorationSpecs } from "../test-utils";
-import * as mediaPreview from "./media-preview";
 import { focusEffect } from "./focus-state";
+import {
+  _imageDecorationFieldForTest,
+  ImagePreviewWidget,
+  imageRenderPlugin,
+} from "./image-render";
 import { markdownRenderPlugin } from "./markdown-render";
+import * as mediaPreview from "./media-preview";
 
 describe("ImagePreviewWidget (image state)", () => {
   const imageState = (src: string) => ({ kind: "image" as const, src });

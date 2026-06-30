@@ -1,7 +1,7 @@
-import type { EditorMode } from "../editor-display-mode";
-import { isTauri } from "../lib/tauri";
 import { CSS } from "../../core/constants/css-classes";
 import { DOCUMENT_SURFACE_CLASS } from "../../core/document-surface-classes";
+import type { EditorMode } from "../editor-display-mode";
+import { isTauri } from "../lib/tauri";
 
 export const TAURI_RENDER_DIAGNOSTICS_KEY = "cf-tauri-render-diagnostics";
 const ROOT_CM_EDITOR_SELECTOR = `.cm-editor.${DOCUMENT_SURFACE_CLASS.surface}`;

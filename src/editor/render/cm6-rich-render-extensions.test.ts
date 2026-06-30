@@ -1,8 +1,8 @@
 import type { Extension } from "@codemirror/state";
 import { describe, expect, it } from "vitest";
 import { checkboxRenderPlugin } from "./checkbox-render";
-import { codeBlockRenderPlugin, codeBlockStructureField } from "./code-block-render";
 import { cm6RichRenderExtensions } from "./cm6-rich-render-extensions";
+import { codeBlockRenderPlugin, codeBlockStructureField } from "./code-block-render";
 import { containerAttributesPlugin } from "./container-attributes";
 import { endMatterRenderPlugin } from "./end-matter-render";
 import { fenceGuidePlugin } from "./fence-guide";

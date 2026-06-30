@@ -1,17 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
-  blockReferenceTarget,
-  equationReferenceTarget,
-  headingReferenceTarget,
-} from "./reference-targets";
-import {
   blockPreviewBodyInputFromFencedDiv,
   blockPreviewBodyInputFromSource,
   blockReferencePreviewEntry,
+  equationReferencePreviewEntry,
+  fencedDivBodyRangeFromSource,
   fencedDivBodySource,
   fencedDivPreviewBodyRange,
-  fencedDivBodyRangeFromSource,
-  equationReferencePreviewEntry,
   findEquationPreviewSource,
   findFencedDivPreviewSource,
   findHeadingPreviewSource,
@@ -28,6 +23,11 @@ import {
   trimReferencePreviewRange,
   unresolvedReferencePreviewLabel,
 } from "./reference-preview-source";
+import {
+  blockReferenceTarget,
+  equationReferenceTarget,
+  headingReferenceTarget,
+} from "./reference-targets";
 
 describe("reference preview source helpers", () => {
   it("formats shared hover preview labels", () => {

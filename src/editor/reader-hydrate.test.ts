@@ -1,18 +1,18 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { KATEX_TEXTSC_CLASS } from "../core/lib/katex-options";
 import {
   hydrateBlockDisclosures,
   hydrateMath,
   hydrateMedia,
-  hydrateReaderHoverPreviews,
   hydrateReaderDisclosures,
-  renderToHtml,
+  hydrateReaderHoverPreviews,
   type ReaderReferencePreviewIndex,
+  renderToHtml,
 } from "../../reader";
 import {
   destroyHoverPreviewTooltipForTest,
   ensureHoverPreviewTooltipForTest,
 } from "../core/hover-tooltip";
+import { KATEX_TEXTSC_CLASS } from "../core/lib/katex-options";
 
 function makeRoot(html: string): HTMLElement {
   const root = document.createElement("div");

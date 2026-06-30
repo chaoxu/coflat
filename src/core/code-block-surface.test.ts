@@ -1,7 +1,4 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { CSS } from "./constants/css-classes";
-import { COPY_RESET_MS } from "./constants/timing";
-import { DOCUMENT_SURFACE_CLASS } from "./document-surface-classes";
 import {
   appendCodeBlockDom,
   codeBlockLanguageClass,
@@ -10,6 +7,9 @@ import {
   createCodeBlockLanguageElement,
   renderCodeBlockHtml,
 } from "./code-block-surface";
+import { CSS } from "./constants/css-classes";
+import { COPY_RESET_MS } from "./constants/timing";
+import { DOCUMENT_SURFACE_CLASS } from "./document-surface-classes";
 
 const copyIcon = [["path", { d: "M1 1h1" }]] as const;
 const checkIcon = [["path", { d: "M2 2h1" }]] as const;

@@ -1,11 +1,11 @@
 import type {
-  DecorationSet,
-} from "@codemirror/view";
-import type {
   EditorState,
   Text,
   Transaction,
 } from "@codemirror/state";
+import type {
+  DecorationSet,
+} from "@codemirror/view";
 import type { MathSemantics } from "../semantics/document";
 import {
   type DirtyRange,

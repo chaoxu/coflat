@@ -34,12 +34,12 @@ import {
   previousSearchMatch,
   replaceAllSearchMatches,
   replaceCurrentSearchMatch,
+  type SearchMatchCacheSnapshot,
   searchControllerExtensions,
   searchUiStateField,
   setSearchControllerQuery,
   setSearchUiState,
   updateSearchMatchCache,
-  type SearchMatchCacheSnapshot,
 } from "./find-replace-controller";
 
 export * from "./find-replace-controller";

@@ -7,8 +7,8 @@
  */
 
 import { type WidgetType } from "@codemirror/view";
-import { type ResolvedCrossref } from "../index-helpers/crossref-resolver";
 import { CSS } from "../../core/constants/css-classes";
+import { type ResolvedCrossref } from "../index-helpers/crossref-resolver";
 import {
   ReferenceWidget,
   SimpleTextReferenceWidget,

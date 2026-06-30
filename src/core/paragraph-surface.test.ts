@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
+import { DOCUMENT_SURFACE_CLASS } from "./document-surface-classes";
 import {
   appendParagraphDom,
   createParagraphDom,
   renderParagraphHtml,
 } from "./paragraph-surface";
-import { DOCUMENT_SURFACE_CLASS } from "./document-surface-classes";
 
 describe("paragraph surface", () => {
   it("renders the canonical reader paragraph wrapper", () => {

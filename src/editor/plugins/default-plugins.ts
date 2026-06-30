@@ -6,9 +6,9 @@
  * is needed for standard blocks.
  */
 
-import type { BlockPlugin } from "./plugin-types";
 import { BLOCK_MANIFEST_ENTRIES } from "../../core/constants/block-manifest";
 import { pluginFromManifest } from "./plugin-factory";
+import type { BlockPlugin } from "./plugin-types";
 
 /** All default block plugins, generated from BLOCK_MANIFEST. */
 export const defaultPlugins: readonly BlockPlugin[] = BLOCK_MANIFEST_ENTRIES.map(

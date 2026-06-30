@@ -1,7 +1,13 @@
 import type { EditorState } from "@codemirror/state";
-
-import { getAnalysisCitationRegistrationKey } from "../citations/citation-matching";
 import type { CitationFormatter } from "../../core/document-context-types";
+import { getAnalysisCitationRegistrationKey } from "../citations/citation-matching";
+import { documentContextFacet } from "../document-context";
+import { documentPathFacet } from "../lib/types";
+import {
+  type DocumentAnalysis,
+  getEquationNumbersCacheKey,
+} from "../semantics/document";
+import { externalDocumentReferenceCatalogField } from "../semantics/editor-reference-catalog";
 import type { BibStore } from "./bib-data";
 import { bibDataField } from "./bib-data";
 import type { BlockCounterState } from "./block-counter";
@@ -12,13 +18,6 @@ import {
   getDocumentAnalysisSliceRevision,
 } from "./document-analysis";
 import { pluginRegistryField } from "./plugin-registry";
-import { documentContextFacet } from "../document-context";
-import { documentPathFacet } from "../lib/types";
-import { externalDocumentReferenceCatalogField } from "../semantics/editor-reference-catalog";
-import {
-  getEquationNumbersCacheKey,
-  type DocumentAnalysis,
-} from "../semantics/document";
 import type { PluginRegistryState } from "./plugin-registry-core";
 
 /**

@@ -1,8 +1,8 @@
 import type {
   HostReferenceResolution,
+  ReferenceMode,
   RefResolver,
   RefResolverEnv,
-  ReferenceMode,
 } from "../document-context-types";
 import { escapeHtml } from "../lib/html-escape";
 import { isSafeUrl } from "../lib/url-utils";

@@ -1,16 +1,16 @@
 import type { EditorState, Extension, Transaction } from "@codemirror/state";
 import { Decoration, type DecorationSet, EditorView } from "@codemirror/view";
 import {
-  bibliographyShouldRebuild,
   BibliographyWidget,
+  bibliographyShouldRebuild,
   createBibliographyWidgetFromState,
 } from "./bibliography-render";
 import { buildDecorations } from "./decoration-core";
 import { createDecorationsField } from "./decoration-field";
 import {
   createFootnoteSectionWidgetFromState,
-  footnoteSectionShouldRebuild,
   FootnoteSectionWidget,
+  footnoteSectionShouldRebuild,
 } from "./sidenote-render";
 import { RenderWidget } from "./source-widget";
 

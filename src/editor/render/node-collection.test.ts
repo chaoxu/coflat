@@ -1,12 +1,12 @@
-import { afterEach, describe, expect, it } from "vitest";
 import { markdown } from "@codemirror/lang-markdown";
 import type { EditorView } from "@codemirror/view";
-import { collectNodes, collectNodeRangesExcludingCursor } from "./node-collection";
-import { decorationHidden } from "./decoration-core";
+import { afterEach, describe, expect, it } from "vitest";
 import {
   createEditorState,
   createTestView,
 } from "../test-utils";
+import { decorationHidden } from "./decoration-core";
+import { collectNodeRangesExcludingCursor, collectNodes } from "./node-collection";
 
 describe("collectNodes", () => {
   let view: EditorView | undefined;

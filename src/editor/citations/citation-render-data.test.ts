@@ -5,8 +5,8 @@ import { analyzeMarkdownDocument } from "../semantics/markdown-analysis";
 import {
   buildCitationRenderData,
   buildCitationRenderDataFromAnalysis,
-  loadBibliographyResource,
   type CitationTextResourceResolver,
+  loadBibliographyResource,
 } from "./citation-render-data";
 
 function createTextFileResolver(

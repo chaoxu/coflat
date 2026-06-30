@@ -1,23 +1,20 @@
+import { syntaxTree } from "@codemirror/language";
 import {
   type ChangeSet,
   type EditorState,
   type Extension,
-  StateField,
   type Range,
+  StateField,
 } from "@codemirror/state";
 import {
   Decoration,
   type DecorationSet,
   EditorView,
-  type ViewUpdate,
   ViewPlugin,
+  type ViewUpdate,
 } from "@codemirror/view";
-import { syntaxTree } from "@codemirror/language";
-import {
-  buildDecorations,
-  pushBlockWidgetDecoration,
-  pushWidgetDecoration,
-} from "./decoration-core";
+import { measureSync } from "../lib/perf";
+import { createChangeChecker } from "../state/change-detection";
 import { imageUrlField } from "../state/image-url";
 import {
   collectChangedLocalMediaPathsFromIndex,
@@ -25,19 +22,25 @@ import {
   mediaIndexField,
 } from "../state/media-index";
 import { pdfPreviewField } from "../state/pdf-preview";
-import { resolveLocalMediaPreview } from "./media-preview";
-import { requestScrollStabilizedMeasure } from "./scroll-anchor";
-import { createChangeChecker } from "../state/change-detection";
 import {
-  dirtyRangesFromChanges,
-  expandChangeRangeToLines,
-  rangeIntersectsDirtyRanges,
-  type DirtyRange,
-} from "./incremental-dirty-ranges";
+  buildDecorations,
+  pushBlockWidgetDecoration,
+  pushWidgetDecoration,
+} from "./decoration-core";
 import {
   editorFocusField,
   focusTracker,
 } from "./focus-state";
+import {
+  collectAllImageNodeInfos,
+  collectImageNodeInfosInRanges,
+  type ImageNodeInfo,
+  refreshImageNodeInfoPreview,
+} from "./image-node-info";
+import {
+  ImagePreviewWidget,
+  mediaPreviewWidget,
+} from "./image-preview-widget";
 import {
   type ActiveImageSourceTarget,
   activeSourceTargetsEqual,
@@ -46,16 +49,13 @@ import {
   mapActiveSourceTargetThroughChanges,
 } from "./image-source-reveal";
 import {
-  collectAllImageNodeInfos,
-  collectImageNodeInfosInRanges,
-  refreshImageNodeInfoPreview,
-  type ImageNodeInfo,
-} from "./image-node-info";
-import {
-  ImagePreviewWidget,
-  mediaPreviewWidget,
-} from "./image-preview-widget";
-import { measureSync } from "../lib/perf";
+  type DirtyRange,
+  dirtyRangesFromChanges,
+  expandChangeRangeToLines,
+  rangeIntersectsDirtyRanges,
+} from "./incremental-dirty-ranges";
+import { resolveLocalMediaPreview } from "./media-preview";
+import { requestScrollStabilizedMeasure } from "./scroll-anchor";
 
 const INITIAL_IMAGE_PREVIEW_SCAN_LIMIT = 20_000;
 const IMAGE_PREVIEW_PREFETCH_MARGIN = 4_000;
@@ -375,8 +375,8 @@ function localMediaCacheChangedForTrackedImage(update: ViewUpdate): boolean {
   ).size > 0;
 }
 
-export { imageDecorationField as _imageDecorationFieldForTest };
 export { ImagePreviewWidget } from "./image-preview-widget";
+export { imageDecorationField as _imageDecorationFieldForTest };
 
 export const imageRenderPlugin: Extension = [
   editorFocusField,

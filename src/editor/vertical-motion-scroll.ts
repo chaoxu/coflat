@@ -1,6 +1,6 @@
 import { type EditorView } from "@codemirror/view";
-import { getLineElement } from "./render/render-core";
 import { appendDebugTimelineEvent } from "./debug-timeline";
+import { getLineElement } from "./render/render-core";
 import {
   boundedDirectionalScrollTop,
   correctedReverseVerticalScrollTop,

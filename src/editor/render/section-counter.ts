@@ -9,13 +9,6 @@
  */
 
 import {
-  type DecorationSet,
-  Decoration,
-  EditorView,
-  ViewPlugin,
-  type ViewUpdate,
-} from "@codemirror/view";
-import {
   type EditorState,
   type Extension,
   type Range,
@@ -23,10 +16,17 @@ import {
   StateField,
   type Transaction,
 } from "@codemirror/state";
-import { buildDecorations } from "./decoration-core";
-import { documentAnalysisField } from "../state/document-analysis";
-import { createChangeChecker } from "../state/change-detection";
+import {
+  Decoration,
+  type DecorationSet,
+  EditorView,
+  ViewPlugin,
+  type ViewUpdate,
+} from "@codemirror/view";
 import type { HeadingSemantics } from "../semantics/document";
+import { createChangeChecker } from "../state/change-detection";
+import { documentAnalysisField } from "../state/document-analysis";
+import { buildDecorations } from "./decoration-core";
 
 const STICKY_SECTION_NUMBER_MS = 500;
 

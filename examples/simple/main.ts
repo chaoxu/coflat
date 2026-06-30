@@ -1,32 +1,32 @@
 import "katex/dist/katex.min.css";
-import { ViewPlugin, type EditorView, type PluginValue, type ViewUpdate } from "@codemirror/view";
+import { type EditorView, type PluginValue, ViewPlugin, type ViewUpdate } from "@codemirror/view";
 import "../../src/editor/editor-theme.css";
 import { mountEditor } from "../../editor";
+import formatDoc from "../../FORMAT.md?raw";
+import { buildReferenceCatalog } from "../../parse";
 import {
-  hydrateReaderDisclosures,
   hydrateMath,
   hydrateMedia,
+  hydrateReaderDisclosures,
   hydrateReaderHoverPreviews,
   hydrateReferences,
   renderToHtml,
+  type SourcePosition,
   sourceElementAtPosition,
   visibleSourcePositionInScroller,
-  type SourcePosition,
 } from "../../reader";
-import { buildReferenceCatalog } from "../../parse";
-import {
-  createNumericCitationFormatter,
-} from "../../src/core/citations/numeric";
 import { parseBibTeX } from "../../src/core/citations/bibtex-parser";
 import type { BibStore } from "../../src/core/citations/csl-json";
 import { extractYear, formatCslAuthors } from "../../src/core/citations/csl-json";
+import {
+  createNumericCitationFormatter,
+} from "../../src/core/citations/numeric";
 import { CSS } from "../../src/core/constants/css-classes";
 import type { DocumentContext, RefResolver } from "../../src/core/document-context-types";
 import type { FileEntry, FileSystem } from "../../src/core/lib/file-system-types";
 import { fileSystemFacet } from "../../src/editor/lib/types";
 import { bibDataEffect } from "../../src/editor/state/bib-data";
 import initialDoc from "./showcase.md?raw";
-import formatDoc from "../../FORMAT.md?raw";
 import "./style.css";
 
 const editorRoot = document.querySelector<HTMLElement>("#editor");

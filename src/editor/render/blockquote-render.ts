@@ -13,15 +13,15 @@ import {
 } from "@codemirror/view";
 import type { SyntaxNode, SyntaxNodeRef } from "@lezer/common";
 import { parseFrontmatter } from "../../core/parser";
+import { mathMacrosField } from "../state/math-macros";
 import { buildDecorations } from "./decoration-core";
 import {
   editorFocusField,
   focusTracker,
 } from "./focus-state";
 import { buildPreviewBlockOptions } from "./hover-preview-block-options";
-import { mathMacrosField } from "../state/math-macros";
-import { RenderWidget } from "./source-widget";
 import { renderPreviewBlockContentToDom } from "./preview-block-renderer";
+import { RenderWidget } from "./source-widget";
 
 function selectionIntersects(
   state: EditorState,

@@ -1,8 +1,8 @@
 import type { Tree } from "@lezer/common";
-import type { FencedDivSemantics } from "../../document-model";
+import type { FencedDivSemantics, TextSource } from "../../document-model";
 import {
-  rangesOverlap,
   type PositionMapper,
+  rangesOverlap,
 } from "../merge-utils";
 import type { DirtyWindow } from "../types";
 import {
@@ -10,7 +10,6 @@ import {
   extractStructuralWindow,
   type StructuralWindowExtraction,
 } from "../window-extractor";
-import type { TextSource } from "../../document-model";
 
 export interface ExtractedDirtyStructuralWindow {
   readonly window: DirtyWindow;

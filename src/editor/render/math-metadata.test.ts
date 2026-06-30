@@ -1,15 +1,15 @@
-import { describe, expect, it } from "vitest";
-import { type ViewUpdate } from "@codemirror/view";
-import { EditorState, type TransactionSpec } from "@codemirror/state";
 import { markdown } from "@codemirror/lang-markdown";
-import { mathExtension } from "../../core/parser/math-backslash";
+import { EditorState, type TransactionSpec } from "@codemirror/state";
+import { type ViewUpdate } from "@codemirror/view";
+import { describe, expect, it } from "vitest";
 import { equationLabelExtension } from "../../core/parser/equation-label";
-import { frontmatterField } from "../state/frontmatter-state";
-import { documentAnalysisField } from "../state/document-analysis";
+import { mathExtension } from "../../core/parser/math-backslash";
 import { activeStructureEditField } from "../state/cm-structure-edit";
+import { documentAnalysisField } from "../state/document-analysis";
+import { frontmatterField } from "../state/frontmatter-state";
 import { createMockEditorView } from "../test-utils";
-import { mathRenderPlugin, _mathDecorationFieldForTest as mathDecorationField } from "./math-render";
 import { _docChangeAffectsVisibleMathWidgetsForTest as docChangeAffectsVisibleMathWidgets } from "./math-metadata";
+import { _mathDecorationFieldForTest as mathDecorationField, mathRenderPlugin } from "./math-render";
 
 function createMathState(doc: string): EditorState {
   return EditorState.create({

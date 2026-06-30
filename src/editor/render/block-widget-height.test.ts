@@ -1,8 +1,8 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
 import type { EditorView } from "@codemirror/view";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
-  observeBlockWidgetHeight,
   type BlockWidgetHeightBinding,
+  observeBlockWidgetHeight,
 } from "./block-widget-height";
 
 describe("observeBlockWidgetHeight", () => {

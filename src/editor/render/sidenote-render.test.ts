@@ -1,36 +1,36 @@
-import { afterEach, describe, it, expect, vi } from "vitest";
+import { markdown } from "@codemirror/lang-markdown";
 import { EditorState } from "@codemirror/state";
 import { type DecorationSet, EditorView } from "@codemirror/view";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { CSS } from "../../core/constants/css-classes";
-import { markdown } from "@codemirror/lang-markdown";
 import { footnoteExtension } from "../../core/parser/footnote";
-import { frontmatterField } from "../state/frontmatter-state";
-import { mathMacrosField } from "../state/math-macros";
-import {
-  documentAnalysisField,
-  getDocumentAnalysisSliceRevision,
-} from "../state/document-analysis";
-import { renderInlineMarkdown } from "./inline-render";
-import {
-  computeSidenoteOffsets,
-  type SidenoteMeasurement,
-  FootnoteSectionWidget,
-  FootnoteInlineWidget,
-  buildSidenoteDecorations,
-  footnoteSectionPlugin,
-  sidenoteDecorationField,
-  sidenotesCollapsedEffect,
-  sidenotesCollapsedField,
-  footnoteInlineToggleEffect,
-  footnoteInlineExpandedField,
-} from "./sidenote-render";
-import { editorFocusField, focusEffect } from "./render-core";
 import {
   activeStructureEditField,
   createStructureEditTargetAt,
   setStructureEditTargetEffect,
 } from "../state/cm-structure-edit";
+import {
+  documentAnalysisField,
+  getDocumentAnalysisSliceRevision,
+} from "../state/document-analysis";
+import { frontmatterField } from "../state/frontmatter-state";
+import { mathMacrosField } from "../state/math-macros";
 import { createMockEditorView, createTestView, getDecorationSpecs } from "../test-utils";
+import { renderInlineMarkdown } from "./inline-render";
+import { editorFocusField, focusEffect } from "./render-core";
+import {
+  buildSidenoteDecorations,
+  computeSidenoteOffsets,
+  FootnoteInlineWidget,
+  FootnoteSectionWidget,
+  footnoteInlineExpandedField,
+  footnoteInlineToggleEffect,
+  footnoteSectionPlugin,
+  type SidenoteMeasurement,
+  sidenoteDecorationField,
+  sidenotesCollapsedEffect,
+  sidenotesCollapsedField,
+} from "./sidenote-render";
 
 /** Create an EditorState with footnote parsing and all fields needed by sidenote decorations. */
 function createState(doc: string, cursorPos?: number): EditorState {

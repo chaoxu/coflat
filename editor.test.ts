@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-
-import { DOCUMENT_SURFACE_CLASS } from "./src/core/document-surface-classes";
 import { mountEditor } from "./editor";
+import { DOCUMENT_SURFACE_CLASS } from "./src/core/document-surface-classes";
 
 describe("mountEditor", () => {
   it("mounts with an empty document by default", () => {

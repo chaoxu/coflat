@@ -8,60 +8,59 @@
 
 import type { ChangeSet, Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
-
-import {
-  createEditor,
-  editorModeField,
-  setEditorMode,
-  type EditorConfig,
-  type EditorLazyFeature,
-} from "./src/editor/editor";
-import type {
-  EditorPlugin,
-  EditorPluginLifecycleEvent,
-} from "./src/editor/editor-plugin";
-import type { EditorPluginPresetName } from "./src/editor/editor-plugin-presets";
-import {
-  createPerFilePanelApi,
-  type Counts,
-  type CursorContext,
-  type HeadlessPanelStore,
-  type OutlineEntry,
-  type ScrollToLineOptions,
-  type ScrollToPositionOptions,
-} from "./src/editor/headless/per-file-panels";
-import type { DocumentContext } from "./src/core/document-context-types";
 import type { CslJsonItem } from "./src/core/citations/csl-json";
+import type { DocumentContext } from "./src/core/document-context-types";
 import type { FileSystem } from "./src/core/lib/file-system-types";
 import {
   sourceElementAtPosition,
   visibleSourcePositionInScroller,
 } from "./src/core/source-range-surface";
 import {
+  type AssetUploader,
+  assetUploaderExtension,
+  formatUploadedAssetMarkdown,
+} from "./src/editor/asset-uploader";
+import { autocompleteSourceExtension } from "./src/editor/autocomplete-source-controller";
+import {
   documentContextExtension,
   setDocumentContext,
 } from "./src/editor/document-context";
 import {
-  autocompleteSourcesFacet,
-  requestHandlerFacet,
-  saveHandlerFacet,
-  statusEventsFacet,
+  createEditor,
+  type EditorConfig,
+  type EditorLazyFeature,
+  editorModeField,
+  setEditorMode,
+} from "./src/editor/editor";
+import {
   type AutocompleteSource,
+  autocompleteSourcesFacet,
   type RequestHandler,
+  requestHandlerFacet,
   type SaveHandler,
   type StatusEvents,
+  saveHandlerFacet,
+  statusEventsFacet,
 } from "./src/editor/editor-host-api";
+import type {
+  EditorPlugin,
+  EditorPluginLifecycleEvent,
+} from "./src/editor/editor-plugin";
+import type { EditorPluginPresetName } from "./src/editor/editor-plugin-presets";
 import {
-  assetUploaderExtension,
-  formatUploadedAssetMarkdown,
-  type AssetUploader,
-} from "./src/editor/asset-uploader";
-import { autocompleteSourceExtension } from "./src/editor/autocomplete-source-controller";
+  type Counts,
+  type CursorContext,
+  createPerFilePanelApi,
+  type HeadlessPanelStore,
+  type OutlineEntry,
+  type ScrollToLineOptions,
+  type ScrollToPositionOptions,
+} from "./src/editor/headless/per-file-panels";
 import { documentPathFacet, fileSystemFacet } from "./src/editor/lib/types";
-import { programmaticDocumentChangeAnnotation } from "./src/editor/state/programmatic-document-change";
-import { bibDataEffect, type BibData } from "./src/editor/state/bib-data";
-import { createSaveController, saveExtension } from "./src/editor/save-handler";
 import { sidenotesCollapsedField } from "./src/editor/render";
+import { createSaveController, saveExtension } from "./src/editor/save-handler";
+import { type BibData, bibDataEffect } from "./src/editor/state/bib-data";
+import { programmaticDocumentChangeAnnotation } from "./src/editor/state/programmatic-document-change";
 
 export type LazyEditorMode = "rich" | "rich-readonly" | "source";
 
@@ -411,15 +410,15 @@ export function mountLazyEditor(options: MountLazyEditorOptions): MountedLazyEdi
 }
 
 export type {
+  AssetUploader,
+  AutocompleteSource,
+  Counts,
+  CursorContext,
   DocumentContext,
   EditorLazyFeature,
   EditorPlugin,
   EditorPluginLifecycleEvent,
   EditorPluginPresetName,
-  AutocompleteSource,
-  AssetUploader,
-  Counts,
-  CursorContext,
   HeadlessPanelStore,
   OutlineEntry,
   RequestHandler,

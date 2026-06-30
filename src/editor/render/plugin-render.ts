@@ -19,18 +19,34 @@ import {
   type DecorationSet,
 } from "@codemirror/view";
 import { CSS } from "../../core/constants/css-classes";
-import { activeFencedOpenFenceStarts } from "../state/shell-ownership";
+import { fencedDivLiveEditorChromePlan } from "../../core/fenced-div-surface";
+import { collectFencedDivs } from "../fenced-block/model";
+import { DecorationBuilder } from "../plugins/decoration-builder";
+import { fenceAncestorUpgradeExtension } from "../plugins/fence-ancestor-upgrade";
+import { fenceCountMirrorExtension } from "../plugins/fence-count-mirror";
+import { fenceProtectionExtension } from "../plugins/fence-protection";
+import { openerTrailingProtection } from "../plugins/opener-trailing-protection";
+import { applySpecialBehavior } from "../plugins/special-behavior-handlers";
+import { type BlockCounterState, blockCounterField } from "../state/block-counter";
+import type { BlockAttrs } from "../state/block-plugin";
+import { createChangeChecker } from "../state/change-detection";
 import {
   getActiveStructureEditSignature,
   hasStructureEditEffect,
   isFencedStructureSourceEditActive,
 } from "../state/cm-structure-edit";
-import { createChangeChecker } from "../state/change-detection";
-import { collectFencedDivs } from "../fenced-block/model";
-import { mathMacrosField } from "../state/math-macros";
+import { getCm6RenderDecorations } from "../state/cm6-block-plugin";
 import {
-  addSingleLineClosingFence,
+  documentAnalysisField,
+  getDocumentAnalysisSliceRevision,
+} from "../state/document-analysis";
+import { mathMacrosField } from "../state/math-macros";
+import { pluginRegistryField } from "../state/plugin-registry";
+import { getPluginOrFallback } from "../state/plugin-registry-core";
+import { activeFencedOpenFenceStarts } from "../state/shell-ownership";
+import {
   addCollapsedStructureLine,
+  addSingleLineClosingFence,
   buildFencedBlockDecorations,
   createFencedBlockDecorationField,
   hideMultiLineClosingFence,
@@ -40,18 +56,6 @@ import {
   focusTracker,
 } from "./focus-state";
 import {
-  documentAnalysisField,
-  getDocumentAnalysisSliceRevision,
-} from "../state/document-analysis";
-import { type BlockCounterState, blockCounterField } from "../state/block-counter";
-import { pluginRegistryField } from "../state/plugin-registry";
-import { DecorationBuilder } from "../plugins/decoration-builder";
-import { fenceProtectionExtension } from "../plugins/fence-protection";
-import { fenceCountMirrorExtension } from "../plugins/fence-count-mirror";
-import { fenceAncestorUpgradeExtension } from "../plugins/fence-ancestor-upgrade";
-import { openerTrailingProtection } from "../plugins/opener-trailing-protection";
-import { getPluginOrFallback } from "../state/plugin-registry-core";
-import {
   addAttributeTitleDecoration,
   addCaptionDecoration,
   addHeaderWidgetDecoration,
@@ -59,10 +63,6 @@ import {
   addInlineTitleParenDecorations,
   codeMirrorPluginRenderAdapter as pluginRenderAdapter,
 } from "./plugin-adapters/chrome";
-import type { BlockAttrs } from "../state/block-plugin";
-import { getCm6RenderDecorations } from "../state/cm6-block-plugin";
-import { applySpecialBehavior } from "../plugins/special-behavior-handlers";
-import { fencedDivLiveEditorChromePlan } from "../../core/fenced-div-surface";
 
 function joinClasses(...classes: Array<string | false | null | undefined>): string {
   return classes.filter(Boolean).join(" ");

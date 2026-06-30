@@ -1,6 +1,6 @@
 import type { EditorView } from "@codemirror/view";
-import { documentAnalysisField } from "../state/document-analysis";
 import type { ReferenceSemantics } from "../semantics/document";
+import { documentAnalysisField } from "../state/document-analysis";
 import { resolveLiveWidgetSourceRange } from "./source-widget";
 
 /**

@@ -1,10 +1,10 @@
 import { EditorView } from "@codemirror/view";
 import { afterEach, describe, expect, it } from "vitest";
-import { bibDataEffect } from "../state/bib-data";
-import { CslProcessor } from "../citations/csl-processor";
 import { CSS } from "../../core/constants/css-classes";
-import { collectReferenceRanges } from "./reference-render";
+import { CslProcessor } from "../citations/csl-processor";
+import { bibDataEffect } from "../state/bib-data";
 import { makeBibStore } from "../test-utils";
+import { collectReferenceRanges } from "./reference-render";
 import {
   createView,
   expectPresent,

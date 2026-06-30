@@ -5,6 +5,7 @@ import {
   buildDocumentReferenceTargetCollection,
   buildReferenceTargetIndexes,
   compareDocumentReferenceTargetPreference,
+  type DocumentReferenceTarget,
   equationReferenceTarget,
   getPreferredDocumentReferenceTarget,
   headingReferenceTarget,
@@ -12,7 +13,6 @@ import {
   resolvedCrossrefFromReferenceTarget,
   setPreferredDocumentReferenceTarget,
   sortDocumentReferenceTargets,
-  type DocumentReferenceTarget,
 } from "./reference-targets";
 
 describe("reference target helpers", () => {

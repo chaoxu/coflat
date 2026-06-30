@@ -1,15 +1,15 @@
-import { EditorState } from "@codemirror/state";
 import { markdown } from "@codemirror/lang-markdown";
+import { EditorState } from "@codemirror/state";
 import { describe, expect, it } from "vitest";
 import { markdownExtensions } from "../../core/parser";
-import { ensureFullSyntaxTree } from "../test-utils";
-import { analyzeDocumentSemantics } from "./document";
 import {
   documentAnalysisField,
   editorStateTextSource,
   getDocumentAnalysisRevision,
   getDocumentAnalysisSliceRevision,
 } from "../state/document-analysis";
+import { ensureFullSyntaxTree } from "../test-utils";
+import { analyzeDocumentSemantics } from "./document";
 import {
   createDocumentAnalysisSnapshot,
   updateDocumentAnalysisSnapshot,

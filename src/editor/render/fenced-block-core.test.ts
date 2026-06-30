@@ -1,19 +1,19 @@
-import { describe, expect, it } from "vitest";
+import type { Range } from "@codemirror/state";
 import { Decoration } from "@codemirror/view";
+import { describe, expect, it } from "vitest";
+import { CSS } from "../../core/constants/css-classes";
 import { createEditorState } from "../test-utils";
 import {
-  isCursorOnOpenFence,
-  isCursorOnCloseFence,
-  getFencedBlockRenderContext,
-  findFencedBlockAt,
+  addCollapsedClosingFence,
   addCollapsedStructureLine,
   addSingleLineClosingFence,
-  addCollapsedClosingFence,
-  hideMultiLineClosingFence,
   type FencedBlockInfo,
+  findFencedBlockAt,
+  getFencedBlockRenderContext,
+  hideMultiLineClosingFence,
+  isCursorOnCloseFence,
+  isCursorOnOpenFence,
 } from "./fenced-block-core";
-import type { Range } from "@codemirror/state";
-import { CSS } from "../../core/constants/css-classes";
 
 /** Helper to build a simple FencedBlockInfo for a multi-line block. */
 function makeBlock(doc: string, openLine: number, closeLine: number): FencedBlockInfo {

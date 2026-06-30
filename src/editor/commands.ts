@@ -6,14 +6,14 @@
  */
 
 import type { EditorView } from "@codemirror/view";
-import type { PaletteCommand } from "./lib/command-palette";
+import { BLOCK_MANIFEST_ENTRIES } from "../core/constants/block-manifest";
 import {
-  commandRegistryExtension,
   type Command,
+  commandRegistryExtension,
 } from "./command-registry";
+import type { PaletteCommand } from "./lib/command-palette";
 import { insertTable } from "./render/table-render";
 import { extractHeadings } from "./semantics/heading-ancestry";
-import { BLOCK_MANIFEST_ENTRIES } from "../core/constants/block-manifest";
 
 /** Insert a fenced div block at the cursor. */
 function insertBlock(view: EditorView, className: string): void {

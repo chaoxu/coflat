@@ -1,22 +1,21 @@
 import { describe, expect, it, vi } from "vitest";
-import { type TableRange } from "./state/table-discovery";
-import { createTestView } from "./test-utils";
 import { createMarkdownLanguageExtensions } from "./base-editor-extensions";
+import { defaultPlugins } from "./plugins/default-plugins";
+import { documentAnalysisField } from "./state/document-analysis";
+import { frontmatterField } from "./state/frontmatter-state";
+import { createPluginRegistryField } from "./state/plugin-registry";
+import { type TableRange, tableDiscoveryField } from "./state/table-discovery";
+import { createTestView } from "./test-utils";
 import {
+  firstHiddenWidgetStopBetweenLines,
+  firstTableStopBetweenLines,
+  getWidgetStopIndex,
   type HiddenWidgetStop,
   type HiddenWidgetStopKind,
-  type WidgetStopIndex,
-  firstHiddenWidgetStopBetweenLines,
-  getWidgetStopIndex,
-  firstTableStopBetweenLines,
   hiddenWidgetStopAtPos,
   tableStopAtPos,
+  type WidgetStopIndex,
 } from "./widget-stop-index";
-import { frontmatterField } from "./state/frontmatter-state";
-import { documentAnalysisField } from "./state/document-analysis";
-import { tableDiscoveryField } from "./state/table-discovery";
-import { createPluginRegistryField } from "./state/plugin-registry";
-import { defaultPlugins } from "./plugins/default-plugins";
 
 function hiddenStop(
   from: number,

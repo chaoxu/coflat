@@ -3,14 +3,14 @@ import { EditorState, StateEffect, StateField } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { classHighlighter } from "@lezer/highlight";
 import { CSS } from "../core/constants/css-classes";
-import { cm6RichRenderExtensions } from "./render/cm6-rich-render-extensions";
-import { sidenotesCollapsedEffect } from "./render/sidenote-state";
 import {
   editableCompartment,
   modeClassCompartment,
   renderCompartment,
   syntaxHighlightCompartment,
 } from "./compartments";
+import { cm6RichRenderExtensions } from "./render/cm6-rich-render-extensions";
+import { sidenotesCollapsedEffect } from "./render/sidenote-state";
 
 export type EditorMode = "rich" | "rich-readonly" | "source";
 

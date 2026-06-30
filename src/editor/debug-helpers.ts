@@ -13,57 +13,58 @@
  *   __cmDebug.toggleTreeView() — toggle live Lezer tree panel
  */
 
-import { type EditorView } from "@codemirror/view";
-import { undoDepth, redoDepth } from "@codemirror/commands";
+import { redoDepth, undoDepth } from "@codemirror/commands";
 import { syntaxTree } from "@codemirror/language";
+import { type EditorView } from "@codemirror/view";
+import {
+  collectDebugFenceStatuses,
+  collectDebugTreeDivs,
+  type DebugDivInfo,
+  type DebugFenceStatus,
+  type DebugLineInfo,
+  type DebugSnapshot,
+  getDebugMotionGuards,
+  getDebugSelectionInfo,
+  getDebugSemanticInfo,
+  getDebugSnapshot,
+  getDebugStructureTarget,
+  getDebugTimeline,
+  inspectDebugLine,
+  measureDebugGeometry,
+  measureDebugRenderState,
+  type SemanticDebugInfo,
+} from "./debug-snapshot";
+import {
+  clearDebugTimelineEvents,
+  type DebugTimelineEvent,
+} from "./debug-timeline";
 import {
   isDebugLaneEnabled,
   toggleDebugLane,
   toggleTreeView,
 } from "./editor";
-import {
-  clearVerticalMotionGuardEvents,
-  moveVerticallyInRichView,
-  type VerticalMotionGuardEvent,
-} from "./vertical-motion";
+import type {
+  DebugRenderState,
+  SelectionInfo,
+} from "./lib/debug-types";
+import type { ShellSurfaceSnapshot } from "./shell-surface-model";
 import {
   activateStructureEditAt,
   clearStructureEditTarget,
   type StructureEditTarget,
 } from "./state/cm-structure-edit";
 import {
-  clearDebugTimelineEvents,
-  type DebugTimelineEvent,
-} from "./debug-timeline";
-import type { ShellSurfaceSnapshot } from "./shell-surface-model";
-import type {
-  DebugRenderState,
-  SelectionInfo,
-} from "./lib/debug-types";
-import {
-  collectDebugFenceStatuses,
-  collectDebugTreeDivs,
-  getDebugSelectionInfo,
-  getDebugSemanticInfo,
-  getDebugSnapshot,
-  getDebugStructureTarget,
-  getDebugMotionGuards,
-  getDebugTimeline,
-  inspectDebugLine,
-  measureDebugGeometry,
-  measureDebugRenderState,
-  type DebugDivInfo,
-  type DebugFenceStatus,
-  type DebugLineInfo,
-  type DebugSnapshot,
-  type SemanticDebugInfo,
-} from "./debug-snapshot";
+  clearVerticalMotionGuardEvents,
+  moveVerticallyInRichView,
+  type VerticalMotionGuardEvent,
+} from "./vertical-motion";
+
+export type { DebugSnapshot } from "./debug-snapshot";
 export type {
   DebugRenderState,
   SelectionInfo,
   VisibleRawFencedOpener,
 } from "./lib/debug-types";
-export type { DebugSnapshot } from "./debug-snapshot";
 
 export interface DebugHelpers {
   /** Return all FencedDiv nodes from the current syntax tree. */

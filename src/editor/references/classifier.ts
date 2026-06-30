@@ -1,11 +1,3 @@
-import type {
-  EquationSemantics,
-  FencedDivSemantics,
-  HeadingSemantics,
-  ReferenceSemantics,
-  TextSource,
-} from "../semantics/document-model";
-import type { PositionMapper } from "../semantics/incremental/merge-utils";
 import {
   formatBlockReferenceLabel,
   formatEquationReferenceLabel,
@@ -15,10 +7,18 @@ import type {
   CitationReferenceEntry,
   CrossrefReferenceEntry,
   LabelReferenceEntry,
-  ReferenceTarget,
   ReferenceEntry,
   ReferenceIndexModel,
+  ReferenceTarget,
 } from "../../core/references/model";
+import type {
+  EquationSemantics,
+  FencedDivSemantics,
+  HeadingSemantics,
+  ReferenceSemantics,
+  TextSource,
+} from "../semantics/document-model";
+import type { PositionMapper } from "../semantics/incremental/merge-utils";
 import {
   findAttributeIdSpan,
   findBracketedOccurrenceSpan,

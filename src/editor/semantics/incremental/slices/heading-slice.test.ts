@@ -3,16 +3,16 @@ import { EditorState } from "@codemirror/state";
 import { describe, expect, it } from "vitest";
 
 import { markdownExtensions } from "../../../../core/parser";
-import { ensureFullSyntaxTree } from "../../../test-utils";
 import { editorStateTextSource } from "../../../state/document-analysis";
+import { ensureFullSyntaxTree } from "../../../test-utils";
 import { buildSemanticDelta } from "../semantic-delta";
 import { extractStructuralWindow } from "../window-extractor";
 import {
   buildHeadingSlice,
-  mapHeadingSemantics,
-  mergeHeadingSlice,
   type DirtyHeadingWindowExtraction,
   type HeadingSlice,
+  mapHeadingSemantics,
+  mergeHeadingSlice,
 } from "./heading-slice";
 
 function createState(doc: string): EditorState {

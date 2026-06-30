@@ -1,6 +1,6 @@
-import { afterEach, describe, expect, it } from "vitest";
-import { EditorView } from "@codemirror/view";
 import { forceParsing } from "@codemirror/language";
+import { EditorView } from "@codemirror/view";
+import { afterEach, describe, expect, it } from "vitest";
 import { createDebugHelpers } from "./debug-helpers";
 import { getDebugSnapshot } from "./debug-snapshot";
 import { createEditor, toggleTreeView } from "./editor";

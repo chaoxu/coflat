@@ -1,7 +1,7 @@
 import {
   StateEffect,
-  StateField,
   type StateEffectType,
+  StateField,
 } from "@codemirror/state";
 
 export type FocusOwnerRole =

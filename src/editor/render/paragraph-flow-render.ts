@@ -34,13 +34,13 @@ import {
   buildPreviewBlockOptions,
   getPreviewRenderDependencySignature,
 } from "./hover-preview-block-options";
+import { PARAGRAPH_FLOW_WIDGET_CLASS } from "./paragraph-flow-dom";
 import { renderPreviewBlockContentToDom } from "./preview-block-renderer";
-import { RenderWidget } from "./source-widget";
 import {
   selectionIntersectsRange,
   shouldRenderBlockquoteAsFlow,
 } from "./rendered-block-flow";
-import { PARAGRAPH_FLOW_WIDGET_CLASS } from "./paragraph-flow-dom";
+import { RenderWidget } from "./source-widget";
 
 const BLOCKQUOTE_FLOW_WIDGET_CLASS = "cf-blockquote-flow-widget";
 const PARAGRAPH_FLOW_SELECTION_FREEZE_TAIL_MS = 100;

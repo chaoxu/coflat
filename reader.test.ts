@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  applySourceRangeAttrs,
   applyReaderSourceDecorations,
+  applySourceRangeAttrs,
   closestMathSourceCarrier,
   closestSourceRangeCarrier,
   isSourceRangeCarrier,
@@ -11,14 +11,14 @@ import {
   renderedAnchorsForSourceRange,
   renderedSourceAnchorsFromDom,
   renderToHtml,
+  type SourceRange,
+  scrollReaderToSourcePosition,
+  sourceElementAtPosition,
   sourceLineRangeFromElement,
   sourceRangeAttrs,
-  sourceElementAtPosition,
   sourceRangeFromDataset,
   sourceRangeFromElement,
   sourceRangeFromValues,
-  scrollReaderToSourcePosition,
-  type SourceRange,
 } from "./reader";
 
 describe("@chaoxu/coflat/reader public source-range helpers", () => {

@@ -39,13 +39,13 @@ import {
 import {
   footnotePlanSectionEntries,
 } from "../../core/semantics/footnote-plan";
+import { createEditorReferencePresentationController } from "../references/presentation";
 import {
   type FootnoteSemantics,
   numberFootnotes,
   orderedFootnoteEntries,
 } from "../semantics/document";
 import { createChangeChecker } from "../state/change-detection";
-import { createEditorReferencePresentationController } from "../references/presentation";
 import {
   getActiveStructureEditTarget,
   isFootnoteLabelStructureEditActive,

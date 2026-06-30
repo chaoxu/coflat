@@ -1,26 +1,26 @@
-import { describe, expect, it } from "vitest";
-import { Compartment, EditorState } from "@codemirror/state";
 import { markdown } from "@codemirror/lang-markdown";
+import { Compartment, EditorState } from "@codemirror/state";
+import { describe, expect, it } from "vitest";
 import { CSS } from "../../core/constants/css-classes";
 import { fencedDiv } from "../../core/parser/fenced-div";
-import { frontmatterField } from "../state/frontmatter-state";
-import { projectConfigFacet } from "../project-config";
 import type { BlockConfig } from "../../core/parser/frontmatter";
-import type { BlockPlugin } from "./plugin-types";
+import { projectConfigFacet } from "../project-config";
 import { getCm6RenderDecorations, withCm6BlockPlugin } from "../state/cm6-block-plugin";
+import { frontmatterField } from "../state/frontmatter-state";
+import { createPluginRegistryField, pluginRegistryField } from "../state/plugin-registry";
 import { createEditorState as createTestEditorState, makeBlockPlugin } from "../test-utils";
 import {
+  applyFrontmatterBlocks,
   createRegistryState,
-  registerPlugin,
-  registerPlugins,
-  unregisterPlugin,
   getPlugin,
   getPluginOrFallback,
   getRegisteredNames,
   pluginFromConfig,
-  applyFrontmatterBlocks,
+  registerPlugin,
+  registerPlugins,
+  unregisterPlugin,
 } from "./plugin-registry";
-import { createPluginRegistryField, pluginRegistryField } from "../state/plugin-registry";
+import type { BlockPlugin } from "./plugin-types";
 
 describe("createRegistryState", () => {
   it("creates an empty registry", () => {

@@ -4,7 +4,6 @@ import {
   type EditorView,
   WidgetType,
 } from "@codemirror/view";
-import { CSS } from "../../../core/constants/css-classes";
 import {
   appendBlockCaptionLabel,
   appendBlockCaptionText,
@@ -15,6 +14,7 @@ import {
   createBlockLabelElement,
   populateBlockAttributeTitleElement,
 } from "../../../core/block-heading-surface";
+import { CSS } from "../../../core/constants/css-classes";
 import { renderDocumentFragmentToDom } from "../../document-surfaces";
 import type { FencedDivInfo } from "../../fenced-block/model";
 import {
@@ -22,16 +22,16 @@ import {
   getFencedDivRevealTo,
   getFencedDivStructuralOpenTo,
 } from "../../fenced-block/model";
-import { ShellMacroAwareWidget } from "../shell-widget";
-import { syncActiveFenceGuideClasses } from "../source-widget";
-import {
-  addPluginMarkerReplacement,
-  type PluginRenderAdapter,
-} from "../../state/plugin-render-adapter";
 import {
   createEditorReferencePresentationController,
   type ReferencePresentationController,
 } from "../../references/presentation";
+import {
+  addPluginMarkerReplacement,
+  type PluginRenderAdapter,
+} from "../../state/plugin-render-adapter";
+import { ShellMacroAwareWidget } from "../shell-widget";
+import { syncActiveFenceGuideClasses } from "../source-widget";
 
 class SimpleTextWidget extends WidgetType {
   constructor(

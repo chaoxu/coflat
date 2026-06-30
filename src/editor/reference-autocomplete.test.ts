@@ -5,31 +5,31 @@ import {
 } from "@codemirror/autocomplete";
 import { EditorState } from "@codemirror/state";
 import { afterEach, describe, expect, it } from "vitest";
-import { CslProcessor } from "./citations/csl-processor";
-import { bibDataEffect, bibDataField } from "./state/bib-data";
-import {
-  defaultPlugins,
-} from "./plugins";
-import {
-  getReferencePresentationComputationCountForTest,
-  referencePresentationField,
-  resetReferencePresentationComputationCountForTest,
-} from "./references/presentation";
-import { documentAnalysisField } from "./state/document-analysis";
-import { documentReferenceCatalogField } from "./semantics/editor-reference-catalog";
-import { blockCounterField } from "./state/block-counter";
-import { createPluginRegistryField } from "./state/plugin-registry";
-import { CSL_FIXTURES, makeBibStore } from "./test-utils";
 import {
   createMarkdownLanguageExtensions,
 } from "./base-editor-extensions";
+import { CslProcessor } from "./citations/csl-processor";
 import { createEditor, type EditorConfig } from "./editor";
-import { frontmatterField } from "./state/frontmatter-state";
+import {
+  defaultPlugins,
+} from "./plugins";
 import {
   collectReferenceCompletionCandidates,
   findReferenceCompletionMatch,
   referenceCompletionSource,
 } from "./reference-autocomplete";
+import {
+  getReferencePresentationComputationCountForTest,
+  referencePresentationField,
+  resetReferencePresentationComputationCountForTest,
+} from "./references/presentation";
+import { documentReferenceCatalogField } from "./semantics/editor-reference-catalog";
+import { bibDataEffect, bibDataField } from "./state/bib-data";
+import { blockCounterField } from "./state/block-counter";
+import { documentAnalysisField } from "./state/document-analysis";
+import { frontmatterField } from "./state/frontmatter-state";
+import { createPluginRegistryField } from "./state/plugin-registry";
+import { CSL_FIXTURES, makeBibStore } from "./test-utils";
 
 async function waitForCompletionLabels(
   readLabels: () => readonly string[],

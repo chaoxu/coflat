@@ -1,64 +1,51 @@
+import { syntaxTree } from "@codemirror/language";
 import {
   type EditorState,
   type Extension,
   type Range,
 } from "@codemirror/state";
-import { syntaxTree } from "@codemirror/language";
-import type { SyntaxNode } from "@lezer/common";
 import {
   Decoration,
   type DecorationSet,
   EditorView,
 } from "@codemirror/view";
+import type { SyntaxNode } from "@lezer/common";
+import { getBlockManifestEntry } from "../../core/constants/block-manifest";
 import { CSS } from "../../core/constants/css-classes";
-import { documentAnalysisField } from "../state/document-analysis";
+import { getLastFencedDivContentLine } from "../fenced-block/model";
+import { measureSync } from "../lib/perf";
 import {
-  getEquationNumbersCacheKey,
   type DocumentAnalysis,
+  getEquationNumbersCacheKey,
   type MathSemantics,
 } from "../semantics/document";
-import {
-  inlineMathSelectionAtomPlugin,
-  mathMouseSelectionStyle,
-} from "./math-interactions";
+import { createChangeChecker } from "../state/change-detection";
+import { getActiveStructureEditTarget } from "../state/cm-structure-edit";
+import { documentAnalysisField } from "../state/document-analysis";
 import { mathMacrosField } from "../state/math-macros";
-import { createMathWidgetMetadataPlugin } from "./math-metadata";
-import { mathPrewarmPlugin } from "./math-prewarm";
-import {
-  buildEquationNumbersByFrom,
-  getDisplayEquationNumber,
-} from "./math-source";
-import { MathWidget } from "./math-widget";
+import { programmaticDocumentChangeAnnotation } from "../state/programmatic-document-change";
+import { isDebugRenderFlagEnabled } from "./debug-render-flags";
 import {
   buildDecorations,
   pushBlockWidgetReplacementDecoration,
   pushWidgetDecoration,
 } from "./decoration-core";
 import { createDecorationStateField } from "./decoration-field";
-import { isDebugRenderFlagEnabled } from "./debug-render-flags";
 import {
   editorFocusField,
   focusTracker,
 } from "./focus-state";
 import { mergeDirtyRanges } from "./incremental-dirty-ranges";
-import { serializeMacros } from "./source-widget";
-import { getActiveStructureEditTarget } from "../state/cm-structure-edit";
 import {
   findFocusedInlineRevealTarget,
   inlineRevealTargetChanged,
 } from "./inline-reveal-policy";
-import { createChangeChecker } from "../state/change-detection";
-import { programmaticDocumentChangeAnnotation } from "../state/programmatic-document-change";
-import { planSemanticSensitiveUpdate } from "./view-plugin-factories";
-import { measureSync } from "../lib/perf";
-import { getBlockManifestEntry } from "../../core/constants/block-manifest";
-import { getLastFencedDivContentLine } from "../fenced-block/model";
 import {
-  activeFlowBlockquoteRange,
-  enclosingFlowBlockquote,
-  flowBlockquoteRangesEqual,
-  selectionIntersectsRange,
-} from "./rendered-block-flow";
+  inlineMathSelectionAtomPlugin,
+  mathMouseSelectionStyle,
+} from "./math-interactions";
+import { createMathWidgetMetadataPlugin } from "./math-metadata";
+import { mathPrewarmPlugin } from "./math-prewarm";
 import {
   collectActiveMathDirtyRanges,
   collectDirtyMathRegions,
@@ -68,19 +55,31 @@ import {
   docChangeCanShiftMathDecorations,
   summarizeMathChanges,
 } from "./math-render-dirty-ranges";
+import {
+  buildEquationNumbersByFrom,
+  getDisplayEquationNumber,
+} from "./math-source";
+import { MathWidget } from "./math-widget";
+import {
+  activeFlowBlockquoteRange,
+  enclosingFlowBlockquote,
+  flowBlockquoteRangesEqual,
+  selectionIntersectsRange,
+} from "./rendered-block-flow";
+import { serializeMacros } from "./source-widget";
+import { planSemanticSensitiveUpdate } from "./view-plugin-factories";
 
 export { renderKatexToHtml } from "./inline-shared";
+export { resolveClickToSourcePos } from "./math-interactions";
 export {
-  DISPLAY_DELIMITERS,
+  _snapToTokenBoundary,
+  DISPLAY_DELIMITERS,findActiveMath, 
+  getDisplayMathContentEnd,
   INLINE_DELIMITERS,
   MATH_TYPES,
-  _snapToTokenBoundary,
-  getDisplayMathContentEnd,
-  stripMathDelimiters,
+  stripMathDelimiters
 } from "./math-source";
-export { resolveClickToSourcePos } from "./math-interactions";
 export { clearKatexCache, MathWidget, renderKatex } from "./math-widget";
-export { findActiveMath } from "./math-source";
 
 const EMPTY_MACROS: Record<string, string> = {};
 

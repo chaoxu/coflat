@@ -1,12 +1,12 @@
 import {
-  buildHeadingAnchorIds,
-  uniqueHeadingAnchorId,
-  type HeadingAnchorInput,
-} from "./heading-anchors";
-import {
-  headingOutlineEntry,
   type DocumentOutlineEntry,
+  headingOutlineEntry,
 } from "../outline-surface";
+import {
+  buildHeadingAnchorIds,
+  type HeadingAnchorInput,
+  uniqueHeadingAnchorId,
+} from "./heading-anchors";
 
 export interface HeadingOutlineProjectionInput extends HeadingAnchorInput {
   readonly level: number;
