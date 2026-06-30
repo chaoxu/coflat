@@ -6,6 +6,7 @@ import { EditorView } from "@codemirror/view";
 import { markdown } from "@codemirror/lang-markdown";
 import { markdownExtensions } from "../../core/parser";
 import { documentAnalysisField } from "../state/document-analysis";
+import { frontmatterField } from "../state/frontmatter-state";
 import {
   _computeContainerDirtyRegionForTest,
   containerAttributesField,
@@ -18,6 +19,7 @@ function createState(doc: string): EditorState {
     doc,
     extensions: [
       markdown({ extensions: markdownExtensions }),
+      frontmatterField,
       documentAnalysisField,
       containerAttributesField,
     ],
@@ -32,6 +34,7 @@ function createView(doc: string): { view: EditorView; parent: HTMLElement } {
       doc,
       extensions: [
         markdown({ extensions: markdownExtensions }),
+        frontmatterField,
         documentAnalysisField,
         containerAttributesPlugin,
       ],
@@ -175,6 +178,24 @@ describe("containerAttributesField", () => {
       expect(extractSourceRanges(createState(doc))).toEqual([
         { pos: 0, from: "0", to: "8" },
         { pos: 9, from: "9", to: "17" },
+      ]);
+    });
+
+    it("does not leak hidden frontmatter tags onto the first visible paragraph", () => {
+      const doc = [
+        "---",
+        "id: ztrcpji2",
+        "---",
+        "",
+        "motivated by a workshop",
+        "",
+        "second paragraph",
+      ].join("\n");
+      const firstParagraphStart = doc.indexOf("motivated");
+
+      expect(extractTags(createState(doc))).toEqual([
+        { pos: firstParagraphStart, tag: "p" },
+        { pos: doc.indexOf("second paragraph"), tag: "p" },
       ]);
     });
   });

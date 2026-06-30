@@ -1,7 +1,9 @@
 import { EditorState } from "@codemirror/state";
-import { EditorView } from "@codemirror/view";
+import { EditorView, type Decoration } from "@codemirror/view";
+import { markdown } from "@codemirror/lang-markdown";
 import { describe, expect, it } from "vitest";
 
+import { markdownExtensions } from "../../core/parser";
 import { frontmatterDecoration, frontmatterDecorationField } from "./frontmatter-render";
 import { frontmatterField } from "../state/frontmatter-state";
 import {
@@ -14,7 +16,12 @@ import { applyStateEffects } from "../test-utils";
 function createState(doc: string): EditorState {
   return EditorState.create({
     doc,
-    extensions: [frontmatterField, activeStructureEditField, frontmatterDecoration],
+    extensions: [
+      markdown({ extensions: markdownExtensions }),
+      frontmatterField,
+      activeStructureEditField,
+      frontmatterDecoration,
+    ],
   });
 }
 
@@ -38,6 +45,28 @@ function getArticleHeaderWidget(
   return widget;
 }
 
+function frontmatterDecorationClasses(state: EditorState): Array<{ pos: number; className: string; tagName: string | undefined }> {
+  const result: Array<{ pos: number; className: string; tagName: string | undefined }> = [];
+  const iter = state.field(frontmatterDecorationField).iter();
+  while (iter.value) {
+    const spec = iter.value as Decoration & {
+      spec?: {
+        class?: string;
+        attributes?: Record<string, string>;
+      };
+    };
+    if (spec.spec?.class) {
+      result.push({
+        pos: iter.from,
+        className: spec.spec.class,
+        tagName: spec.spec.attributes?.["data-tag-name"],
+      });
+    }
+    iter.next();
+  }
+  return result;
+}
+
 describe("frontmatterDecoration", () => {
   it("creates decoration hiding frontmatter", () => {
     const doc = "---\ntitle: Hello\n---\nContent";
@@ -59,7 +88,27 @@ describe("frontmatterDecoration", () => {
 
     expect(iter.value).not.toBeNull();
     expect(iter.from).toBe(0);
-    expect(iter.to).toBe(doc.indexOf("Content"));
+    expect(iter.to).toBe(doc.indexOf("Content") - 1);
+  });
+
+  it("keeps the first visible paragraph after frontmatter selectable", () => {
+    const doc = [
+      "---",
+      "id: ztrcpji2",
+      "---",
+      "",
+      "motivated by a workshop",
+      "",
+      "second paragraph",
+    ].join("\n");
+    const state = createState(doc);
+    const firstParagraphStart = doc.indexOf("motivated");
+
+    expect(frontmatterDecorationClasses(state)).toContainEqual({
+      pos: firstParagraphStart,
+      className: "cf-doc-paragraph",
+      tagName: "p",
+    });
   });
 
   it("creates no decorations when no frontmatter", () => {

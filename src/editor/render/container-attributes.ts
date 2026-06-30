@@ -25,6 +25,7 @@ import {
   rangesOverlap,
 } from "../lib/range-helpers";
 import { documentAnalysisField } from "../state/document-analysis";
+import { frontmatterField } from "../state/frontmatter-state";
 import { buildDecorations } from "./decoration-core";
 import { SyntaxParseScheduler } from "./syntax-parse-scheduler";
 import {
@@ -162,10 +163,12 @@ function collectLineDecorationsInRange(
   rangeFrom: number,
   rangeTo: number,
 ): Range<Decoration>[] {
+  const visibleFrom = Math.max(rangeFrom, hiddenFrontmatterVisualEnd(state));
+  if (visibleFrom > rangeTo) return [];
   const lineTagMap = new Map<number, string>();
   const items: Range<Decoration>[] = [];
   const semantics = state.field(documentAnalysisField, false);
-  const range = { from: rangeFrom, to: rangeTo };
+  const range = { from: visibleFrom, to: rangeTo };
 
   if (semantics) {
     forEachOverlappingOrderedRange(
@@ -182,7 +185,7 @@ function collectLineDecorationsInRange(
           heading.from,
           heading.to,
           tagName,
-          rangeFrom,
+          visibleFrom,
           rangeTo,
         );
       },
@@ -198,7 +201,7 @@ function collectLineDecorationsInRange(
           div.from,
           div.to,
           "div",
-          rangeFrom,
+          visibleFrom,
           rangeTo,
         );
       },
@@ -207,7 +210,7 @@ function collectLineDecorationsInRange(
 
   const treeTagMap = semantics ? TREE_ONLY_TAG_NAME_MAP : TAG_NAME_MAP;
   syntaxTree(state).iterate({
-    from: rangeFrom,
+    from: visibleFrom,
     to: rangeTo,
     enter(node) {
       const tagName = treeTagMap[node.type.name];
@@ -218,7 +221,7 @@ function collectLineDecorationsInRange(
           node.from,
           node.to,
           tagName,
-          rangeFrom,
+          visibleFrom,
           rangeTo,
         );
       }
@@ -229,7 +232,7 @@ function collectLineDecorationsInRange(
           node.from,
           node.to,
           listItemLineClasses(node),
-          rangeFrom,
+          visibleFrom,
           rangeTo,
         );
       }
@@ -240,7 +243,7 @@ function collectLineDecorationsInRange(
     items.push(lineDecorationFor(tagName).range(pos));
   }
 
-  const firstLine = state.doc.lineAt(rangeFrom);
+  const firstLine = state.doc.lineAt(visibleFrom);
   const lastLine = state.doc.lineAt(rangeTo);
   for (let lineNumber = firstLine.number; lineNumber <= lastLine.number; lineNumber++) {
     const line = state.doc.line(lineNumber);
@@ -248,6 +251,18 @@ function collectLineDecorationsInRange(
   }
 
   return items;
+}
+
+function hiddenFrontmatterVisualEnd(state: EditorState): number {
+  const frontmatter = state.field(frontmatterField, false);
+  if (!frontmatter || frontmatter.end <= 0) return 0;
+  let visualEnd = frontmatter.end;
+  while (visualEnd < state.doc.length) {
+    const line = state.doc.lineAt(visualEnd);
+    if (line.text.trim() !== "") break;
+    visualEnd = line.to < state.doc.length ? line.to + 1 : line.to;
+  }
+  return visualEnd;
 }
 
 function buildContainerItemsInRange(
@@ -580,6 +595,7 @@ class ContainerAttributeParsePlugin {
 
 /** CM6 extension that adds `data-tag-name` attributes to `cm-line` elements. */
 export const containerAttributesPlugin: Extension = [
+  frontmatterField,
   containerAttributePendingDirtyRegionField,
   containerAttributesField,
   ViewPlugin.fromClass(ContainerAttributeParsePlugin),
