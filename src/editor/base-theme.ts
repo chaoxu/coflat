@@ -207,7 +207,9 @@ export const baseThemeStyles = {
     textAlign: "center",
     color: "var(--cf-fg)",
   },
-  ".cf-doc-properties-browse, .cf-doc-properties-add-macro": {
+  // Every action button (+ add property / + add macro / Browse / Edit as YAML /
+  // Back) shares one style.
+  ".cf-doc-properties-btn": {
     alignSelf: "flex-start",
     padding: "4px 10px",
     border: "1px solid var(--cf-border)",
@@ -219,8 +221,31 @@ export const baseThemeStyles = {
     fontSize: "var(--cf-ui-font-size-sm)",
     transition: "background var(--cf-transition), border-color var(--cf-transition)",
   },
-  ".cf-doc-properties-browse:hover, .cf-doc-properties-add-macro:hover": {
+  ".cf-doc-properties-btn:hover": {
     background: "var(--cf-hover)",
+  },
+  ".cf-doc-properties-raw": {
+    display: "flex",
+    flexDirection: "column",
+    gap: "var(--cf-spacing-sm)",
+  },
+  ".cf-doc-properties-raw-input": {
+    width: "100%",
+    boxSizing: "border-box",
+    padding: "var(--cf-spacing-sm)",
+    border: "1px solid var(--cf-border)",
+    borderRadius: "var(--cf-border-radius)",
+    background: "var(--cf-bg)",
+    color: "var(--cf-fg)",
+    fontFamily: "var(--cf-code-font)",
+    fontSize: "var(--cf-ui-font-size-sm)",
+    lineHeight: "1.5",
+    resize: "vertical",
+    outline: "none",
+    transition: "border-color var(--cf-transition)",
+  },
+  ".cf-doc-properties-raw-input:focus": {
+    borderColor: "var(--cf-accent)",
   },
   ".cf-doc-properties-macro-remove": {
     flex: "0 0 auto",

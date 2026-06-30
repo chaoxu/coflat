@@ -136,6 +136,26 @@ export function editFrontmatter(
   return `${bom}---${eol}${inner}${eol}---${eol}${body}`;
 }
 
+/** The raw inner YAML of the frontmatter block (between the `---` fences), or "". */
+export function readRawFrontmatter(source: string): string {
+  return extractRawFrontmatter(source)?.raw.replace(/\n+$/, "") ?? "";
+}
+
+/**
+ * Replace the entire frontmatter block with `raw` (the inner YAML, no fences),
+ * preserving the body. Blank/whitespace `raw` drops the block. The "Edit as YAML"
+ * escape hatch writes through this for content the form fields don't model.
+ */
+export function setRawFrontmatter(source: string, raw: string): string {
+  const eol = detectEol(source);
+  const bom = source.charCodeAt(0) === 0xfeff ? "﻿" : "";
+  const extracted = extractRawFrontmatter(source);
+  const body = extracted ? source.slice(extracted.end) : source.slice(bom.length);
+  const inner = raw.replace(/\n+$/, "").split(/\r?\n/).join(eol);
+  if (inner.trim() === "") return bom + body;
+  return `${bom}---${eol}${inner}${eol}---${eol}${body}`;
+}
+
 /** Set a top-level scalar key, or remove it when `value` is null. */
 export function setFrontmatterScalar(
   source: string,

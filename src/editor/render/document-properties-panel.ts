@@ -27,12 +27,30 @@ import { buildKatexOptions } from "../../core/lib/katex-options";
 import {
   type PanelProperties,
   readPanelProperties,
+  readRawFrontmatter,
   removeMathMacro,
   renameFrontmatterScalar,
   renameMathMacro,
   setFrontmatterScalar,
   setMathMacro,
+  setRawFrontmatter,
 } from "../frontmatter-properties.js";
+
+type PanelMode = "form" | "raw";
+
+/** A panel action button: shared style, and mousedown-preventDefault so clicking
+ *  it never steals focus out of the form (which would close the reveal). */
+function actionButton(label: string, className: string, onClick: () => void): HTMLButtonElement {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = `cf-doc-properties-btn ${className}`;
+  button.textContent = label;
+  button.addEventListener("mousedown", (event) => {
+    event.preventDefault();
+    onClick();
+  });
+  return button;
+}
 import { requestHandlerFacet } from "../editor-host-api";
 import {
   activeStructureEditField,
@@ -113,7 +131,11 @@ function fieldRow(label: string, control: HTMLElement): HTMLElement {
 }
 
 class DocumentPropertiesBuilder {
-  constructor(private readonly props: PanelProperties) {}
+  constructor(
+    private readonly props: PanelProperties,
+    private readonly mode: PanelMode,
+    private readonly setMode: (mode: PanelMode) => void,
+  ) {}
 
   build(view: EditorView): HTMLElement {
     const root = document.createElement("div");
@@ -122,15 +144,51 @@ class DocumentPropertiesBuilder {
 
     const heading = document.createElement("span");
     heading.className = "cf-doc-properties-heading";
-    heading.textContent = "Properties";
+    heading.textContent = this.mode === "raw" ? "Properties · YAML" : "Properties";
     root.append(heading);
+
+    if (this.mode === "raw") {
+      root.append(this.rawEditor(view));
+      return root;
+    }
 
     for (const { key, label } of SCALAR_FIELDS) {
       root.append(this.scalarRow(view, key, label));
     }
     root.append(this.extraEditor(view));
     root.append(this.macroEditor(view));
+
+    const actions = document.createElement("div");
+    actions.className = "cf-doc-properties-actions";
+    actions.append(
+      actionButton("Edit as YAML", "cf-doc-properties-yaml", () => this.setMode("raw")),
+    );
+    root.append(actions);
     return root;
+  }
+
+  /** Raw-YAML escape hatch: edit the whole frontmatter block as text. */
+  private rawEditor(view: EditorView): HTMLElement {
+    const wrap = document.createElement("div");
+    wrap.className = "cf-doc-properties-raw";
+
+    const textarea = document.createElement("textarea");
+    textarea.className = "cf-doc-properties-raw-input";
+    textarea.spellcheck = false;
+    textarea.value = readRawFrontmatter(view.state.doc.toString());
+    textarea.rows = Math.min(20, Math.max(4, textarea.value.split("\n").length + 1));
+    textarea.addEventListener("change", () => {
+      applyFrontmatterEdit(view, (source) => setRawFrontmatter(source, textarea.value));
+    });
+    wrap.append(textarea);
+
+    const actions = document.createElement("div");
+    actions.className = "cf-doc-properties-actions";
+    actions.append(
+      actionButton("← Back to form", "cf-doc-properties-yaml", () => this.setMode("form")),
+    );
+    wrap.append(actions);
+    return wrap;
   }
 
   /** Editor for arbitrary user-added top-level properties (key/value pairs). */
@@ -142,16 +200,12 @@ class DocumentPropertiesBuilder {
       section.append(this.extraRow(view, key, value));
     }
 
-    const add = document.createElement("button");
-    add.type = "button";
-    add.className = "cf-doc-properties-add-property";
-    add.textContent = "+ add property";
-    add.addEventListener("mousedown", (event) => {
-      event.preventDefault();
-      const newKey = this.freeExtraKey();
-      applyFrontmatterEdit(view, (source) => setFrontmatterScalar(source, newKey, ""));
-    });
-    section.append(add);
+    section.append(
+      actionButton("+ add property", "cf-doc-properties-add-property", () => {
+        const newKey = this.freeExtraKey();
+        applyFrontmatterEdit(view, (source) => setFrontmatterScalar(source, newKey, ""));
+      }),
+    );
     return section;
   }
 
@@ -220,12 +274,7 @@ class DocumentPropertiesBuilder {
       if (handler.openBibliographyPicker) {
         const wrap = document.createElement("span");
         wrap.className = "cf-doc-properties-input-group";
-        const browse = document.createElement("button");
-        browse.type = "button";
-        browse.className = "cf-doc-properties-browse";
-        browse.textContent = "Browse…";
-        browse.addEventListener("mousedown", (event) => {
-          event.preventDefault();
+        const browse = actionButton("Browse…", "cf-doc-properties-browse", () => {
           const controller = new AbortController();
           handler.openBibliographyPicker?.({ current: input.value, signal: controller.signal }).then((result) => {
             if (result) {
@@ -252,15 +301,11 @@ class DocumentPropertiesBuilder {
       section.append(this.macroRow(view, name, expansion));
     }
 
-    const add = document.createElement("button");
-    add.type = "button";
-    add.className = "cf-doc-properties-add-macro";
-    add.textContent = "+ add macro";
-    add.addEventListener("mousedown", (event) => {
-      event.preventDefault();
-      applyFrontmatterEdit(view, (source) => setMathMacro(source, "\\new", ""));
-    });
-    section.append(add);
+    section.append(
+      actionButton("+ add macro", "cf-doc-properties-add-macro", () => {
+        applyFrontmatterEdit(view, (source) => setMathMacro(source, "\\new", ""));
+      }),
+    );
     return section;
   }
 
@@ -324,6 +369,7 @@ function createPropertiesPanel(view: EditorView): Panel {
   const dom = document.createElement("div");
   dom.className = "cf-doc-properties-host";
   let lastKey = "";
+  let mode: PanelMode = "form";
 
   // Re-rendering replaces the inputs, dropping focus. Capture which control was
   // focused (by class + index) and restore it after the rebuild, so editing a
@@ -347,13 +393,19 @@ function createPropertiesPanel(view: EditorView): Panel {
     }
   };
 
-  const render = (): void => {
+  const setMode = (next: PanelMode): void => {
+    if (mode === next) return;
+    mode = next;
+    render(true);
+  };
+
+  const render = (force = false): void => {
     const props = readPanelProperties(view.state.doc.toString());
-    const key = structureKey(props);
-    if (key === lastKey) return;
+    const key = `${mode}|${structureKey(props)}`;
+    if (!force && key === lastKey) return;
     lastKey = key;
     const focus = captureFocus();
-    dom.replaceChildren(new DocumentPropertiesBuilder(props).build(view));
+    dom.replaceChildren(new DocumentPropertiesBuilder(props, mode, setMode).build(view));
     restoreFocus(focus);
   };
 

@@ -3,11 +3,13 @@ import { describe, expect, it } from "vitest";
 import {
   editFrontmatter,
   readPanelProperties,
+  readRawFrontmatter,
   removeMathMacro,
   renameFrontmatterScalar,
   renameMathMacro,
   setFrontmatterScalar,
   setMathMacro,
+  setRawFrontmatter,
 } from "./frontmatter-properties.js";
 
 const DOC = `---
@@ -173,5 +175,32 @@ body
   it("rename is a no-op for a missing or unchanged key", () => {
     expect(renameFrontmatterScalar(WITH_EXTRA, "absent", "x")).toBe(WITH_EXTRA);
     expect(renameFrontmatterScalar(WITH_EXTRA, "keywords", "keywords")).toBe(WITH_EXTRA);
+  });
+});
+
+describe("raw YAML escape hatch", () => {
+  it("reads the inner YAML between the fences", () => {
+    expect(readRawFrontmatter(DOC)).toContain('title: "Rank reduction"');
+    expect(readRawFrontmatter(DOC)).not.toContain("---");
+    expect(readRawFrontmatter("no frontmatter\n")).toBe("");
+  });
+
+  it("replaces the whole block, preserving the body", () => {
+    const out = setRawFrontmatter(DOC, 'title: New\nkeywords: [a, b]');
+    expect(out).toContain("title: New");
+    expect(out).toContain("keywords: [a, b]");
+    expect(out).not.toContain("bibliography"); // old keys replaced wholesale
+    expect(out).toContain("motivated by a workshop question"); // body intact
+    expect(readPanelProperties(out).title).toBe("New");
+  });
+
+  it("drops the block when the raw content is blank", () => {
+    const out = setRawFrontmatter(DOC, "   \n  ");
+    expect(out.startsWith("---")).toBe(false);
+    expect(out).toContain("motivated by a workshop question");
+  });
+
+  it("round-trips read → set without changing the document", () => {
+    expect(setRawFrontmatter(DOC, readRawFrontmatter(DOC))).toBe(DOC);
   });
 });

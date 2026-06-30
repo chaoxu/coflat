@@ -157,15 +157,6 @@ export const frontmatterDecoration: Extension = [
   frontmatterDecorationField,
 ];
 
-function shouldShowFrontmatterSource(state: EditorState): boolean {
-  const { end } = state.field(frontmatterField);
-  if (end <= 0) return false;
-  // Reveal the raw YAML whenever the frontmatter reveal is active — including
-  // while the properties form holds focus — so panel edits update the visible
-  // YAML, and navigating into the body collapses the YAML and form together.
-  return frontmatterRevealActive(state);
-}
-
 function frontmatterShouldRebuild(tr: Transaction): boolean {
   if (hasStructureEditEffect(tr)) {
     return true;
@@ -255,63 +246,21 @@ function createFrontmatterReferenceContext(state: EditorState): InlineReferenceR
   );
 }
 
-/** Build decorations for the frontmatter region. */
-function buildDecorations(state: EditorState): DecorationSet {
-  const { end, config } = state.field(frontmatterField);
-  if (end <= 0) return Decoration.none;
-  const active = isFrontmatterActive(state);
-  const visualEnd = frontmatterVisualEnd(state, end);
-
-  if (shouldShowFrontmatterSource(state)) {
-    const decos: Range<Decoration>[] = [];
-    const doc = state.doc;
-    for (let pos = 0; pos < end; ) {
-      const line = doc.lineAt(pos);
-      const isFirst = line.from === 0;
-      const isLast = line.to + 1 >= end;
-      const className = [
-        "cf-frontmatter-line",
-        active ? CSS.activeShell : "",
-        active && isFirst ? CSS.activeShellTop : "",
-        active && isLast ? CSS.activeShellBottom : "",
-      ].filter(Boolean).join(" ");
-      decos.push(Decoration.line({ class: className }).range(line.from));
-      pos = line.to + 1;
-    }
-    return Decoration.set(decos);
-  }
-
-  let widget: ArticleHeaderWidget | undefined;
-  if (config.title) {
-    const macros = config.math ?? {};
-    const referenceContext = createFrontmatterReferenceContext(state);
-    widget = new ArticleHeaderWidget(
-      config.title,
-      macros,
-      referenceContext,
-      frontmatterReferenceKey(state),
-      active,
-    );
-    widget.updateSourceRange(0, end);
-  }
-
-  if (widget) {
-    return Decoration.set([
-      Decoration.replace({ widget, block: true, inclusiveEnd: false }).range(0, visualEnd),
-    ]);
-  }
-
-  // Title-less hide. Collapse each frontmatter (and trailing separator) line
-  // individually rather than with one block replace spanning [0, visualEnd]:
-  //   - Per-line block replacements that cover line text but NOT the trailing
-  //     line break keep the break outside the decoration, so the first body
-  //     line's own line decorations (paragraph-flow classification, selection
-  //     hit-testing) compose normally — fixing cosheaf #200.
-  //   - A single block replace over the whole region instead crashes CM6 when
-  //     the region is edited at its boundary (insert at position 0).
-  // Empty separator lines carry no text to replace, so they collapse via a
-  // height-0 line class; they sit at the top of the document and are always
-  // drawn, so the line-class height (vs. the block-model height) is safe here.
+/**
+ * Hide the whole frontmatter region by collapsing each line. Collapse each
+ * frontmatter (and trailing separator) line individually rather than with one
+ * block replace spanning [0, visualEnd]:
+ *   - Per-line block replacements that cover line text but NOT the trailing
+ *     line break keep the break outside the decoration, so the first body line's
+ *     own line decorations (paragraph-flow classification, selection hit-testing)
+ *     compose normally — fixing cosheaf #200.
+ *   - A single block replace over the whole region instead crashes CM6 when the
+ *     region is edited at its boundary (insert at position 0).
+ * Empty separator lines carry no text to replace, so they collapse via a
+ * height-0 line class; they sit at the top of the document and are always drawn,
+ * so the line-class height (vs. the block-model height) is safe here.
+ */
+function hideFrontmatterDecorations(state: EditorState, visualEnd: number): DecorationSet {
   const items: Range<Decoration>[] = [];
   for (let pos = 0; pos < visualEnd; ) {
     const line = state.doc.lineAt(pos);
@@ -323,4 +272,32 @@ function buildDecorations(state: EditorState): DecorationSet {
     pos = line.to + 1;
   }
   return Decoration.set(items);
+}
+
+/** Build decorations for the frontmatter region. */
+function buildDecorations(state: EditorState): DecorationSet {
+  const { end, config } = state.field(frontmatterField);
+  if (end <= 0) return Decoration.none;
+  const active = isFrontmatterActive(state);
+  const visualEnd = frontmatterVisualEnd(state, end);
+
+  // When the properties panel is open it is the sole frontmatter editor — never
+  // expose the raw YAML inline. Collapse to the title widget only while the
+  // panel is closed; otherwise (panel open, or no title) hide the region so just
+  // the panel shows.
+  if (!frontmatterRevealActive(state) && config.title) {
+    const widget = new ArticleHeaderWidget(
+      config.title,
+      config.math ?? {},
+      createFrontmatterReferenceContext(state),
+      frontmatterReferenceKey(state),
+      active,
+    );
+    widget.updateSourceRange(0, end);
+    return Decoration.set([
+      Decoration.replace({ widget, block: true, inclusiveEnd: false }).range(0, visualEnd),
+    ]);
+  }
+
+  return hideFrontmatterDecorations(state, visualEnd);
 }

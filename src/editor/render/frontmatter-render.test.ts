@@ -125,7 +125,9 @@ describe("frontmatterDecoration", () => {
     expect(dom.textContent).not.toContain("Summary");
   });
 
-  it("reveals raw YAML only when frontmatter structure edit is active", () => {
+  it("hides the frontmatter (no title widget, no raw YAML) while the reveal is active", () => {
+    // When the properties panel is open the frontmatter is the panel's job; the
+    // inline region collapses entirely rather than exposing the raw YAML.
     const doc = "---\ntitle: Hello\n---\nContent";
     const state = createState(doc);
     const target = createStructureEditTargetAt(state, 0);
@@ -137,9 +139,14 @@ describe("frontmatterDecoration", () => {
     );
     const iter = active.field(frontmatterDecorationField).iter();
 
-    expect(iter.value).not.toBeNull();
-    expect(iter.value?.spec.widget).toBeUndefined();
-    expect(iter.from).toBe(0);
-    expect(iter.to).toBe(0);
+    let sawTitleWidget = false;
+    let sawHidden = false;
+    while (iter.value) {
+      if (iter.value.spec.widget?.constructor?.name === "ArticleHeaderWidget") sawTitleWidget = true;
+      if ((iter.value.spec.class as string | undefined)?.includes("cf-frontmatter-hidden")) sawHidden = true;
+      iter.next();
+    }
+    expect(sawTitleWidget).toBe(false);
+    expect(sawHidden).toBe(true);
   });
 });

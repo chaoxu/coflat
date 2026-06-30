@@ -56,12 +56,12 @@ test("document-properties form: reveal on title click, edit, macro preview", asy
   await expect(title).toContainText("Rank reduction");
   await expect(page.locator(".cf-doc-properties")).toHaveCount(0);
 
-  // Clicking the title reveals the frontmatter: raw YAML + the properties form.
+  // Clicking the title opens the properties form. The form is the sole
+  // frontmatter editor — the raw YAML is NOT exposed inline.
   await title.click();
   await expect(page.locator(".cf-doc-properties")).toBeVisible();
   await expect(page.locator(".cf-doc-properties-input")).toHaveCount(5);
-  // Raw YAML is revealed alongside the form.
-  await expect(page.locator(".cf-frontmatter-line").first()).toBeVisible();
+  await expect(page.locator(".cf-frontmatter-line")).toHaveCount(0);
   // Macro row renders a live KaTeX preview.
   await expect(page.locator(".cf-doc-properties-macro-preview .katex")).toBeVisible();
 
@@ -102,24 +102,50 @@ test("document-properties form: hides when the reveal clears", async ({ page }) 
   await expect(page.locator(".cf-doc-properties")).toHaveCount(0);
 });
 
-test("document-properties form: editing a field keeps the YAML revealed and in sync", async ({ page }) => {
+test("document-properties form: keeps the form open while editing a field (no inline YAML)", async ({ page }) => {
   const h = harness(page);
   await page.goto("/tests/e2e/fixtures/index.html");
   await h.setDoc(DOC);
   await settle(page);
 
   await page.locator(".cf-doc-title").click();
-  await expect(page.locator(".cf-frontmatter-line").first()).toBeVisible();
+  await expect(page.locator(".cf-doc-properties")).toBeVisible();
 
-  // Focusing a field blurs the editor; the raw YAML must stay revealed (not
-  // collapse back to the title) so the edit is visible.
+  // Focusing a field blurs the editor; the form must stay open (and the raw YAML
+  // must never appear inline).
   const titleInput = page.locator(".cf-doc-properties-input").first();
   await titleInput.click();
-  await expect(page.locator(".cf-frontmatter-line").first()).toBeVisible();
+  await expect(page.locator(".cf-doc-properties")).toBeVisible();
+  await expect(page.locator(".cf-frontmatter-line")).toHaveCount(0);
 
+  // Commit by moving focus to another field (keeps the form open).
   await titleInput.fill("Synced Title");
-  await titleInput.blur();
+  await page.locator(".cf-doc-properties-input").nth(2).click();
   await expect.poll(() => h.getDoc()).toContain('title: "Synced Title"');
+});
+
+test("document-properties form: Edit as YAML edits the whole frontmatter block", async ({ page }) => {
+  const h = harness(page);
+  await page.goto("/tests/e2e/fixtures/index.html");
+  await h.setDoc(DOC);
+  await settle(page);
+
+  await page.locator(".cf-doc-title").click();
+  await page.locator(".cf-doc-properties-yaml").click(); // "Edit as YAML"
+
+  const raw = page.locator(".cf-doc-properties-raw-input");
+  await expect(raw).toBeVisible();
+  await expect(raw).toHaveValue(/title: "Rank reduction"/);
+
+  // Edit the raw YAML directly, including a key the form doesn't model.
+  await raw.fill('title: "Raw Edited"\nkeywords: [a, b]');
+  await raw.blur();
+  await expect.poll(() => h.getDoc()).toContain('title: "Raw Edited"');
+  await expect.poll(() => h.getDoc()).toContain("keywords: [a, b]");
+
+  // Back to the form reflects the new title.
+  await page.locator(".cf-doc-properties-yaml").click(); // "← Back to form"
+  await expect(page.locator(".cf-doc-properties-input").first()).toHaveValue("Raw Edited");
 });
 
 test("document-properties form: add property adds an editable row and a frontmatter key", async ({ page }) => {
