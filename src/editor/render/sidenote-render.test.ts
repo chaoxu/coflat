@@ -485,7 +485,9 @@ describe("sidenote decoration invalidation", () => {
 
   it("rebuilds only when the active footnote label target changes", () => {
     const doc = "Text [^1] end\n\n[^1]: Note";
-    let state = focusState(createDecoratedState(doc, 0));
+    let state = focusState(createDecoratedState(doc, 0)).update({
+      effects: sidenotesCollapsedEffect.of(false),
+    }).state;
     const labelStart = doc.lastIndexOf("[^1]:");
 
     const beforeDecorations = state.field(sidenoteDecorationField);
@@ -830,7 +832,10 @@ describe("buildSidenoteDecorations — inline expansion (#458)", () => {
     // Inline expansion only applies in collapsed-sidenotes mode.
     let state = createFullState(doc, 0);
     state = state.update({
-      effects: footnoteInlineToggleEffect.of({ id: "1", expanded: true }),
+      effects: [
+        sidenotesCollapsedEffect.of(false),
+        footnoteInlineToggleEffect.of({ id: "1", expanded: true }),
+      ],
     }).state;
     const decos = buildSidenoteDecorations(state);
     const specs = getDecorationSpecs(decos);

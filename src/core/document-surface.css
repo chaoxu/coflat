@@ -888,8 +888,7 @@
   margin-top: var(--cf-spacing-sm);
 }
 
-.cf-doc-block--abstract .cf-doc-abstract-label,
-.cf-doc-block--abstract.cf-block-header .cf-block-header-rendered {
+.cf-doc-block--abstract .cf-doc-abstract-label {
   font-family: var(--cf-ui-font, ui-sans-serif, system-ui, sans-serif);
   font-size: 0.76em;
   font-style: normal;

@@ -54,6 +54,10 @@ export interface CorpusSource {
   readonly source: string;
 }
 
+interface PixelMatchOptions {
+  readonly exact?: boolean;
+}
+
 const corpusParser = getMarkdownParser("html-render");
 let cachedCorpusDocuments:
   | { readonly dir: string; readonly sources: readonly CorpusSource[] }
@@ -335,6 +339,7 @@ export async function expectLoadedSplitContentPixelsMatch(
   page: Page,
   label: string,
   sourceRange?: { readonly from: number; readonly to: number },
+  options: PixelMatchOptions = {},
 ) {
   await page.evaluate(async (sourceRange) => {
     const scroller = document.querySelector("#editor-root .cm-scroller");
@@ -403,6 +408,13 @@ export async function expectLoadedSplitContentPixelsMatch(
 
   expect(diff.leftWidth, `${label} reader width`).toBe(diff.rightWidth);
   expect(diff.leftHeight, `${label} reader height`).toBe(diff.rightHeight);
+  if (options.exact) {
+    expect(
+      diff.exactDifferent,
+      `${label} exact full-content pixel diff (significant=${diff.different}, antialias=${diff.antialiasDifferent})`,
+    ).toBe(0);
+    return;
+  }
   const residualBudget = Math.min(
     MAX_RESIDUAL_SIGNIFICANT_PIXELS,
     Math.ceil(diff.width * diff.height * MAX_RESIDUAL_SIGNIFICANT_RATIO),

@@ -247,9 +247,11 @@ export function buildSidenoteDecorations(state: EditorState): DecorationSet {
       items.push(
         Decoration.line({ class: CSS.sidenoteDefLine }).range(def.from),
       );
-      items.push(
-        Decoration.replace({}).range(def.from, def.to),
-      );
+      if (def.to > def.from) {
+        items.push(
+          Decoration.replace({}).range(def.from, def.to),
+        );
+      }
       continue;
     }
 

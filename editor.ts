@@ -75,9 +75,8 @@ export interface MountEditorOptions {
   /** Initial markdown content. Defaults to an empty document. */
   doc?: string;
   /**
-   * Initial display mode. `rich-readonly` uses the same CM6-rendered document
-   * surface as rich mode, disables editing, and collapses footnotes into the
-   * reader-style document-tail section.
+   * Initial display mode. Rich surfaces collapse footnotes into the reader-style
+   * document-tail section by default; `rich-readonly` also disables editing.
    */
   mode?: StandaloneEditorMode;
   /** Extra CodeMirror extensions supplied by the host. */
@@ -264,7 +263,7 @@ function getVisibleSourcePosition(
 export function mountEditor(options: MountEditorOptions): MountedEditor {
   const initialDoc = options.doc ?? "";
   const initialMode = options.mode ?? "rich";
-  const initialSidenotesCollapsed = options.sidenotesCollapsed ?? initialMode === "rich-readonly";
+  const initialSidenotesCollapsed = options.sidenotesCollapsed ?? initialMode !== "source";
   let currentDoc: string | null = initialDoc;
   let currentMode: StandaloneEditorMode = "rich";
   let suppressModeCallback = false;

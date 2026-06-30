@@ -153,7 +153,7 @@ describe("renderToHtml — slow path (Lezer)", () => {
 
     expect(r.html).toContain('class="cf-doc-block cf-doc-block--abstract"');
     expect(r.html).toContain('class="cf-doc-abstract-label"');
-    expect(r.html).toContain('<div class="cf-doc-abstract-label">Abstract</div>');
+    expect(r.html).toContain('<div class="cf-doc-abstract-label"><span class="cf-block-header-rendered">Abstract</span></div>');
     expect(r.html).toContain("A block abstract");
     expect(r.html).toContain('data-math="x^2"');
     expect(r.hasMath).toBe(true);

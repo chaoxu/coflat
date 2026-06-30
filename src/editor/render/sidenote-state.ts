@@ -5,7 +5,7 @@ import { createBooleanToggleField } from "./focus-state";
 export const sidenotesCollapsedEffect = StateEffect.define<boolean>();
 
 /** StateField tracking whether the sidenote margin is collapsed. */
-export const sidenotesCollapsedField = createBooleanToggleField(sidenotesCollapsedEffect);
+export const sidenotesCollapsedField = createBooleanToggleField(sidenotesCollapsedEffect, true);
 
 /** StateEffect to toggle inline expansion of a footnote ref. */
 export const footnoteInlineToggleEffect = StateEffect.define<{

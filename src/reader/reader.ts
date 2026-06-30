@@ -1716,7 +1716,7 @@ function renderFencedDiv(ctx: WalkContext, node: SyntaxNode): BlockResult {
     ? renderParagraphHtml(selfClosingTitle.html)
     : body.html;
   const abstractLabelHtml = normalizedClassName === "abstract" && summary.text
-    ? `<div class="${CSS.docAbstractLabel}">${escapeHtml(summary.text)}</div>`
+    ? `<div class="${CSS.docAbstractLabel}">${renderBlockLabelHtml(summary.text)}</div>`
     : "";
   const bodyHtml = abstractLabelHtml
     ? abstractLabelHtml + blockBodyHtml + caption.html

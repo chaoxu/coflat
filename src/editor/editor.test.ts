@@ -161,11 +161,11 @@ describe("extension bundle composition", () => {
     view.destroy();
   });
 
-  it("uses reader-like footnote layout in rich-readonly mode", () => {
+  it("uses reader-like footnote layout in rich and rich-readonly modes", () => {
     const parent = document.createElement("div");
     const view = createEditor({ parent, doc: "Text[^1].\n\n[^1]: Footnote." });
 
-    expect(view.state.field(sidenotesCollapsedField)).toBe(false);
+    expect(view.state.field(sidenotesCollapsedField)).toBe(true);
     setEditorMode(view, "rich-readonly");
     expect(view.state.field(sidenotesCollapsedField)).toBe(true);
     setEditorMode(view, "rich");

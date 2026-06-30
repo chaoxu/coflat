@@ -19,11 +19,6 @@ const PUBLIC_SHOWCASE_PARITY_SOURCE = PUBLIC_SHOWCASE_SOURCE.replace(
   "(showcase/hover-preview-figure.svg)",
   "(/showcase/hover-preview-figure.svg)",
 );
-const PUBLIC_SHOWCASE_PARITY_END = (() => {
-  const index = PUBLIC_SHOWCASE_PARITY_SOURCE.indexOf("\n# Footnotes");
-  if (index < 0) throw new Error("public showcase parity end marker not found");
-  return index;
-})();
 const LINE_HEIGHT_STABILITY_DOC = `# Stable Heading
 
 Plain paragraph with **bold**, \`code\`, $x+1$, and [a link](https://example.com).
@@ -1970,6 +1965,15 @@ test("fast rich-readonly entry keeps full document pixels aligned with CM6 reado
   await expectLoadedSplitContentPixelsMatch(page, "fast rich-readonly public showcase");
 });
 
+test("public showcase keeps full reader and CM6 rich editor pixels exactly aligned", async ({ page }) => {
+  await page.setViewportSize({ width: 2560, height: 7200 });
+
+  await loadParityPairSurface(page, "default", PUBLIC_SHOWCASE_PARITY_SOURCE);
+  await expectLoadedSplitContentPixelsMatch(page, "public showcase exact", undefined, {
+    exact: true,
+  });
+});
+
 test("reader and CM6 rich editor keep image and caption surfaces aligned", async ({ page }) => {
   await page.setViewportSize({ width: 2560, height: 1800 });
   await loadParityPairSurface(page, "default", IMAGE_CAPTION_PARITY_SOURCE);
@@ -2480,7 +2484,7 @@ test("public showcase keeps reader and CM6 rich editor block geometry aligned", 
       missingReaderRows,
       totalReaderRows: readerRows.length,
     };
-  }, PUBLIC_SHOWCASE_PARITY_END);
+  }, PUBLIC_SHOWCASE_PARITY_SOURCE.length);
 
   expect(result.totalReaderRows).toBeGreaterThan(80);
   expect(result.missingEditorRows).toEqual([]);
