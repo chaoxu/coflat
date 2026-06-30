@@ -17,7 +17,10 @@ import {
   type DocumentAnalysis,
   type MathSemantics,
 } from "../semantics/document";
-import { mathMouseSelectionStyle } from "./math-interactions";
+import {
+  inlineMathSelectionAtomPlugin,
+  mathMouseSelectionStyle,
+} from "./math-interactions";
 import { mathMacrosField } from "../state/math-macros";
 import { createMathWidgetMetadataPlugin } from "./math-metadata";
 import { mathPrewarmPlugin } from "./math-prewarm";
@@ -542,6 +545,7 @@ export const mathRenderPlugin: Extension = [
   mathMacrosField,
   mathDecorationField,
   mathMouseSelectionStyle,
+  inlineMathSelectionAtomPlugin,
   mathWidgetMetadataPlugin,
   mathPrewarmPlugin,
 ];

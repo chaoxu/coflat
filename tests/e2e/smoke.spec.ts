@@ -618,6 +618,7 @@ test("rich editor maps paragraph-flow drag endpoints on rendered math", async ({
     "right",
   );
   await expect.poll(() => editorSelectedText(page)).toContain("$x^2$");
+  await expect(renderedMath).toHaveClass(/cf-selection-atom-selected/);
 });
 
 test("rich editor extends paragraph-flow drag selection into the next block", async ({ page }) => {

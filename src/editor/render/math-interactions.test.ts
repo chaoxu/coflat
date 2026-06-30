@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { markdown } from "@codemirror/lang-markdown";
+import { EditorSelection } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { CSS } from "../../core/constants/css-classes";
 import { frontmatterField } from "../state/frontmatter-state";
@@ -140,6 +141,44 @@ describe("inline math mouse selection", () => {
         Reflect.deleteProperty(docView, "elementFromPoint");
       }
     }
+  });
+
+  it("marks fully selected rendered inline math as a selected atom", () => {
+    const doc = "before $x^2$ after";
+    view = createMathRenderView(doc, 0);
+    const currentView = view;
+    if (!currentView) throw new Error("expected math render view");
+
+    const inline = currentView.contentDOM.querySelector<HTMLElement>(`.${CSS.mathInline}[aria-label="x^2"]`);
+    expect(inline).not.toBeNull();
+    if (!inline) throw new Error("expected inline math");
+
+    const sourceFrom = Number.parseInt(inline.dataset.sourceFrom ?? "", 10);
+    const sourceTo = Number.parseInt(inline.dataset.sourceTo ?? "", 10);
+    currentView.dispatch({
+      selection: EditorSelection.range(sourceFrom - 2, sourceTo + 2),
+    });
+
+    expect(inline.classList.contains("cf-selection-atom-selected")).toBe(true);
+  });
+
+  it("does not mark a formula atom for partial selection inside the same formula", () => {
+    const doc = "before $x^2$ after";
+    view = createMathRenderView(doc, 0);
+    const currentView = view;
+    if (!currentView) throw new Error("expected math render view");
+
+    const inline = currentView.contentDOM.querySelector<HTMLElement>(`.${CSS.mathInline}[aria-label="x^2"]`);
+    expect(inline).not.toBeNull();
+    if (!inline) throw new Error("expected inline math");
+
+    const sourceFrom = Number.parseInt(inline.dataset.sourceFrom ?? "", 10);
+    const sourceTo = Number.parseInt(inline.dataset.sourceTo ?? "", 10);
+    currentView.dispatch({
+      selection: EditorSelection.range(sourceFrom + 1, sourceTo - 1),
+    });
+
+    expect(inline.classList.contains("cf-selection-atom-selected")).toBe(false);
   });
 
   it("falls back to native mouse selection when no inline math is rendered", () => {

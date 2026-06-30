@@ -1,5 +1,5 @@
 import { EditorSelection, type EditorState } from "@codemirror/state";
-import { EditorView, type ViewUpdate } from "@codemirror/view";
+import { EditorView, ViewPlugin, type ViewUpdate } from "@codemirror/view";
 import { CSS } from "../../core/constants/css-classes";
 import { sourceRangeFromDataset } from "../../core/source-range-surface";
 import {
@@ -16,6 +16,8 @@ interface InlineMathSourceRange {
   readonly from: number;
   readonly to: number;
 }
+
+const SELECTED_ATOM_CLASS = "cf-selection-atom-selected";
 
 function findLocAtPoint(
   root: HTMLElement,
@@ -132,6 +134,55 @@ function hasRenderedInlineMath(state: EditorState): boolean {
 
   return false;
 }
+
+function selectionCoversRange(
+  selection: EditorSelection,
+  range: InlineMathSourceRange,
+): boolean {
+  return selection.ranges.some((selected) =>
+    selected.from <= range.from && selected.to >= range.to
+  );
+}
+
+function syncSelectedInlineMathAtoms(view: EditorView): void {
+  const selection = view.state.selection;
+  for (const el of view.contentDOM.querySelectorAll<HTMLElement>(
+    `.${CSS.mathInline}[data-source-from][data-source-to]`,
+  )) {
+    const range = parseInlineMathSourceRange(el);
+    el.classList.toggle(
+      SELECTED_ATOM_CLASS,
+      range ? selectionCoversRange(selection, range) : false,
+    );
+  }
+}
+
+class InlineMathSelectionAtomView {
+  constructor(private readonly view: EditorView) {
+    syncSelectedInlineMathAtoms(view);
+  }
+
+  update(update: ViewUpdate): void {
+    if (
+      update.selectionSet ||
+      update.docChanged ||
+      update.viewportChanged ||
+      update.geometryChanged
+    ) {
+      syncSelectedInlineMathAtoms(this.view);
+    }
+  }
+
+  destroy(): void {
+    for (const el of this.view.contentDOM.querySelectorAll<HTMLElement>(
+      `.${CSS.mathInline}.${SELECTED_ATOM_CLASS}`,
+    )) {
+      el.classList.remove(SELECTED_ATOM_CLASS);
+    }
+  }
+}
+
+export const inlineMathSelectionAtomPlugin = ViewPlugin.fromClass(InlineMathSelectionAtomView);
 
 function snapPointerSelectionOverInlineMath(
   selection: EditorSelection,
