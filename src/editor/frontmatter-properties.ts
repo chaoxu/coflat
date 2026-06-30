@@ -54,9 +54,14 @@ function asString(value: unknown): string | undefined {
  * Tolerant of missing/invalid blocks.
  */
 export function readPanelProperties(source: string): PanelProperties {
-  const raw: Record<string, unknown> =
-    (frontmatterDocument(extractRawFrontmatter(source)).toJS() as Record<string, unknown> | null) ??
-    {};
+  // `toJS()` throws on malformed YAML (e.g. an unresolved alias). The panel reads
+  // on every render, including transient/garbage states, so degrade to empty.
+  let raw: Record<string, unknown> = {};
+  try {
+    raw = (frontmatterDocument(extractRawFrontmatter(source)).toJS() as Record<string, unknown> | null) ?? {};
+  } catch {
+    raw = {};
+  }
 
   const math: Record<string, string> = {};
   const rawMath = raw.math;

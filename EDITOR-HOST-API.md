@@ -51,6 +51,10 @@ Typical requests:
 - Open a link picker.
 - Show upload progress or failure.
 - Open an autocomplete picker when the host wants to render its own picker.
+- Open a bibliography file picker for the document-properties panel
+  (`openBibliographyPicker`). When the host implements it, the panel's
+  Bibliography field shows a "Browse…" button; otherwise it falls back to a
+  plain text input.
 
 Default chrome lives under `src/editor/default-chrome/` and is intentionally
 small. Hosts that need product-specific UI should implement the request

@@ -47,6 +47,24 @@ export interface RequestHandler {
   showUploadToast?(req: UploadToastRequest): Promise<void>;
   openAutocomplete?(req: AutocompleteRequest): Promise<AutocompleteResult | null>;
   openCommandPalette?(req: CommandPaletteRequest): Promise<CommandPaletteResult | null>;
+  /**
+   * Pick a bibliography file for the document-properties panel. The host shows a
+   * file picker (e.g. the workspace's `.bib` files) and resolves the chosen path,
+   * or `null` if cancelled. When absent, the panel falls back to a plain text
+   * input for the `bibliography` frontmatter field.
+   */
+  openBibliographyPicker?(req: BibliographyPickerRequest): Promise<BibliographyPickerResult | null>;
+}
+
+export interface BibliographyPickerRequest {
+  /** Current `bibliography` value, if any. */
+  current: string;
+  signal: AbortSignal;
+}
+
+export interface BibliographyPickerResult {
+  /** Repo-relative path to the chosen bibliography file. */
+  path: string;
 }
 
 export interface LinkPickerRequest {

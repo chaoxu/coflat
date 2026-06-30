@@ -6,6 +6,7 @@ import { containerAttributesPlugin } from "./container-attributes";
 import { endMatterRenderPlugin } from "./end-matter-render";
 import { fenceGuidePlugin } from "./fence-guide";
 import { frontmatterDecoration } from "./frontmatter-render";
+import { documentPropertiesPanel } from "./document-properties-panel";
 import { hoverPreviewExtension } from "./hover-preview";
 import { imageRenderPlugin } from "./image-render";
 import { sharedInlineRenderExtensions } from "./inline-render-extensions";
@@ -27,6 +28,7 @@ import { tableRenderPlugin } from "./table-render";
  */
 export const cm6RichRenderExtensions: Extension[] = [
   frontmatterDecoration,
+  documentPropertiesPanel,
   ...sharedInlineRenderExtensions,
   imageRenderPlugin,
   codeBlockStructureField,
