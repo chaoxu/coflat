@@ -288,5 +288,7 @@ function buildDecorations(state: EditorState): DecorationSet {
     ]);
   }
 
-  return Decoration.set([Decoration.replace({ inclusiveEnd: false }).range(0, visualEnd)]);
+  return Decoration.set([
+    Decoration.replace({ block: true, inclusiveEnd: false }).range(0, visualEnd),
+  ]);
 }
