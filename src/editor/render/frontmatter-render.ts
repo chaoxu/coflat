@@ -268,10 +268,11 @@ function buildDecorations(state: EditorState): DecorationSet {
     return Decoration.set(decos);
   }
 
+  let widget: ArticleHeaderWidget | undefined;
   if (config.title) {
     const macros = config.math ?? {};
     const referenceContext = createFrontmatterReferenceContext(state);
-    const widget = new ArticleHeaderWidget(
+    widget = new ArticleHeaderWidget(
       config.title,
       macros,
       referenceContext,
@@ -279,16 +280,14 @@ function buildDecorations(state: EditorState): DecorationSet {
       active,
     );
     widget.updateSourceRange(0, end);
-    return Decoration.set([
-      Decoration.replace({
-        widget,
-        block: true,
-        inclusiveEnd: false,
-      }).range(0, visualEnd),
-    ]);
   }
 
-  return Decoration.set([
-    Decoration.replace({ block: true, inclusiveEnd: false }).range(0, visualEnd),
-  ]);
+  // `block: true` keeps the hidden frontmatter region a clean block so the first
+  // body line retains its own line decorations (paragraph classification and
+  // selection hit-testing). Both branches must set it — without it the title-less
+  // hide bleeds into the first line and breaks its selection (cosheaf #200).
+  const replaceSpec = widget
+    ? { widget, block: true, inclusiveEnd: false }
+    : { block: true, inclusiveEnd: false };
+  return Decoration.set([Decoration.replace(replaceSpec).range(0, visualEnd)]);
 }

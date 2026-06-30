@@ -1,17 +1,36 @@
 /**
  * Lossless frontmatter editing for the document-properties panel.
  *
- * The panel reads typed values through {@link readPanelProperties} (built on the
- * existing {@link parseFrontmatter}) and writes through the mutators below. Writes
- * go through the `yaml` Document AST so that keys, ordering, and comments the user
- * did not touch survive byte-for-byte — the panel owns the keys it edits and never
- * rewrites the rest. This is the data contract behind the "Edit as YAML" escape
- * hatch staying lossless.
+ * The panel reads typed values through {@link readPanelProperties} and writes
+ * through the mutators below. Writes go through the `yaml` Document AST so that
+ * keys, ordering, and comments the user did not touch survive byte-for-byte —
+ * the panel owns the keys it edits and never rewrites the rest. This is the data
+ * contract behind the "Edit as YAML" escape hatch staying lossless.
+ *
+ * Reads parse via the lower-layer `core/parser` + `yaml` directly rather than
+ * `parse.ts`'s `parseFrontmatter`: `src/editor` must not depend on the root
+ * `parse.ts` (which itself imports from `src/editor`), so reusing it here would
+ * create an import cycle.
  */
 
 import { Document, isMap, parseDocument } from "yaml";
 
 import { extractRawFrontmatter } from "../core/parser/frontmatter.js";
+
+type ExtractedFrontmatter = ReturnType<typeof extractRawFrontmatter>;
+
+/**
+ * Parse a frontmatter block into a mutable `yaml` Document, preserving comments
+ * and order. An absent, empty, or comment-only block yields a fresh empty map so
+ * callers can `set`/`toJS` uniformly.
+ */
+function frontmatterDocument(extracted: ExtractedFrontmatter): Document {
+  if (extracted && extracted.raw.trim() !== "") {
+    const doc = parseDocument(extracted.raw);
+    if (doc.contents !== null) return doc;
+  }
+  return new Document({});
+}
 
 /** The subset of frontmatter the panel surfaces as form fields. */
 export interface PanelProperties {
@@ -35,11 +54,9 @@ function asString(value: unknown): string | undefined {
  * Tolerant of missing/invalid blocks.
  */
 export function readPanelProperties(source: string): PanelProperties {
-  const extracted = extractRawFrontmatter(source);
   const raw: Record<string, unknown> =
-    extracted && extracted.raw.trim() !== ""
-      ? ((parseDocument(extracted.raw).toJS() as Record<string, unknown> | null) ?? {})
-      : {};
+    (frontmatterDocument(extractRawFrontmatter(source)).toJS() as Record<string, unknown> | null) ??
+    {};
 
   const math: Record<string, string> = {};
   const rawMath = raw.math;
@@ -77,23 +94,15 @@ export function editFrontmatter(
   const bom = source.charCodeAt(0) === 0xfeff ? "﻿" : "";
   const extracted = extractRawFrontmatter(source);
 
-  // A present-but-non-empty block is parsed (preserving comments/order); an
-  // absent or empty block starts from a fresh empty map so the mutator can
-  // `set` keys into it.
-  const doc: Document =
-    extracted && extracted.raw.trim() !== ""
-      ? parseDocument(extracted.raw)
-      : new Document({});
-  if (doc.contents === null) doc.contents = new Document({}).contents;
-
+  const doc = frontmatterDocument(extracted);
   mutate(doc);
 
   const body = extracted ? source.slice(extracted.end) : source.slice(bom.length);
-  const innerLines = doc.toString().replace(/\n+$/, "").split("\n");
-  const inner = innerLines.join(eol);
+  const inner = doc.toString().replace(/\n+$/, "").split("\n").join(eol);
 
   // An emptied frontmatter map serializes to `{}`; drop the block entirely.
-  if (inner.trim() === "" || inner.trim() === "{}") {
+  const trimmed = inner.trim();
+  if (trimmed === "" || trimmed === "{}") {
     return bom + body;
   }
 
