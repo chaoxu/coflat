@@ -26,6 +26,7 @@ import {
   type TableCellNavigationIntent,
 } from "./table-widget-navigation";
 import {
+  findNearestTableInlineSafeAnchor,
   findTableInlineNeutralAnchor,
   isRenderedTableInlineTarget,
 } from "./table-widget-preview";
@@ -71,6 +72,7 @@ interface OpenCellEditorOptions {
   readonly clickY?: number;
   readonly initialAnchor?: number | null;
   readonly useClickPlacement?: boolean;
+  readonly clampClickToNeutral?: boolean;
 }
 
 function isEditorReadOnly(view: EditorView | null): boolean {
@@ -165,6 +167,7 @@ export function buildTableWidgetDOM(options: TableWidgetDomOptions): HTMLTableEl
       clickY = 0,
       initialAnchor = null,
       useClickPlacement = false,
+      clampClickToNeutral = false,
     }: OpenCellEditorOptions = {},
   ): void => {
     if (isTableReadOnly()) return;
@@ -335,31 +338,42 @@ export function buildTableWidgetDOM(options: TableWidgetDomOptions): HTMLTableEl
       hasInitialSelection = true;
     };
 
+    // When the click landed on rendered inline markup (a link, highlight,
+    // etc.), the hit-tested source position may fall inside hidden delimiters
+    // such as `[`…`](`…`)`. Clamp it to the nearest safe source boundary near
+    // the click rather than discarding the click and snapping to a fixed gap.
+    const placeClickPosition = (pos: number): void => {
+      const clamped = clampClickToNeutral
+        ? findNearestTableInlineSafeAnchor(rawText, pos)
+        : null;
+      applyInitialSelection(clamped ?? pos);
+    };
+
     const applyClickPlacement = (): boolean => {
       if (getActiveInlineEditor()?.view !== editorView) return false;
       const point = { x: clickX, y: clickY };
       const precise = preciseHitTestPosition(editorView, point);
       if (precise) {
-        applyInitialSelection(precise.pos);
+        placeClickPosition(precise.pos);
         return true;
       }
 
       const coarse = coarseHitTestPosition(editorView, point);
       if (coarse) {
-        applyInitialSelection(coarse.pos);
+        placeClickPosition(coarse.pos);
         return true;
       }
 
       return false;
     };
 
-    if (typeof initialAnchor === "number") {
-      applyInitialSelection(initialAnchor);
-    } else if (placeAtEnd) {
+    if (placeAtEnd) {
       const docLen = editorView.state.doc.length;
       applyInitialSelection(docLen);
     } else if (useClickPlacement) {
       applyClickPlacement();
+    } else if (typeof initialAnchor === "number") {
+      applyInitialSelection(initialAnchor);
     }
 
     if (hasInitialSelection || !useClickPlacement) {
@@ -382,6 +396,11 @@ export function buildTableWidgetDOM(options: TableWidgetDomOptions): HTMLTableEl
           refocusEditor();
           scheduleRefocus();
           return;
+        }
+        // Hit testing never resolved a position; fall back to the neutral
+        // anchor so a click on rendered markup still lands somewhere sensible.
+        if (!hasInitialSelection && typeof initialAnchor === "number") {
+          applyInitialSelection(initialAnchor);
         }
         refocusEditor();
       });
@@ -530,9 +549,13 @@ export function buildTableWidgetDOM(options: TableWidgetDomOptions): HTMLTableEl
           placeAtEnd,
           clickX,
           clickY,
+          // Kept as a fallback for when hit testing cannot resolve a position.
           initialAnchor,
-          useClickPlacement:
-            event.isTrusted && (!clickedRenderedToken || initialAnchor === null),
+          useClickPlacement: event.isTrusted,
+          // A click on rendered markup is clamped to the nearest safe source
+          // boundary so the cursor lands near the click without falling inside
+          // hidden delimiters.
+          clampClickToNeutral: clickedRenderedToken,
         });
       } catch (e: unknown) {
         console.error("[table-widget] mousedown handler failed", e);

@@ -539,29 +539,70 @@ function findNeutralGapAnchor(
   return from + 1 < to ? from + 1 : null;
 }
 
-export function findInlineNeutralAnchor(text: string): number | null {
-  if (!text) return null;
+function collectInlineNeutralAnchors(text: string): number[] {
+  if (!text) return [];
 
   const tree = parseMarkdownSource(text, "semantic");
-  const doc = tree.topNode;
-  const para = doc.firstChild;
-  if (!para) return null;
+  const para = tree.topNode.firstChild;
+  if (!para) return [];
 
+  const anchors: number[] = [];
   let pos = para.from;
   let child = para.firstChild;
 
   while (child) {
     if (child.from > pos) {
       const anchor = findNeutralGapAnchor(text, pos, child.from);
-      if (anchor !== null) return anchor;
+      if (anchor !== null) anchors.push(anchor);
     }
     pos = child.to;
     child = child.nextSibling;
   }
 
   if (pos < para.to) {
-    return findNeutralGapAnchor(text, pos, para.to);
+    const anchor = findNeutralGapAnchor(text, pos, para.to);
+    if (anchor !== null) anchors.push(anchor);
   }
 
-  return null;
+  return anchors;
+}
+
+export function findInlineNeutralAnchor(text: string): number | null {
+  const anchors = collectInlineNeutralAnchors(text);
+  return anchors.length > 0 ? anchors[0] : null;
+}
+
+/**
+ * Like {@link findInlineNeutralAnchor}, but returns the neutral gap anchor or
+ * top-level inline atom boundary nearest to `target`. Used to clamp a click
+ * that landed on rendered inline markup (a link, highlight, etc.) to a safe
+ * source position near where the user pointed, instead of snapping to the
+ * first gap. Returns null when the text has no inline atoms to clamp around.
+ */
+export function findNearestInlineSafeAnchor(
+  text: string,
+  target: number,
+): number | null {
+  if (!text) return null;
+
+  const tree = parseMarkdownSource(text, "semantic");
+  const para = tree.topNode.firstChild;
+  if (!para) return null;
+
+  const candidates = new Set<number>(collectInlineNeutralAnchors(text));
+  let child = para.firstChild;
+  while (child) {
+    candidates.add(child.from);
+    candidates.add(child.to);
+    child = child.nextSibling;
+  }
+  if (candidates.size === 0) return null;
+
+  let best: number | null = null;
+  for (const candidate of candidates) {
+    if (best === null || Math.abs(candidate - target) < Math.abs(best - target)) {
+      best = candidate;
+    }
+  }
+  return best;
 }

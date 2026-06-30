@@ -7,6 +7,17 @@ const inlineSourceTypography = {
   verticalAlign: "baseline",
 };
 
+/** The revealed-source classes that carry {@link inlineSourceTypography}'s
+ * relative 0.85em font-size, used to build the nesting reset that stops the
+ * shrink from compounding. */
+const SOURCE_REVEAL_SELECTORS = [
+  ".cf-source-delimiter",
+  ".cf-inline-source",
+  ".cf-inline-media-source",
+  ".cf-math-source",
+  ".cf-reference-source",
+].join(", ");
+
 /**
  * Typography styles: document title, headings, inline formatting
  * (bold, italic, strikethrough, inline code), links, section numbers,
@@ -257,6 +268,17 @@ export const typographyThemeStyles = {
   /* Reference source — raw [@id] token when cursor is inside */
   ".cf-reference-source": {
     ...inlineSourceTypography,
+  },
+
+  /* The reveal classes above each shrink to 0.85em — a relative unit. When one
+   * reveal span nests inside another (e.g. the media-source wrapper around an
+   * image's `[`…`](`…`)` delimiters), the em factors would compound (0.85 ×
+   * 0.85 ≈ 0.72, and smaller still if nested deeper), making revealed source
+   * shrink repeatedly. Reset any reveal span nested inside another to 1em so
+   * the outer span shrinks once and the rest inherit it. The descendant
+   * combinator makes this independent of which span is outer or how deep. */
+  [`:is(${SOURCE_REVEAL_SELECTORS}) :is(${SOURCE_REVEAL_SELECTORS})`]: {
+    fontSize: "1em",
   },
 
   /* Header markers (# symbols) shown in muted color when editing. */
