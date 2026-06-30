@@ -1114,6 +1114,7 @@ div.cf-image-wrapper:not(.cf-image-loading):not(.cf-image-placeholder) {
   max-height: 400px;
 }
 
+.cf-doc-block--figure.cf-image-wrapper:not(.cf-image-loading):not(.cf-image-placeholder),
 .cf-doc-block--figure .cf-image-wrapper:not(.cf-image-loading):not(.cf-image-placeholder) {
   display: block;
   width: fit-content;
@@ -1121,6 +1122,8 @@ div.cf-image-wrapper:not(.cf-image-loading):not(.cf-image-placeholder) {
   margin: 0 auto;
 }
 
+.cf-doc-block--figure.cf-image-loading,
+.cf-doc-block--figure.cf-image-placeholder,
 .cf-doc-block--figure .cf-image-loading,
 .cf-doc-block--figure .cf-image-placeholder {
   width: auto;

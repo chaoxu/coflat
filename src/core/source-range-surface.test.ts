@@ -178,6 +178,38 @@ describe("source range surface", () => {
     });
   });
 
+  it("does not use zero-length carriers as scroll anchors", () => {
+    const scroller = document.createElement("div");
+    const cursor = document.createElement("div");
+    cursor.dataset.sourceFrom = "25";
+    cursor.dataset.sourceTo = "25";
+    scroller.append(cursor);
+    scroller.getBoundingClientRect = () => ({
+      top: 100,
+      bottom: 500,
+      left: 0,
+      right: 300,
+      width: 300,
+      height: 400,
+      x: 0,
+      y: 100,
+      toJSON: () => ({}),
+    });
+    cursor.getBoundingClientRect = () => ({
+      top: 180,
+      bottom: 204,
+      left: 0,
+      right: 300,
+      width: 300,
+      height: 24,
+      x: 0,
+      y: 180,
+      toJSON: () => ({}),
+    });
+
+    expect(visibleSourcePositionInScroller(scroller, { viewportRatio: 0.2 })).toBeNull();
+  });
+
   it("maps DOM ranges to source offsets from shared source carriers", () => {
     const container = document.createElement("div");
     container.innerHTML = '<p data-source-from="10" data-source-to="15">hello</p>';

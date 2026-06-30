@@ -73,12 +73,13 @@ function buildImageItemsFromInfos(
   const items: Range<Decoration>[] = [];
   for (const info of infos) {
     const widget = info.preview
-      ? mediaPreviewWidget(info.alt, info.src, info.preview, info.isBlock)
+      ? mediaPreviewWidget(info.alt, info.src, info.preview, info.isBlock, info.containerClassName)
       : new ImagePreviewWidget(
           info.alt,
           info.src,
           { kind: "image", src: info.src },
           info.isBlock,
+          info.containerClassName,
         );
     const activeImageSource = activeSourceTargetsEqual(activeSource, info);
     if (activeImageSource && info.isBlock) {

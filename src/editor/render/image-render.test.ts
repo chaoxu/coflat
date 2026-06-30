@@ -3,6 +3,7 @@ import type { EditorView } from "@codemirror/view";
 import { markdown } from "@codemirror/lang-markdown";
 import { CSS } from "../../core/constants/css-classes";
 import { IMAGE_PREVIEW_RESERVED_HEIGHT_PX } from "../../core/constants/layout";
+import { markdownExtensions } from "../../core/parser";
 import {
   ImagePreviewWidget,
   _imageDecorationFieldForTest,
@@ -13,6 +14,7 @@ import { isPdfTarget, isRelativeFilePath } from "../lib/pdf-target";
 import { documentPathFacet } from "../lib/types";
 import { imageUrlEffect, imageUrlField } from "../state/image-url";
 import { pdfPreviewEffect, pdfPreviewField } from "../state/pdf-preview";
+import { documentAnalysisField } from "../state/document-analysis";
 import { createTestView, getDecorationSpecs } from "../test-utils";
 import * as mediaPreview from "./media-preview";
 import { focusEffect } from "./focus-state";
@@ -57,6 +59,21 @@ describe("ImagePreviewWidget (image state)", () => {
       const el = widget.createDOM();
       expect(el.tagName).toBe("DIV");
       expect(el.className).toBe(CSS.imageWrapper);
+    });
+
+    it("keeps block container classes on image wrappers", () => {
+      const widget = new ImagePreviewWidget(
+        "photo",
+        "photo.png",
+        imageState("photo.png"),
+        true,
+        CSS.block("figure"),
+      );
+      const el = widget.createDOM();
+      expect(el.tagName).toBe("DIV");
+      expect(el.classList.contains(CSS.imageWrapper)).toBe(true);
+      expect(el.classList.contains("cf-doc-block")).toBe(true);
+      expect(el.classList.contains("cf-doc-block--figure")).toBe(true);
     });
 
     it("stamps shell-surface attrs for block image widgets only", () => {
@@ -632,6 +649,28 @@ describe("imageRenderPlugin block ownership", () => {
         spec.to === imageTo
       ),
     ).toBe(true);
+    view.destroy();
+  });
+
+  it("marks block images inside figures with the figure surface class", () => {
+    const doc = [
+      '::: {.figure title="Local figure"}',
+      "![diagram](figure.png)",
+      ":::",
+    ].join("\n");
+    const view = createTestView(doc, {
+      cursorPos: 0,
+      extensions: [
+        markdown({ extensions: markdownExtensions }),
+        documentAnalysisField,
+        imageUrlField,
+        pdfPreviewField,
+        imageRenderPlugin,
+      ],
+    });
+    const wrapper = view.dom.querySelector(`.${CSS.imageWrapper}`);
+    expect(wrapper?.classList.contains("cf-doc-block")).toBe(true);
+    expect(wrapper?.classList.contains("cf-doc-block--figure")).toBe(true);
     view.destroy();
   });
 

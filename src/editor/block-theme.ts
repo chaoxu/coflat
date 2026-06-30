@@ -170,7 +170,7 @@ export const blockThemeStyles: Record<string, Record<string, string>> = {
     borderRadius: "var(--cf-border-radius)",
     background: "var(--cf-bg)",
   },
-  ".cf-doc-block--figure .cf-image-wrapper:not(.cf-image-loading):not(.cf-image-placeholder)": {
+  ".cf-doc-block--figure.cf-image-wrapper:not(.cf-image-loading):not(.cf-image-placeholder), .cf-doc-block--figure .cf-image-wrapper:not(.cf-image-loading):not(.cf-image-placeholder)": {
     display: "block",
     width: "fit-content",
     maxWidth: "100%",

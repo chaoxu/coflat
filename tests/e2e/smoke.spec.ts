@@ -1035,6 +1035,104 @@ test("public demo surface switch preserves the visible document position", async
     .toBeLessThanOrEqual(2);
 });
 
+test("public demo surface switch does not anchor on blank editor rows", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+
+  async function selectedEditorAnchor() {
+    return page.evaluate(() => {
+      const scroller = document.querySelector<HTMLElement>("#editor .cm-scroller");
+      if (!scroller) throw new Error("missing editor scroller");
+      const scrollerRect = scroller.getBoundingClientRect();
+      const sampleY = scrollerRect.top + scrollerRect.height * 0.2;
+      const candidates = Array.from(
+        scroller.querySelectorAll<HTMLElement>("[data-source-from][data-source-to]"),
+      ).flatMap((el) => {
+        const rect = el.getBoundingClientRect();
+        const from = Number(el.dataset.sourceFrom);
+        const to = Number(el.dataset.sourceTo);
+        if (
+          !Number.isFinite(from) ||
+          !Number.isFinite(to) ||
+          to <= from ||
+          rect.bottom < scrollerRect.top ||
+          rect.top > scrollerRect.bottom ||
+          getComputedStyle(el).display === "inline"
+        ) {
+          return [];
+        }
+        return [{
+          distance: rect.top <= sampleY && rect.bottom >= sampleY
+            ? 0
+            : Math.min(Math.abs(rect.top - sampleY), Math.abs(rect.bottom - sampleY)),
+          from,
+          height: rect.height,
+          text: (el.textContent ?? "").replace(/\s+/g, " ").trim(),
+          top: rect.top,
+          to,
+        }];
+      }).sort((a, b) => a.distance - b.distance || b.height - a.height);
+      if (!candidates[0]) throw new Error("missing non-empty editor anchor");
+      return candidates[0];
+    });
+  }
+
+  async function readerAnchorTop(pos: number) {
+    return page.evaluate((pos) => {
+      type Candidate = {
+        readonly distance: number;
+        readonly from: number;
+        readonly span: number;
+        readonly starts: boolean;
+        readonly text: string;
+        readonly top: number;
+        readonly to: number;
+      };
+      const candidates = Array.from(
+        document.querySelectorAll<HTMLElement>("#reader [data-source-from][data-source-to]"),
+      ).flatMap((el): Candidate[] => {
+        const from = Number(el.dataset.sourceFrom);
+        const to = Number(el.dataset.sourceTo);
+        if (!Number.isFinite(from) || !Number.isFinite(to)) return [];
+        const rect = el.getBoundingClientRect();
+        const distance = pos < from ? from - pos : pos > to ? pos - to : 0;
+        return [{
+          distance,
+          from,
+          span: Math.max(0, to - from),
+          starts: from === pos && to > from,
+          text: (el.textContent ?? "").replace(/\s+/g, " ").trim(),
+          top: rect.top,
+          to,
+        }];
+      }).sort((a, b) =>
+        a.distance - b.distance ||
+        Number(b.starts) - Number(a.starts) ||
+        a.span - b.span
+      );
+      if (!candidates[0]) throw new Error("missing reader anchor");
+      return candidates[0];
+    }, pos);
+  }
+
+  for (const scrollTop of [3500, 5000]) {
+    await page.goto("/examples/simple/index.html?doc=showcase&surface=editor");
+    await settleLayout(page);
+    await scrollDemoEditorTo(page, scrollTop);
+    const before = await selectedEditorAnchor();
+
+    await page.getByRole("button", { name: "Reader" }).click();
+    await expect(page).toHaveURL(/surface=reader/);
+    await settleDemoReaderMath(page);
+
+    const after = await readerAnchorTop(before.from);
+    expect(after.text, `reader anchor text at editor scroll ${scrollTop}`).not.toBe("");
+    expect(
+      Math.abs(after.top - before.top),
+      `reader drift from blank-row editor anchor at ${scrollTop}`,
+    ).toBeLessThanOrEqual(2);
+  }
+});
+
 test("public demo reveals reader only after math is hydrated", async ({ page }) => {
   await page.goto("/examples/simple/index.html?doc=showcase&surface=editor");
   await settleLayout(page);
@@ -1178,6 +1276,11 @@ test("rich editor keeps all rendered code block row types unwrapped", async ({ p
 
 test("public demo reader resolves showcase local images", async ({ page }) => {
   await page.goto("/examples/simple/index.html?doc=showcase&surface=reader");
+
+  const figure = page.locator('#reader .cf-doc-block--figure:has(img.cf-image[alt="Local hover-preview figure"])');
+  await expect(figure).toBeVisible();
+  await expect(figure.locator(".cf-block-caption")).toContainText("Figure");
+  await expect(figure.locator(".cf-block-caption")).toContainText("Local figure asset");
 
   const image = page.locator('#reader img.cf-image[alt="Local hover-preview figure"]');
   await expect(image).toBeVisible();
@@ -2417,6 +2520,7 @@ test("public showcase keeps reader and CM6 rich editor block geometry aligned", 
       "#editor-root .cf-doc-blockquote",
       "#editor-root .cf-doc-display-math",
       "#editor-root .cf-table-widget",
+      "#editor-root .cf-image-wrapper",
       "#editor-root .cm-line.cf-codeblock-header",
       "#editor-root .cm-line.cf-codeblock-body",
       "#editor-root .cm-line.cf-codeblock-last",

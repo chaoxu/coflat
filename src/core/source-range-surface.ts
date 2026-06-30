@@ -195,7 +195,6 @@ export function visibleSourcePositionInScroller(
   const sampleRatio = clampViewportRatio(options.viewportRatio ?? 0.5);
   const sampleY = rect.top + rect.height * sampleRatio;
   let best: { range: SourceRange; distance: number; height: number; viewportRatio: number; viewportY: number } | null = null;
-  let fallback: { range: SourceRange; distance: number; height: number; viewportRatio: number; viewportY: number } | null = null;
   for (const element of scroller.querySelectorAll<HTMLElement>(SOURCE_RANGE_CARRIER_SELECTOR)) {
     const elementRect = element.getBoundingClientRect();
     if (elementRect.bottom < rect.top || elementRect.top > rect.bottom) continue;
@@ -208,19 +207,13 @@ export function visibleSourcePositionInScroller(
     const height = Math.max(0, elementRect.height);
     const viewportRatio = clampViewportRatio((elementRect.top - rect.top) / rect.height);
     const candidate = { range, distance, height, viewportRatio, viewportY: elementRect.top };
-    if (sourceRangeSpan(range) <= 0) {
-      if (!fallback || distance < fallback.distance || (distance === fallback.distance && height > fallback.height)) {
-        fallback = candidate;
-      }
-      continue;
-    }
+    if (sourceRangeSpan(range) <= 0) continue;
     if (!best || distance < best.distance || (distance === best.distance && height > best.height)) {
       best = candidate;
     }
   }
-  const selected = best ?? fallback;
-  if (!selected) return null;
-  return { pos: Math.max(0, selected.range.from), viewportRatio: selected.viewportRatio, viewportY: selected.viewportY };
+  if (!best) return null;
+  return { pos: Math.max(0, best.range.from), viewportRatio: best.viewportRatio, viewportY: best.viewportY };
 }
 
 /**

@@ -39,6 +39,7 @@ export class ImagePreviewWidget extends LazyWidgetBase {
     readonly src: string,
     readonly state: ImagePreviewState,
     readonly isBlock = false,
+    readonly containerClassName?: string,
   ) {
     super();
   }
@@ -91,6 +92,7 @@ export class ImagePreviewWidget extends LazyWidgetBase {
       this.alt === other.alt &&
       this.src === other.src &&
       this.isBlock === other.isBlock &&
+      this.containerClassName === other.containerClassName &&
       this.stateKey() === other.stateKey()
     );
   }
@@ -129,7 +131,7 @@ export class ImagePreviewWidget extends LazyWidgetBase {
   private renderInto(wrapper: HTMLElement): void {
     switch (this.state.kind) {
       case "image": {
-        wrapper.className = CSS.imageWrapper;
+        wrapper.className = this.wrapperClassName();
         const img = createImageElement(document, this.state.src, this.alt);
         if (!this.isBlock) {
           syncInlineImageSizeOnLoad(wrapper, img);
@@ -143,7 +145,7 @@ export class ImagePreviewWidget extends LazyWidgetBase {
       case "pdf-canvas": {
         const canvas = getPdfCanvas(this.state.path);
         if (canvas) {
-          wrapper.className = CSS.imageWrapper;
+          wrapper.className = this.wrapperClassName();
           const clone = document.createElement("canvas");
           clone.width = canvas.width;
           clone.height = canvas.height;
@@ -161,13 +163,14 @@ export class ImagePreviewWidget extends LazyWidgetBase {
       }
       case "loading":
         renderMediaLoadingInto(wrapper, this.state.isPdf ? "pdf" : "image", this.alt);
+        this.addContainerClassName(wrapper);
         break;
       case "error": {
         if (this.isBlock) {
           this.renderUnavailablePlaceholder(wrapper);
           break;
         }
-        wrapper.className = CSS.imageWrapper;
+        wrapper.className = this.wrapperClassName();
         const img = createImageElement(document, this.state.fallbackSrc, this.alt);
         img.addEventListener("error", () => {
           this.renderUnavailablePlaceholder(wrapper);
@@ -180,6 +183,20 @@ export class ImagePreviewWidget extends LazyWidgetBase {
 
   private renderUnavailablePlaceholder(wrapper: HTMLElement): void {
     renderImagePlaceholderInto(wrapper, this.alt, { block: this.isBlock });
+    this.addContainerClassName(wrapper);
+  }
+
+  private wrapperClassName(): string {
+    return this.containerClassName
+      ? `${CSS.imageWrapper} ${this.containerClassName}`
+      : CSS.imageWrapper;
+  }
+
+  private addContainerClassName(wrapper: HTMLElement): void {
+    if (!this.containerClassName) return;
+    for (const className of this.containerClassName.split(/\s+/)) {
+      if (className) wrapper.classList.add(className);
+    }
   }
 }
 
@@ -188,15 +205,40 @@ export function mediaPreviewWidget(
   src: string,
   result: MediaPreviewResult,
   isBlock: boolean,
+  containerClassName?: string,
 ): RenderWidget {
   switch (result.kind) {
     case "image":
-      return new ImagePreviewWidget(alt, src, { kind: "image", src: result.dataUrl }, isBlock);
+      return new ImagePreviewWidget(
+        alt,
+        src,
+        { kind: "image", src: result.dataUrl },
+        isBlock,
+        containerClassName,
+      );
     case "pdf-canvas":
-      return new ImagePreviewWidget(alt, src, { kind: "pdf-canvas", path: result.resolvedPath }, isBlock);
+      return new ImagePreviewWidget(
+        alt,
+        src,
+        { kind: "pdf-canvas", path: result.resolvedPath },
+        isBlock,
+        containerClassName,
+      );
     case "loading":
-      return new ImagePreviewWidget(alt, src, { kind: "loading", isPdf: result.isPdf }, isBlock);
+      return new ImagePreviewWidget(
+        alt,
+        src,
+        { kind: "loading", isPdf: result.isPdf },
+        isBlock,
+        containerClassName,
+      );
     case "error":
-      return new ImagePreviewWidget(alt, src, { kind: "error", fallbackSrc: result.fallbackSrc }, isBlock);
+      return new ImagePreviewWidget(
+        alt,
+        src,
+        { kind: "error", fallbackSrc: result.fallbackSrc },
+        isBlock,
+        containerClassName,
+      );
   }
 }

@@ -5,6 +5,8 @@ import {
   isStandaloneImageLine,
   readMarkdownImageContent,
 } from "../state/markdown-image";
+import { documentAnalysisField } from "../state/document-analysis";
+import { CSS } from "../../core/constants/css-classes";
 import {
   type MediaPreviewResult,
   resolveLocalMediaPreviewFromState,
@@ -20,6 +22,7 @@ export interface ImageNodeInfo {
   readonly alt: string;
   readonly src: string;
   readonly isBlock: boolean;
+  readonly containerClassName?: string;
   readonly preview: MediaPreviewResult | null;
 }
 
@@ -39,15 +42,30 @@ export function buildImageNodeInfo(
 ): ImageNodeInfo | null {
   const parsed = readMarkdownImageContent(state, node);
   if (!parsed) return null;
+  const isBlock = isStandaloneImageLine(state, node.from, node.to);
 
   return {
     from: node.from,
     to: node.to,
     alt: parsed.alt,
     src: parsed.src,
-    isBlock: isStandaloneImageLine(state, node.from, node.to),
+    isBlock,
+    containerClassName: imageContainerClassName(state, node, isBlock),
     preview: resolveLocalMediaPreviewFromState(state, parsed.src),
   };
+}
+
+function imageContainerClassName(
+  state: EditorState,
+  node: SyntaxNode,
+  isBlock: boolean,
+): string | undefined {
+  if (!isBlock) return undefined;
+  const analysis = state.field(documentAnalysisField, false);
+  const container = analysis?.fencedDivs.find(
+    (div) => div.primaryClass && div.from <= node.from && node.to <= div.to,
+  );
+  return container?.primaryClass ? CSS.block(container.primaryClass) : undefined;
 }
 
 export function collectImageNodeInfosInRanges(

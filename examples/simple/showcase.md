@@ -245,7 +245,11 @@ $$
 
 [Link text](https://example.com) should render as underlined text and reveal source on click.
 
-![Local hover-preview figure](showcase/hover-preview-figure.svg) should render as an inline image without relying on a remote placeholder.
+::: {.figure #fig:local-image title="Local figure asset"}
+![Local hover-preview figure](showcase/hover-preview-figure.svg)
+:::
+
+The figure block above should render with a numbered caption and the local image asset, without relying on a remote placeholder.
 
 # Fenced-Div Title Attributes
 
