@@ -32,10 +32,21 @@ export const blockTypePickerEditorPlugin: EditorPlugin = {
   load: async () => (await import("./block-type-picker")).blockTypePickerExtension,
 };
 
+export const findReplaceEditorPlugin: EditorPlugin = {
+  id: "find-replace",
+  name: "Find & Replace",
+  description: "In-document search panel (Cmd+F)",
+  defaultEnabled: true,
+  loadTiming: "after-mount",
+  readyPhase: "find-replace-ready",
+  load: async () => (await import("./find-replace")).findReplaceExtension,
+};
+
 export const workbenchEditorPlugins: readonly EditorPlugin[] = [
   listOutlinerEditorPlugin,
   referenceAutocompleteEditorPlugin,
   blockTypePickerEditorPlugin,
+  findReplaceEditorPlugin,
 ];
 
 export const fullEditorPlugins: readonly EditorPlugin[] = [
