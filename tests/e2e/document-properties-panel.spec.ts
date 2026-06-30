@@ -38,35 +38,37 @@ math:
 motivated by a workshop question
 `;
 
-test("document-properties panel: chip, expand, edit, macro preview", async ({ page }) => {
+test("document-properties form: reveal on title click, edit, macro preview", async ({ page }) => {
   const errors: string[] = [];
   page.on("console", (m) => {
     if (m.type() === "error" && !/favicon/.test(m.text())) errors.push(m.text());
   });
+  page.on("pageerror", (e) => errors.push(`PAGEERROR: ${e.message}`));
   const h = harness(page);
 
   await page.goto("/tests/e2e/fixtures/index.html");
   await h.setDoc(DOC);
   await settle(page);
 
-  // Collapsed chip summarizes the metadata.
-  const chip = page.locator(".cf-doc-properties-chip");
-  await expect(chip).toBeVisible();
-  await expect(chip).toContainText("Rank reduction");
-  await expect(chip).toContainText("ztrcpji2");
-  await expect(page.locator(".cf-doc-properties-panel")).toHaveCount(0);
+  // Collapsed by default: title shown, no properties form.
+  const title = page.locator(".cf-doc-title");
+  await expect(title).toBeVisible();
+  await expect(title).toContainText("Rank reduction");
+  await expect(page.locator(".cf-doc-properties")).toHaveCount(0);
 
-  // Expand.
-  await chip.click();
-  await expect(page.locator(".cf-doc-properties-panel")).toBeVisible();
+  // Clicking the title reveals the frontmatter: raw YAML + the properties form.
+  await title.click();
+  await expect(page.locator(".cf-doc-properties")).toBeVisible();
   await expect(page.locator(".cf-doc-properties-input")).toHaveCount(5);
+  // Raw YAML is revealed alongside the form.
+  await expect(page.locator(".cf-frontmatter-line").first()).toBeVisible();
   // Macro row renders a live KaTeX preview.
   await expect(page.locator(".cf-doc-properties-macro-preview .katex")).toBeVisible();
 
   // Edit the title field → frontmatter updates, body preserved.
-  const title = page.locator(".cf-doc-properties-input").first();
-  await title.fill("Edited Title");
-  await title.blur();
+  const titleInput = page.locator(".cf-doc-properties-input").first();
+  await titleInput.fill("Edited Title");
+  await titleInput.blur();
   await expect.poll(() => h.getDoc()).toContain('title: "Edited Title"');
   await expect.poll(() => h.getDoc()).toContain("motivated by a workshop question");
 
@@ -75,4 +77,24 @@ test("document-properties panel: chip, expand, edit, macro preview", async ({ pa
   await expect.poll(() => h.getDoc()).toContain("\\new");
 
   expect(errors).toEqual([]);
+});
+
+test("document-properties form: hides when the reveal clears", async ({ page }) => {
+  const h = harness(page);
+  await page.goto("/tests/e2e/fixtures/index.html");
+  await h.setDoc(DOC);
+  await settle(page);
+
+  await page.locator(".cf-doc-title").click();
+  await expect(page.locator(".cf-doc-properties")).toBeVisible();
+
+  // Move the cursor into the body — the frontmatter reveal (and form) clears.
+  await page.evaluate(() => {
+    const view = (window as unknown as { __coflatEditorView: { focus(): void; state: { doc: { toString(): string } }; dispatch(t: unknown): void } }).__coflatEditorView;
+    view.focus();
+    const pos = view.state.doc.toString().indexOf("motivated") + 1;
+    view.dispatch({ selection: { anchor: pos } });
+  });
+  await settle(page);
+  await expect(page.locator(".cf-doc-properties")).toHaveCount(0);
 });

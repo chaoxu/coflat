@@ -121,41 +121,31 @@ export const baseThemeStyles = {
     overflow: "hidden",
   },
 
-  /* Document-properties panel (rich-mode metadata chip + form). */
+  /* Document-properties form: revealed with the frontmatter YAML, styled to
+     match the active-shell block reveal. */
+  ".cf-doc-properties-host": {
+    padding: "0.5em 0",
+  },
   ".cf-doc-properties": {
-    fontFamily: "var(--cf-ui-font, system-ui, sans-serif)",
-    fontSize: "var(--cf-ui-font-size-base, 13px)",
-    margin: "0 0 0.75em 0",
-  },
-  ".cf-doc-properties-chip": {
-    display: "flex",
-    alignItems: "baseline",
-    gap: "0.4em",
-    width: "100%",
-    padding: "0.25em 0.5em",
-    background: "var(--cf-hover, rgba(0,0,0,0.04))",
-    border: "1px solid var(--cf-border)",
-    borderRadius: "6px",
-    color: "var(--cf-fg)",
-    cursor: "pointer",
-    textAlign: "left",
-    font: "inherit",
-  },
-  ".cf-doc-properties-caret": {
-    color: "var(--cf-muted)",
-  },
-  ".cf-doc-properties-sub": {
-    color: "var(--cf-muted)",
-    marginLeft: "0.5em",
-  },
-  ".cf-doc-properties-panel": {
     display: "flex",
     flexDirection: "column",
-    gap: "0.4em",
-    padding: "0.6em 0.5em",
-    border: "1px solid var(--cf-border)",
-    borderTop: "none",
-    borderRadius: "0 0 6px 6px",
+    gap: "0.45em",
+    margin: "0 auto",
+    maxWidth: "var(--cf-content-max-width, 46rem)",
+    padding: "0.7em 0.9em",
+    fontFamily: "var(--cf-ui-font, system-ui, sans-serif)",
+    fontSize: "var(--cf-ui-font-size-base, 13px)",
+    color: "var(--cf-fg)",
+    background: "var(--cf-active-shell-fill)",
+    border: "var(--cf-active-shell-border-width) solid var(--cf-active-shell-border)",
+    borderRadius: "var(--cf-border-radius-lg, 8px)",
+  },
+  ".cf-doc-properties-heading": {
+    fontSize: "0.76em",
+    fontWeight: "650",
+    letterSpacing: "0.08em",
+    textTransform: "uppercase",
+    color: "var(--cf-muted)",
   },
   ".cf-doc-properties-row": {
     display: "grid",
@@ -168,9 +158,9 @@ export const baseThemeStyles = {
   },
   ".cf-doc-properties-input": {
     width: "100%",
-    padding: "0.2em 0.4em",
+    padding: "0.25em 0.45em",
     border: "1px solid var(--cf-border)",
-    borderRadius: "4px",
+    borderRadius: "var(--cf-border-radius, 4px)",
     background: "var(--cf-bg)",
     color: "var(--cf-fg)",
     font: "inherit",
@@ -182,7 +172,7 @@ export const baseThemeStyles = {
   ".cf-doc-properties-macros": {
     display: "flex",
     flexDirection: "column",
-    gap: "0.3em",
+    gap: "0.35em",
   },
   ".cf-doc-properties-macro-row": {
     display: "flex",
@@ -192,18 +182,18 @@ export const baseThemeStyles = {
   ".cf-doc-properties-macro-name": {
     width: "7em",
     fontFamily: "var(--cf-mono-font, ui-monospace, monospace)",
-    padding: "0.15em 0.3em",
+    padding: "0.2em 0.35em",
     border: "1px solid var(--cf-border)",
-    borderRadius: "4px",
+    borderRadius: "var(--cf-border-radius, 4px)",
     background: "var(--cf-bg)",
     color: "var(--cf-fg)",
   },
   ".cf-doc-properties-macro-value": {
     flex: "1",
     fontFamily: "var(--cf-mono-font, ui-monospace, monospace)",
-    padding: "0.15em 0.3em",
+    padding: "0.2em 0.35em",
     border: "1px solid var(--cf-border)",
-    borderRadius: "4px",
+    borderRadius: "var(--cf-border-radius, 4px)",
     background: "var(--cf-bg)",
     color: "var(--cf-fg)",
   },
@@ -211,16 +201,16 @@ export const baseThemeStyles = {
     minWidth: "2em",
     color: "var(--cf-fg)",
   },
-  ".cf-doc-properties-browse, .cf-doc-properties-add-macro, .cf-doc-properties-yaml, .cf-doc-properties-macro-remove": {
-    padding: "0.15em 0.5em",
+  ".cf-doc-properties-browse, .cf-doc-properties-add-macro, .cf-doc-properties-macro-remove": {
+    padding: "0.2em 0.55em",
     border: "1px solid var(--cf-border)",
-    borderRadius: "4px",
+    borderRadius: "var(--cf-border-radius, 4px)",
     background: "var(--cf-bg)",
     color: "var(--cf-fg)",
     cursor: "pointer",
     font: "inherit",
   },
-  ".cf-doc-properties-actions": {
-    marginTop: "0.3em",
+  ".cf-doc-properties-add-macro:hover, .cf-doc-properties-browse:hover, .cf-doc-properties-macro-remove:hover": {
+    borderColor: "var(--cf-active-shell-border)",
   },
 };

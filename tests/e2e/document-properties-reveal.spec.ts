@@ -69,8 +69,8 @@ test("reveal: cursor into emphasis shows source markers with the panel present",
   await setDoc(page, DOC);
   await settle(page);
 
-  // Panel is present.
-  await expect(page.locator(".cf-doc-properties-chip")).toBeVisible();
+  // The frontmatter title widget is present (the panel reveals on title click).
+  await expect(page.locator(".cf-doc-title")).toBeVisible();
 
   await moveCursor(page, OUTSIDE);
   expect(await revealedDelimiters(page)).toBe(0);
@@ -90,8 +90,10 @@ test("reveal: survives a frontmatter edit that adds then removes a line", async 
   await setDoc(page, DOC);
   await settle(page);
 
-  // Add a frontmatter line via the panel (the old block widget crashed here).
-  await page.locator(".cf-doc-properties-chip").click();
+  // Reveal the frontmatter form by clicking the title, then add a frontmatter
+  // line via the form (the old doc-anchored block widget crashed here).
+  await page.locator(".cf-doc-title").click();
+  await expect(page.locator(".cf-doc-properties")).toBeVisible();
   await page.locator(".cf-doc-properties-add-macro").click();
   await settle(page);
   // Remove it again.

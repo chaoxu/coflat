@@ -1,22 +1,25 @@
 /**
- * Rich-mode "document properties" panel.
+ * Rich-mode "document properties" form.
  *
- * Renders a collapsed metadata chip above the document that expands into a small
- * form for the panel-relevant frontmatter keys (title, bibliography, type,
- * status, target) plus a math-macro key/value editor — so authors edit document
- * metadata as fields instead of hand-indenting YAML. Writes go through the
- * lossless mutators in {@link ../frontmatter-properties}, and an "Edit as YAML"
- * escape hatch drops to raw structure editing for anything the form doesn't model.
+ * Part of the frontmatter structure-edit reveal: normally the frontmatter is
+ * collapsed to the title widget, and clicking the title (or otherwise moving the
+ * cursor into the frontmatter) activates the frontmatter structure edit. While
+ * that edit is active the raw YAML lines are revealed for editing AND this form
+ * appears above them — a field/macro editor for the panel-relevant keys (title,
+ * bibliography, type, status, target) plus math macros, so the two editing
+ * surfaces sit together like the rest of a revealed block. When the edit clears
+ * (cursor leaves, blur) the form disappears with the YAML.
  *
- * Mounted as a top editor panel (`showPanel`), not a document decoration, so it
- * lives outside the document model: frontmatter edits that add or remove lines
- * can't crash a doc-anchored block widget. Edits commit on `change`/blur (never
- * per keystroke), and the panel re-renders only when the frontmatter or expanded
- * state actually changes, so a focused input is never rebuilt out from under the
- * user mid-typing.
+ * Mounted as a top editor panel (`showPanel`), gated on the reveal state — never
+ * a document decoration. The form lives outside the document model, so the
+ * frontmatter edits it commits (which add/remove lines) can't crash a
+ * doc-anchored block widget the way an earlier version did ("Cannot destructure
+ * 'tile'"). Edits commit on `change`/blur (never per keystroke); the form
+ * re-renders only when the frontmatter content actually changes, so a focused
+ * input is never rebuilt out from under the user mid-typing.
  */
 
-import { type Extension, StateEffect, StateField } from "@codemirror/state";
+import { type EditorState, type Extension, StateEffect, StateField } from "@codemirror/state";
 import { EditorView, type Panel, showPanel } from "@codemirror/view";
 import katex from "katex";
 
@@ -30,21 +33,27 @@ import {
   setMathMacro,
 } from "../frontmatter-properties.js";
 import { requestHandlerFacet } from "../editor-host-api";
-import { activateFrontmatterStructureEdit } from "../state/cm-structure-edit";
+import {
+  activeStructureEditField,
+  isFrontmatterStructureEditActive,
+} from "../state/cm-structure-edit";
 import { frontmatterField } from "../state/frontmatter-state";
 
-/** Effect toggling the expanded/collapsed state of the properties panel. */
-export const setPropertiesPanelExpanded = StateEffect.define<boolean>();
+/**
+ * Whether focus currently lives inside the properties form. The form's inputs
+ * sit outside the editor's contentDOM, so focusing one blurs the editor and
+ * clears the frontmatter structure-edit reveal. We keep the form mounted while
+ * it holds focus so editing a field doesn't unmount the field mid-edit.
+ */
+const setPropertiesFormFocused = StateEffect.define<boolean>();
 
-/** Whether the properties panel is expanded. Collapsed by default. */
-export const propertiesPanelExpandedField = StateField.define<boolean>({
+const propertiesFormFocusedField = StateField.define<boolean>({
   create: () => false,
   update(value, tr) {
-    let next = value;
     for (const effect of tr.effects) {
-      if (effect.is(setPropertiesPanelExpanded)) next = effect.value;
+      if (effect.is(setPropertiesFormFocused)) return effect.value;
     }
-    return next;
+    return value;
   },
 });
 
@@ -103,85 +112,23 @@ function fieldRow(label: string, control: HTMLElement): HTMLElement {
 }
 
 class DocumentPropertiesBuilder {
-  constructor(
-    private readonly props: PanelProperties,
-    private readonly expanded: boolean,
-  ) {}
+  constructor(private readonly props: PanelProperties) {}
 
   build(view: EditorView): HTMLElement {
     const root = document.createElement("div");
     root.className = "cf-doc-properties";
     root.setAttribute("contenteditable", "false");
-    root.dataset.expanded = this.expanded ? "true" : "false";
-    root.append(this.buildChip(view));
-    if (this.expanded) root.append(this.buildPanel(view));
-    return root;
-  }
 
-  private buildChip(view: EditorView): HTMLElement {
-    const chip = document.createElement("button");
-    chip.type = "button";
-    chip.className = "cf-doc-properties-chip";
-    chip.setAttribute("aria-expanded", this.expanded ? "true" : "false");
-
-    const caret = document.createElement("span");
-    caret.className = "cf-doc-properties-caret";
-    caret.textContent = this.expanded ? "▾" : "▸";
-
-    const summary = document.createElement("span");
-    summary.className = "cf-doc-properties-summary";
-    summary.append(...this.summaryParts());
-
-    chip.append(caret, summary);
-    chip.addEventListener("mousedown", (event) => {
-      event.preventDefault();
-      view.dispatch({ effects: setPropertiesPanelExpanded.of(!this.expanded) });
-    });
-    return chip;
-  }
-
-  private summaryParts(): Node[] {
-    const parts: Node[] = [];
-    const title = document.createElement("strong");
-    title.textContent = this.props.title?.trim() || "Properties";
-    parts.push(title);
-    const meta: string[] = [];
-    if (this.props.id) meta.push(this.props.id);
-    if (this.props.bibliography) meta.push(this.props.bibliography);
-    const macroCount = Object.keys(this.props.math).length;
-    if (macroCount > 0) meta.push(`ƒ${macroCount}`);
-    if (meta.length) {
-      const sub = document.createElement("span");
-      sub.className = "cf-doc-properties-sub";
-      sub.textContent = meta.join(" · ");
-      parts.push(sub);
-    }
-    return parts;
-  }
-
-  private buildPanel(view: EditorView): HTMLElement {
-    const panel = document.createElement("div");
-    panel.className = "cf-doc-properties-panel";
+    const heading = document.createElement("span");
+    heading.className = "cf-doc-properties-heading";
+    heading.textContent = "Properties";
+    root.append(heading);
 
     for (const { key, label } of SCALAR_FIELDS) {
-      panel.append(this.scalarRow(view, key, label));
+      root.append(this.scalarRow(view, key, label));
     }
-    panel.append(this.macroEditor(view));
-
-    const actions = document.createElement("div");
-    actions.className = "cf-doc-properties-actions";
-    const yaml = document.createElement("button");
-    yaml.type = "button";
-    yaml.className = "cf-doc-properties-yaml";
-    yaml.textContent = "Edit as YAML";
-    yaml.addEventListener("mousedown", (event) => {
-      event.preventDefault();
-      view.focus();
-      activateFrontmatterStructureEdit(view);
-    });
-    actions.append(yaml);
-    panel.append(actions);
-    return panel;
+    root.append(this.macroEditor(view));
+    return root;
   }
 
   private scalarRow(view: EditorView, key: (typeof SCALAR_FIELDS)[number]["key"], label: string): HTMLElement {
@@ -284,10 +231,11 @@ function propsKey(p: PanelProperties): string {
 }
 
 /**
- * The panel is a top editor panel (`showPanel`), not a document decoration: it
- * lives outside the document model, so frontmatter edits that add/remove lines
- * never crash a block widget (CM6's "tile" crash) the way a doc-anchored widget
- * does. The panel re-renders only when the frontmatter or expanded state changes,
+ * The form is a top editor panel (`showPanel`), gated on the frontmatter
+ * structure-edit reveal — it appears with the revealed YAML and disappears when
+ * the reveal clears. Living outside the document model keeps the frontmatter
+ * edits it commits (which add/remove lines) from crashing a doc-anchored block
+ * widget. While mounted it re-renders only when the frontmatter content changes,
  * preserving focused inputs during unrelated edits.
  */
 function createPropertiesPanel(view: EditorView): Panel {
@@ -296,37 +244,61 @@ function createPropertiesPanel(view: EditorView): Panel {
   let lastKey = "";
 
   const render = (): void => {
-    const frontmatter = view.state.field(frontmatterField, false);
-    if (!frontmatter || frontmatter.end <= 0) {
-      if (lastKey !== "") {
-        dom.replaceChildren();
-        lastKey = "";
-      }
-      return;
-    }
-    const expanded = view.state.field(propertiesPanelExpandedField, false) ?? false;
     const props = readPanelProperties(view.state.doc.toString());
-    const key = `${expanded}|${propsKey(props)}`;
+    const key = propsKey(props);
     if (key === lastKey) return;
     lastKey = key;
-    dom.replaceChildren(new DocumentPropertiesBuilder(props, expanded).build(view));
+    dom.replaceChildren(new DocumentPropertiesBuilder(props).build(view));
   };
+
+  const onFocusIn = (): void => {
+    if (!view.state.field(propertiesFormFocusedField, false)) {
+      view.dispatch({ effects: setPropertiesFormFocused.of(true) });
+    }
+  };
+  const onFocusOut = (event: FocusEvent): void => {
+    const next = event.relatedTarget;
+    if (next instanceof Node && dom.contains(next)) return;
+    if (view.state.field(propertiesFormFocusedField, false)) {
+      view.dispatch({ effects: setPropertiesFormFocused.of(false) });
+    }
+  };
+  dom.addEventListener("focusin", onFocusIn);
+  dom.addEventListener("focusout", onFocusOut);
 
   render();
   return {
     dom,
     top: true,
     update(update) {
-      const toggled = update.transactions.some((tr) =>
-        tr.effects.some((effect) => effect.is(setPropertiesPanelExpanded)),
-      );
-      if (update.docChanged || toggled) render();
+      if (update.docChanged) render();
+    },
+    destroy() {
+      dom.removeEventListener("focusin", onFocusIn);
+      dom.removeEventListener("focusout", onFocusOut);
     },
   };
 }
 
-/** Rich-mode document-properties panel extension. */
+/**
+ * Whether the document-properties form should be revealed: while the frontmatter
+ * structure-edit is active (title click / cursor in frontmatter), or while the
+ * form itself holds focus (so editing a field keeps it mounted).
+ */
+function frontmatterPanelVisible(state: EditorState): boolean {
+  const frontmatter = state.field(frontmatterField, false);
+  if (!frontmatter || frontmatter.end <= 0) return false;
+  return (
+    isFrontmatterStructureEditActive(state) ||
+    (state.field(propertiesFormFocusedField, false) ?? false)
+  );
+}
+
+/** Rich-mode document-properties form, revealed alongside the frontmatter YAML. */
 export const documentPropertiesPanel: Extension = [
-  propertiesPanelExpandedField,
-  showPanel.of(createPropertiesPanel),
+  propertiesFormFocusedField,
+  showPanel.compute(
+    [frontmatterField, activeStructureEditField, propertiesFormFocusedField],
+    (state) => (frontmatterPanelVisible(state) ? createPropertiesPanel : null),
+  ),
 ];
