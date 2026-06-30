@@ -111,6 +111,22 @@ describe("buildSectionDecorations", () => {
     ]);
   });
 
+  it("switches editor heading decorations to appendix numbering after appendix boundary", () => {
+    const doc = [
+      "# Intro",
+      "",
+      "# Appendix {.appendix}",
+      "",
+      "# Extra Proofs",
+      "",
+      "## Lemma Details",
+      "",
+      "# Tables",
+    ].join("\n");
+
+    expect(extractNumbers(createState(doc))).toEqual(["1", "A", "A.1", "B"]);
+  });
+
   it("resets deeper counters when a shallower heading appears", () => {
     const doc = [
       "# A",

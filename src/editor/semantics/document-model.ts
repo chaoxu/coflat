@@ -41,6 +41,7 @@ export interface HeadingSemantics {
   readonly text: string;
   readonly id?: string;
   readonly number: string;
+  readonly appendixBoundary: boolean;
   readonly unnumbered: boolean;
 }
 

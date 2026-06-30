@@ -143,6 +143,7 @@
 .cm-line.cf-doc-block--abstract {
   box-sizing: border-box;
   inline-size: var(--cf-doc-abstract-width, 88%);
+  line-height: 1.55;
   margin-inline: auto;
   max-inline-size: var(--cf-doc-abstract-max-width, 42rem);
 }
@@ -155,7 +156,7 @@
   font-weight: 650;
   letter-spacing: 0.08em;
   line-height: 1.4;
-  padding-bottom: 0.18em;
+  padding-bottom: 0.117em;
   text-align: center;
   text-transform: uppercase;
 }

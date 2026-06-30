@@ -341,6 +341,15 @@ function computeReaderBlockNumbers(
   return computeBlockNumbers(blocks, getSpec, numbering);
 }
 
+function cloneHeadingCounters(
+  counters: HeadingNumberCounters,
+): HeadingNumberCounters {
+  return {
+    appendix: counters.appendix,
+    values: [...counters.values],
+  };
+}
+
 function renderInlineSnippet(ctx: WalkContext, source: string): BlockResult {
   const tree = parseSource(source);
   const snippetCtx: WalkContext = {
@@ -352,7 +361,7 @@ function renderInlineSnippet(ctx: WalkContext, source: string): BlockResult {
     collectOutline: false,
     outline: [],
     usedHeadingIds: new Set(),
-    headingCounters: [...ctx.headingCounters],
+    headingCounters: cloneHeadingCounters(ctx.headingCounters),
     blockNumbers: ctx.blockNumbers,
     blockNumbering: ctx.blockNumbering,
     blockNumberingSpec: ctx.blockNumberingSpec,
@@ -392,7 +401,7 @@ function renderInlineSnippetFragments(
     collectOutline: false,
     outline: [],
     usedHeadingIds: new Set(),
-    headingCounters: [...ctx.headingCounters],
+    headingCounters: cloneHeadingCounters(ctx.headingCounters),
     blockNumbers: ctx.blockNumbers,
     blockNumbering: ctx.blockNumbering,
     blockNumberingSpec: ctx.blockNumberingSpec,
@@ -1389,7 +1398,11 @@ function renderHeading(ctx: WalkContext, node: SyntaxNode): BlockResult {
   // resolve even when numbers aren't shown; `displayUnnumbered` only hides the
   // number — when sectionNumbering is off, every heading renders unnumbered.
   const headingNumberResult = nextHeadingNumber(
-    { level: plan.level, unnumbered: !!plan.attributes?.unnumbered },
+    {
+      appendixBoundary: !!plan.attributes?.appendixBoundary,
+      level: plan.level,
+      unnumbered: !!plan.attributes?.unnumbered,
+    },
     ctx.headingCounters,
   );
   ctx.headingCounters = headingNumberResult.counters;
@@ -1888,7 +1901,7 @@ function walkDocument(
       if (budgetKind) {
         // Snapshot footnote state so we can roll back if we end up not emitting.
         const footnoteSnapshot = snapshotFootnoteEmissionState(ctx.footnotes);
-        const headingCounterSnapshot = [...ctx.headingCounters];
+        const headingCounterSnapshot = cloneHeadingCounters(ctx.headingCounters);
         const outlineLen = ctx.outline.length;
         const usedHeadingIdsSnapshot = new Set(ctx.usedHeadingIds);
         const citedKeysLen = ctx.citedKeys.length;

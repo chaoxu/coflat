@@ -284,7 +284,7 @@ describe("renderToHtml — slow path (Lezer)", () => {
     expect(classAttr.html).not.toContain("{.unnumbered}");
   });
 
-  it("strips non-numbering Pandoc heading attributes from visible text", () => {
+  it("strips non-top-level appendix heading attributes without starting appendix mode", () => {
     const r = renderToHtml("## A target {#sec:a .appendix}");
     expect(r.html).toContain('class="cf-doc-heading cf-doc-heading--h2"');
     expect(r.html).toContain('id="sec:a"');
@@ -292,6 +292,27 @@ describe("renderToHtml — slow path (Lezer)", () => {
     expect(r.html).toContain(">A target</h2>");
     expect(r.html).not.toContain("{#sec:a");
     expect(r.html).not.toContain("cf-doc-heading--unnumbered");
+  });
+
+  it("renders appendix heading boundaries and appendix section numbers", () => {
+    const r = renderToHtml([
+      "# Intro",
+      "",
+      "# Appendix {.appendix}",
+      "",
+      "# Extra Proofs",
+      "",
+      "## Lemma Details",
+      "",
+      "# Tables",
+    ].join("\n"));
+
+    expect(r.html).toContain('data-section-number="1"');
+    expect(r.html).toContain('class="cf-doc-heading cf-doc-heading--h1 cf-doc-heading--unnumbered" data-heading-numbering="none">Appendix</h1>');
+    expect(r.html).toContain('data-section-number="A"');
+    expect(r.html).toContain('data-section-number="A.1"');
+    expect(r.html).toContain('data-section-number="B"');
+    expect(r.html).not.toContain("{.appendix}");
   });
 
   it("keeps trailing braces when they are not Pandoc heading attributes", () => {

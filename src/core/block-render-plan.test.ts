@@ -436,6 +436,7 @@ describe("headingRenderPlan", () => {
       rawContentRange: { from: 4, to: source.indexOf(" ###") },
       contentRange: { from: 4, to: source.indexOf(" {#") },
       attributes: {
+        appendixBoundary: false,
         contentTo: source.indexOf(" {#"),
         id: "sec:intro",
         unnumbered: true,
@@ -486,7 +487,40 @@ describe("headingRenderPlan", () => {
       textTo: source.indexOf(" {#"),
       text: "Hello world",
       id: "sec:intro",
+      appendixBoundary: false,
       unnumbered: true,
+    });
+  });
+
+  it("marks appendix heading attributes as unnumbered boundaries", () => {
+    const source = "# Appendix {.appendix}";
+
+    expect(headingSemanticPlan(source, firstHeading(source))).toEqual({
+      from: 0,
+      to: source.length,
+      level: 1,
+      textFrom: 2,
+      textTo: source.indexOf(" {.appendix}"),
+      text: "Appendix",
+      id: undefined,
+      appendixBoundary: true,
+      unnumbered: true,
+    });
+  });
+
+  it("only treats top-level appendix heading attributes as appendix boundaries", () => {
+    const source = "## Appendix {.appendix}";
+
+    expect(headingSemanticPlan(source, firstHeading(source))).toEqual({
+      from: 0,
+      to: source.length,
+      level: 2,
+      textFrom: 3,
+      textTo: source.indexOf(" {.appendix}"),
+      text: "Appendix",
+      id: undefined,
+      appendixBoundary: false,
+      unnumbered: false,
     });
   });
 
@@ -501,6 +535,7 @@ describe("headingRenderPlan", () => {
       textTo: source.indexOf(" {#"),
       text: "Setext $x$",
       id: "sec:x",
+      appendixBoundary: false,
       unnumbered: false,
     });
   });

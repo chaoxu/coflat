@@ -143,6 +143,7 @@ function sameReferenceIndexHeadingMetadata(
       || before.text !== after.text
       || before.id !== after.id
       || before.number !== after.number
+      || before.appendixBoundary !== after.appendixBoundary
       || before.unnumbered !== after.unnumbered
     ) {
       return false;

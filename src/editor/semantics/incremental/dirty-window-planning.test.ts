@@ -45,6 +45,7 @@ function headingRange(from: number, to: number): HeadingSemantics {
     textTo: to,
     text: "Heading",
     number: "1",
+    appendixBoundary: false,
     unnumbered: false,
   };
 }

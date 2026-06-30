@@ -37,13 +37,21 @@ export function findTrailingHeadingAttributes(
 }
 
 export function hasUnnumberedHeadingAttributes(text: string): boolean {
+  return hasHeadingAttributeToken(text, "-", ".unnumbered", ".appendix");
+}
+
+export function hasAppendixHeadingAttribute(text: string): boolean {
+  return hasHeadingAttributeToken(text, ".appendix");
+}
+
+function hasHeadingAttributeToken(text: string, ...tokens: readonly string[]): boolean {
   const attrs = findTrailingHeadingAttributes(text);
   if (attrs === null) return false;
   let pos = skipSpaces(attrs.content, 0);
   while (pos < attrs.content.length) {
     const next = readAttributeToken(attrs.content, pos);
     const token = attrs.content.slice(pos, next);
-    if (token === "-" || token === ".unnumbered") return true;
+    if (tokens.includes(token)) return true;
     pos = skipSpaces(attrs.content, next);
   }
   return false;

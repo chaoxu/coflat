@@ -35,6 +35,7 @@ describe("document semantics analyzers", () => {
         text: "Intro",
         id: undefined,
         number: "1",
+        appendixBoundary: false,
         unnumbered: false,
       },
       {
@@ -46,8 +47,29 @@ describe("document semantics analyzers", () => {
         text: "Details",
         id: undefined,
         number: "",
+        appendixBoundary: false,
         unnumbered: true,
       },
+    ]);
+  });
+
+  it("treats an appendix heading as an unnumbered boundary for following headings", () => {
+    const doc = "# Intro\n\n# Appendix {.appendix}\n\n# Extra Proofs\n\n## Lemma Details\n\n# Tables\n";
+    const tree = parser.parse(doc);
+
+    const headings = analyzeHeadings(stringTextSource(doc), tree);
+
+    expect(headings.map((heading) => ({
+      appendixBoundary: heading.appendixBoundary,
+      number: heading.number,
+      text: heading.text,
+      unnumbered: heading.unnumbered,
+    }))).toEqual([
+      { appendixBoundary: false, number: "1", text: "Intro", unnumbered: false },
+      { appendixBoundary: true, number: "", text: "Appendix", unnumbered: true },
+      { appendixBoundary: false, number: "A", text: "Extra Proofs", unnumbered: false },
+      { appendixBoundary: false, number: "A.1", text: "Lemma Details", unnumbered: false },
+      { appendixBoundary: false, number: "B", text: "Tables", unnumbered: false },
     ]);
   });
 
@@ -94,6 +116,7 @@ describe("document semantics analyzers", () => {
         text: "Setext One",
         id: undefined,
         number: "1",
+        appendixBoundary: false,
         unnumbered: false,
       },
       {
@@ -105,6 +128,7 @@ describe("document semantics analyzers", () => {
         text: "Setext Two",
         id: "sec:two",
         number: "1.1",
+        appendixBoundary: false,
         unnumbered: false,
       },
     ]);
@@ -307,6 +331,9 @@ describe("document semantics analyzers", () => {
     });
     expect(findTrailingHeadingAttributes("Title {.unnumbered}")).toMatchObject({
       content: ".unnumbered",
+    });
+    expect(findTrailingHeadingAttributes("Appendix {.appendix}")).toMatchObject({
+      content: ".appendix",
     });
     expect(findTrailingHeadingAttributes("Title {#id .class}")).toMatchObject({
       content: "#id .class",

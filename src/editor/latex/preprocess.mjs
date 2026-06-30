@@ -1,6 +1,7 @@
 export {
   hoistAbstractBlock,
   hoistMathMacros,
+  insertAppendixBoundary,
   liftFencedDivTitles,
   promoteLabeledDisplayMath,
   renderMathMacros,

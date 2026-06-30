@@ -222,6 +222,7 @@ function shiftHeadingSemantics(
     text: value.text,
     id: value.id,
     number: value.number,
+    appendixBoundary: value.appendixBoundary,
     unnumbered: value.unnumbered,
   };
 }
@@ -246,6 +247,7 @@ export function mapHeadingSemantics(
     text: value.text,
     id: value.id,
     number: value.number,
+    appendixBoundary: value.appendixBoundary,
     unnumbered: value.unnumbered,
   };
 }

@@ -234,7 +234,27 @@ ATX headings (`#` through `######`). Auto-numbered unless marked unnumbered. Exp
 ## Background {#sec:background} --> cross-ref target "Section 1.1"
 ```
 
-Trailing Pandoc attribute blocks are supported on headings. Coflat uses them primarily for `#id`, `{-}`, and `{.unnumbered}`.
+Appendices start at a top-level semantic appendix boundary:
+
+```markdown
+# Main Result                    --> "1. Main Result"
+
+# Appendix {.appendix}           --> no number; starts appendix mode after this heading
+
+# Extra Proofs                   --> "A. Extra Proofs"
+## Technical Lemma               --> "A.1. Technical Lemma"
+# Data Tables                    --> "B. Data Tables"
+```
+
+The `.appendix` marker is meaningful only on top-level `#` headings. The marker
+heading itself is unnumbered, the marker is stripped from visible text, and all
+following numbered headings use appendix letters (`A`, `B`, ...) with dotted
+subheading numbers (`A.1`, `A.2`, ...). If the first numbered heading after the
+boundary is a subheading, it is treated as part of implicit appendix `A` (for
+example, `## Proofs` becomes `A.1`). Explicitly unnumbered headings after the
+boundary remain unnumbered. LaTeX/PDF export emits `\appendix` at this boundary.
+
+Trailing Pandoc attribute blocks are supported on headings. Coflat uses them primarily for `#id`, `{-}`, `{.unnumbered}`, and `{.appendix}`.
 
 ## Math
 

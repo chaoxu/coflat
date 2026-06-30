@@ -186,6 +186,160 @@ function isFenceCloser(line, fence) {
   return Boolean(match && match[1].length >= fence.length);
 }
 
+const APPENDIX_HEADING_RE = /^(#)([ \t]+)(.*?)([ \t]+\{([^}]*)\})([ \t]*#*[ \t]*)$/;
+
+function isFenceLine(line) {
+  return /^ {0,3}(`{3,}|~{3,})(.*)$/.exec(line);
+}
+
+function splitFrontmatterLines(markdown) {
+  const lines = markdown.split("\n");
+  if (!isFrontmatterDelimiterLine(lines[0] ?? "")) {
+    return { bodyLines: lines, frontmatterLines: [] };
+  }
+  for (let i = 1; i < lines.length; i += 1) {
+    if (isFrontmatterDelimiterLine(lines[i])) {
+      return {
+        bodyLines: lines.slice(i + 1),
+        frontmatterLines: lines.slice(0, i + 1),
+      };
+    }
+  }
+  return { bodyLines: lines, frontmatterLines: [] };
+}
+
+function fenceInfo(match) {
+  if (!match) return null;
+  const marker = match[1];
+  return {
+    char: marker[0],
+    length: marker.length,
+    tail: match[2] ?? "",
+  };
+}
+
+function isFenceClose(candidate, opener) {
+  return (
+    candidate.char === opener.char &&
+    candidate.length >= opener.length &&
+    /^[ \t]*$/.test(candidate.tail)
+  );
+}
+
+function latexEnvironmentName(line, kind) {
+  const match = new RegExp(`^\\\\${kind}\\{([^}]+)\\}`).exec(line);
+  return match?.[1] ?? null;
+}
+
+function opensMathBlock(line) {
+  if (/^[ \t]*\$\$[ \t]*$/.test(line)) return { kind: "dollars" };
+  if (/^[ \t]*\\\[[ \t]*$/.test(line)) return { kind: "brackets" };
+  const environment = latexEnvironmentName(line, "begin");
+  return environment ? { kind: "environment", environment } : null;
+}
+
+function closesMathBlock(line, block) {
+  if (block.kind === "dollars") return /^[ \t]*\$\$(?:[ \t]+\{[^}]*\})?[ \t]*$/.test(line);
+  if (block.kind === "brackets") return /^[ \t]*\\\][ \t]*$/.test(line);
+  return latexEnvironmentName(line, "end") === block.environment;
+}
+
+function normalizeAppendixHeadingAttrs(rawAttrs) {
+  const tokens = rawAttrs.trim().split(/\s+/).filter(Boolean);
+  if (!tokens.includes(".appendix")) return null;
+  const kept = tokens.filter((token) => token !== ".appendix");
+  if (!kept.includes(".unnumbered") && !kept.includes("-")) {
+    kept.push(".unnumbered");
+  }
+  return kept.length > 0 ? `{${kept.join(" ")}}` : "{.unnumbered}";
+}
+
+function headingInfo(line) {
+  const match = /^(#{1,6})([ \t]+)(.*?)([ \t]*#*[ \t]*)$/.exec(line);
+  if (!match) return null;
+  const attrMatch = /[ \t]+\{([^}]*)\}[ \t]*#*[ \t]*$/.exec(line);
+  const attrTokens = attrMatch ? attrMatch[1].trim().split(/\s+/).filter(Boolean) : [];
+  return {
+    level: match[1].length,
+    unnumbered: attrTokens.includes(".unnumbered") || attrTokens.includes("-"),
+  };
+}
+
+/**
+ * Export path compatibility: Coflat treats `# Appendix {.appendix}` as a
+ * semantic boundary heading. Pandoc/LaTeX needs an explicit `\appendix` command
+ * before that boundary, and the boundary heading itself must stay unnumbered.
+ */
+export function insertAppendixBoundary(markdown) {
+  const { bodyLines, frontmatterLines } = splitFrontmatterLines(markdown);
+  const out = [];
+  let emitted = false;
+  let seededImplicitAppendix = false;
+  let activeFence = null;
+  let activeMathBlock = null;
+
+  for (const line of bodyLines) {
+    const currentFence = fenceInfo(isFenceLine(line));
+    if (currentFence) {
+      if (activeFence === null) {
+        activeFence = currentFence;
+      } else if (isFenceClose(currentFence, activeFence)) {
+        activeFence = null;
+      }
+      out.push(line);
+      continue;
+    }
+
+    if (activeFence !== null) {
+      out.push(line);
+      continue;
+    }
+
+    if (activeMathBlock !== null) {
+      if (closesMathBlock(line, activeMathBlock)) {
+        activeMathBlock = null;
+      }
+      out.push(line);
+      continue;
+    }
+
+    const mathBlock = opensMathBlock(line);
+    if (mathBlock !== null) {
+      activeMathBlock = mathBlock;
+      out.push(line);
+      continue;
+    }
+
+    if (emitted && !seededImplicitAppendix) {
+      const heading = headingInfo(line);
+      if (heading && !heading.unnumbered) {
+        if (heading.level > 1) {
+          out.push("\\setcounter{section}{1}");
+        }
+        seededImplicitAppendix = true;
+      }
+    }
+
+    if (emitted) {
+      out.push(line);
+      continue;
+    }
+
+    const match = APPENDIX_HEADING_RE.exec(line);
+    const attrs = match ? normalizeAppendixHeadingAttrs(match[5]) : null;
+    if (!match || attrs === null) {
+      out.push(line);
+      continue;
+    }
+
+    out.push("\\appendix");
+    out.push(`${match[1]}${match[2]}${match[3].trimEnd()} ${attrs}${match[6]}`);
+    emitted = true;
+  }
+
+  return [...frontmatterLines, ...out].join("\n");
+}
+
 /**
  * Export path compatibility: Coflat treats `::: {.abstract}` as normal document
  * prose, while Pandoc templates expect an `abstract` metadata field. Hoist the
@@ -229,14 +383,15 @@ export function hoistAbstractBlock(markdown) {
 }
 
 /**
- * Full pre-pandoc pipeline: hoist math macros, hoist abstract blocks, promote
- * labeled display math, then lift fenced-div titles. The root frontmatter is
- * preserved (minus `math:`, which is rewritten into `header-includes`) so
- * pandoc reads it as metadata.
+ * Full pre-pandoc pipeline: hoist math macros, hoist abstract blocks, insert
+ * appendix boundaries, promote labeled display math, then lift fenced-div
+ * titles. The root frontmatter is preserved (minus `math:`, which is rewritten
+ * into `header-includes`) so pandoc reads it as metadata.
  */
 export async function preprocessWithReadFile(markdown) {
   const withMacros = hoistMathMacros(markdown);
   const withAbstract = hoistAbstractBlock(withMacros);
-  const withEquations = promoteLabeledDisplayMath(withAbstract);
+  const withAppendix = insertAppendixBoundary(withAbstract);
+  const withEquations = promoteLabeledDisplayMath(withAppendix);
   return liftFencedDivTitles(withEquations);
 }

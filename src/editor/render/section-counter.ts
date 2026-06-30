@@ -79,8 +79,18 @@ function buildSectionDecorationsForHeadings(
 }
 
 function sameSectionHeadingTopology(
-  before: readonly { readonly from: number; readonly level: number; readonly unnumbered: boolean }[],
-  after: readonly { readonly from: number; readonly level: number; readonly unnumbered: boolean }[],
+  before: readonly {
+    readonly appendixBoundary: boolean;
+    readonly from: number;
+    readonly level: number;
+    readonly unnumbered: boolean;
+  }[],
+  after: readonly {
+    readonly appendixBoundary: boolean;
+    readonly from: number;
+    readonly level: number;
+    readonly unnumbered: boolean;
+  }[],
 ): boolean {
   if (before.length !== after.length) {
     return false;
@@ -90,6 +100,7 @@ function sameSectionHeadingTopology(
     if (
       before[index].from !== after[index].from ||
       before[index].level !== after[index].level ||
+      before[index].appendixBoundary !== after[index].appendixBoundary ||
       before[index].unnumbered !== after[index].unnumbered
     ) {
       return false;

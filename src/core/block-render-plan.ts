@@ -310,6 +310,7 @@ export interface FencedDivRenderPlan {
 }
 
 export interface HeadingAttributePlan {
+  readonly appendixBoundary: boolean;
   readonly contentTo: number;
   readonly unnumbered: boolean;
   readonly id?: string;
@@ -344,6 +345,7 @@ export interface HeadingSemanticPlan {
   readonly textTo: number;
   readonly text: string;
   readonly id?: string;
+  readonly appendixBoundary: boolean;
   readonly unnumbered: boolean;
 }
 
@@ -1155,6 +1157,7 @@ export function headingRenderPlan(
   const rawContentRange = headingContentRange(source, node);
   const attributes = parsePandocHeadingAttributes(
     source,
+    level,
     rawContentRange.from,
     rawContentRange.to,
   );
@@ -1195,6 +1198,7 @@ export function headingSemanticPlan(
     textTo: plan.contentRange.to,
     text: plan.text,
     id: plan.attributes?.id,
+    appendixBoundary: !!plan.attributes?.appendixBoundary,
     unnumbered: !!plan.attributes?.unnumbered,
   };
 }
@@ -1236,6 +1240,7 @@ export function headingContentRange(
 
 export function parsePandocHeadingAttributes(
   source: string,
+  level: number,
   contentFrom: number,
   contentTo: number,
 ): HeadingAttributePlan | null {
@@ -1255,9 +1260,11 @@ export function parsePandocHeadingAttributes(
   let strippedTo = open;
   while (strippedTo > contentFrom && /\s/.test(source[strippedTo - 1] ?? "")) strippedTo--;
   const idToken = tokens.find((token) => token.startsWith("#"));
+  const appendixBoundary = level === 1 && tokens.includes(".appendix");
   return {
+    appendixBoundary,
     contentTo: strippedTo,
-    unnumbered: tokens.includes("-") || tokens.includes(".unnumbered"),
+    unnumbered: appendixBoundary || tokens.includes("-") || tokens.includes(".unnumbered"),
     id: idToken?.slice(1),
   };
 }

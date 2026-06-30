@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   hoistAbstractBlock,
   hoistMathMacros,
+  insertAppendixBoundary,
   liftFencedDivTitles,
   preprocess,
   promoteLabeledDisplayMath,
@@ -172,6 +173,95 @@ describe("promoteLabeledDisplayMath", () => {
   });
 });
 
+describe("insertAppendixBoundary", () => {
+  it("inserts a LaTeX appendix command and unnumbers the boundary heading", () => {
+    const src = "# Intro\n\n# Appendix {.appendix}\n\n# Proofs\n";
+    const out = insertAppendixBoundary(src);
+
+    expect(out).toBe("# Intro\n\n\\appendix\n# Appendix {.unnumbered}\n\n# Proofs\n");
+  });
+
+  it("preserves ids and other heading attributes on the appendix boundary", () => {
+    const src = "# Appendix {#app .appendix .bookmark}\n\n# Proofs\n";
+    const out = insertAppendixBoundary(src);
+
+    expect(out).toContain("\\appendix\n# Appendix {#app .bookmark .unnumbered}");
+    expect(out).not.toContain(".appendix");
+  });
+
+  it("does not rewrite appendix text inside fenced code", () => {
+    const src = "```md\n# Appendix {.appendix}\n```\n\n# Body\n";
+
+    expect(insertAppendixBoundary(src)).toBe(src);
+  });
+
+  it("does not rewrite appendix text inside longer fenced code blocks", () => {
+    const src = "````md\n```\n# Appendix {.appendix}\n```\n````\n\n# Body\n";
+
+    expect(insertAppendixBoundary(src)).toBe(src);
+  });
+
+  it("does not close fenced code on fence markers with trailing text", () => {
+    const src = "```txt\n```not-close\n# Appendix {.appendix}\n```\n";
+
+    expect(insertAppendixBoundary(src)).toBe(src);
+  });
+
+  it("does not let math-looking text inside fenced code hide a real appendix boundary", () => {
+    const src = "```txt\n$$\n```\n\n# Appendix {.appendix}\n\n# Proofs\n";
+
+    expect(insertAppendixBoundary(src)).toBe(
+      "```txt\n$$\n```\n\n\\appendix\n# Appendix {.unnumbered}\n\n# Proofs\n",
+    );
+  });
+
+  it("does not scan YAML frontmatter comments as appendix headings", () => {
+    const src = "---\ntitle: Demo\n# Appendix {.appendix}\n---\n\n# Body\n";
+
+    expect(insertAppendixBoundary(src)).toBe(src);
+  });
+
+  it("does not rewrite appendix text inside display math", () => {
+    const src = "$$\n# Appendix {.appendix}\n$$\n\n# Body\n";
+
+    expect(insertAppendixBoundary(src)).toBe(src);
+  });
+
+  it("does not rewrite appendix text inside raw LaTeX environments", () => {
+    const src = "\\begin{equation}\n# Appendix {.appendix}\n\\end{equation}\n\n# Body\n";
+
+    expect(insertAppendixBoundary(src)).toBe(src);
+  });
+
+  it("ignores non-top-level appendix headings for export", () => {
+    const src = "# Main\n\n## Appendix {.appendix}\n\n## Proofs\n";
+
+    expect(insertAppendixBoundary(src)).toBe(src);
+  });
+
+  it("seeds appendix A before the first numbered subheading", () => {
+    const src = "# Appendix {.appendix}\n\n## Proofs\n\n# Data\n";
+
+    expect(insertAppendixBoundary(src)).toBe(
+      "\\appendix\n# Appendix {.unnumbered}\n\n\\setcounter{section}{1}\n## Proofs\n\n# Data\n",
+    );
+  });
+
+  it("does not seed appendix A before a top-level appendix heading", () => {
+    const src = "# Appendix {.appendix}\n\n# Proofs\n";
+
+    expect(insertAppendixBoundary(src)).toBe("\\appendix\n# Appendix {.unnumbered}\n\n# Proofs\n");
+  });
+
+  it("skips unnumbered headings before deciding whether to seed appendix A", () => {
+    const src = "# Appendix {.appendix}\n\n## Notes {-}\n\n## Proofs\n";
+
+    expect(insertAppendixBoundary(src)).toBe(
+      "\\appendix\n# Appendix {.unnumbered}\n\n## Notes {-}\n\n\\setcounter{section}{1}\n## Proofs\n",
+    );
+  });
+});
+
 describe("preprocess", () => {
   it("preserves standard \\textsc in math for LaTeX/PDF export", async () => {
     const body = "Problem $\\textsc{Minimum Vertex Cover}$ stays standard.";
@@ -218,5 +308,12 @@ describe("preprocess", () => {
     expect(out).toContain("abstract: Exported abstract.");
     expect(out).not.toContain("::: {.abstract}");
     expect(out).toContain("Body.");
+  });
+
+  it("inserts appendix boundaries before pandoc export", async () => {
+    const out = await preprocess("# Main\n\n# Appendix {.appendix}\n\n# Proofs\n", "main.md");
+
+    expect(out).toContain("\\appendix\n# Appendix {.unnumbered}");
+    expect(out).not.toContain("{.appendix}");
   });
 });
