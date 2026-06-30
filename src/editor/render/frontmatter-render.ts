@@ -6,10 +6,15 @@
  * entirely when there is no title).
  */
 
+import { syntaxTree, syntaxTreeAvailable } from "@codemirror/language";
 import type { Transaction } from "@codemirror/state";
 import { EditorState, type Extension, type Range } from "@codemirror/state";
 import { Decoration, DecorationSet, EditorView, type WidgetType } from "@codemirror/view";
 import { CSS } from "../../core/constants/css-classes";
+import {
+  DOCUMENT_SURFACE_CLASS,
+  documentSurfaceClassNames,
+} from "../../core/document-surface-classes";
 import { documentContextFacet } from "../document-context";
 import { renderDocumentFragmentToDom } from "../document-surfaces";
 import {
@@ -205,6 +210,54 @@ function frontmatterReferenceKey(state: EditorState): string {
   ].join("\u0001");
 }
 
+function firstVisibleParagraphLineDecoration(
+  state: EditorState,
+  visualEnd: number,
+): Range<Decoration> | null {
+  if (visualEnd >= state.doc.length) return null;
+  const line = state.doc.lineAt(visualEnd);
+  if (line.from !== visualEnd || line.text.trim() === "") return null;
+
+  let isTopLevelParagraph = false;
+  if (syntaxTreeAvailable(state, line.to)) {
+    syntaxTree(state).iterate({
+      from: line.from,
+      to: line.to,
+      enter(node) {
+        if (
+          node.type.name === "Paragraph" &&
+          node.node.parent?.name === "Document" &&
+          node.from <= line.from &&
+          node.to >= line.to
+        ) {
+          isTopLevelParagraph = true;
+          return false;
+        }
+        return undefined;
+      },
+    });
+  } else {
+    isTopLevelParagraph = looksLikePlainParagraphLine(line.text);
+  }
+  if (!isTopLevelParagraph) return null;
+  return Decoration.line({
+    attributes: { "data-tag-name": "p" },
+    class: documentSurfaceClassNames(DOCUMENT_SURFACE_CLASS.paragraph),
+  }).range(line.from);
+}
+
+function looksLikePlainParagraphLine(text: string): boolean {
+  const trimmed = text.trimStart();
+  return !(
+    /^#{1,6}(?:\s|$)/.test(trimmed) ||
+    /^[-*_]{3,}\s*$/.test(trimmed) ||
+    /^(```|~~~)/.test(trimmed) ||
+    /^>/.test(trimmed) ||
+    /^([-+*]|\d+[.)])\s/.test(trimmed) ||
+    /^(\$\$|\\\[|:::)/.test(trimmed)
+  );
+}
+
 function createFrontmatterReferenceContext(state: EditorState): InlineReferenceRenderContext {
   const bibData = state.field(bibDataField, false);
   const formatter = bibData?.formatter ?? null;
@@ -248,6 +301,7 @@ function buildDecorations(state: EditorState): DecorationSet {
   if (end <= 0) return Decoration.none;
   const active = isFrontmatterActive(state);
   const visualEnd = frontmatterVisualEnd(state, end);
+  const replaceEnd = Math.max(end, visualEnd > end ? visualEnd - 1 : visualEnd);
 
   if (shouldShowFrontmatterSource(state)) {
     const decos: Range<Decoration>[] = [];
@@ -284,9 +338,13 @@ function buildDecorations(state: EditorState): DecorationSet {
         widget,
         block: true,
         inclusiveEnd: false,
-      }).range(0, visualEnd),
-    ]);
+      }).range(0, replaceEnd),
+      firstVisibleParagraphLineDecoration(state, visualEnd),
+    ].filter((deco): deco is Range<Decoration> => deco !== null));
   }
 
-  return Decoration.set([Decoration.replace({ inclusiveEnd: false }).range(0, visualEnd)]);
+  return Decoration.set([
+    Decoration.replace({ inclusiveEnd: false }).range(0, replaceEnd),
+    firstVisibleParagraphLineDecoration(state, visualEnd),
+  ].filter((deco): deco is Range<Decoration> => deco !== null));
 }
