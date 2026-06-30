@@ -4,6 +4,7 @@ import {
   editFrontmatter,
   readPanelProperties,
   removeMathMacro,
+  renameFrontmatterScalar,
   renameMathMacro,
   setFrontmatterScalar,
   setMathMacro,
@@ -128,5 +129,49 @@ body
   it("is a no-op shape for an unrelated edit round-trip", () => {
     const out = editFrontmatter(DOC, () => {});
     expect(readPanelProperties(out)).toEqual(readPanelProperties(DOC));
+  });
+});
+
+describe("arbitrary (extra) properties", () => {
+  const WITH_EXTRA = `---
+title: T
+keywords: algebra, topology
+license:
+---
+body
+`;
+
+  it("reads non-known top-level string keys as extra, in order", () => {
+    const extra = readPanelProperties(WITH_EXTRA).extra;
+    // `keywords` is a string; `license` has no value (null) and surfaces blank.
+    expect(extra).toEqual({ keywords: "algebra, topology", license: "" });
+  });
+
+  it("excludes known keys and `math` from extra", () => {
+    expect(readPanelProperties(DOC).extra).toEqual({});
+  });
+
+  it("does not surface typed scalars or nested maps as extra", () => {
+    const doc = `---\ncount: 5\nflag: true\nnested:\n  a: 1\n---\nbody\n`;
+    expect(readPanelProperties(doc).extra).toEqual({});
+  });
+
+  it("adds and removes an extra key via setFrontmatterScalar", () => {
+    const added = setFrontmatterScalar(DOC, "license", "CC-BY");
+    expect(readPanelProperties(added).extra).toEqual({ license: "CC-BY" });
+    const removed = setFrontmatterScalar(added, "license", null);
+    expect(readPanelProperties(removed).extra).toEqual({});
+  });
+
+  it("renames an extra key while keeping its value", () => {
+    const out = renameFrontmatterScalar(WITH_EXTRA, "keywords", "tags");
+    const extra = readPanelProperties(out).extra;
+    expect(extra.tags).toBe("algebra, topology");
+    expect(extra.keywords).toBeUndefined();
+  });
+
+  it("rename is a no-op for a missing or unchanged key", () => {
+    expect(renameFrontmatterScalar(WITH_EXTRA, "absent", "x")).toBe(WITH_EXTRA);
+    expect(renameFrontmatterScalar(WITH_EXTRA, "keywords", "keywords")).toBe(WITH_EXTRA);
   });
 });

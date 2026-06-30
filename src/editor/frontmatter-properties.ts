@@ -32,6 +32,9 @@ function frontmatterDocument(extracted: ExtractedFrontmatter): Document {
   return new Document({});
 }
 
+/** Top-level keys the panel surfaces as dedicated form fields. */
+const KNOWN_SCALAR_KEYS = ["title", "id", "bibliography", "type", "status", "target"] as const;
+
 /** The subset of frontmatter the panel surfaces as form fields. */
 export interface PanelProperties {
   readonly title?: string;
@@ -42,6 +45,12 @@ export interface PanelProperties {
   readonly target?: string;
   /** Macro name (with leading backslash) → KaTeX expansion. */
   readonly math: Readonly<Record<string, string>>;
+  /**
+   * Arbitrary user-added top-level scalar keys not covered by the dedicated
+   * fields above (and not `math`), in document order. Lets authors add
+   * properties the form doesn't model without dropping to raw YAML.
+   */
+  readonly extra: Readonly<Record<string, string>>;
 }
 
 function asString(value: unknown): string | undefined {
@@ -71,6 +80,18 @@ export function readPanelProperties(source: string): PanelProperties {
     }
   }
 
+  const known = new Set<string>([...KNOWN_SCALAR_KEYS, "math"]);
+  const extra: Record<string, string> = {};
+  for (const [key, value] of Object.entries(raw)) {
+    if (known.has(key)) continue;
+    // Surface string scalars as-is and empty/`null` keys (a freshly added
+    // property with no value yet) as a blank field. Leave typed scalars
+    // (numbers/booleans) and nested maps/lists to the raw YAML so the form
+    // never coerces their type on save.
+    if (typeof value === "string") extra[key] = value;
+    else if (value === null) extra[key] = "";
+  }
+
   return {
     title: asString(raw.title),
     id: asString(raw.id),
@@ -79,6 +100,7 @@ export function readPanelProperties(source: string): PanelProperties {
     status: asString(raw.status),
     target: asString(raw.target),
     math,
+    extra,
   };
 }
 
@@ -123,6 +145,21 @@ export function setFrontmatterScalar(
   return editFrontmatter(source, (doc) => {
     if (value === null) doc.delete(key);
     else doc.set(key, value);
+  });
+}
+
+/** Rename a top-level scalar key, keeping its value. No-op if `oldKey` is absent. */
+export function renameFrontmatterScalar(
+  source: string,
+  oldKey: string,
+  newKey: string,
+): string {
+  if (oldKey === newKey || newKey === "") return source;
+  return editFrontmatter(source, (doc) => {
+    if (!doc.has(oldKey)) return;
+    const value = doc.get(oldKey, true);
+    doc.delete(oldKey);
+    doc.set(newKey, value);
   });
 }
 

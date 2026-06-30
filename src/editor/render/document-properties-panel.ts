@@ -28,6 +28,7 @@ import {
   type PanelProperties,
   readPanelProperties,
   removeMathMacro,
+  renameFrontmatterScalar,
   renameMathMacro,
   setFrontmatterScalar,
   setMathMacro,
@@ -47,7 +48,7 @@ import { frontmatterField } from "../state/frontmatter-state";
  */
 const setPropertiesFormFocused = StateEffect.define<boolean>();
 
-const propertiesFormFocusedField = StateField.define<boolean>({
+export const propertiesFormFocusedField = StateField.define<boolean>({
   create: () => false,
   update(value, tr) {
     for (const effect of tr.effects) {
@@ -127,8 +128,81 @@ class DocumentPropertiesBuilder {
     for (const { key, label } of SCALAR_FIELDS) {
       root.append(this.scalarRow(view, key, label));
     }
+    root.append(this.extraEditor(view));
     root.append(this.macroEditor(view));
     return root;
+  }
+
+  /** Editor for arbitrary user-added top-level properties (key/value pairs). */
+  private extraEditor(view: EditorView): HTMLElement {
+    const section = document.createElement("div");
+    section.className = "cf-doc-properties-extra";
+
+    for (const [key, value] of Object.entries(this.props.extra)) {
+      section.append(this.extraRow(view, key, value));
+    }
+
+    const add = document.createElement("button");
+    add.type = "button";
+    add.className = "cf-doc-properties-add-property";
+    add.textContent = "+ add property";
+    add.addEventListener("mousedown", (event) => {
+      event.preventDefault();
+      const newKey = this.freeExtraKey();
+      applyFrontmatterEdit(view, (source) => setFrontmatterScalar(source, newKey, ""));
+    });
+    section.append(add);
+    return section;
+  }
+
+  /** Pick a property key that doesn't collide with an existing frontmatter key. */
+  private freeExtraKey(): string {
+    const taken = new Set<string>([
+      ...SCALAR_FIELDS.map((f) => f.key),
+      "id",
+      "math",
+      ...Object.keys(this.props.extra),
+    ]);
+    let key = "property";
+    for (let n = 2; taken.has(key); n++) key = `property${n}`;
+    return key;
+  }
+
+  private extraRow(view: EditorView, key: string, value: string): HTMLElement {
+    const row = document.createElement("div");
+    row.className = "cf-doc-properties-extra-row";
+
+    const keyInput = document.createElement("input");
+    keyInput.type = "text";
+    keyInput.className = "cf-doc-properties-extra-key";
+    keyInput.value = key;
+    keyInput.setAttribute("aria-label", "Property name");
+    keyInput.addEventListener("change", () => {
+      const next = keyInput.value.trim();
+      if (next && next !== key) applyFrontmatterEdit(view, (source) => renameFrontmatterScalar(source, key, next));
+    });
+
+    const valueInput = document.createElement("input");
+    valueInput.type = "text";
+    valueInput.className = "cf-doc-properties-extra-value";
+    valueInput.value = value;
+    valueInput.setAttribute("aria-label", "Property value");
+    valueInput.addEventListener("change", () => {
+      applyFrontmatterEdit(view, (source) => setFrontmatterScalar(source, key, valueInput.value));
+    });
+
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "cf-doc-properties-macro-remove";
+    remove.setAttribute("aria-label", `Remove property ${key}`);
+    remove.textContent = "×";
+    remove.addEventListener("mousedown", (event) => {
+      event.preventDefault();
+      applyFrontmatterEdit(view, (source) => setFrontmatterScalar(source, key, null));
+    });
+
+    row.append(keyInput, valueInput, remove);
+    return row;
   }
 
   private scalarRow(view: EditorView, key: (typeof SCALAR_FIELDS)[number]["key"], label: string): HTMLElement {
@@ -226,8 +300,16 @@ class DocumentPropertiesBuilder {
   }
 }
 
-function propsKey(p: PanelProperties): string {
-  return JSON.stringify([p.title, p.id, p.bibliography, p.type, p.status, p.target, p.math]);
+/**
+ * Identity of the form's *structure* — which rows exist — not their values. The
+ * fixed scalar fields always render, so only the set of extra-property keys and
+ * macro names matters. We rebuild only when this changes (add/remove/rename), so
+ * a plain value commit never tears down the inputs (which would steal focus and,
+ * mid-navigation, fight the user moving into the body). Values the user typed are
+ * already in the inputs; external value edits are a rare cross-surface case.
+ */
+function structureKey(p: PanelProperties): string {
+  return JSON.stringify([Object.keys(p.extra), Object.keys(p.math)]);
 }
 
 /**
@@ -243,25 +325,60 @@ function createPropertiesPanel(view: EditorView): Panel {
   dom.className = "cf-doc-properties-host";
   let lastKey = "";
 
-  const render = (): void => {
-    const props = readPanelProperties(view.state.doc.toString());
-    const key = propsKey(props);
-    if (key === lastKey) return;
-    lastKey = key;
-    dom.replaceChildren(new DocumentPropertiesBuilder(props).build(view));
+  // Re-rendering replaces the inputs, dropping focus. Capture which control was
+  // focused (by class + index) and restore it after the rebuild, so editing a
+  // field or pressing "+ add" never bounces focus out of the form (which would
+  // otherwise read as navigating away and close it).
+  const captureFocus = (): { cls: string; idx: number; caret: number | null } | null => {
+    const active = view.root.activeElement;
+    if (!(active instanceof HTMLElement) || !dom.contains(active) || active.classList.length === 0) return null;
+    const cls = active.classList[0];
+    const peers = [...dom.querySelectorAll<HTMLElement>(`.${cls}`)];
+    const caret = active instanceof HTMLInputElement ? active.selectionStart : null;
+    return { cls, idx: peers.indexOf(active), caret };
+  };
+  const restoreFocus = (sig: ReturnType<typeof captureFocus>): void => {
+    if (!sig || sig.idx < 0) return;
+    const el = dom.querySelectorAll<HTMLElement>(`.${sig.cls}`)[sig.idx];
+    if (!el) return;
+    el.focus();
+    if (sig.caret != null && el instanceof HTMLInputElement) {
+      try { el.setSelectionRange(sig.caret, sig.caret); } catch { /* unsupported input type */ }
+    }
   };
 
-  const onFocusIn = (): void => {
-    if (!view.state.field(propertiesFormFocusedField, false)) {
-      view.dispatch({ effects: setPropertiesFormFocused.of(true) });
-    }
+  const render = (): void => {
+    const props = readPanelProperties(view.state.doc.toString());
+    const key = structureKey(props);
+    if (key === lastKey) return;
+    lastKey = key;
+    const focus = captureFocus();
+    dom.replaceChildren(new DocumentPropertiesBuilder(props).build(view));
+    restoreFocus(focus);
   };
-  const onFocusOut = (event: FocusEvent): void => {
-    const next = event.relatedTarget;
-    if (next instanceof Node && dom.contains(next)) return;
-    if (view.state.field(propertiesFormFocusedField, false)) {
-      view.dispatch({ effects: setPropertiesFormFocused.of(false) });
-    }
+
+  const setFocused = (value: boolean): void => {
+    if ((view.state.field(propertiesFormFocusedField, false) ?? false) === value) return;
+    view.dispatch({ effects: setPropertiesFormFocused.of(value) });
+  };
+  const onFocusIn = (): void => setFocused(true);
+  // Settle focus on the next frame before deciding: `focusout.relatedTarget` is
+  // unreliable across browsers (often null when clicking into the editor), so
+  // check where focus actually landed instead. Closes the form deterministically
+  // whenever focus leaves it for the document (navigate-away), not just on a
+  // clean relatedTarget transition.
+  let pendingFrame = 0;
+  const onFocusOut = (): void => {
+    if (pendingFrame) cancelAnimationFrame(pendingFrame);
+    pendingFrame = requestAnimationFrame(() => {
+      pendingFrame = 0;
+      const active = view.root.activeElement;
+      if (active instanceof Node && dom.contains(active)) return; // still in the form
+      // Focus left the form for the document (or elsewhere) — navigated away.
+      // Internal rebuilds restore focus into the form synchronously before this
+      // frame runs, so they don't reach here.
+      setFocused(false);
+    });
   };
   dom.addEventListener("focusin", onFocusIn);
   dom.addEventListener("focusout", onFocusOut);
@@ -274,6 +391,7 @@ function createPropertiesPanel(view: EditorView): Panel {
       if (update.docChanged) render();
     },
     destroy() {
+      if (pendingFrame) cancelAnimationFrame(pendingFrame);
       dom.removeEventListener("focusin", onFocusIn);
       dom.removeEventListener("focusout", onFocusOut);
     },
@@ -281,11 +399,15 @@ function createPropertiesPanel(view: EditorView): Panel {
 }
 
 /**
- * Whether the document-properties form should be revealed: while the frontmatter
- * structure-edit is active (title click / cursor in frontmatter), or while the
- * form itself holds focus (so editing a field keeps it mounted).
+ * Whether the frontmatter reveal is active: while the frontmatter structure-edit
+ * is active (title click / cursor in frontmatter), or while the properties form
+ * holds focus (so editing a field keeps both the form and the raw YAML revealed).
+ *
+ * Shared with {@link ../frontmatter-render} so the YAML source and the form
+ * appear and disappear together — editing a field updates the visible YAML, and
+ * navigating away into the body closes both.
  */
-function frontmatterPanelVisible(state: EditorState): boolean {
+export function frontmatterRevealActive(state: EditorState): boolean {
   const frontmatter = state.field(frontmatterField, false);
   if (!frontmatter || frontmatter.end <= 0) return false;
   return (
@@ -299,6 +421,6 @@ export const documentPropertiesPanel: Extension = [
   propertiesFormFocusedField,
   showPanel.compute(
     [frontmatterField, activeStructureEditField, propertiesFormFocusedField],
-    (state) => (frontmatterPanelVisible(state) ? createPropertiesPanel : null),
+    (state) => (frontmatterRevealActive(state) ? createPropertiesPanel : null),
   ),
 ];

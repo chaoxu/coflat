@@ -65,16 +65,19 @@ test("document-properties form: reveal on title click, edit, macro preview", asy
   // Macro row renders a live KaTeX preview.
   await expect(page.locator(".cf-doc-properties-macro-preview .katex")).toBeVisible();
 
-  // Edit the title field → frontmatter updates, body preserved.
+  // Edit the title field, committing by moving focus to another field (which
+  // keeps the form open). Frontmatter updates; body preserved.
   const titleInput = page.locator(".cf-doc-properties-input").first();
   await titleInput.fill("Edited Title");
-  await titleInput.blur();
+  await page.locator(".cf-doc-properties-input").nth(2).click(); // focus the Type field → commits title
+  await expect(page.locator(".cf-doc-properties")).toBeVisible();
   await expect.poll(() => h.getDoc()).toContain('title: "Edited Title"');
   await expect.poll(() => h.getDoc()).toContain("motivated by a workshop question");
 
-  // Add a macro → math map gains an entry.
+  // Add a macro → math map gains an entry, form stays open.
   await page.locator(".cf-doc-properties-add-macro").click();
   await expect.poll(() => h.getDoc()).toContain("\\new");
+  await expect(page.locator(".cf-doc-properties")).toBeVisible();
 
   expect(errors).toEqual([]);
 });
@@ -97,4 +100,66 @@ test("document-properties form: hides when the reveal clears", async ({ page }) 
   });
   await settle(page);
   await expect(page.locator(".cf-doc-properties")).toHaveCount(0);
+});
+
+test("document-properties form: editing a field keeps the YAML revealed and in sync", async ({ page }) => {
+  const h = harness(page);
+  await page.goto("/tests/e2e/fixtures/index.html");
+  await h.setDoc(DOC);
+  await settle(page);
+
+  await page.locator(".cf-doc-title").click();
+  await expect(page.locator(".cf-frontmatter-line").first()).toBeVisible();
+
+  // Focusing a field blurs the editor; the raw YAML must stay revealed (not
+  // collapse back to the title) so the edit is visible.
+  const titleInput = page.locator(".cf-doc-properties-input").first();
+  await titleInput.click();
+  await expect(page.locator(".cf-frontmatter-line").first()).toBeVisible();
+
+  await titleInput.fill("Synced Title");
+  await titleInput.blur();
+  await expect.poll(() => h.getDoc()).toContain('title: "Synced Title"');
+});
+
+test("document-properties form: add property adds an editable row and a frontmatter key", async ({ page }) => {
+  const h = harness(page);
+  await page.goto("/tests/e2e/fixtures/index.html");
+  await h.setDoc(DOC);
+  await settle(page);
+
+  await page.locator(".cf-doc-title").click();
+  await expect(page.locator(".cf-doc-properties")).toBeVisible();
+  await expect(page.locator(".cf-doc-properties-extra-row")).toHaveCount(0);
+
+  await page.locator(".cf-doc-properties-add-property").click();
+  // The form stays open and gains an editable key/value row.
+  await expect(page.locator(".cf-doc-properties-extra-row")).toHaveCount(1);
+  await expect(page.locator(".cf-doc-properties")).toBeVisible();
+
+  // Name and value the property → it lands in the frontmatter.
+  await page.locator(".cf-doc-properties-extra-key").first().fill("license");
+  await page.locator(".cf-doc-properties-extra-key").first().blur();
+  await page.locator(".cf-doc-properties-extra-value").first().fill("CC-BY");
+  await page.locator(".cf-doc-properties-extra-value").first().blur();
+  await expect.poll(() => h.getDoc()).toMatch(/license:\s*"?CC-BY"?/);
+});
+
+test("document-properties form: closes when navigating away after editing", async ({ page }) => {
+  const h = harness(page);
+  await page.goto("/tests/e2e/fixtures/index.html");
+  await h.setDoc(DOC);
+  await settle(page);
+
+  await page.locator(".cf-doc-title").click();
+  const titleInput = page.locator(".cf-doc-properties-input").first();
+  await titleInput.click();
+  await titleInput.fill("Edited");
+  await expect(page.locator(".cf-doc-properties")).toBeVisible();
+
+  // Click into the document body — the form must close deterministically.
+  await page.getByText("motivated by a workshop").click();
+  await settle(page);
+  await expect(page.locator(".cf-doc-properties")).toHaveCount(0);
+  await expect(page.locator(".cf-frontmatter-line")).toHaveCount(0);
 });

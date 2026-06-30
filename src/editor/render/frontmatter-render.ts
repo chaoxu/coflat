@@ -21,9 +21,12 @@ import { bibDataEffect, bibDataField } from "../state/bib-data";
 import {
   activateFrontmatterStructureEdit,
   hasStructureEditEffect,
-  isFrontmatterStructureEditActive,
 } from "../state/cm-structure-edit";
 import { frontmatterField } from "../state/frontmatter-state";
+import {
+  frontmatterRevealActive,
+  propertiesFormFocusedField,
+} from "./document-properties-panel";
 import { isFrontmatterActive } from "../state/shell-ownership";
 import { addCollapsedStructureLine } from "./fenced-block-core.js";
 import type { InlineReferenceRenderContext } from "./inline-render";
@@ -157,11 +160,20 @@ export const frontmatterDecoration: Extension = [
 function shouldShowFrontmatterSource(state: EditorState): boolean {
   const { end } = state.field(frontmatterField);
   if (end <= 0) return false;
-  return isFrontmatterStructureEditActive(state);
+  // Reveal the raw YAML whenever the frontmatter reveal is active — including
+  // while the properties form holds focus — so panel edits update the visible
+  // YAML, and navigating into the body collapses the YAML and form together.
+  return frontmatterRevealActive(state);
 }
 
 function frontmatterShouldRebuild(tr: Transaction): boolean {
   if (hasStructureEditEffect(tr)) {
+    return true;
+  }
+  if (
+    tr.startState.field(propertiesFormFocusedField, false) !==
+    tr.state.field(propertiesFormFocusedField, false)
+  ) {
     return true;
   }
   if (tr.effects.some((effect) => effect.is(bibDataEffect))) {
