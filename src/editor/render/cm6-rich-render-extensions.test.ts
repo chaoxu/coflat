@@ -7,6 +7,7 @@ import { containerAttributesPlugin } from "./container-attributes";
 import { endMatterRenderPlugin } from "./end-matter-render";
 import { fenceGuidePlugin } from "./fence-guide";
 import { frontmatterDecoration } from "./frontmatter-render";
+import { documentPropertiesPanel } from "./document-properties-panel";
 import { hoverPreviewExtension } from "./hover-preview";
 import { imageRenderPlugin } from "./image-render";
 import { sharedInlineRenderExtensions } from "./inline-render-extensions";
@@ -33,7 +34,8 @@ function expectOrderedBefore(left: Extension, right: Extension): void {
 describe("CM6 rich render extension composition", () => {
   it("keeps rich rendering ordered by owner dependencies", () => {
     expect(cm6RichRenderExtensions[0]).toBe(frontmatterDecoration);
-    expect(cm6RichRenderExtensions.slice(1, 1 + sharedInlineRenderExtensions.length))
+    expect(cm6RichRenderExtensions[1]).toBe(documentPropertiesPanel);
+    expect(cm6RichRenderExtensions.slice(2, 2 + sharedInlineRenderExtensions.length))
       .toEqual(sharedInlineRenderExtensions);
 
     expectOrderedBefore(imageRenderPlugin, blockRenderPlugin);
