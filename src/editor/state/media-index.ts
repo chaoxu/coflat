@@ -10,16 +10,16 @@ import {
 } from "@codemirror/state";
 import { measureSync } from "../lib/perf";
 import {
+  type DirtyRange,
   dirtyRangesFromChanges,
   expandChangeRangeToLines,
   mergeDirtyRanges,
   rangeIntersectsDirtyRanges,
-  type DirtyRange,
 } from "./incremental-dirty-ranges";
 import {
   classifyLocalMediaTarget,
-  resolveLocalMediaPathFromState,
   type LocalMediaCacheKind,
+  resolveLocalMediaPathFromState,
 } from "./local-media";
 import { readMarkdownImageContent } from "./markdown-image";
 

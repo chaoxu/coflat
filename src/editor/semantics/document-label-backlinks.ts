@@ -1,17 +1,17 @@
 import { type EditorState } from "@codemirror/state";
 import {
+  type DocumentLabelBacklinkTargetLookup,
+  resolveDocumentLabelBacklinkTargetInGraph,
+  resolveDocumentLabelSelectionTargetInGraph,
+} from "../lib/markdown/label-model";
+import { documentLabelGraphField } from "../state/document-label-graph";
+import {
   buildDocumentLabelGraph,
-  findDocumentLabelBacklinks,
   type DocumentLabelDefinition,
   type DocumentLabelGraph,
   type DocumentLabelReference,
+  findDocumentLabelBacklinks,
 } from "./document-label-graph";
-import { documentLabelGraphField } from "../state/document-label-graph";
-import {
-  resolveDocumentLabelBacklinkTargetInGraph,
-  resolveDocumentLabelSelectionTargetInGraph,
-  type DocumentLabelBacklinkTargetLookup,
-} from "../lib/markdown/label-model";
 
 export interface DocumentLabelBacklinkItem {
   readonly from: number;

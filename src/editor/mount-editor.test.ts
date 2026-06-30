@@ -2,9 +2,9 @@ import { EditorView, ViewPlugin } from "@codemirror/view";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
-  mountEditor,
   type MountedDocumentChange,
   type MountedEditor,
+  mountEditor,
 } from "../../editor";
 
 const cleanups: Array<() => void> = [];

@@ -1,7 +1,7 @@
 import type { ChangeDesc, EditorState, Text } from "@codemirror/state";
-import type { FencedDivSemantics } from "../semantics/document";
-import { compareRangesByFromThenTo } from "../lib/range-order";
 import { containsPos } from "../lib/range-helpers";
+import { compareRangesByFromThenTo } from "../lib/range-order";
+import type { FencedDivSemantics } from "../semantics/document";
 import { documentAnalysisField } from "../state/document-analysis";
 
 export interface FencedBlockPositionMapper {

@@ -7,16 +7,16 @@
  */
 
 import {
+  deleteMarkupBackward,
+  insertNewlineContinueMarkup,
+} from "@codemirror/lang-markdown";
+import {
   codeFolding,
   foldGutter,
   foldKeymap,
   foldService,
   syntaxTree,
 } from "@codemirror/language";
-import {
-  deleteMarkupBackward,
-  insertNewlineContinueMarkup,
-} from "@codemirror/lang-markdown";
 import { type Extension, Prec } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
 import type { SyntaxNode } from "@lezer/common";

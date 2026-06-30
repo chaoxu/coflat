@@ -4,6 +4,19 @@ import {
   type Text,
 } from "@codemirror/state";
 import {
+  createDocumentLabelGraph,
+  type DocumentLabelDefinition,
+  type DocumentLabelGraph,
+  type DocumentLabelKind,
+  type DocumentLabelReference,
+  type DocumentLabelRenameValidation,
+  findDocumentLabelBacklinks,
+  getDocumentLabelDefinition,
+  getDocumentLabelDefinitions,
+  isValidDocumentLabelId,
+  validateDocumentLabelRename,
+} from "../lib/markdown/label-model";
+import {
   findAttributeIdSpan,
   findBracketedOccurrenceSpan,
   findEquationLabelSpan,
@@ -11,23 +24,10 @@ import {
 } from "../references/source-ranges";
 import { type DocumentAnalysis } from "./document";
 import {
-  getEditorDocumentReferenceCatalog,
   getDocumentAnalysisOrRecompute,
+  getEditorDocumentReferenceCatalog,
 } from "./editor-reference-catalog";
 import type { DocumentReferenceCatalog } from "./reference-catalog";
-import {
-  createDocumentLabelGraph,
-  findDocumentLabelBacklinks,
-  getDocumentLabelDefinition,
-  getDocumentLabelDefinitions,
-  isValidDocumentLabelId,
-  validateDocumentLabelRename,
-  type DocumentLabelDefinition,
-  type DocumentLabelGraph,
-  type DocumentLabelKind,
-  type DocumentLabelReference,
-  type DocumentLabelRenameValidation,
-} from "../lib/markdown/label-model";
 
 export type {
   DocumentLabelDefinition,

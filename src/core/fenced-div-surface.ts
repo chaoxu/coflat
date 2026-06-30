@@ -1,6 +1,6 @@
+import type { FencedDivRenderPlan } from "./block-render-plan";
 import type { BlockContainerSurfaceOptions } from "./block-surface";
 import { CSS } from "./constants/css-classes";
-import type { FencedDivRenderPlan } from "./block-render-plan";
 
 export interface FencedDivSurfaceAssemblyPlan {
   readonly renderSelfClosingTitleParagraph: boolean;

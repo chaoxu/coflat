@@ -1,28 +1,28 @@
+import { markdown } from "@codemirror/lang-markdown";
 import { Compartment, EditorState } from "@codemirror/state";
 import { describe, expect, it } from "vitest";
-import {
-  createRegistryState,
-  registerPlugins,
-  unregisterPlugin,
-  type PluginRegistryState,
-} from "./plugin-registry";
-import {
-  computeBlockNumbers,
-  emptyCounterState,
-} from "./block-counter";
-import { markdown } from "@codemirror/lang-markdown";
 import { fencedDiv } from "../../core/parser/fenced-div";
-import { frontmatterField } from "../state/frontmatter-state";
+import { blockCounterField } from "../state/block-counter";
 import {
   documentAnalysisField,
   getDocumentAnalysisSliceRevision,
 } from "../state/document-analysis";
-import { blockCounterField } from "../state/block-counter";
+import { frontmatterField } from "../state/frontmatter-state";
 import {
   createPluginRegistryField,
   pluginRegistryField,
 } from "../state/plugin-registry";
 import { createEditorState, makeBlockPlugin } from "../test-utils";
+import {
+  computeBlockNumbers,
+  emptyCounterState,
+} from "./block-counter";
+import {
+  createRegistryState,
+  type PluginRegistryState,
+  registerPlugins,
+  unregisterPlugin,
+} from "./plugin-registry";
 
 /** Create an EditorState with the fenced div parser and a given document. */
 function createState(doc: string) {

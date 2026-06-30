@@ -1,18 +1,18 @@
 import type { ChangeSpec, EditorState } from "@codemirror/state";
 import {
+  type DocumentLabelRenameTargetLookup,
+  prepareDocumentLabelRenameInGraph,
+  resolveDocumentLabelRenameTargetInGraph,
+  type DocumentLabelRenamePlan as SharedDocumentLabelRenamePlan,
+} from "../lib/markdown/label-model";
+import { documentLabelGraphField } from "../state/document-label-graph";
+import {
   buildDocumentLabelGraph,
   type DocumentLabelDefinition,
   type DocumentLabelGraph,
   type DocumentLabelReference,
   type DocumentLabelRenameValidation,
 } from "./document-label-graph";
-import { documentLabelGraphField } from "../state/document-label-graph";
-import {
-  prepareDocumentLabelRenameInGraph,
-  resolveDocumentLabelRenameTargetInGraph,
-  type DocumentLabelRenamePlan as SharedDocumentLabelRenamePlan,
-  type DocumentLabelRenameTargetLookup,
-} from "../lib/markdown/label-model";
 
 export interface DocumentLabelRenameTarget {
   readonly definition: DocumentLabelDefinition;

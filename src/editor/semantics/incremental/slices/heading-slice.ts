@@ -1,21 +1,21 @@
+import {
+  type HeadingNumberCounters,
+  initialHeadingNumberCounters,
+  nextHeadingNumber,
+} from "../../../../core/semantics/heading-numbering";
 import type { HeadingSemantics } from "../../document-model";
 import {
   firstOverlapIndex,
+  type PositionMapper,
+  type RangeLike,
   rangesOverlap,
   replaceOverlappingRanges,
-  type RangeLike,
-  type PositionMapper,
 } from "../merge-utils";
 import type { DirtyWindow, SemanticDelta } from "../types";
 import type {
   HeadingStructure,
   StructuralWindowExtraction,
 } from "../window-extractor";
-import {
-  initialHeadingNumberCounters,
-  nextHeadingNumber,
-  type HeadingNumberCounters,
-} from "../../../../core/semantics/heading-numbering";
 
 export interface HeadingSlice {
   readonly headings: readonly HeadingSemantics[];

@@ -10,12 +10,12 @@ import { EditorView } from "@codemirror/view";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
-  mountEditor,
   type AutocompleteEnv,
   type AutocompleteRequest,
   type AutocompleteResult,
   type AutocompleteSource,
   type MountedEditor,
+  mountEditor,
   type RequestHandler,
   type Suggestion,
 } from "../../editor";

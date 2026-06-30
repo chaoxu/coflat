@@ -29,6 +29,13 @@ import {
   type Transaction,
 } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
+import { programmaticDocumentChangeAnnotation } from "../state/programmatic-document-change";
+import { createPairedMathEntry } from "./fence-math-entry";
+import {
+  docChangeCouldAffectDisplayMathFences,
+  fenceProtectionCacheField,
+  getFenceProtectionCache,
+} from "./fence-protection-cache";
 import {
   type FenceChangeSpec,
   type FenceRange,
@@ -36,13 +43,6 @@ import {
 import {
   createFenceProtectionTransactionFilter,
 } from "./fence-transaction-filters";
-import { createPairedMathEntry } from "./fence-math-entry";
-import {
-  docChangeCouldAffectDisplayMathFences,
-  fenceProtectionCacheField,
-  getFenceProtectionCache,
-} from "./fence-protection-cache";
-import { programmaticDocumentChangeAnnotation } from "../state/programmatic-document-change";
 
 // ---------------------------------------------------------------------------
 // Fence protection
@@ -144,5 +144,4 @@ export const fenceProtectionExtension: Extension = [
 ];
 
 export type { FenceRange } from "./fence-protection-pipeline";
-export { fenceProtectionCacheField as _fenceProtectionCacheFieldForTest };
-export { docChangeCouldAffectDisplayMathFences as _docChangeCouldAffectDisplayMathFencesForTest };
+export { docChangeCouldAffectDisplayMathFences as _docChangeCouldAffectDisplayMathFencesForTest, fenceProtectionCacheField as _fenceProtectionCacheFieldForTest };

@@ -6,32 +6,32 @@
  * citation-js. Hosts can dynamically upgrade to the full editor afterward.
  */
 
-import {
-  COFLAT_READER_CLASS,
-  hydrateMath,
-  hydrateMedia,
-  hydrateReaderDisclosures,
-  hydrateReaderHoverPreviews,
-  hydrateReferences,
-  renderToHtml,
-  type DocumentContext,
-  type HydrateMathOptions,
-  type HydrateReferencesOptions,
-  type ReaderHoverPreviewOptions,
-  type ReaderHtmlResult,
-} from "./reader";
-import {
-  DOCUMENT_SURFACE_CLASS,
-  documentSurfaceClassNames,
-} from "./src/core/document-surface-classes";
 import type {
-  MountedEditor,
   MountEditorOptions,
+  MountedEditor,
 } from "./editor";
 import type {
   MountedLazyEditor,
   MountLazyEditorOptions,
 } from "./editor-lazy";
+import {
+  COFLAT_READER_CLASS,
+  type DocumentContext,
+  type HydrateMathOptions,
+  type HydrateReferencesOptions,
+  hydrateMath,
+  hydrateMedia,
+  hydrateReaderDisclosures,
+  hydrateReaderHoverPreviews,
+  hydrateReferences,
+  type ReaderHoverPreviewOptions,
+  type ReaderHtmlResult,
+  renderToHtml,
+} from "./reader";
+import {
+  DOCUMENT_SURFACE_CLASS,
+  documentSurfaceClassNames,
+} from "./src/core/document-surface-classes";
 
 export type RichReadonlyLifecyclePhase =
   | "first-document-pixels"

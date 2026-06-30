@@ -1,14 +1,14 @@
 import type { EditorView } from "@codemirror/view";
 import { CSS } from "../../core/constants";
-import { collectImageTargets } from "../lib/markdown/image-targets";
 import { createPreviewSurfaceBody } from "../../core/preview-surface";
+import { collectImageTargets } from "../lib/markdown/image-targets";
 import {
   createLocalMediaDependencies,
   getLocalMediaPreviewDependency,
   getLocalMediaPreviewDependencyKey,
+  type LocalMediaDependencies,
   resolveLocalMediaPreview,
   trackLocalMediaPreviewDependency,
-  type LocalMediaDependencies,
 } from "./media-preview";
 import { getPdfCanvas } from "./pdf-preview-cache";
 

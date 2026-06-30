@@ -5,9 +5,9 @@ import {
 } from "@codemirror/state";
 import type { FencedBlockInfo } from "../fenced-block/model";
 import {
+  collectFenceTransactionChanges,
   type FenceChangeSpec,
   type FenceRange,
-  collectFenceTransactionChanges,
   planFenceProtectionDecision,
 } from "./fence-protection-pipeline";
 

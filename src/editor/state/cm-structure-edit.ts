@@ -12,6 +12,14 @@ import {
   getFencedDivRevealFrom,
   getFencedDivRevealTo,
 } from "../fenced-block/model";
+import type {
+  CodeFenceStructureEditTarget,
+  DisplayMathStructureEditTarget,
+  FencedStructureEditTarget,
+  FootnoteLabelStructureEditTarget,
+  FrontmatterStructureEditTarget,
+  StructureEditTarget,
+} from "../lib/debug-types";
 import { containsPos, containsRange } from "../lib/range-helpers";
 import type {
   FootnoteDefinition,
@@ -21,14 +29,7 @@ import { focusEffect } from "./editor-focus";
 import { frontmatterField } from "./frontmatter-state";
 import { programmaticDocumentChangeAnnotation } from "./programmatic-document-change";
 import { findCodeShellAt } from "./shell-ownership";
-import type {
-  CodeFenceStructureEditTarget,
-  DisplayMathStructureEditTarget,
-  FencedStructureEditTarget,
-  FootnoteLabelStructureEditTarget,
-  FrontmatterStructureEditTarget,
-  StructureEditTarget,
-} from "../lib/debug-types";
+
 export type {
   CodeFenceStructureEditTarget,
   DisplayMathStructureEditTarget,

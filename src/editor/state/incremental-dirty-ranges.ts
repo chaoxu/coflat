@@ -1,12 +1,12 @@
 import type { ChangeSet, Text } from "@codemirror/state";
 import {
+  type DocumentRange,
+  type DocumentRangeExpander,
   documentRangesFromChanges,
   expandChangedDocumentRange,
   expandChangedDocumentRangeToLines,
   mergeDocumentRanges,
   rangeIntersectsDocumentRanges,
-  type DocumentRange,
-  type DocumentRangeExpander,
 } from "../lib/document-ranges";
 
 export type DirtyRange = DocumentRange;

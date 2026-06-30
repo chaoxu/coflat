@@ -1,5 +1,5 @@
-import { Decoration, type DecorationSet, WidgetType } from "@codemirror/view";
 import { RangeSet } from "@codemirror/state";
+import { Decoration, type DecorationSet, WidgetType } from "@codemirror/view";
 import { describe, expect, it } from "vitest";
 import { removeDecorationsInRanges } from "./decoration-lifecycle";
 

@@ -2,15 +2,15 @@ import { EditorSelection, type EditorState } from "@codemirror/state";
 import { EditorView, ViewPlugin, type ViewUpdate } from "@codemirror/view";
 import { CSS } from "../../core/constants/css-classes";
 import { sourceRangeFromDataset } from "../../core/source-range-surface";
+import { rangesIntersect } from "../lib/range-helpers";
+import { documentAnalysisField } from "../state/document-analysis";
 import {
   buildPointerSelection,
   isPlainPrimaryMouseEvent,
 } from "../state/mouse-selection";
-import { documentAnalysisField } from "../state/document-analysis";
-import { rangesIntersect } from "../lib/range-helpers";
-import { _snapToTokenBoundary } from "./math-source";
 import { editorFocusField } from "./focus-state";
 import { isFocusedInlineRevealTarget } from "./inline-reveal-policy";
+import { _snapToTokenBoundary } from "./math-source";
 
 interface InlineMathSourceRange {
   readonly from: number;

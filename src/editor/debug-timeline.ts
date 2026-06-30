@@ -1,5 +1,5 @@
-import { recordDebugSessionEvent } from "./debug/session-recorder";
 import { type EditorView } from "@codemirror/view";
+import { recordDebugSessionEvent } from "./debug/session-recorder";
 
 export interface DebugTimelineEvent {
   readonly timestamp: number;

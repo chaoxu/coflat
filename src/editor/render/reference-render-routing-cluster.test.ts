@@ -1,8 +1,8 @@
 import { EditorView } from "@codemirror/view";
 import { afterEach, describe, expect, it } from "vitest";
 import { CSS } from "../../core/constants/css-classes";
-import { collectReferenceRanges } from "./reference-render";
 import { renderPreviewBlockContentToDom } from "./preview-block-renderer";
+import { collectReferenceRanges } from "./reference-render";
 import {
   createView,
   expectPresent,

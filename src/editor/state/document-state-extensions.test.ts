@@ -2,14 +2,14 @@ import { markdown } from "@codemirror/lang-markdown";
 import { describe, expect, it } from "vitest";
 import { markdownExtensions } from "../../core/parser";
 import { getPlugin } from "../plugins/plugin-registry";
+import { referencePresentationField } from "../references/presentation";
 import { createEditorState, makeBlockPlugin } from "../test-utils";
 import { blockCounterField } from "./block-counter";
 import { documentAnalysisField } from "./document-analysis";
 import { documentLabelGraphField } from "./document-label-graph";
-import { frontmatterField } from "./frontmatter-state";
 import { coreDocumentStateExtensions } from "./document-state-extensions";
+import { frontmatterField } from "./frontmatter-state";
 import { pluginRegistryField } from "./plugin-registry";
-import { referencePresentationField } from "../references/presentation";
 
 describe("core document state extensions", () => {
   it("composes shared document state owners into one editor-ready bundle", () => {

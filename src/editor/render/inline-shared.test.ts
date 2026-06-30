@@ -1,12 +1,12 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
 import katex from "katex";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { KATEX_TEXTSC_CLASS } from "../../core/lib/katex-options";
 import { isSafeUrl } from "../../core/lib/url-utils";
 import { buildKatexOptions } from "../lib/katex-options";
 import { sanitizeCslHtml } from "../lib/sanitize-csl-html";
 import {
-  MARK_NODES,
   clearKatexHtmlCache,
+  MARK_NODES,
   renderKatexToHtml,
   sanitizeRenderedHtml,
 } from "./inline-shared";

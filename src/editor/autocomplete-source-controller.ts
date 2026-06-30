@@ -19,10 +19,10 @@ import { type Extension } from "@codemirror/state";
 import { type EditorView, ViewPlugin, type ViewUpdate } from "@codemirror/view";
 
 import {
+  type AutocompleteSource,
   autocompleteSourcesFacet,
   DEFAULT_AUTOCOMPLETE_DEBOUNCE_MS,
   resolveOpenAutocomplete,
-  type AutocompleteSource,
   type Suggestion,
 } from "./editor-host-api";
 

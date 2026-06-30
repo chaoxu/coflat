@@ -1,16 +1,16 @@
-import { describe, it, expect, vi, afterEach } from "vitest";
+import type { EditorView } from "@codemirror/view";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
-  IMAGE_MIME_EXT,
-  IMAGE_EXTENSIONS,
-  isImageMime,
-  generateImageFilename,
   altTextFromFilename,
-  logImageError,
+  generateImageFilename,
   handleImageInsert,
+  IMAGE_EXTENSIONS,
+  IMAGE_MIME_EXT,
   insertImageMarkdown,
+  isImageMime,
+  logImageError,
 } from "./image-save";
 import { createTestView } from "./test-utils";
-import type { EditorView } from "@codemirror/view";
 
 const views: EditorView[] = [];
 

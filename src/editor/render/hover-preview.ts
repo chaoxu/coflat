@@ -14,12 +14,16 @@
 import { type Extension } from "@codemirror/state";
 import { ViewPlugin } from "@codemirror/view";
 import { HOVER_DELAY_MS } from "../../core/constants";
+import { bibDataField } from "../state/bib-data";
 import { blockCounterField } from "../state/block-counter";
+import { documentAnalysisField } from "../state/document-analysis";
 import { imageUrlField } from "../state/image-url";
 import { mathMacrosField } from "../state/math-macros";
 import { pdfPreviewField } from "../state/pdf-preview";
-import { documentAnalysisField } from "../state/document-analysis";
-import { bibDataField } from "../state/bib-data";
+import {
+  buildTooltipPlanForElement,
+  shouldReuseTooltipContent,
+} from "./hover-preview-plans";
 import {
   EMPTY_LOCAL_MEDIA_DEPENDENCIES,
   localMediaDependenciesChanged,
@@ -28,10 +32,7 @@ import {
   findReferenceWidgetContainer,
   REFERENCE_WIDGET_SELECTOR,
 } from "./reference-widget";
-import {
-  buildTooltipPlanForElement,
-  shouldReuseTooltipContent,
-} from "./hover-preview-plans";
+
 export {
   buildBlockPreviewBodyForTest,
   buildCrossrefCompletionPreviewContent,
@@ -40,6 +41,7 @@ export {
   refIdFromElement,
   shouldRebuildHoverPreviewContentForTest,
 } from "./hover-preview-plans";
+
 import {
   destroyFloatingTooltip,
   floatingTooltipContains,
@@ -48,6 +50,7 @@ import {
   showFloatingTooltip,
   type TooltipPlan,
 } from "./hover-tooltip";
+
 export {
   destroyHoverPreviewTooltipForTest,
   ensureHoverPreviewTooltipForTest,

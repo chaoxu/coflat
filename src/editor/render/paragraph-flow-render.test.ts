@@ -2,25 +2,23 @@ import { markdown } from "@codemirror/lang-markdown";
 import { EditorView } from "@codemirror/view";
 import { afterEach, describe, expect, it } from "vitest";
 import { markdownExtensions } from "../../core/parser";
-import { makeBlockPlugin } from "../test-utils";
+import { bibDataField } from "../state/bib-data";
+import { blockCounterField } from "../state/block-counter";
 import {
   activeStructureEditField,
 } from "../state/cm-structure-edit";
-import { bibDataField } from "../state/bib-data";
-import { blockCounterField } from "../state/block-counter";
 import { documentAnalysisField } from "../state/document-analysis";
 import { frontmatterField } from "../state/frontmatter-state";
 import { mathMacrosField } from "../state/math-macros";
 import { createPluginRegistryField } from "../state/plugin-registry";
-import {
+import { 
   createTestView,
-  getDecorationSpecs,
-} from "../test-utils";
+  getDecorationSpecs,makeBlockPlugin, } from "../test-utils";
+import { focusEffect } from "./focus-state";
 import {
   _paragraphFlowFieldForTest,
   paragraphFlowRenderPlugin,
 } from "./paragraph-flow-render";
-import { focusEffect } from "./focus-state";
 
 let view: EditorView | undefined;
 

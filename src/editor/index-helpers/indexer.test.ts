@@ -4,9 +4,9 @@ import {
   getCachedDocumentAnalysis,
   rememberCachedDocumentAnalysis,
 } from "../semantics/incremental/cached-document-analysis";
-import { analyzeMarkdownDocument } from "../semantics/markdown-analysis";
-import * as incrementalEngine from "../semantics/incremental/engine";
 import type { DocumentAnalysisSnapshot } from "../semantics/incremental/engine";
+import * as incrementalEngine from "../semantics/incremental/engine";
+import { analyzeMarkdownDocument } from "../semantics/markdown-analysis";
 import {
   extractFileIndex,
   getFileIndexAnalysis,

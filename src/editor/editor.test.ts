@@ -1,6 +1,6 @@
-import { describe, expect, it } from "vitest";
 import { insertNewline, undoDepth } from "@codemirror/commands";
 import { EditorState } from "@codemirror/state";
+import { describe, expect, it } from "vitest";
 import {
   captureEditorHistoryState,
   createEditor,
@@ -8,15 +8,15 @@ import {
   markdownEditorModes,
   setEditorMode,
 } from "./editor";
-import { frontmatterField } from "./state/frontmatter-state";
-import { documentAnalysisField } from "./state/document-analysis";
+import { sidenotesCollapsedField } from "./render";
 import { documentReferenceCatalogField } from "./semantics/editor-reference-catalog";
-import { blockCounterField } from "./state/block-counter";
 import { bibDataField } from "./state/bib-data";
+import { blockCounterField } from "./state/block-counter";
+import { documentAnalysisField } from "./state/document-analysis";
 import { documentLabelGraphField } from "./state/document-label-graph";
+import { frontmatterField } from "./state/frontmatter-state";
 import { imageUrlField } from "./state/image-url";
 import { pdfPreviewField } from "./state/pdf-preview";
-import { sidenotesCollapsedField } from "./render";
 
 describe("createEditor", () => {
   it("creates an editor view attached to the given parent", () => {

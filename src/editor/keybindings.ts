@@ -8,20 +8,20 @@ import { syntaxTree } from "@codemirror/language";
 import { EditorSelection, type EditorState, type Extension, Prec } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
 import type { SyntaxNode } from "@lezer/common";
+import { CSS } from "../core/constants/css-classes";
 import { MODE_CHANGE_EVENT } from "../core/constants/events";
+import { type EditorMode, editorModeField, setEditorMode } from "./editor-mode-state";
 import {
   fenceOperationAnnotation,
   getClosingFenceRanges,
 } from "./plugins/fence-protection";
 import { toggleDebugInspector } from "./render/debug-inspector";
 import { toggleFocusMode } from "./render/focus-mode";
-import { editorModeField, setEditorMode, type EditorMode } from "./editor-mode-state";
 import {
   clearStructureEditTarget,
   getActiveStructureEditTarget,
 } from "./state/cm-structure-edit";
 import { moveVerticallyInRichView } from "./vertical-motion";
-import { CSS } from "../core/constants/css-classes";
 
 /** Cycle to the next editor mode. */
 function cycleEditorMode(view: EditorView): boolean {

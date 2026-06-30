@@ -1,40 +1,40 @@
-export type {
-  BlockPlugin,
-  BlockAttrs,
-  BlockDecorationSpec,
-} from "./plugin-types";
 export {
-  type PluginRegistryState,
-  createRegistryState,
-  registerPlugin,
-  registerPlugins,
-  unregisterPlugin,
-  getPlugin,
-  getPluginOrFallback,
-  getRegisteredNames,
-  pluginFromConfig,
-  applyFrontmatterBlocks,
-} from "./plugin-registry";
-export {
-  type NumberedBlock,
   type BlockCounterState,
   computeBlockNumbers,
   emptyCounterState,
+  type NumberedBlock,
 } from "./block-counter";
+export {
+  createBlockRender,
+  formatBlockHeader,
+} from "./block-render";
+export {
+  defaultPlugins,
+  theoremFamilyPlugins,
+} from "./default-plugins";
 export {
   fenceOperationAnnotation,
 } from "./fence-protection";
-export {
-  formatBlockHeader,
-  createBlockRender,
-} from "./block-render";
 export {
   createStandardPlugin,
   pluginFromManifest,
   type StandardPluginOptions,
 } from "./plugin-factory";
-export { QED_SYMBOL } from "./proof-plugin";
 export {
-  defaultPlugins,
-  theoremFamilyPlugins,
-} from "./default-plugins";
+  applyFrontmatterBlocks,
+  createRegistryState,
+  getPlugin,
+  getPluginOrFallback,
+  getRegisteredNames,
+  type PluginRegistryState,
+  pluginFromConfig,
+  registerPlugin,
+  registerPlugins,
+  unregisterPlugin,
+} from "./plugin-registry";
+export type {
+  BlockAttrs,
+  BlockDecorationSpec,
+  BlockPlugin,
+} from "./plugin-types";
+export { QED_SYMBOL } from "./proof-plugin";

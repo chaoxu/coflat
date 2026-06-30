@@ -1,9 +1,8 @@
 import { parser } from "@lezer/markdown";
 import { describe, expect, it } from "vitest";
-
+import { findNodeInfo, type NodeInfo, parseNodeInfos, parseNodeNames } from "../test-utils";
 import { fencedDiv, findFencedDivOpenerTrailingContent } from "./fenced-div";
 import { markdownExtensions } from "./index";
-import { findNodeInfo, parseNodeInfos, parseNodeNames, type NodeInfo } from "../test-utils";
 
 const fencedDivParser = parser.configure(fencedDiv);
 

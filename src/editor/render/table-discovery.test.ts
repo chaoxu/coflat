@@ -1,17 +1,17 @@
-import { EditorState, StateEffect } from "@codemirror/state";
 import { markdown } from "@codemirror/lang-markdown";
+import { EditorState, StateEffect } from "@codemirror/state";
 import { describe, expect, it } from "vitest";
 import { markdownExtensions } from "../../core/parser";
-import { ensureFullSyntaxTree } from "../test-utils";
 import {
   computePendingTableParse,
   computePendingTableParseTarget,
   sameDiscoveredTables,
+  type TableRange,
   tableDiscoveryField,
   tableDiscoveryPendingParseField,
-  type TableRange,
   updateDiscoveredTables,
 } from "../state/table-discovery";
+import { ensureFullSyntaxTree } from "../test-utils";
 import {
   findCellBounds,
   findClosestTable,

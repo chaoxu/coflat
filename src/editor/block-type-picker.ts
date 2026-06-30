@@ -14,25 +14,25 @@
  * shared command-menu library instead of custom DOM code.
  */
 
+import { syntaxTree } from "@codemirror/language";
 import { type Extension } from "@codemirror/state";
 import { EditorView, ViewPlugin } from "@codemirror/view";
-import { syntaxTree } from "@codemirror/language";
+import { computePosition, flip, offset, shift } from "@floating-ui/dom";
 import type { SyntaxNode } from "@lezer/common";
 import { Command as CommandPrimitive } from "cmdk";
-import { computePosition, flip, shift, offset } from "@floating-ui/dom";
 import {
   createElement,
+  type KeyboardEvent as ReactKeyboardEvent,
   useLayoutEffect,
   useRef,
-  type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
 import { flushSync } from "react-dom";
 import { createRoot, type Root } from "react-dom/client";
-import { fenceOperationAnnotation } from "./plugins";
-import type { PluginRegistryState } from "./state/plugin-registry-core";
-import { editorModeField } from "./editor-mode-state";
 import { BLOCK_MANIFEST_ENTRIES } from "../core/constants/block-manifest";
+import { editorModeField } from "./editor-mode-state";
+import { fenceOperationAnnotation } from "./plugins";
 import { pluginRegistryField } from "./state/plugin-registry";
+import type { PluginRegistryState } from "./state/plugin-registry-core";
 
 // ---------------------------------------------------------------------------
 // Ancestor fence collection
@@ -495,13 +495,13 @@ export const blockTypePickerExtension: Extension = [
 // Test-only exports
 // ---------------------------------------------------------------------------
 
+export type {
+  AncestorFence as _AncestorFenceForTest,
+  PickerEntry as _PickerEntryForTest,
+};
 /** Exported for unit testing without a browser. */
 export {
+  collectAncestorFences as _collectAncestorFencesForTest,
   getPickerEntries as _getPickerEntriesForTest,
   insertBlock as _insertBlockForTest,
-  collectAncestorFences as _collectAncestorFencesForTest,
-};
-export type {
-  PickerEntry as _PickerEntryForTest,
-  AncestorFence as _AncestorFenceForTest,
 };

@@ -7,7 +7,7 @@
  * - `key=value` or `key="value"` adds a key-value pair
  */
 
-import { isSpaceTab, isIdentChar } from "./char-utils";
+import { isIdentChar, isSpaceTab } from "./char-utils";
 
 /** Parsed result of a fenced div attribute string. */
 export interface FencedDivAttrs {

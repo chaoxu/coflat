@@ -1,22 +1,22 @@
-import { expect } from "vitest";
+import { markdown } from "@codemirror/lang-markdown";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
-import { markdown } from "@codemirror/lang-markdown";
-import { mathExtension } from "../../core/parser/math-backslash";
-import { equationLabelExtension } from "../../core/parser/equation-label";
+import { expect } from "vitest";
+import { CSS } from "../../core/constants/css-classes";
 import { markdownExtensions } from "../../core/parser";
-import { collectMathRanges, mathRenderPlugin } from "./math-render";
-import { frontmatterField } from "../state/frontmatter-state";
-import { mathMacrosField } from "../state/math-macros";
-import { createTestView } from "../test-utils";
-import { focusEffect } from "./render-core";
-import { documentAnalysisField } from "../state/document-analysis";
+import { equationLabelExtension } from "../../core/parser/equation-label";
+import { mathExtension } from "../../core/parser/math-backslash";
 import {
   activeStructureEditField,
   createStructureEditTargetAt,
   setStructureEditTargetEffect,
 } from "../state/cm-structure-edit";
-import { CSS } from "../../core/constants/css-classes";
+import { documentAnalysisField } from "../state/document-analysis";
+import { frontmatterField } from "../state/frontmatter-state";
+import { mathMacrosField } from "../state/math-macros";
+import { createTestView } from "../test-utils";
+import { collectMathRanges, mathRenderPlugin } from "./math-render";
+import { focusEffect } from "./render-core";
 
 /** Count only widget (replace) decorations, ignoring mark decorations like cf-math-source. */
 export function countWidgets(ranges: ReturnType<typeof collectMathRanges>): number {

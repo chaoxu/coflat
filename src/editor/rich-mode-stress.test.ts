@@ -11,11 +11,12 @@
  *
  * @see https://github.com/chaoxu/coflat/issues/439
  */
-import { describe, it, afterEach } from "vitest";
-import fc from "fast-check";
+
 import { syntaxTree } from "@codemirror/language";
 import { type DecorationSet, EditorView } from "@codemirror/view";
-import { createEditor, editorModeField, setEditorMode, type EditorMode } from "./editor";
+import fc from "fast-check";
+import { afterEach, describe, it } from "vitest";
+import { createEditor, type EditorMode, editorModeField, setEditorMode } from "./editor";
 import { documentAnalysisField } from "./state/document-analysis";
 
 // ── Seed documents ───────────────────────────────────────────────────────────

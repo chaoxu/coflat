@@ -1,7 +1,7 @@
 import type { WidgetType } from "@codemirror/view";
 import { CSS, hostReferenceClassNames } from "../../core/constants/css-classes";
-import { applyLinkSurface } from "../../core/link-surface";
 import { isSafeUrl } from "../../core/lib/url-utils";
+import { applyLinkSurface } from "../../core/link-surface";
 import { applyReferenceSurface } from "../../core/reference-surface";
 import { ReferenceWidget, SimpleTextReferenceWidget } from "./render-core";
 

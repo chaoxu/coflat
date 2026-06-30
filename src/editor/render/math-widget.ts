@@ -15,21 +15,21 @@ import {
   renderInlineMathErrorFallback,
   syncInlineMathSurfaceElement,
 } from "../../core/math-inline-surface";
-import { isPlainPrimaryMouseEvent } from "../state/mouse-selection";
-import { documentAnalysisField } from "../state/document-analysis";
 import type { MathSemantics } from "../semantics/document";
-import { clearKatexHtmlCache, renderKatexToHtml } from "./inline-shared";
-import { resolveClickToSourcePos } from "./math-interactions";
-import { findMathRegionAtPos } from "./math-source";
-import { widgetSourceMap } from "./source-widget";
 import {
   activateStructureEditTarget,
   createStructureEditTargetAt,
 } from "../state/cm-structure-edit";
+import { documentAnalysisField } from "../state/document-analysis";
+import { isPlainPrimaryMouseEvent } from "../state/mouse-selection";
+import { clearKatexHtmlCache, renderKatexToHtml } from "./inline-shared";
 import {
   LazyMacroAwareWidget,
   type LazyWidgetHeightSpec,
 } from "./lazy-widget-base";
+import { resolveClickToSourcePos } from "./math-interactions";
+import { findMathRegionAtPos } from "./math-source";
+import { widgetSourceMap } from "./source-widget";
 import { cloneRenderedHTMLElement } from "./widget-core";
 
 const displayMathHeightCache = new Map<string, number>();

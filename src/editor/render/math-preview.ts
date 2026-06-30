@@ -6,23 +6,23 @@
  * moves with the underlying expression instead of re-floating on scroll.
  */
 
+import { type Extension } from "@codemirror/state";
 import {
   type EditorView,
   type PluginValue,
-  type ViewUpdate,
   ViewPlugin,
+  type ViewUpdate,
 } from "@codemirror/view";
-import { type Extension } from "@codemirror/state";
 import { CSS } from "../../core/constants";
-import { mathMacrosField } from "../state/math-macros";
-import { resolveClickToSourcePos } from "./math-interactions";
-import { findActiveMath } from "./math-source";
-import { renderKatex } from "./math-widget";
 import {
   createPreviewSurfaceContent,
   createPreviewSurfaceShell,
 } from "../../core/preview-surface";
 import { documentAnalysisField } from "../state/document-analysis";
+import { mathMacrosField } from "../state/math-macros";
+import { resolveClickToSourcePos } from "./math-interactions";
+import { findActiveMath } from "./math-source";
+import { renderKatex } from "./math-widget";
 
 interface MathRegionSnapshot {
   latex: string;

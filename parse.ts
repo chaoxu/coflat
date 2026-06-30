@@ -9,17 +9,20 @@
 
 import type { SyntaxNodeRef } from "@lezer/common";
 
-import { parse as parseYaml, parseDocument as parseYamlDocument, stringify as stringifyYaml, isMap, isScalar } from "yaml";
-
-import { extractRawFrontmatter, parseMarkdownSource } from "./src/core/parser";
-import { parseFrontmatter as parseCoflatFrontmatter } from "./src/core/parser/frontmatter";
+import { isMap, isScalar, parse as parseYaml, parseDocument as parseYamlDocument, stringify as stringifyYaml } from "yaml";
 import { NODE } from "./src/core/constants/node-types";
+import { buildLineOffsets, lineAt } from "./src/core/lib/line-offsets";
 import {
   BRACKETED_REFERENCE_EXACT_RE,
   NARRATIVE_REFERENCE_GLOBAL_RE,
   parseReferenceClusterBody,
 } from "./src/core/lib/reference-grammar";
-import { buildLineOffsets, lineAt } from "./src/core/lib/line-offsets";
+import { extractRawFrontmatter, parseMarkdownSource } from "./src/core/parser";
+import { parseFrontmatter as parseCoflatFrontmatter } from "./src/core/parser/frontmatter";
+import type {
+  DocumentReferenceTarget,
+  DocumentReferenceTargetKind,
+} from "./src/core/reference-targets";
 import {
   blockReferenceTarget,
   buildReferenceTargetIndexes,
@@ -27,25 +30,22 @@ import {
   headingReferenceTarget,
   sortDocumentReferenceTargets,
 } from "./src/core/reference-targets";
-import type {
-  DocumentReferenceTarget,
-  DocumentReferenceTargetKind,
-} from "./src/core/reference-targets";
-import {
-  analyzeHeadings,
-  analyzeDocumentSemantics,
-  stringTextSource,
-} from "./src/editor/semantics/document";
 import {
   blockTitleOverridesFromConfig,
   computeBlockNumbers,
   createConfiguredBlockNumberingSpecLookup,
   displayTitleForBlockType,
 } from "./src/core/semantics/block-numbering";
+import {
+  analyzeDocumentSemantics,
+  analyzeHeadings,
+  stringTextSource,
+} from "./src/editor/semantics/document";
+
 export {
   createNumericCitationFormatter,
-  parseBibliographyKeys,
   type NumericCitationEntry,
+  parseBibliographyKeys,
 } from "./src/core/citations/numeric";
 export {
   markdownReferencePathCandidatesFromDocument,

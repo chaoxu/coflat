@@ -1,15 +1,15 @@
 import {
-  StateField,
-  type EditorState,
-  type Text,
-  type Transaction,
-} from "@codemirror/state";
-import {
   syntaxTree,
   syntaxTreeAvailable,
 } from "@codemirror/language";
+import {
+  type EditorState,
+  StateField,
+  type Text,
+  type Transaction,
+} from "@codemirror/state";
 import { mergeRanges, rangesOverlap } from "../lib/range-helpers";
-import { parseTable, type ParsedTable } from "./table-utils";
+import { type ParsedTable, parseTable } from "./table-utils";
 
 /** A table found in the document with its source range. */
 export interface TableRange {

@@ -1,14 +1,14 @@
-import { EditorSelection, EditorState } from "@codemirror/state";
 import { markdown } from "@codemirror/lang-markdown";
+import { EditorSelection, EditorState } from "@codemirror/state";
 import { describe, expect, it } from "vitest";
-import { frontmatterField } from "../state/frontmatter-state";
 import { markdownExtensions } from "../../core/parser";
 import {
   defaultPlugins,
 } from "../plugins";
+import { blockCounterField } from "../state/block-counter";
 import { documentAnalysisField } from "../state/document-analysis";
 import { documentLabelGraphField } from "../state/document-label-graph";
-import { blockCounterField } from "../state/block-counter";
+import { frontmatterField } from "../state/frontmatter-state";
 import { createPluginRegistryField } from "../state/plugin-registry";
 import {
   prepareDocumentLabelRename,

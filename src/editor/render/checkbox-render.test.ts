@@ -12,8 +12,8 @@ import {
 } from "../test-utils";
 import {
   CheckboxWidget,
-  checkboxRenderPlugin,
   _checkboxDecorationFieldForTest as checkboxDecorationField,
+  checkboxRenderPlugin,
 } from "./checkbox-render";
 
 let view: EditorView | undefined;

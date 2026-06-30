@@ -1,15 +1,15 @@
-import type { ReferenceIndexModel } from "../../core/references/model";
 import {
+  type CitationCluster,
+  type CitationCollectionOptions,
+  type CitationIdLookup,
+  type CitationReferenceCluster,
   collectCitationMatches as coreCollectCitationMatches,
   collectCitedIdsFromClusters as coreCollectCitedIdsFromClusters,
   collectCitedIdsFromReferences as coreCollectCitedIdsFromReferences,
   getCitationRegistrationKey as coreGetCitationRegistrationKey,
   isCitationId as coreIsCitationId,
-  type CitationCluster,
-  type CitationCollectionOptions,
-  type CitationIdLookup,
-  type CitationReferenceCluster,
 } from "../../core/references/citation-rendering";
+import type { ReferenceIndexModel } from "../../core/references/model";
 import type {
   DocumentAnalysis,
   ReferenceSemantics,

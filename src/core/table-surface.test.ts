@@ -1,15 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { parseMarkdownSource } from "./parser";
 import { tableRenderPlan } from "./block-render-plan";
+import { parseMarkdownSource } from "./parser";
 import {
   applyTableCellSurface,
-  createTablePlanElement,
   createTableCellElement,
+  createTablePlanElement,
   createTableRowSurfaceElement,
   createTableSurfaceElement,
   normalizeTableCellAlign,
-  renderTablePlanHtml,
   renderTableCellHtml,
+  renderTablePlanHtml,
   renderTableRowHtml,
   renderTableSurfaceHtml,
   tableCellClassNames,

@@ -1,5 +1,5 @@
-import type { EditorState, Range } from "@codemirror/state";
 import { syntaxTree } from "@codemirror/language";
+import type { EditorState, Range } from "@codemirror/state";
 import { Decoration, WidgetType } from "@codemirror/view";
 import type { SyntaxNodeRef } from "@lezer/common";
 import { CSS } from "../../core/constants/css-classes";
@@ -8,19 +8,19 @@ import {
 } from "../../core/document-surface-classes";
 import { headingSurfaceClassNames } from "../../core/heading-surface";
 import {
+  type ListTreeNodeLike,
   listMarkerClassName,
   listMarkerOrderedFromNode,
   listMarkerText,
-  type ListTreeNodeLike,
 } from "../../core/list-surface";
+import { documentContextFacet } from "../document-context";
+import { isReferenceTokenSource } from "../lib/reference-tokens";
+import { documentPathFacet } from "../lib/types";
 import { findTrailingHeadingAttributes } from "../semantics/heading-ancestry";
 import {
   addMarkerReplacement,
   decorationHidden,
 } from "./decoration-core";
-import { documentContextFacet } from "../document-context";
-import { documentPathFacet } from "../lib/types";
-import { isReferenceTokenSource } from "../lib/reference-tokens";
 import {
   buildResolvedLinkDecoration,
   getLinkDecoration,

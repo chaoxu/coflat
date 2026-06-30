@@ -6,8 +6,9 @@
 
 import createDOMPurify from "dompurify";
 import katex from "katex";
-import { buildKatexOptions } from "../lib/katex-options";
 import { isSafeUrl } from "../../core/lib/url-utils";
+import { buildKatexOptions } from "../lib/katex-options";
+
 export { MARK_NODES } from "../../core/parser/inline-mark-nodes";
 
 // ── Shared KaTeX HTML cache ────────────────────────────────────────────────

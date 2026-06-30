@@ -1,6 +1,6 @@
-import { describe, it, expect } from "vitest";
-import { EditorState } from "@codemirror/state";
 import { markdown } from "@codemirror/lang-markdown";
+import { EditorState } from "@codemirror/state";
+import { describe, expect, it } from "vitest";
 import { markdownExtensions } from "../../core/parser";
 import {
   _computeActivePath_forTest as computeActivePath,

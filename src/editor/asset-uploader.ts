@@ -28,8 +28,8 @@ import { EditorView, ViewPlugin } from "@codemirror/view";
 
 import {
   emitStatusEvent,
-  requestHandlerFacet,
   type RequestHandler,
+  requestHandlerFacet,
 } from "./editor-host-api";
 import { escapeMarkdownPath } from "./image-save";
 

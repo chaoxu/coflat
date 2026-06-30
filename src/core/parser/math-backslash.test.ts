@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
 import { parser } from "@lezer/markdown";
+import { describe, expect, it } from "vitest";
 import { mathExtension } from "./math-backslash";
 
 /** Helper: parse text with math extension and return all node names at their ranges. */

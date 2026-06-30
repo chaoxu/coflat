@@ -1,51 +1,53 @@
 import { type EditorView } from "@codemirror/view";
-import { documentSurfacePolicy } from "../../core/document-surface-policy";
 import { CSS } from "../../core/constants";
+import { documentSurfacePolicy } from "../../core/document-surface-policy";
+import { createPreviewSurfaceBody } from "../../core/preview-surface";
+import {
+  type ReferencePreviewBodyPlan,
+  type ReferencePreviewSurfacePlan,
+  referencePreviewBodyPlan,
+  referencePreviewContentPlan,
+  referencePreviewSurfacePlan,
+  unresolvedReferencePreviewLabel,
+} from "../../core/reference-preview-source";
 import {
   createEditorReferencePresentationController,
   type ReferenceClassification,
   type ResolvedCrossref,
 } from "../references/presentation";
+import { type BibStore, bibDataField } from "../state/bib-data";
 import { blockCounterField, type NumberedBlock } from "../state/block-counter";
-import { mathMacrosField } from "../state/math-macros";
-import { renderKatex } from "./math-widget";
-import { renderPreviewBlockContentToDom } from "./preview-block-renderer";
-import { createPreviewSurfaceBody } from "../../core/preview-surface";
 import { documentAnalysisField } from "../state/document-analysis";
+import { mathMacrosField } from "../state/math-macros";
+import { pluginRegistryField } from "../state/plugin-registry";
+import { getPlugin } from "../state/plugin-registry-core";
 import {
-  EMPTY_LOCAL_MEDIA_DEPENDENCIES,
-  type LocalMediaDependencies,
-} from "./media-preview";
+  buildCitationItemTooltipPlan,
+  buildCitationTooltipPlan,
+} from "./hover-citation-preview";
+import { buildPreviewBlockOptions } from "./hover-preview-block-options";
 import {
-  referencePreviewBodyPlan,
-  type ReferencePreviewBodyPlan,
-  referencePreviewContentPlan,
-  referencePreviewSurfacePlan,
-  type ReferencePreviewSurfacePlan,
-  unresolvedReferencePreviewLabel,
-} from "../../core/reference-preview-source";
+  createHoverPreviewContent,
+  createHoverPreviewHeader,
+} from "./hover-preview-elements";
 import {
   appendMediaFallback,
   buildBlockPreviewMediaState,
   normalizeWidePreviewContent,
   replacePdfPreviewImages,
 } from "./hover-preview-media";
-import { type BibStore, bibDataField } from "../state/bib-data";
-import { buildPreviewBlockOptions } from "./hover-preview-block-options";
-import { pluginRegistryField } from "../state/plugin-registry";
-import { getPlugin } from "../state/plugin-registry-core";
+import { type TooltipPlan } from "./hover-tooltip";
+import { renderKatex } from "./math-widget";
+import {
+  EMPTY_LOCAL_MEDIA_DEPENDENCIES,
+  type LocalMediaDependencies,
+} from "./media-preview";
+import { renderPreviewBlockContentToDom } from "./preview-block-renderer";
 import { findRenderedReference } from "./reference-targeting";
 import { findReferenceWidgetContainer } from "./reference-widget";
-import {
-  buildCitationItemTooltipPlan,
-  buildCitationTooltipPlan,
-} from "./hover-citation-preview";
-import {
-  createHoverPreviewContent,
-  createHoverPreviewHeader,
-} from "./hover-preview-elements";
-import { type TooltipPlan } from "./hover-tooltip";
+
 export { normalizeWidePreviewContentForTest } from "./hover-preview-media";
+
 interface BlockPreviewPlan {
   readonly buildBody: () => HTMLElement | null;
   readonly key: string;

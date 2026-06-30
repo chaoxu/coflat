@@ -17,10 +17,11 @@
  *
  * Keep this guard when moving shared modules across editor/app boundaries.
  */
-import { describe, expect, it } from "vitest";
-import { readFileSync, readdirSync, statSync } from "node:fs";
+
+import { readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
+import { describe, expect, it } from "vitest";
 
 const SRC_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 

@@ -1,20 +1,19 @@
 import { ensureSyntaxTree, syntaxTree, syntaxTreeAvailable } from "@codemirror/language";
 import { type EditorState, StateField, type Transaction } from "@codemirror/state";
-
+import { measureSync } from "../lib/perf";
 import type { DocumentAnalysis, TextSource } from "../semantics/document";
 import {
   createDocumentAnalysisSnapshot,
+  type DocumentAnalysisRevisionInfo,
+  type DocumentAnalysisSliceName,
+  type DocumentAnalysisSliceRevisions,
   type DocumentAnalysisSnapshot,
   getDocumentAnalysisRevision,
   getDocumentAnalysisRevisionInfo,
   getDocumentAnalysisSliceRevision,
   updateDocumentAnalysisSnapshot,
-  type DocumentAnalysisRevisionInfo,
-  type DocumentAnalysisSliceName,
-  type DocumentAnalysisSliceRevisions,
 } from "../semantics/incremental/engine";
 import { buildSemanticDelta } from "../semantics/incremental/semantic-delta";
-import { measureSync } from "../lib/perf";
 
 const MATERIALIZE_TEXT_AFTER_SLICE_CALLS = 8;
 
@@ -123,10 +122,10 @@ export function documentAnalysisFromSnapshot(
 }
 
 export {
-  getDocumentAnalysisRevision,
-  getDocumentAnalysisRevisionInfo,
-  getDocumentAnalysisSliceRevision,
   type DocumentAnalysisRevisionInfo,
   type DocumentAnalysisSliceName,
   type DocumentAnalysisSliceRevisions,
+  getDocumentAnalysisRevision,
+  getDocumentAnalysisRevisionInfo,
+  getDocumentAnalysisSliceRevision,
 };

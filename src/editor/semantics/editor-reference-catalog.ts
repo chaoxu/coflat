@@ -1,33 +1,33 @@
 import { ensureSyntaxTree, syntaxTree } from "@codemirror/language";
 import {
-  StateEffect,
-  StateField,
   type ChangeDesc,
   type EditorState,
+  StateEffect,
+  StateField,
 } from "@codemirror/state";
 import type { NumberingScheme } from "../../core/parser/frontmatter";
-import { computeBlockNumbersFromFencedDivs } from "../state/block-counter-core";
-import { getPluginOrFallback } from "../state/plugin-registry-core";
 import { docChangeTouchesFencedDivStructure } from "../fenced-block/model";
 import { blockCounterField } from "../state/block-counter";
-import { frontmatterField } from "../state/frontmatter-state";
-import { pluginRegistryField } from "../state/plugin-registry";
+import { computeBlockNumbersFromFencedDivs } from "../state/block-counter-core";
+import { createChangeChecker } from "../state/change-detection";
 import {
   documentAnalysisField,
   editorStateTextSource,
   getDocumentAnalysisSliceRevision,
 } from "../state/document-analysis";
+import { frontmatterField } from "../state/frontmatter-state";
+import { pluginRegistryField } from "../state/plugin-registry";
+import { getPluginOrFallback } from "../state/plugin-registry-core";
 import {
   analyzeDocumentSemantics,
   type DocumentAnalysis,
 } from "./document";
 import {
-  buildDocumentReferenceCatalog,
-  mapDocumentReferenceCatalog,
   type BlockReferenceTargetInput,
+  buildDocumentReferenceCatalog,
   type DocumentReferenceCatalog,
+  mapDocumentReferenceCatalog,
 } from "./reference-catalog";
-import { createChangeChecker } from "../state/change-detection";
 
 export const setExternalDocumentReferenceCatalogEffect =
   StateEffect.define<DocumentReferenceCatalog | null>();

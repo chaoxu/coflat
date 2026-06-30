@@ -18,8 +18,8 @@ export { removeIndentedCode } from "./remove-indented-code";
 export { strikethroughExtension } from "./strikethrough";
 export { tableExtension } from "./table";
 
-import { Autolink, parser as baseMarkdownParser, TaskList } from "@lezer/markdown";
 import type { Tree } from "@lezer/common";
+import { Autolink, parser as baseMarkdownParser, TaskList } from "@lezer/markdown";
 import { equationLabelExtension } from "./equation-label";
 import { fencedDiv } from "./fenced-div";
 import { footnoteExtension } from "./footnote";

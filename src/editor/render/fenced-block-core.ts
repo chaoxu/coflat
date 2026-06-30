@@ -1,6 +1,7 @@
-import { type EditorState, type Line, type Range, type StateField, type Transaction } from "@codemirror/state";
-import { type DecorationSet, Decoration, EditorView, WidgetType } from "@codemirror/view";
 import { syntaxTree, syntaxTreeAvailable } from "@codemirror/language";
+import { type EditorState, type Line, type Range, type StateField, type Transaction } from "@codemirror/state";
+import { Decoration, type DecorationSet, EditorView, WidgetType } from "@codemirror/view";
+import { CSS } from "../../core/constants/css-classes";
 import type { FencedBlockInfo } from "../fenced-block/model";
 import { containsPos } from "../lib/range-helpers";
 import {
@@ -9,9 +10,8 @@ import {
 } from "./decoration-core";
 import { createDecorationsField } from "./decoration-field";
 import { editorFocusField, focusEffect } from "./focus-state";
-import { CSS } from "../../core/constants/css-classes";
 
-export { findFencedBlockAt, type FencedBlockInfo } from "../fenced-block/model";
+export { type FencedBlockInfo, findFencedBlockAt } from "../fenced-block/model";
 
 class CollapsedStructureLineWidget extends WidgetType {
   constructor(private readonly className: string) {

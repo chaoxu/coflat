@@ -1,8 +1,8 @@
 import type { SyntaxNode } from "@lezer/common";
 import { tableRenderPlan } from "../../core/block-render-plan";
 import { createTablePlanElement } from "../../core/table-surface";
-import type { PreviewRenderContext } from "./preview-render-context";
 import { renderInlineFragmentsToDom } from "./inline-render";
+import type { PreviewRenderContext } from "./preview-render-context";
 
 export function renderPreviewTable(
   parent: HTMLElement | DocumentFragment,

@@ -2,8 +2,8 @@ import { type EditorView, WidgetType } from "@codemirror/view";
 import { CSS } from "../../core/constants/css-classes";
 import { sourceRangeFromDataset } from "../../core/source-range-surface";
 import type { VisibleSearchState } from "../search/search-matches";
-import { activeFencedDepthAtRange } from "../state/shell-ownership";
 import { activateStructureEditAt } from "../state/cm-structure-edit";
+import { activeFencedDepthAtRange } from "../state/shell-ownership";
 import {
   BaseRenderWidget,
   makeTextElement,

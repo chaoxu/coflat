@@ -4,8 +4,8 @@ import {
   createDisplayMathContentElement,
   createDisplayMathSurfaceElement,
   displayMathSurfaceClassNames,
-  replaceDisplayMathContent,
   renderDisplayMathPlaceholderHtml,
+  replaceDisplayMathContent,
   syncDisplayMathEquationNumber,
 } from "./math-display-surface";
 

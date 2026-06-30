@@ -1,24 +1,5 @@
 import type { Tree } from "@lezer/common";
 import {
-  createDocumentAnalysis,
-  createDocumentArtifacts,
-  type DocumentArtifacts,
-} from "./incremental/engine";
-import { extractStructuralWindow } from "./incremental/window-extractor";
-import { buildHeadingSlice } from "./incremental/slices/heading-slice";
-import {
-  buildFootnoteSlice,
-  type FootnoteSlice,
-} from "./incremental/slices/footnote-slice";
-import { buildEquationSlice } from "./incremental/slices/equation-slice";
-import { buildMathSlice } from "./incremental/slices/math-slice";
-import { buildReferenceSlice } from "./incremental/slices/reference-slice";
-import {
-  findTrailingHeadingAttributes,
-  hasUnnumberedHeadingAttributes,
-  type TrailingHeadingAttributes,
-} from "./heading-attributes";
-import {
   buildFootnotePlan,
 } from "../../core/semantics/footnote-plan";
 import type {
@@ -32,6 +13,26 @@ import type {
   ReferenceSemantics,
   TextSource,
 } from "./document-model";
+import {
+  findTrailingHeadingAttributes,
+  hasUnnumberedHeadingAttributes,
+  type TrailingHeadingAttributes,
+} from "./heading-attributes";
+import {
+  createDocumentAnalysis,
+  createDocumentArtifacts,
+  type DocumentArtifacts,
+} from "./incremental/engine";
+import { buildEquationSlice } from "./incremental/slices/equation-slice";
+import {
+  buildFootnoteSlice,
+  type FootnoteSlice,
+} from "./incremental/slices/footnote-slice";
+import { buildHeadingSlice } from "./incremental/slices/heading-slice";
+import { buildMathSlice } from "./incremental/slices/math-slice";
+import { buildReferenceSlice } from "./incremental/slices/reference-slice";
+import { extractStructuralWindow } from "./incremental/window-extractor";
+
 export type {
   DocumentAnalysis,
   DocumentSemantics,

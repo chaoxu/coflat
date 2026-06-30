@@ -1,14 +1,23 @@
 import type { Tree } from "@lezer/common";
+import type { ReferenceIndexModel } from "../../../core/references/model";
 import {
   classifyReferenceIndex,
 } from "../../references/classifier";
-import type { ReferenceIndexModel } from "../../../core/references/model";
 import type {
   DocumentAnalysis,
   FencedDivSemantics,
   ReferenceSemantics,
   TextSource,
 } from "../document-model";
+import {
+  buildDocumentAnalysisBase,
+  buildRevisionInfo,
+  createFencedDivSlice,
+  type DocumentAnalysisSlices,
+  type IncrementalDocumentAnalysisState,
+  sameSlices,
+  ZERO_REVISION_INFO,
+} from "./slice-registry";
 import {
   buildEquationSlice,
   type EquationSlice,
@@ -27,17 +36,8 @@ import {
   buildReferenceSlice,
 } from "./slices/reference-slice";
 import {
-  buildDocumentAnalysisBase,
-  buildRevisionInfo,
-  createFencedDivSlice,
-  sameSlices,
-  ZERO_REVISION_INFO,
-  type DocumentAnalysisSlices,
-  type IncrementalDocumentAnalysisState,
-} from "./slice-registry";
-import {
-  extractStructuralWindow,
   type ExcludedRange,
+  extractStructuralWindow,
 } from "./window-extractor";
 
 export interface DocumentAnalysisSnapshot extends DocumentAnalysis {

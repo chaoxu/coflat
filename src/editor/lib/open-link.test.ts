@@ -1,5 +1,5 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { openExternalUrl, handleExternalLinkClick, configureExternalUrlOpener } from "./open-link";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { configureExternalUrlOpener, handleExternalLinkClick, openExternalUrl } from "./open-link";
 
 describe("openExternalUrl", () => {
   let windowOpenSpy: ReturnType<typeof vi.spyOn>;

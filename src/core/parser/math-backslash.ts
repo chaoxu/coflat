@@ -1,19 +1,19 @@
 import { tags } from "@lezer/highlight";
 import type {
+  InlineContext,
   InlineParser,
   MarkdownConfig,
-  InlineContext,
 } from "@lezer/markdown";
+import {
+  isPandocDollarMathCloser,
+  isPandocDollarMathOpener,
+} from "../lib/pandoc-dollar-math";
 import {
   BACKSLASH,
   CLOSE_PAREN,
   DOLLAR,
   OPEN_PAREN,
 } from "./char-utils";
-import {
-  isPandocDollarMathCloser,
-  isPandocDollarMathOpener,
-} from "../lib/pandoc-dollar-math";
 
 function addInlineMathElement(
   cx: InlineContext,

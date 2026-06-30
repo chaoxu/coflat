@@ -11,20 +11,20 @@ import type { EditorView } from "@codemirror/view";
 import type { FileSystem } from "../../core/lib/file-system-types";
 import { mediaKindForSrc } from "../../core/media-surface";
 import { fileSystemFacet } from "../lib/types";
-import { imageUrlField, type ImageUrlEntry } from "../state/image-url";
+import { type ImageUrlEntry, imageUrlField } from "../state/image-url";
 import {
   classifyLocalMediaTarget,
   collectChangedLocalMediaPaths,
   createLocalMediaDependencies,
   EMPTY_LOCAL_MEDIA_DEPENDENCIES,
-  localMediaDependenciesChanged,
-  resolveLocalMediaPathFromState,
-  trackLocalMediaPreviewDependency,
   type LocalMediaCacheKind,
   type LocalMediaDependencies,
   type LocalMediaPreviewDependency,
+  localMediaDependenciesChanged,
+  resolveLocalMediaPathFromState,
+  trackLocalMediaPreviewDependency,
 } from "../state/local-media";
-import { pdfPreviewField, type PdfPreviewEntry } from "../state/pdf-preview";
+import { type PdfPreviewEntry, pdfPreviewField } from "../state/pdf-preview";
 import {
   getImageDataUrl,
   requestImageDataUrl,
@@ -46,12 +46,12 @@ export {
   collectChangedLocalMediaPaths,
   createLocalMediaDependencies,
   EMPTY_LOCAL_MEDIA_DEPENDENCIES,
-  localMediaDependenciesChanged,
-  resolveLocalMediaPathFromState,
-  trackLocalMediaPreviewDependency,
   type LocalMediaCacheKind,
   type LocalMediaDependencies,
   type LocalMediaPreviewDependency,
+  localMediaDependenciesChanged,
+  resolveLocalMediaPathFromState,
+  trackLocalMediaPreviewDependency,
 };
 
 // ── Public API ──────────────────────────────────────────────────────────────

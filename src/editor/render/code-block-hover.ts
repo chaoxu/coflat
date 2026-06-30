@@ -5,8 +5,8 @@ import {
   type ViewUpdate,
 } from "@codemirror/view";
 import { CSS } from "../../core/constants/css-classes";
-import { isCodeFenceStructureEditActive } from "../state/cm-structure-edit";
 import { findFencedBlockAt } from "../fenced-block/model";
+import { isCodeFenceStructureEditActive } from "../state/cm-structure-edit";
 import {
   type CodeBlockInfo,
   collectCodeBlocks,

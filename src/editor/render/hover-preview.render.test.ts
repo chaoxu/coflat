@@ -1,19 +1,19 @@
-import { type Extension, EditorState } from "@codemirror/state";
+import { EditorState, type Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { bibDataField } from "../state/bib-data";
 import {
   createMarkdownLanguageExtensions,
 } from "../base-editor-extensions";
-import { frontmatterField } from "../state/frontmatter-state";
 import { documentPathFacet } from "../lib/types";
 import {
   defaultPlugins,
 } from "../plugins";
-import { documentAnalysisField } from "../state/document-analysis";
+import { bibDataField } from "../state/bib-data";
 import { blockCounterField } from "../state/block-counter";
-import { createPluginRegistryField } from "../state/plugin-registry";
+import { documentAnalysisField } from "../state/document-analysis";
+import { frontmatterField } from "../state/frontmatter-state";
 import { mathMacrosField } from "../state/math-macros";
+import { createPluginRegistryField } from "../state/plugin-registry";
 
 const resolveLocalMediaPreviewMock = vi.fn();
 const { getPdfCanvasMock } = vi.hoisted(() => ({

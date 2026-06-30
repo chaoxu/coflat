@@ -1,8 +1,8 @@
-import { describe, test, expect } from "vitest";
 import { parser } from "@lezer/markdown";
-import { mathExtension } from "./math-backslash";
+import { describe, expect, test } from "vitest";
 import { equationLabelExtension } from "./equation-label";
 import { fencedDiv } from "./fenced-div";
+import { mathExtension } from "./math-backslash";
 import { removeIndentedCode } from "./remove-indented-code";
 
 const mathParser = parser.configure([

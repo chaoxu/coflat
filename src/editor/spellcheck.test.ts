@@ -1,10 +1,10 @@
-import { afterEach, describe, expect, it } from "vitest";
 import {
   type DecorationSet,
   EditorView,
   type ViewPlugin,
   type ViewUpdate,
 } from "@codemirror/view";
+import { afterEach, describe, expect, it } from "vitest";
 import { createMarkdownLanguageExtensions } from "./base-editor-extensions";
 import {
   _spellcheckMarkViewPluginForTest,

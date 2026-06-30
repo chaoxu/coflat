@@ -3,14 +3,14 @@ import {
   fencedDivSyntaxPlan,
   headingSemanticPlan,
 } from "../../../core/block-render-plan";
-import {
-  isDisplayMath,
-} from "../../lib/syntax-tree-helpers";
 import { displayMathSourcePlan } from "../../../core/math-source";
 import {
   extractFootnoteDefinition,
   extractFootnoteReference,
 } from "../../../core/semantics/footnote-extraction";
+import {
+  isDisplayMath,
+} from "../../lib/syntax-tree-helpers";
 import type {
   EquationSemantics,
   FencedDivSemantics,

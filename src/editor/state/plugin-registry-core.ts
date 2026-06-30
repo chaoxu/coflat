@@ -8,14 +8,14 @@
  *
  */
 
-import type { BlockPlugin } from "./block-plugin";
-import type { BlockConfig } from "../../core/parser/frontmatter";
-import { createBlockRender } from "./block-render";
-import { capitalize, pickDefined } from "../lib/utils";
 import { EXCLUDED_FROM_FALLBACK } from "../../core/constants/block-manifest";
+import type { BlockConfig } from "../../core/parser/frontmatter";
+import { capitalize, pickDefined } from "../lib/utils";
+import type { BlockPlugin } from "./block-plugin";
+import { createBlockRender } from "./block-render";
 import {
-  STANDARD_PLUGIN_METADATA_KEYS,
   createStandardPlugin,
+  STANDARD_PLUGIN_METADATA_KEYS,
 } from "./plugin-factory";
 
 /**

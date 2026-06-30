@@ -1,21 +1,26 @@
 import type { ChangeDesc } from "@codemirror/state";
+import {
+  type BlockReferenceTargetInput,
+  blockReferenceTarget,
+  buildDocumentReferenceTargetCollection,
+  buildReferenceTargetIndexes,
+  type DocumentReferenceTarget,
+  equationReferenceTarget,
+  getPreferredDocumentReferenceTarget as getPreferredTarget,
+  headingReferenceTarget,
+  mapDocumentReferenceTargets,
+} from "../../core/reference-targets";
 import type { CrossrefReferenceEntry } from "../../core/references/model";
 import type {
   DocumentAnalysis,
   ReferenceSemantics,
 } from "./document";
-import {
-  blockReferenceTarget,
-  buildDocumentReferenceTargetCollection,
-  buildReferenceTargetIndexes,
-  equationReferenceTarget,
-  getPreferredDocumentReferenceTarget as getPreferredTarget,
-  headingReferenceTarget,
-  mapDocumentReferenceTargets,
-  type BlockReferenceTargetInput,
-  type DocumentReferenceTarget,
-} from "../../core/reference-targets";
 
+export type {
+  BlockReferenceTargetInput,
+  DocumentReferenceTarget,
+  DocumentReferenceTargetKind,
+} from "../../core/reference-targets";
 export {
   blockReferenceTarget,
   equationReferenceTarget,
@@ -26,11 +31,6 @@ export {
   formatEquationReferenceLabel,
   formatHeadingReferenceLabel,
 } from "../../core/references/format";
-export type {
-  BlockReferenceTargetInput,
-  DocumentReferenceTarget,
-  DocumentReferenceTargetKind,
-} from "../../core/reference-targets";
 
 export interface DocumentReferenceCatalog {
   readonly targets: readonly DocumentReferenceTarget[];

@@ -1,25 +1,25 @@
-import { describe, expect, it, afterEach } from "vitest";
 import { markdown } from "@codemirror/lang-markdown";
 import type { EditorView } from "@codemirror/view";
+import { afterEach, describe, expect, it } from "vitest";
 import { markdownExtensions } from "../core/parser";
-import { fenceProtectionExtension } from "./plugins/fence-protection";
-import { blockCounterField } from "./state/block-counter";
-import { createPluginRegistryField } from "./state/plugin-registry";
-import { _blockDecorationFieldForTest as blockDecorationField } from "./render/plugin-render";
-import { documentAnalysisField } from "./state/document-analysis";
-import { editorFocusField } from "./render/render-core";
-import { mathMacrosField } from "./state/math-macros";
 import {
   exitCurrentBlockBelow,
   moveDownAcrossNestedClosingFences,
   toggleInlineMarker,
   toggleLink,
 } from "./keybindings";
+import { fenceProtectionExtension } from "./plugins/fence-protection";
+import { _blockDecorationFieldForTest as blockDecorationField } from "./render/plugin-render";
+import { editorFocusField } from "./render/render-core";
+import { blockCounterField } from "./state/block-counter";
 import {
-  activeStructureEditField,
   activateStructureEditAt,
+  activeStructureEditField,
 } from "./state/cm-structure-edit";
+import { documentAnalysisField } from "./state/document-analysis";
 import { frontmatterField } from "./state/frontmatter-state";
+import { mathMacrosField } from "./state/math-macros";
+import { createPluginRegistryField } from "./state/plugin-registry";
 import { createTestView, makeBlockPlugin } from "./test-utils";
 
 /**

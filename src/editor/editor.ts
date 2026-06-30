@@ -1,20 +1,17 @@
+import { historyField } from "@codemirror/commands";
 import { indentUnit, LanguageDescription } from "@codemirror/language";
 import { Compartment, EditorState, type Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
-import { historyField } from "@codemirror/commands";
 import {
   DOCUMENT_SURFACE_CLASS,
   documentSurfaceClassNames,
 } from "../core/document-surface-classes";
-import { defaultPlugins } from "./plugins";
-import { cm6RichRenderExtensions } from "./render/cm6-rich-render-extensions";
-import { coreDocumentStateExtensions } from "./state/document-state-extensions";
 import {
   createMarkdownLanguageExtensions,
   createProjectConfigExtensions,
 } from "./base-editor-extensions";
-import { builtinCommandRegistryExtension } from "./commands";
 import { commandKeymapExtension } from "./command-registry";
+import { builtinCommandRegistryExtension } from "./commands";
 import {
   blockTypePickerCompartment,
   syntaxHighlightCompartment,
@@ -22,6 +19,7 @@ import {
   treeViewCompartment,
 } from "./compartments";
 import { emitWindowDebugLaneStateChange } from "./debug-lane-state";
+import { editorModeField } from "./editor-mode-state";
 import type {
   EditorPlugin,
   EditorPluginLifecycleEvent,
@@ -29,8 +27,8 @@ import type {
 } from "./editor-plugin";
 import { EditorPluginManager } from "./editor-plugin";
 import {
-  resolveEditorPluginPreset,
   type EditorPluginPresetName,
+  resolveEditorPluginPreset,
 } from "./editor-plugin-presets";
 import {
   renderModeExtensions,
@@ -38,20 +36,22 @@ import {
 } from "./extension-builders";
 import { headingFold } from "./heading-fold";
 import { editorKeybindings } from "./keybindings";
-import { editorModeField } from "./editor-mode-state";
+import { defaultPlugins } from "./plugins";
 import { type ProjectConfig, type ProjectConfigStatus } from "./project-config";
+import { cm6RichRenderExtensions } from "./render/cm6-rich-render-extensions";
 import { richMouseSelectionStyle } from "./rich-mouse-selection";
 import { scrollStabilityExtension } from "./scroll-stability";
 import { shellSurfaceOverlayExtension } from "./shell-surface-overlay";
 import { stableHeightOracleExtension } from "./stable-height-oracle";
+import { coreDocumentStateExtensions } from "./state/document-state-extensions";
 import { coflatDarkTheme, coflatTheme } from "./theme";
 import { widgetStopIndexCleanupExtension } from "./widget-stop-index";
 
 export {
+  type EditorMode,
   editorModeField,
   markdownEditorModes,
   setEditorMode,
-  type EditorMode,
 } from "./editor-mode-state";
 
 const fallbackDocument = "# Untitled\n";

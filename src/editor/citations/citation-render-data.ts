@@ -1,8 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
-
-import { buildCitationBacklinkMap } from "./bibliography";
 import type { BibStore, CslJsonItem } from "../../core/citations/csl-json";
+import type { FrontmatterConfig } from "../../core/parser/frontmatter";
+import type { DocumentAnalysis } from "../semantics/document";
+import { analyzeMarkdownSemantics } from "../semantics/markdown-analysis";
+import { buildCitationBacklinkMap } from "./bibliography";
 import {
+  type CitationBacklink,
+  type CitationCollectionOptions,
+  type CitationReferenceToken,
   collectCitationBacklinksFromAnalysis,
   collectCitationBacklinksFromTokens,
   collectCitationClusters,
@@ -10,14 +15,8 @@ import {
   collectCitedIdsFromClusters,
   createReferenceIndexLocalTargetLookup,
   getCitationRegistrationKey,
-  type CitationBacklink,
-  type CitationCollectionOptions,
-  type CitationReferenceToken,
 } from "./citation-matching";
 import { CslProcessor } from "./csl-processor";
-import type { FrontmatterConfig } from "../../core/parser/frontmatter";
-import type { DocumentAnalysis } from "../semantics/document";
-import { analyzeMarkdownSemantics } from "../semantics/markdown-analysis";
 
 export interface CitationTextResourceResolver {
   readonly readProjectTextFile: (path: string) => Promise<string | null>;

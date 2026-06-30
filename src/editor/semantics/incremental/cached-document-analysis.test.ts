@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import {
   clearDocumentAnalysisCache,
-  getDocumentArtifacts,
   getCachedDocumentAnalysis,
   getCachedDocumentArtifacts,
   getDocumentAnalysis,
+  getDocumentArtifacts,
   rememberDocumentAnalysis,
 } from "./cached-document-analysis";
 import {

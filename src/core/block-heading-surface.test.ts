@@ -1,6 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { CSS } from "./constants/css-classes";
-import { DOCUMENT_SURFACE_CLASS } from "./document-surface-classes";
 import {
   appendBlockDisclosure,
   createBlockSummaryFragment,
@@ -12,6 +10,8 @@ import {
   renderInlineBlockHeadingContainerHtml,
   renderInlineBlockHeadingHtml,
 } from "./block-heading-surface";
+import { CSS } from "./constants/css-classes";
+import { DOCUMENT_SURFACE_CLASS } from "./document-surface-classes";
 
 describe("block heading surface", () => {
   it("renders reader label and title HTML with the canonical classes", () => {

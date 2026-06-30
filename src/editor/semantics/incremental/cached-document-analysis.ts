@@ -4,8 +4,8 @@ import { markdownSemanticsParser } from "../markdown-parser";
 import { coalesceChangedRanges } from "./dirty-windows";
 import {
   buildDocumentArtifacts,
-  createDocumentAnalysisSnapshotFromAnalysis,
   createDocumentAnalysisSnapshot,
+  createDocumentAnalysisSnapshotFromAnalysis,
   createDocumentArtifacts,
   type DocumentAnalysisSnapshot,
   type DocumentArtifacts,

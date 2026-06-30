@@ -11,46 +11,44 @@ import {
   type DecorationSet,
   EditorView,
 } from "@codemirror/view";
-
-import {
-  buildCitationBacklinkAriaLabel,
-  buildCitationBacklinkContextFromDoc,
-} from "../citations/bibliography-backlinks";
-import { formatBibEntry, sortBibEntries } from "../citations/bibliography";
-import {
-  type CitationBacklink,
-  collectCitationBacklinksFromAnalysis,
-  collectCitationBacklinksFromTokens,
-  collectCitationClusters,
-  collectCitationMatchesFromAnalysis,
-  collectCitedIdsFromReferenceIndex,
-  collectCitedIdsFromClusters,
-  createReferenceIndexLocalTargetLookup,
-  getAnalysisCitationBacklinkKey,
-  getAnalysisCitationRegistrationKey,
-  getCitationRegistrationKey,
-  type CitationReferenceToken,
-} from "../citations/citation-matching";
-import type { CitationFormatter } from "../../core/document-context-types";
-import { type CslJsonItem } from "../../core/citations/csl-json";
 import {
   appendBibliographyBacklinks,
   bibliographyListElement,
   createBibliographyEntryElement,
   createBibliographySectionElement,
 } from "../../core/bibliography-surface";
+import { type CslJsonItem } from "../../core/citations/csl-json";
+import { HOVER_DELAY_MS } from "../../core/constants";
 import { CSS } from "../../core/constants/css-classes";
+import type { CitationFormatter } from "../../core/document-context-types";
+import { createPreviewSurfaceBody } from "../../core/preview-surface";
+import { formatBibEntry, sortBibEntries } from "../citations/bibliography";
+import {
+  buildCitationBacklinkAriaLabel,
+  buildCitationBacklinkContextFromDoc,
+} from "../citations/bibliography-backlinks";
+import {
+  type CitationBacklink,
+  type CitationReferenceToken,
+  collectCitationBacklinksFromAnalysis,
+  collectCitationBacklinksFromTokens,
+  collectCitationClusters,
+  collectCitationMatchesFromAnalysis,
+  collectCitedIdsFromClusters,
+  collectCitedIdsFromReferenceIndex,
+  createReferenceIndexLocalTargetLookup,
+  getAnalysisCitationBacklinkKey,
+  getAnalysisCitationRegistrationKey,
+  getCitationRegistrationKey,
+} from "../citations/citation-matching";
+import { scanReferenceTokens } from "../lib/reference-tokens";
 import { sanitizeCslHtml } from "../lib/sanitize-csl-html";
+import type { FootnoteSemantics } from "../semantics/document";
 import { type BibStore, bibDataEffect, bibDataField } from "../state/bib-data";
 import {
   documentAnalysisField,
 } from "../state/document-analysis";
-import type { FootnoteSemantics } from "../semantics/document";
-import { scanReferenceTokens } from "../lib/reference-tokens";
 import { mathMacrosField } from "../state/math-macros";
-import { HOVER_DELAY_MS } from "../../core/constants";
-import { createPreviewSurfaceBody } from "../../core/preview-surface";
-import { renderPreviewBlockContentToDom } from "./preview-block-renderer";
 import { buildPreviewBlockOptions } from "./hover-preview-block-options";
 import {
   createHoverPreviewContent,
@@ -63,6 +61,7 @@ import {
   type TooltipPlan,
 } from "./hover-tooltip";
 import { EMPTY_LOCAL_MEDIA_DEPENDENCIES } from "./media-preview";
+import { renderPreviewBlockContentToDom } from "./preview-block-renderer";
 import { buildDecorations, createDecorationsField, RenderWidget } from "./render-core";
 
 /** Widget that renders the full bibliography section. */

@@ -1,5 +1,5 @@
-import { Compartment, EditorState } from "@codemirror/state";
 import { markdown } from "@codemirror/lang-markdown";
+import { Compartment, EditorState } from "@codemirror/state";
 import { describe, expect, it } from "vitest";
 import { strikethroughExtension } from "../../../core/parser";
 import {

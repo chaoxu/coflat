@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
 import { markdown } from "@codemirror/lang-markdown";
+import { describe, expect, it } from "vitest";
 import { markdownExtensions } from "../../core/parser";
 import { documentAnalysisField } from "../state/document-analysis";
 import { createEditorState } from "../test-utils";

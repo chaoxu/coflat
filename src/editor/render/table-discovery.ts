@@ -3,14 +3,14 @@ import {
   ViewPlugin,
   type ViewUpdate,
 } from "@codemirror/view";
+import { CSS } from "../../core/constants/css-classes";
 import { findTablePipePositions } from "../../core/lib/table-inline-span";
 import {
   findTablesInState,
-  tableDiscoveryPendingParseField,
   type TableRange,
+  tableDiscoveryPendingParseField,
 } from "../state/table-discovery";
 import { SyntaxParseScheduler } from "./syntax-parse-scheduler";
-import { CSS } from "../../core/constants/css-classes";
 
 export { findTablesInState, type TableRange } from "../state/table-discovery";
 

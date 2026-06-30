@@ -1,28 +1,28 @@
-import { EditorState } from "@codemirror/state";
 import { markdown } from "@codemirror/lang-markdown";
+import { EditorState } from "@codemirror/state";
 import { describe, expect, it } from "vitest";
-import { frontmatterField } from "../state/frontmatter-state";
 import { markdownExtensions } from "../../core/parser";
 import {
   defaultPlugins,
 } from "../plugins";
 import { blockCounterField } from "../state/block-counter";
+import { documentAnalysisField } from "../state/document-analysis";
 import { documentLabelGraphField } from "../state/document-label-graph";
+import { frontmatterField } from "../state/frontmatter-state";
 import { createPluginRegistryField } from "../state/plugin-registry";
 import {
-  documentReferenceCatalogField,
-  editorBlockReferenceTargetInputsField,
-} from "./editor-reference-catalog";
-import {
   buildDocumentLabelGraph,
+  type DocumentLabelGraph,
   findDocumentLabelBacklinks,
   getDocumentLabelDefinition,
   getDocumentLabelDefinitions,
   isValidDocumentLabelId,
-  type DocumentLabelGraph,
   validateDocumentLabelRename,
 } from "./document-label-graph";
-import { documentAnalysisField } from "../state/document-analysis";
+import {
+  documentReferenceCatalogField,
+  editorBlockReferenceTargetInputsField,
+} from "./editor-reference-catalog";
 
 function graphExtensions() {
   return [

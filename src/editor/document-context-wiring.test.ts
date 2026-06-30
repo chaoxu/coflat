@@ -1,14 +1,15 @@
 import { EditorState, StateEffect } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { afterEach, describe, expect, it } from "vitest";
-import {
-  documentContextFacet,
-} from "./document-context";
+import { mountEditor } from "../../editor";
 import type {
   CitationFormatter,
   LinkResolver,
   RefResolver,
 } from "../core/document-context-types";
+import {
+  documentContextFacet,
+} from "./document-context";
 import { documentPathFacet } from "./lib/types";
 import { isBareDocumentAnchor } from "./render/link-handler";
 import { renderPreviewBlockContentToDom } from "./render/preview-block-renderer";
@@ -21,7 +22,6 @@ import {
   store,
 } from "./render/reference-render-test-utils";
 import { bibDataEffect, bibDataField } from "./state/bib-data";
-import { mountEditor } from "../../editor";
 
 /**
  * DocumentContext wiring: with no host resolver, behavior is unchanged

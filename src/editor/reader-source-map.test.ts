@@ -7,7 +7,7 @@
  *  - Math placeholder collapse-to-block behaviour.
  */
 import { describe, expect, it } from "vitest";
-import { renderToHtml, mapDomRangeToSource } from "../../reader";
+import { mapDomRangeToSource, renderToHtml } from "../../reader";
 
 describe("renderToHtml — sourcePositions emission", () => {
   it("emits data-source-from/to on a block element", () => {

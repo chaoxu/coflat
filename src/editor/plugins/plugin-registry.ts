@@ -5,9 +5,9 @@ export {
   getPlugin,
   getPluginOrFallback,
   getRegisteredNames,
+  type PluginRegistryState,
   pluginFromConfig,
   registerPlugin,
   registerPlugins,
   unregisterPlugin,
-  type PluginRegistryState,
 } from "../state/plugin-registry-core";

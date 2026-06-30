@@ -8,13 +8,15 @@ import type {
   SidebarTab,
   WatcherHealthEvent,
 } from "../lib/debug-types";
+
 export type { DebugDocumentState } from "../lib/debug-types";
+
+import type { EditorRuntimeContractSnapshot } from "./editor-runtime-contract";
 import type {
   DebugSessionCapture,
   DebugSessionExport,
   DebugSessionRecorderStatus,
 } from "./session-recorder";
-import type { EditorRuntimeContractSnapshot } from "./editor-runtime-contract";
 
 export const CORE_DEBUG_GLOBAL_NAMES: readonly ["__app", "__cfDebug"];
 export const DEBUG_BRIDGE_REQUIRED_GLOBAL_NAMES: readonly ["__app", "__editor", "__cfDebug"];

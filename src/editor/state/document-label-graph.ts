@@ -1,15 +1,15 @@
 import { StateField } from "@codemirror/state";
+import type { ReferenceSemantics } from "../semantics/document";
 import {
   buildDocumentLabelGraph,
-  mapDocumentLabelGraph,
   type DocumentLabelGraph,
+  mapDocumentLabelGraph,
 } from "../semantics/document-label-graph";
 import { documentReferenceCatalogField } from "../semantics/editor-reference-catalog";
 import type {
   DocumentReferenceCatalog,
   DocumentReferenceTarget,
 } from "../semantics/reference-catalog";
-import type { ReferenceSemantics } from "../semantics/document";
 import { blockCounterField } from "./block-counter";
 import { createChangeChecker } from "./change-detection";
 import { documentAnalysisField } from "./document-analysis";

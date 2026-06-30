@@ -1,10 +1,7 @@
 import {
-  Decoration,
-  type DecorationSet,
-  EditorView,
-  ViewPlugin,
-  type ViewUpdate,
-} from "@codemirror/view";
+  syntaxTree,
+  syntaxTreeAvailable,
+} from "@codemirror/language";
 import {
   type EditorState,
   type Extension,
@@ -13,9 +10,20 @@ import {
   type Transaction,
 } from "@codemirror/state";
 import {
-  syntaxTree,
-  syntaxTreeAvailable,
-} from "@codemirror/language";
+  Decoration,
+  type DecorationSet,
+  EditorView,
+  ViewPlugin,
+  type ViewUpdate,
+} from "@codemirror/view";
+import {
+  DOCUMENT_SURFACE_CLASS,
+  documentSurfaceClassNames,
+} from "../../core/document-surface-classes";
+import {
+  editorListItemLineClassNamesFromNode,
+  type ListTreeNodeLike,
+} from "../../core/list-surface";
 import {
   clampDocPos,
   expandChangeQueryRange,
@@ -27,14 +35,6 @@ import {
 import { documentAnalysisField } from "../state/document-analysis";
 import { buildDecorations } from "./decoration-core";
 import { SyntaxParseScheduler } from "./syntax-parse-scheduler";
-import {
-  DOCUMENT_SURFACE_CLASS,
-  documentSurfaceClassNames,
-} from "../../core/document-surface-classes";
-import {
-  editorListItemLineClassNamesFromNode,
-  type ListTreeNodeLike,
-} from "../../core/list-surface";
 
 /**
  * Maps Lezer syntax node type names to HTML tag names.

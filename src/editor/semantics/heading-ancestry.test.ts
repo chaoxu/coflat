@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
-import {
-  extractHeadings,
-  headingAncestryAt,
-  activeHeadingIndex,
-  type HeadingEntry,
-} from "./heading-ancestry";
 import { createEditor } from "..";
+import {
+  activeHeadingIndex,
+  extractHeadings,
+  type HeadingEntry,
+  headingAncestryAt,
+} from "./heading-ancestry";
 
 /** Helper: create an editor with the given markdown and extract headings. */
 function headingsFrom(doc: string): HeadingEntry[] {

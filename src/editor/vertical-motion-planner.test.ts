@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { TableRange } from "./state/table-discovery";
-import type { HiddenWidgetStop, WidgetStopIndex } from "./widget-stop-index";
 import {
   planVerticalMotionStop,
   shouldCorrectStructureExit,
   shouldFallbackRootMotion,
 } from "./vertical-motion-planner";
+import type { HiddenWidgetStop, WidgetStopIndex } from "./widget-stop-index";
 
 function hiddenStop(from: number, to: number, startLine: number, endLine: number): HiddenWidgetStop {
   return {

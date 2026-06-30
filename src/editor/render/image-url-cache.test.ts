@@ -1,5 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
 import { EditorState } from "@codemirror/state";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { FileSystem } from "../../core/lib/file-system-types";
 import {
   imageUrlEffect,

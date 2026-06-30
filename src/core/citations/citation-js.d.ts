@@ -76,8 +76,8 @@ declare module "@citation-js/core" {
     add(name: string, plugin: Record<string, unknown>): void;
   };
 
+  export type { CiteprocCitation, CiteprocCitationItem, CiteprocEngine, CslConfig };
   export { Cite, plugins };
-  export type { CiteprocEngine, CiteprocCitationItem, CiteprocCitation, CslConfig };
 }
 
 declare module "@citation-js/plugin-bibtex" {

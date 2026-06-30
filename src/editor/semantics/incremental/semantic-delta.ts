@@ -1,5 +1,5 @@
-import { Annotation, type Text, type Transaction } from "@codemirror/state";
 import { syntaxTree } from "@codemirror/language";
+import { Annotation, type Text, type Transaction } from "@codemirror/state";
 import { coalesceChangedRanges } from "./dirty-windows";
 import type { RawChangedRange, SemanticDelta } from "./types";
 

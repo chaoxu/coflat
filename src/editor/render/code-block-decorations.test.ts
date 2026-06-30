@@ -12,18 +12,12 @@
  * the module, so we mount a live EditorView and inspect the rendered DOM
  * rather than instantiating widgets directly.
  */
-import { afterEach, describe, expect, it } from "vitest";
+
+import { markdown } from "@codemirror/lang-markdown";
 import { ensureSyntaxTree } from "@codemirror/language";
 import { EditorState, type Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
-import { markdown } from "@codemirror/lang-markdown";
-
-import {
-  computeCodeBlockDirtyRegion,
-  codeBlockDecorationField,
-  docChangeTouchesCodeBlockContent,
-} from "./code-block-decorations";
-import { editorFocusField, focusEffect } from "./focus-state";
+import { afterEach, describe, expect, it } from "vitest";
 import { CSS } from "../../core/constants/css-classes";
 import { markdownExtensions } from "../../core/parser";
 import { activeStructureEditField } from "../state/cm-structure-edit";
@@ -31,6 +25,12 @@ import {
   codeBlockStructureField,
   collectCodeBlocks,
 } from "../state/code-block-structure";
+import {
+  codeBlockDecorationField,
+  computeCodeBlockDirtyRegion,
+  docChangeTouchesCodeBlockContent,
+} from "./code-block-decorations";
+import { editorFocusField, focusEffect } from "./focus-state";
 
 const activeViews = new Set<EditorView>();
 

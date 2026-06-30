@@ -1,6 +1,6 @@
 import { documentSurfacePolicy } from "../core/document-surface-policy";
 import type { InlineRenderSurface } from "./inline-surface";
-import { renderInlineMarkdown, type InlineReferenceRenderContext } from "./render/inline-render";
+import { type InlineReferenceRenderContext, renderInlineMarkdown } from "./render/inline-render";
 
 export type DocumentSurfaceMode = InlineRenderSurface | "document-body";
 

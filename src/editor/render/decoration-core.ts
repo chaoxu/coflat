@@ -1,11 +1,11 @@
 import {
-  Decoration,
-  type DecorationSet,
-} from "@codemirror/view";
-import {
   type Range,
   RangeSetBuilder,
 } from "@codemirror/state";
+import {
+  Decoration,
+  type DecorationSet,
+} from "@codemirror/view";
 import { RenderWidget } from "./source-widget";
 
 /** Shared replacement that hides source syntax and lets CM6 account for its layout width. */

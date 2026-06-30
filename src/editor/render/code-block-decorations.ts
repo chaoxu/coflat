@@ -1,27 +1,24 @@
 import { syntaxTree, syntaxTreeAvailable } from "@codemirror/language";
 import {
-  EditorState,
   type ChangeDesc,
+  EditorState,
   type Range,
   type Transaction,
 } from "@codemirror/state";
 import {
-  type DecorationSet,
   Decoration,
+  type DecorationSet,
 } from "@codemirror/view";
 import { __iconNode as checkIconNode } from "lucide-react/dist/esm/icons/check.js";
 import { __iconNode as copyIconNode } from "lucide-react/dist/esm/icons/copy.js";
 import {
-  createCodeBlockCopyButtonController,
   type CodeBlockCopyButtonController,
+  createCodeBlockCopyButtonController,
   createCodeBlockLanguageElement,
 } from "../../core/code-block-surface";
 import { CSS } from "../../core/constants/css-classes";
-import {
-  activeCodeBlock,
-  activeCodeBlockOpenFenceStarts,
-} from "../state/shell-ownership";
 import { isFencedCode } from "../lib/syntax-tree-helpers";
+import { createChangeChecker } from "../state/change-detection";
 import {
   getActiveStructureEditSignature,
   hasStructureEditEffect,
@@ -32,6 +29,10 @@ import {
   collectCodeBlocks,
   getCodeBlockStructureRevision,
 } from "../state/code-block-structure";
+import {
+  activeCodeBlock,
+  activeCodeBlockOpenFenceStarts,
+} from "../state/shell-ownership";
 import { pushWidgetDecoration } from "./decoration-core";
 import { createDecorationStateField } from "./decoration-field";
 import {
@@ -45,7 +46,6 @@ import {
   focusEffect,
 } from "./focus-state";
 import { ShellWidget } from "./shell-widget";
-import { createChangeChecker } from "../state/change-detection";
 
 /** Widget that renders a copy-to-clipboard button in the code block header. */
 class CopyButtonWidget extends ShellWidget {

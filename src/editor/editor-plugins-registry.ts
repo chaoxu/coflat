@@ -1,6 +1,4 @@
 import type { EditorPlugin } from "./editor-plugin";
-import { focusModeExtension } from "./render/focus-mode";
-import { spellcheckExtension } from "./spellcheck";
 import {
   debugInspectorPluginMetadata,
   findReplacePluginMetadata,
@@ -8,6 +6,8 @@ import {
   hoverPreviewPluginMetadata,
   spellcheckPluginMetadata,
 } from "./editor-plugin-metadata";
+import { focusModeExtension } from "./render/focus-mode";
+import { spellcheckExtension } from "./spellcheck";
 
 export const focusModePlugin: EditorPlugin = {
   ...focusModePluginMetadata,

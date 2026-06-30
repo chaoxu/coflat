@@ -3,9 +3,9 @@ import { describe, expect, it } from "vitest";
 import {
   nextMatch,
   prevMatch,
+  reduceSearch,
   replaceAll,
   replaceOne,
-  reduceSearch,
   setQuery,
 } from "./controller";
 import type { SearchOptions, SearchState } from "./model";

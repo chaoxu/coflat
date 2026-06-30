@@ -1,6 +1,6 @@
-import { describe, expect, it, afterEach } from "vitest";
 import { markdown } from "@codemirror/lang-markdown";
 import { type EditorView, runScopeHandlers } from "@codemirror/view";
+import { afterEach, describe, expect, it } from "vitest";
 
 import {
   listOutlinerExtension,

@@ -1,13 +1,12 @@
 import { Decoration, type EditorView } from "@codemirror/view";
-
-import { documentContextFacet } from "../document-context";
-import { documentPathFacet } from "../lib/types";
 import { isSafeUrl } from "../../core/lib/url-utils";
 import {
   linkSurfaceClassNames,
   renderedLinkDecorationAttributes,
 } from "../../core/link-surface";
+import { documentContextFacet } from "../document-context";
 import { openExternalUrl } from "../lib/open-link";
+import { documentPathFacet } from "../lib/types";
 
 const maxLinkDecorationCacheSize = 256;
 const linkDecorationCache = new Map<string, Decoration>();

@@ -1,12 +1,12 @@
-import { describe, expect, it, afterEach } from "vitest";
-import { EditorView } from "@codemirror/view";
 import { markdown } from "@codemirror/lang-markdown";
+import { EditorView } from "@codemirror/view";
+import { afterEach, describe, expect, it } from "vitest";
 import { type CslJsonItem } from "../../core/citations/bibtex-parser";
-import { createTestView, makeBibStore } from "../test-utils";
-import { CslProcessor } from "./csl-processor";
 import { referenceRenderPlugin } from "../render/reference-render";
 import { bibDataEffect, bibDataField } from "../state/bib-data";
 import { documentAnalysisField } from "../state/document-analysis";
+import { createTestView, makeBibStore } from "../test-utils";
+import { CslProcessor } from "./csl-processor";
 
 const karger: CslJsonItem = {
   id: "karger2000",

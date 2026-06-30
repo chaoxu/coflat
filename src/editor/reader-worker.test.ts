@@ -11,12 +11,11 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
-
+import { renderToHtml, renderToText } from "../../reader";
 import {
   createWorkerReaderInternal,
   type WorkerReader,
 } from "../../reader-worker";
-import { renderToHtml, renderToText } from "../../reader";
 
 // ---------------------------------------------------------------------------
 // Fake worker: simulates the worker by relaying messages through the same

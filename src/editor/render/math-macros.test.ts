@@ -1,14 +1,14 @@
-import { describe, expect, it, afterEach } from "vitest";
-import type { EditorView } from "@codemirror/view";
 import { markdown } from "@codemirror/lang-markdown";
+import type { EditorView } from "@codemirror/view";
+import { afterEach, describe, expect, it } from "vitest";
 import { mathExtension } from "../../core/parser/math-backslash";
-import { frontmatterField } from "../state/frontmatter-state";
 import { projectConfigFacet } from "../project-config";
+import { documentAnalysisField } from "../state/document-analysis";
+import { frontmatterField } from "../state/frontmatter-state";
 import { getMathMacros, mathMacrosField } from "../state/math-macros";
+import { createTestView } from "../test-utils";
 import { collectMathRanges } from "./math-render";
 import { MathWidget } from "./math-widget";
-import { createTestView } from "../test-utils";
-import { documentAnalysisField } from "../state/document-analysis";
 
 /** Create an EditorView with frontmatter and math parser extensions. */
 function createView(

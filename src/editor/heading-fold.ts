@@ -8,6 +8,13 @@
  */
 
 import {
+  foldEffect,
+  foldedRanges,
+  foldKeymap,
+  foldService,
+  unfoldEffect,
+} from "@codemirror/language";
+import {
   type EditorState,
   type Extension,
   type Range,
@@ -19,17 +26,10 @@ import {
   Decoration,
   type DecorationSet,
   EditorView,
+  keymap,
   ViewPlugin,
   type ViewUpdate,
-  keymap,
 } from "@codemirror/view";
-import {
-  foldService,
-  foldKeymap,
-  foldEffect,
-  unfoldEffect,
-  foldedRanges,
-} from "@codemirror/language";
 import { isCollapsibleBlockType } from "../core/constants/block-manifest";
 import { CSS } from "../core/constants/css-classes";
 import {

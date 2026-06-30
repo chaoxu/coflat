@@ -1,6 +1,7 @@
-import { describe, expect, it } from "vitest";
 import { type Range } from "@codemirror/state";
 import { Decoration } from "@codemirror/view";
+import { describe, expect, it } from "vitest";
+import { getDecorationSpecs } from "../test-utils";
 import {
   addMarkerReplacement,
   buildDecorations,
@@ -10,7 +11,6 @@ import {
   pushWidgetDecoration,
 } from "./decoration-core";
 import { RenderWidget } from "./source-widget";
-import { getDecorationSpecs } from "../test-utils";
 
 class TestWidget extends RenderWidget {
   constructor(readonly label: string) {

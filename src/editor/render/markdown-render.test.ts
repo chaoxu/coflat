@@ -1,25 +1,9 @@
-import { describe, expect, it, afterEach } from "vitest";
-import { Decoration, EditorView, type ViewUpdate } from "@codemirror/view";
-import { StateEffect } from "@codemirror/state";
 import { markdown } from "@codemirror/lang-markdown";
-import {
-  computeMarkdownContextChangeRanges,
-  computeMarkdownDocChangeRanges,
-  markdownRenderPlugin,
-  _markdownDocChangeNeedsContextMergeForTest as markdownDocChangeNeedsContextMerge,
-  cursorContextKey,
-  markdownShouldUpdate,
-  _collectMarkdownItemsForTest as collectMarkdownItems,
-  _clearLinkDecorationCacheForTest as clearLinkDecorationCache,
-  _linkDecorationCacheSizeForTest as linkDecorationCacheSize,
-  _setMarkdownRevealFrozenForTest as setMarkdownRevealFrozen,
-} from "./markdown-render";
-import {
-  createCursorSensitiveViewPlugin,
-  cursorInRange,
-  createSimpleViewPlugin,
-  focusEffect,
-} from "./render-core";
+import { StateEffect } from "@codemirror/state";
+import { Decoration, EditorView, type ViewUpdate } from "@codemirror/view";
+import { afterEach, describe, expect, it } from "vitest";
+import { CSS } from "../../core/constants/css-classes";
+import { markdownExtensions } from "../../core/parser";
 import {
   createEditorState,
   createTestView,
@@ -27,8 +11,24 @@ import {
   hasLineClassAt,
   hasMarkClassInRange,
 } from "../test-utils";
-import { CSS } from "../../core/constants/css-classes";
-import { markdownExtensions } from "../../core/parser";
+import {
+  _clearLinkDecorationCacheForTest as clearLinkDecorationCache,
+  _collectMarkdownItemsForTest as collectMarkdownItems,
+  computeMarkdownContextChangeRanges,
+  computeMarkdownDocChangeRanges,
+  cursorContextKey,
+  _linkDecorationCacheSizeForTest as linkDecorationCacheSize,
+  _markdownDocChangeNeedsContextMergeForTest as markdownDocChangeNeedsContextMerge,
+  markdownRenderPlugin,
+  markdownShouldUpdate,
+  _setMarkdownRevealFrozenForTest as setMarkdownRevealFrozen,
+} from "./markdown-render";
+import {
+  createCursorSensitiveViewPlugin,
+  createSimpleViewPlugin,
+  cursorInRange,
+  focusEffect,
+} from "./render-core";
 
 /** Create an EditorView with the markdown render plugin at the given cursor position. */
 function createView(doc: string, cursorPos?: number): EditorView {

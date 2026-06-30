@@ -1,21 +1,21 @@
-import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import type { EditorView } from "@codemirror/view";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { CSS } from "../../core/constants/css-classes";
 import { createMarkdownLanguageExtensions } from "../base-editor-extensions";
-import { frontmatterField } from "../state/frontmatter-state";
+import { defaultPlugins } from "../plugins/default-plugins";
+import { blockCounterField } from "../state/block-counter";
 import { documentAnalysisField } from "../state/document-analysis";
+import { frontmatterField } from "../state/frontmatter-state";
 import { imageUrlField } from "../state/image-url";
 import { mathMacrosField } from "../state/math-macros";
 import { pdfPreviewField } from "../state/pdf-preview";
+import { createPluginRegistryField } from "../state/plugin-registry";
+import { createTestView } from "../test-utils";
 import { fenceGuidePlugin } from "./fence-guide";
 import { imageRenderPlugin } from "./image-render";
 import { mathRenderPlugin } from "./math-render";
-import { tableRenderPlugin } from "./table-render";
-import { createTestView } from "../test-utils";
-import { CSS } from "../../core/constants/css-classes";
 import { blockRenderPlugin } from "./plugin-render";
-import { blockCounterField } from "../state/block-counter";
-import { createPluginRegistryField } from "../state/plugin-registry";
-import { defaultPlugins } from "../plugins/default-plugins";
+import { tableRenderPlugin } from "./table-render";
 
 let view: EditorView | undefined;
 

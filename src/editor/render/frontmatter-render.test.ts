@@ -1,15 +1,14 @@
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { describe, expect, it } from "vitest";
-
-import { frontmatterDecoration, frontmatterDecorationField } from "./frontmatter-render";
-import { frontmatterField } from "../state/frontmatter-state";
 import {
   activeStructureEditField,
   createStructureEditTargetAt,
   setStructureEditTargetEffect,
 } from "../state/cm-structure-edit";
+import { frontmatterField } from "../state/frontmatter-state";
 import { applyStateEffects } from "../test-utils";
+import { frontmatterDecoration, frontmatterDecorationField } from "./frontmatter-render";
 
 function createState(doc: string): EditorState {
   return EditorState.create({

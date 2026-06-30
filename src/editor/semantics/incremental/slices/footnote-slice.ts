@@ -1,3 +1,4 @@
+import { buildFootnotePlan } from "../../../../core/semantics/footnote-plan";
 import type {
   FootnoteDefinition,
   FootnoteReference,
@@ -5,14 +6,13 @@ import type {
   OrderedFootnoteEntry,
 } from "../../document-model";
 import {
-  replaceOverlappingRanges,
-  rangesOverlap,
-  type RangeLike,
   type PositionMapper,
+  type RangeLike,
+  rangesOverlap,
+  replaceOverlappingRanges,
 } from "../merge-utils";
 import type { DirtyWindow, SemanticDelta } from "../types";
 import type { StructuralWindowExtraction } from "../window-extractor";
-import { buildFootnotePlan } from "../../../../core/semantics/footnote-plan";
 
 export interface FootnoteSlice extends FootnoteSemantics {
   readonly definitions: readonly FootnoteDefinition[];

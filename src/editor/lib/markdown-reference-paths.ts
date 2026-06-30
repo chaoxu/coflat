@@ -12,8 +12,8 @@
  */
 
 import {
-  dirname as patheDirname,
   normalize,
+  dirname as patheDirname,
 } from "pathe";
 
 function markdownReferenceDirname(path: string): string {

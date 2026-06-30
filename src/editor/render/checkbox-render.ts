@@ -7,17 +7,17 @@
  * between [ ] and [x].
  */
 
-import {
-  type Decoration,
-  type EditorView,
-  type DecorationSet,
-} from "@codemirror/view";
+import { ensureSyntaxTree, syntaxTree } from "@codemirror/language";
 import {
   type Extension,
   type Range,
   type Transaction,
 } from "@codemirror/state";
-import { ensureSyntaxTree, syntaxTree } from "@codemirror/language";
+import {
+  type Decoration,
+  type DecorationSet,
+  type EditorView,
+} from "@codemirror/view";
 import {
   buildDecorations,
   pushWidgetDecoration,
@@ -25,8 +25,8 @@ import {
 import {
   createLifecycleDecorationStateField,
 } from "./decoration-field";
-import { normalizeDirtyRange, type VisibleRange } from "./viewport-diff";
 import { RenderWidget } from "./source-widget";
+import { normalizeDirtyRange, type VisibleRange } from "./viewport-diff";
 
 const CHECKBOX_LAYOUT_PARSE_TIMEOUT_MS = 1000;
 
@@ -175,5 +175,4 @@ const checkboxDecorationField = createLifecycleDecorationStateField({
 /** CM6 extension that renders task list checkboxes with toggle support. */
 export const checkboxRenderPlugin: Extension = checkboxDecorationField;
 
-export { collectCheckboxItems as _collectCheckboxItemsForTest };
-export { checkboxDecorationField as _checkboxDecorationFieldForTest };
+export { checkboxDecorationField as _checkboxDecorationFieldForTest, collectCheckboxItems as _collectCheckboxItemsForTest };

@@ -30,52 +30,48 @@
  * ```
  */
 
-import type { CitationFormatter } from "./src/core/document-context-types";
+import { buildReferenceCatalog } from "./parse";
 import { parseBibTeX } from "./src/core/citations/bibtex-parser";
+import type { CitationFormatter } from "./src/core/document-context-types";
 import { collectCitedIdsFromClusters } from "./src/core/references/citation-rendering";
-import { CslProcessor } from "./src/editor/citations/csl-processor";
 import type { CitationCluster } from "./src/editor/citations/citation-matching";
 import { collectCitationMatches } from "./src/editor/citations/citation-matching";
-import { buildReferenceCatalog } from "./parse";
+import { CslProcessor } from "./src/editor/citations/csl-processor";
+
 
 export {
-  CslProcessor,
-  registerCitationsWithProcessor,
-  type CslBibliographyEntry,
-  type CslStyleStatus,
-  type CitationJsLoader,
-  type CitationJsModules,
-  setCitationJsLoaderForTest,
-} from "./src/editor/citations/csl-processor";
-
-export { parseBibTeX };
-
-export {
-  type CslJsonItem,
   type BibStore,
+  type CslJsonItem,
   extractFirstFamilyName,
   extractYear,
   formatCslAuthors,
 } from "./src/core/citations/csl-json";
-
-// Bridge for hosts that want the editor's bibliography StateField. Hosts
-// populate it with a CslProcessor they own, wrapped in a CitationFormatter.
-export {
-  bibDataField,
-  bibDataEffect,
-  type BibData,
-  type BibliographyStatus,
-  type BibliographyFailureKind,
-} from "./src/editor/state/bib-data";
-
 export type { CitationFormatter } from "./src/core/document-context-types";
-
 export type {
   CitationCluster,
   CitationCollectionOptions,
   CitationIdLookup,
   CitationReferenceCluster,
 } from "./src/editor/citations/citation-matching";
+export {
+  type CitationJsLoader,
+  type CitationJsModules,
+  type CslBibliographyEntry,
+  CslProcessor,
+  type CslStyleStatus,
+  registerCitationsWithProcessor,
+  setCitationJsLoaderForTest,
+} from "./src/editor/citations/csl-processor";
+// Bridge for hosts that want the editor's bibliography StateField. Hosts
+// populate it with a CslProcessor they own, wrapped in a CitationFormatter.
+export {
+  type BibData,
+  type BibliographyFailureKind,
+  type BibliographyStatus,
+  bibDataEffect,
+  bibDataField,
+} from "./src/editor/state/bib-data";
+export { parseBibTeX };
 
 export interface SourceCitationCollectionOptions {
   readonly isLocalTarget?: (id: string) => boolean;

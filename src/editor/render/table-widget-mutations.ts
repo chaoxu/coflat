@@ -1,5 +1,5 @@
 import type { EditorView } from "@codemirror/view";
-import { showWidgetContextMenu, applyTableMutation } from "./table-actions";
+import { applyTableMutation, showWidgetContextMenu } from "./table-actions";
 import {
   findClosestWidgetContainer,
   findTablesInState,

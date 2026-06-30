@@ -1,14 +1,24 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { markdown } from "@codemirror/lang-markdown";
 import {
-  StateEffect,
   type Range,
+  StateEffect,
 } from "@codemirror/state";
 import {
   Decoration,
   type DecorationSet,
   type EditorView,
 } from "@codemirror/view";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import {
+  clearFrontendPerf,
+  getFrontendPerfSnapshot,
+} from "../lib/perf";
+import { programmaticDocumentChangeAnnotation } from "../state/programmatic-document-change";
+import {
+  createEditorState,
+  createTestView,
+  getDecorationSpecs,
+} from "../test-utils";
 import {
   createDecorationStateField,
   createDecorationsField,
@@ -17,16 +27,6 @@ import {
   defaultShouldRebuild,
 } from "./decoration-field";
 import { editorFocusField, focusEffect } from "./focus-state";
-import {
-  createEditorState,
-  createTestView,
-  getDecorationSpecs,
-} from "../test-utils";
-import {
-  clearFrontendPerf,
-  getFrontendPerfSnapshot,
-} from "../lib/perf";
-import { programmaticDocumentChangeAnnotation } from "../state/programmatic-document-change";
 
 describe("createDecorationsField", () => {
   let view: EditorView | undefined;

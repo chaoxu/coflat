@@ -1,29 +1,29 @@
+import { markdown } from "@codemirror/lang-markdown";
 import type { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { markdown } from "@codemirror/lang-markdown";
-import { bibDataEffect, bibDataField } from "../state/bib-data";
-import { CslProcessor } from "../citations/csl-processor";
 import { CSS } from "../../core/constants/css-classes";
-import { blockCounterField } from "../state/block-counter";
-import { documentAnalysisField } from "../state/document-analysis";
-import { pluginRegistryField, createPluginRegistryField } from "../state/plugin-registry";
+import { equationLabelExtension } from "../../core/parser/equation-label";
 import { fencedDiv } from "../../core/parser/fenced-div";
 import { mathExtension } from "../../core/parser/math-backslash";
-import { equationLabelExtension } from "../../core/parser/equation-label";
+import { CslProcessor } from "../citations/csl-processor";
+import { bibDataEffect, bibDataField } from "../state/bib-data";
+import { blockCounterField } from "../state/block-counter";
+import { documentAnalysisField } from "../state/document-analysis";
 import { frontmatterField } from "../state/frontmatter-state";
+import { createPluginRegistryField, pluginRegistryField } from "../state/plugin-registry";
+import { createTestView } from "../test-utils";
 import {
   _computeReferenceDirtyRangesForTest as computeReferenceDirtyRanges,
   referenceRenderDependenciesChanged,
   referenceRenderPlugin,
 } from "./reference-render";
-import { createTestView } from "../test-utils";
 import {
   createPluginView,
   karger,
   mockReferenceViewUpdate,
-  store,
   stein,
+  store,
   testPlugins,
 } from "./reference-render-test-utils";
 

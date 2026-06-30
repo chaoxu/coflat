@@ -1,5 +1,5 @@
-import { Decoration, type EditorView } from "@codemirror/view";
 import type { Range } from "@codemirror/state";
+import { Decoration, type EditorView } from "@codemirror/view";
 import type { SyntaxNode } from "@lezer/common";
 
 import { CSS } from "../../core/constants/css-classes";

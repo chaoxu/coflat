@@ -1,10 +1,10 @@
-import { vi } from "vitest";
 import { ensureSyntaxTree } from "@codemirror/language";
 import { EditorState, type Extension, type StateEffect } from "@codemirror/state";
-import { EditorView, type DecorationSet } from "@codemirror/view";
+import { type DecorationSet, EditorView } from "@codemirror/view";
 import type { Tree } from "@lezer/common";
-import type { BlockPlugin } from "./plugins/plugin-types.js";
+import { vi } from "vitest";
 import type { CslJsonItem } from "../core/citations/csl-json.js";
+import type { BlockPlugin } from "./plugins/plugin-types.js";
 import type { BibStore } from "./state/bib-data.js";
 
 // ── CslJsonItem fixture factory ───────────────────────────────────────────────
@@ -89,10 +89,10 @@ export function installLocalStorageMock(): { clear: () => void } {
 // them without violating the layer rule. Re-exported here for callers that
 // pull everything from this barrel.
 export {
-  parseNodeNames,
-  parseNodeInfos,
   findNodeInfo,
   type NodeInfo,
+  parseNodeInfos,
+  parseNodeNames,
 } from "../core/test-utils.js";
 
 export function createEditorState(

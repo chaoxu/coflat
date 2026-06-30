@@ -1,23 +1,7 @@
-import { EditorSelection, Prec, type Extension } from "@codemirror/state";
+import { EditorSelection, type Extension, Prec } from "@codemirror/state";
 import { EditorView, ViewPlugin, type ViewUpdate } from "@codemirror/view";
-import { DOCUMENT_SURFACE_CLASS } from "../core/document-surface-classes";
 import { CSS } from "../core/constants/css-classes";
-import {
-  clampToLineBounds,
-  coarseHitTestPositionAndSide,
-  domCaretRangeAtPoint,
-  domCaretHitTestPosition,
-  editorElementFromPoint,
-  editorElementsFromPoint,
-  lineBoundsForElement,
-  lineElementAtPoint,
-  type EditorLineBounds,
-} from "./lib/editor-hit-test";
-import {
-  buildPointerSelection,
-  isPlainPrimaryMouseEvent,
-  type PointerSelectionTarget,
-} from "./state/mouse-selection";
+import { DOCUMENT_SURFACE_CLASS } from "../core/document-surface-classes";
 import {
   closestMathSourceCarrier,
   closestSourceRangeCarrier,
@@ -25,7 +9,23 @@ import {
   mapDomRangeToSource,
   sourceRangeFromElement,
 } from "../core/source-range-surface";
+import {
+  clampToLineBounds,
+  coarseHitTestPositionAndSide,
+  domCaretHitTestPosition,
+  domCaretRangeAtPoint,
+  type EditorLineBounds,
+  editorElementFromPoint,
+  editorElementsFromPoint,
+  lineBoundsForElement,
+  lineElementAtPoint,
+} from "./lib/editor-hit-test";
 import { PARAGRAPH_FLOW_WIDGET_CLASS } from "./render/paragraph-flow-dom";
+import {
+  buildPointerSelection,
+  isPlainPrimaryMouseEvent,
+  type PointerSelectionTarget,
+} from "./state/mouse-selection";
 
 function isRichLikeMode(view: EditorView): boolean {
   return !view.dom.classList.contains(CSS.sourceMode);

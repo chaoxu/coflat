@@ -1,20 +1,20 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
 import { EditorView } from "@codemirror/view";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { CSS } from "../../core/constants/css-classes";
+import { documentAnalysisField } from "../state/document-analysis";
+import { getDecorationSpecs } from "../test-utils";
 import {
+  clearKatexCache,
   collectMathRanges,
   _mathDecorationFieldForTest as mathDecorationField,
-  clearKatexCache,
 } from "./math-render";
-import { getDecorationSpecs } from "../test-utils";
-import { widgetSourceMap } from "./render-core";
-import { documentAnalysisField } from "../state/document-analysis";
 import {
   activateDisplayMathSourceView,
   countWidgets,
   createMathRenderView,
   createMathView,
 } from "./math-render-test-utils";
+import { widgetSourceMap } from "./render-core";
 
 describe("live math widget metadata", () => {
   let view: EditorView | undefined;

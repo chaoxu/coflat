@@ -1,21 +1,21 @@
 import type { EditorView } from "@codemirror/view";
 import type { ContextMenuItem } from "../lib/context-menu";
 import {
-  addColumn,
-  addRow,
-  deleteColumn,
-  deleteRow,
-  moveColumn,
-  moveRow,
-  setAlignment,
-  type ParsedTable,
-  formatTable,
-} from "./table-utils";
-import {
   getCursorColIndex,
   getCursorRowIndex,
   type TableRange,
 } from "./table-discovery";
+import {
+  addColumn,
+  addRow,
+  deleteColumn,
+  deleteRow,
+  formatTable,
+  moveColumn,
+  moveRow,
+  type ParsedTable,
+  setAlignment,
+} from "./table-utils";
 
 /** Apply a mutation to a table and replace its text in the document. */
 export function applyTableMutation(

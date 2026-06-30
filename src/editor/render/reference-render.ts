@@ -9,46 +9,19 @@
  * routing.
  */
 
+import { type ChangeSet, type EditorState, type Extension, type Range, type Transaction } from "@codemirror/state";
 import {
   Decoration,
   type DecorationSet,
   type EditorView,
   type ViewUpdate,
 } from "@codemirror/view";
-import { type ChangeSet, type EditorState, type Extension, type Range, type Transaction } from "@codemirror/state";
 import { CSS } from "../../core/constants/css-classes";
+import type { CitationFormatter } from "../../core/document-context-types";
 import { documentSurfacePolicy } from "../../core/document-surface-policy";
 import { escapeHtml } from "../../core/lib/html-escape";
 import { documentContextFacet } from "../document-context";
 import { forEachOverlappingOrderedRange } from "../lib/range-helpers";
-import type { CitationFormatter } from "../../core/document-context-types";
-import type { BibStore } from "../state/bib-data";
-import { CitationWidget, HostRefWidget } from "./citation-widget";
-import {
-  CrossrefWidget,
-  ClusteredCrossrefWidget,
-  MixedClusterWidget,
-  UnresolvedRefWidget,
-} from "./crossref-render";
-import { buildDecorations, pushWidgetDecoration } from "./decoration-core";
-import {
-  type ReferenceSemantics,
-} from "../semantics/document";
-import {
-  type DirtyRange,
-  expandChangeRangeToLines,
-  mergeDirtyRanges,
-} from "./incremental-dirty-ranges";
-import {
-  findFocusedInlineRevealTarget,
-  inlineRevealTargetChanged,
-} from "./inline-reveal-policy";
-import { isDebugRenderFlagEnabled } from "./debug-render-flags";
-import { createLifecycleDecorationStateField } from "./decoration-field";
-import {
-  editorFocusField,
-  focusTracker,
-} from "./focus-state";
 import {
   createEditorReferencePresentationController,
   ensureEditorReferencePresentationCitationsRegistered,
@@ -59,11 +32,38 @@ import {
   type ResolvedCrossref,
 } from "../references/presentation";
 import {
+  type ReferenceSemantics,
+} from "../semantics/document";
+import type { BibStore } from "../state/bib-data";
+import {
   getReferenceRenderAnalysis,
   getReferenceRenderState,
   referenceRenderRebuildDependenciesChanged,
   referenceRenderSliceChanged,
 } from "../state/reference-render-state";
+import { CitationWidget, HostRefWidget } from "./citation-widget";
+import {
+  ClusteredCrossrefWidget,
+  CrossrefWidget,
+  MixedClusterWidget,
+  UnresolvedRefWidget,
+} from "./crossref-render";
+import { isDebugRenderFlagEnabled } from "./debug-render-flags";
+import { buildDecorations, pushWidgetDecoration } from "./decoration-core";
+import { createLifecycleDecorationStateField } from "./decoration-field";
+import {
+  editorFocusField,
+  focusTracker,
+} from "./focus-state";
+import {
+  type DirtyRange,
+  expandChangeRangeToLines,
+  mergeDirtyRanges,
+} from "./incremental-dirty-ranges";
+import {
+  findFocusedInlineRevealTarget,
+  inlineRevealTargetChanged,
+} from "./inline-reveal-policy";
 
 export {
   getReferenceRenderDependencySignature,

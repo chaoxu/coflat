@@ -1,21 +1,21 @@
-import { describe, expect, it, vi } from "vitest";
-import { EditorState } from "@codemirror/state";
 import { markdown } from "@codemirror/lang-markdown";
+import { EditorState } from "@codemirror/state";
+import { describe, expect, it, vi } from "vitest";
+import { equationLabelExtension } from "../../core/parser/equation-label";
 import { fencedDiv } from "../../core/parser/fenced-div";
 import { mathExtension } from "../../core/parser/math-backslash";
-import { equationLabelExtension } from "../../core/parser/equation-label";
-import { frontmatterField } from "../state/frontmatter-state";
-import { blockCounterField } from "../state/block-counter";
-import { createPluginRegistryField } from "../state/plugin-registry";
-import { documentAnalysisField } from "../state/document-analysis";
+import { CslProcessor } from "../citations/csl-processor";
+import type { BlockPlugin } from "../plugins/plugin-types";
 import { documentReferenceCatalogField } from "../semantics/editor-reference-catalog";
 import * as referenceCatalogModule from "../semantics/reference-catalog";
 import { bibDataEffect, bibDataField } from "../state/bib-data";
-import { CslProcessor } from "../citations/csl-processor";
-import type { BlockPlugin } from "../plugins/plugin-types";
+import { blockCounterField } from "../state/block-counter";
+import { documentAnalysisField } from "../state/document-analysis";
+import { frontmatterField } from "../state/frontmatter-state";
+import { createPluginRegistryField } from "../state/plugin-registry";
 import {
-  CSL_FIXTURES,
   applyStateEffects,
+  CSL_FIXTURES,
   createEditorState,
   makeBibStore,
   makeBlockPlugin,
@@ -23,8 +23,8 @@ import {
 import {
   classifyReference,
   collectEquationLabels,
-  resolveCrossref,
   findCrossrefs,
+  resolveCrossref,
 } from "./crossref-resolver";
 
 const testPlugins: readonly BlockPlugin[] = [

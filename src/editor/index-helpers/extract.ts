@@ -3,15 +3,15 @@
  * document analysis layer instead of bespoke tree walks.
  */
 
+import type { BlockNode, DocumentIR, MathNode, ReferenceNode, SectionNode } from "../ir/types";
 import {
   type DocumentSemantics,
 } from "../semantics/document";
-import type { DocumentArtifacts } from "../semantics/incremental/engine";
 import {
   getDocumentArtifacts,
   rememberDocumentAnalysisSnapshot,
 } from "../semantics/incremental/cached-document-analysis";
-import type { BlockNode, DocumentIR, MathNode, ReferenceNode, SectionNode } from "../ir/types";
+import type { DocumentArtifacts } from "../semantics/incremental/engine";
 import type { FileIndex, IndexEntry, IndexReference } from "./query-api";
 
 const fileIndexAnalysisCache = new WeakMap<FileIndex, DocumentSemantics>();

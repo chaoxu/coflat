@@ -1,29 +1,29 @@
-import { Transaction, type Extension, type Text } from "@codemirror/state";
-import { escapeHtml } from "../core/lib/html-escape";
+import { type Extension, type Text, Transaction } from "@codemirror/state";
 import { type EditorView, ViewPlugin, type ViewUpdate } from "@codemirror/view";
-import type { FencedDivInfo } from "./fenced-block/model";
-import {
-  editorElementFromPoint,
-  editorHitTestSnapshot,
-} from "./lib/editor-hit-test";
-import { frontmatterField } from "./state/frontmatter-state";
+import { escapeHtml } from "../core/lib/html-escape";
 import { getDebugSessionRecorderStatus } from "./debug/session-recorder";
-import { activeShellPath, type CodeShellInfo } from "./state/shell-ownership";
 import {
-  getShellSurfaceSnapshot,
-  shellSurfaceUpdateEvent,
-} from "./shell-surface-model";
+  getDebugSelectionInfo,
+  getDebugSnapshot,
+  getDebugStructureSummary,
+  getDebugStructureTarget,
+} from "./debug-snapshot";
 import {
   appendDebugTimelineEvent,
   clearDebugTimelineEvents,
   getDebugTimelineEvents,
 } from "./debug-timeline";
+import type { FencedDivInfo } from "./fenced-block/model";
 import {
-  getDebugSelectionInfo,
-  getDebugSnapshot,
-  getDebugStructureTarget,
-  getDebugStructureSummary,
-} from "./debug-snapshot";
+  editorElementFromPoint,
+  editorHitTestSnapshot,
+} from "./lib/editor-hit-test";
+import {
+  getShellSurfaceSnapshot,
+  shellSurfaceUpdateEvent,
+} from "./shell-surface-model";
+import { frontmatterField } from "./state/frontmatter-state";
+import { activeShellPath, type CodeShellInfo } from "./state/shell-ownership";
 
 const MAX_DOC_INSERT_PREVIEW_CHARS = 120;
 const MIN_SCROLL_LOG_DELTA_PX = 48;

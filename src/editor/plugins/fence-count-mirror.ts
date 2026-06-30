@@ -17,15 +17,16 @@
  *   `programmaticDocumentChangeAnnotation`, to avoid feedback loops with the
  *   block-type picker and other programmatic edits.
  */
+
+import { syntaxTree } from "@codemirror/language";
 import {
   EditorState,
   type Extension,
 } from "@codemirror/state";
-import { syntaxTree } from "@codemirror/language";
 import type { SyntaxNode } from "@lezer/common";
 import { countColons } from "../../core/parser/fenced-div";
-import { fenceOperationAnnotation } from "./fence-protection";
 import { programmaticDocumentChangeAnnotation } from "../state/programmatic-document-change";
+import { fenceOperationAnnotation } from "./fence-protection";
 
 interface FenceRange {
   readonly from: number;

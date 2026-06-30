@@ -1,8 +1,4 @@
 import type { SyntaxNode } from "@lezer/common";
-import type {
-  CitationFormatter,
-  DocumentContext,
-} from "../../core/document-context-types";
 import {
   appendBlockCaptionLabel,
   appendBlockCaptionText,
@@ -14,86 +10,93 @@ import {
   createBlockSummaryFragment as createBlockSummarySurfaceFragment,
   prependInlineBlockHeading,
 } from "../../core/block-heading-surface";
+import type { BlockPresentationPlan } from "../../core/block-presentation";
 import {
-  createBlockContainerElement,
+  blockquoteRenderPlan,
+  codeBlockRenderPlan,
+  dispatchBlockNodeRender,
+  displayMathRenderPlan,
+  documentRenderPlan,
+  emitBlockChildrenRenderPlan,
+  emitDocumentRenderPlan,
+  fencedDivRenderPlan,
+  headingRenderPlan,
+  horizontalRuleRenderPlan,
+  type ListItemRenderPlan,
+  listRenderPlan,
+  paragraphRenderPlan,
+} from "../../core/block-render-plan";
+import {
   createBlankLineElement,
+  createBlockContainerElement,
   createBlockquoteElement,
   createHorizontalRuleElement,
 } from "../../core/block-surface";
-import {
-  documentSurfacePolicy,
-  type DocumentSurfaceName,
-} from "../../core/document-surface-policy";
-import type { InlineSurfaceName } from "../../core/inline-surface-policy";
-import type { InlineFragment } from "../../core/inline-fragments";
+import { appendCodeBlockDom } from "../../core/code-block-surface";
 import { EXCLUDED_FROM_FALLBACK } from "../../core/constants/block-manifest";
 import { CSS } from "../../core/constants/css-classes";
-import { appendCodeBlockDom } from "../../core/code-block-surface";
+import type {
+  CitationFormatter,
+  DocumentContext,
+} from "../../core/document-context-types";
+import {
+  type DocumentSurfaceName,
+  documentSurfacePolicy,
+} from "../../core/document-surface-policy";
+import {
+  fencedDivContainerOptions,
+  fencedDivSurfaceChromePlan,
+} from "../../core/fenced-div-surface";
 import {
   createFootnoteSectionElement,
   footnoteSectionPlanFromNumberedEntries,
 } from "../../core/footnote-section-surface";
 import {
-  footnotePlanSectionEntries,
-} from "../../core/semantics/footnote-plan";
-import {
-  createDisplayMathContentElement,
-  createDisplayMathSurfaceElement,
-  replaceDisplayMathContent,
-} from "../../core/math-display-surface";
-import {
   createHeadingSurfaceElement,
 } from "../../core/heading-surface";
+import type { InlineFragment } from "../../core/inline-fragments";
+import type { InlineSurfaceName } from "../../core/inline-surface-policy";
+import type { BlockCounterEntry } from "../../core/lib/file-system-types";
+import {
+  type ListItemSurfaceEmissionPlan,
+  listSurfaceEmissionPlan,
+} from "../../core/list-emission-plan";
 import {
   appendListMarker,
   appendReadOnlyTaskCheckbox,
   createListItemSurfaceElement,
   createListSurfaceElement,
 } from "../../core/list-surface";
-import { appendParagraphDom, createParagraphDom } from "../../core/paragraph-surface";
-import type { BlockCounterEntry } from "../../core/lib/file-system-types";
 import {
+  createDisplayMathContentElement,
+  createDisplayMathSurfaceElement,
+  replaceDisplayMathContent,
+} from "../../core/math-display-surface";
+import { appendParagraphDom, createParagraphDom } from "../../core/paragraph-surface";
+import {
+  type FrontmatterConfig,
   parseFrontmatter,
   parseMarkdownSource,
-  type FrontmatterConfig,
 } from "../../core/parser";
-import {
-  analyzeDocumentSemantics,
-  numberFootnotes,
-  orderedFootnoteEntries,
-  stringTextSource,
-  type DocumentSemantics,
-} from "../semantics/document";
 import {
   blockTitleOverridesFromConfig,
   computeBlockNumbers,
   createConfiguredBlockNumberingSpecLookup,
   displayTitleForBlockType,
 } from "../../core/semantics/block-numbering";
-import type { BlockPresentationPlan } from "../../core/block-presentation";
 import {
-  blockquoteRenderPlan,
-  codeBlockRenderPlan,
-  dispatchBlockNodeRender,
-  documentRenderPlan,
-  displayMathRenderPlan,
-  emitBlockChildrenRenderPlan,
-  emitDocumentRenderPlan,
-  fencedDivRenderPlan,
-  headingRenderPlan,
-  horizontalRuleRenderPlan,
-  listRenderPlan,
-  type ListItemRenderPlan,
-  paragraphRenderPlan,
-} from "../../core/block-render-plan";
+  footnotePlanSectionEntries,
+} from "../../core/semantics/footnote-plan";
 import {
-  listSurfaceEmissionPlan,
-  type ListItemSurfaceEmissionPlan,
-} from "../../core/list-emission-plan";
+  createPreviewReferencePresentationController,
+} from "../references/presentation";
 import {
-  fencedDivContainerOptions,
-  fencedDivSurfaceChromePlan,
-} from "../../core/fenced-div-surface";
+  analyzeDocumentSemantics,
+  type DocumentSemantics,
+  numberFootnotes,
+  orderedFootnoteEntries,
+  stringTextSource,
+} from "../semantics/document";
 import type { BibStore } from "../state/bib-data";
 import {
   renderInlineFragmentsToDom,
@@ -101,12 +104,9 @@ import {
   renderInlineSyntaxNodeToDom,
 } from "./inline-render";
 import { renderKatex } from "./math-widget";
-import {
-  createPreviewReferencePresentationController,
-} from "../references/presentation";
-import { renderPreviewTable } from "./preview-table-renderer";
 import { applyPreviewImageOverrides } from "./preview-media-overrides";
 import type { PreviewRenderContext } from "./preview-render-context";
+import { renderPreviewTable } from "./preview-table-renderer";
 
 export interface PreviewBlockRenderOptions {
   readonly macros?: Record<string, string>;

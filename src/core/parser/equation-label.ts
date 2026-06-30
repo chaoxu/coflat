@@ -1,13 +1,13 @@
+import type { Input } from "@lezer/common";
 import { tags } from "@lezer/highlight";
 import type {
-  BlockParser,
-  MarkdownConfig,
   BlockContext,
-  Line,
+  BlockParser,
   Element,
+  Line,
+  MarkdownConfig,
 } from "@lezer/markdown";
-import type { Input } from "@lezer/common";
-import { OPEN_BRACE, CLOSE_BRACE, skipSpaceTab } from "./char-utils";
+import { CLOSE_BRACE, OPEN_BRACE, skipSpaceTab } from "./char-utils";
 import { closingFenceColonCountLine } from "./fenced-div";
 import { parseBracedId } from "./label-utils";
 

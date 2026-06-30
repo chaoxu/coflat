@@ -1,7 +1,7 @@
-import { afterEach, describe, expect, it } from "vitest";
 import type { EditorView } from "@codemirror/view";
+import { afterEach, describe, expect, it } from "vitest";
 
-import { mountEditor, type MountedEditor } from "../../../editor";
+import { type MountedEditor, mountEditor } from "../../../editor";
 import { createTestView, destroyAllTestViews } from "../test-utils";
 import { createPerFilePanelApi } from "./per-file-panels";
 

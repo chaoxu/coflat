@@ -1,6 +1,6 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
-import katex from "katex";
 import type { EditorView } from "@codemirror/view";
+import katex from "katex";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createMarkdownLanguageExtensions } from "../base-editor-extensions";
 import { documentAnalysisField } from "../state/document-analysis";
 import { mathMacrosField } from "../state/math-macros";

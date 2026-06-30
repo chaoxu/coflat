@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { RenderWidget } from "./source-widget";
 import { ShellWidget } from "./shell-widget";
+import { RenderWidget } from "./source-widget";
 
 class TestSourceWidget extends RenderWidget {
   createDOM(): HTMLElement {

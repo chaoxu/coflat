@@ -1,10 +1,10 @@
 import { type CslJsonItem, extractFirstFamilyName, extractYear, formatCslAuthors } from "../../core/citations/csl-json";
-import {
-  type CitationBacklink,
-} from "./csl-processor";
 import { findNextInlineMathSource } from "../lib/inline-math-source";
 import { sanitizeCslHtml } from "../lib/sanitize-csl-html";
 import { type BibStore } from "../state/bib-data";
+import {
+  type CitationBacklink,
+} from "./csl-processor";
 
 /**
  * Format a bibliography entry as a text string.

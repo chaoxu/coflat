@@ -5,22 +5,21 @@
  * `StatusEvents`) end-to-end through paste and drop DOM events.
  */
 
-import { afterEach, describe, expect, it, vi } from "vitest";
 import { EditorState, Text } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
-
-import { mountEditor, type MountedEditor } from "../../editor";
-import { statusEventsFacet } from "./editor-host-api";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type {
   AssetUploader,
   StatusEvents,
 } from "../../editor";
+import { type MountedEditor, mountEditor } from "../../editor";
 import {
   assetUploaderExtension,
   formatUploadedAssetMarkdown,
   isUploadedAssetImage,
   uploadedAssetLabel,
 } from "./asset-uploader";
+import { statusEventsFacet } from "./editor-host-api";
 
 interface Deferred<T> {
   promise: Promise<T>;

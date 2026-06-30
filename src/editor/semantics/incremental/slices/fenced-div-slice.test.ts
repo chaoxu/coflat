@@ -1,10 +1,10 @@
-import { EditorState } from "@codemirror/state";
 import { markdown } from "@codemirror/lang-markdown";
+import { EditorState } from "@codemirror/state";
 import { describe, expect, it } from "vitest";
 import { markdownExtensions } from "../../../../core/parser";
+import { editorStateTextSource } from "../../../state/document-analysis";
 import { ensureFullSyntaxTree } from "../../../test-utils";
 import { analyzeFencedDivs } from "../../document";
-import { editorStateTextSource } from "../../../state/document-analysis";
 import { buildSemanticDelta } from "../semantic-delta";
 import {
   extractDirtyFencedDivWindows,

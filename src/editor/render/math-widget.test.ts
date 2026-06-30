@@ -1,10 +1,10 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
 import katex from "katex";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { CSS } from "../../core/constants/css-classes";
 import { createMockEditorView } from "../test-utils";
 import { renderInlineMarkdown } from "./inline-render";
 import { renderKatexToHtml } from "./inline-shared";
-import { MathWidget, clearKatexCache, renderKatex } from "./math-widget";
+import { clearKatexCache, MathWidget, renderKatex } from "./math-widget";
 import { widgetSourceMap } from "./render-core";
 
 describe("MathWidget (inline)", () => {

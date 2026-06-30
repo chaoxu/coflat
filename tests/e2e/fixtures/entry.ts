@@ -1,5 +1,5 @@
-import { mountEditor } from "../../../editor";
 import { EditorView } from "@codemirror/view";
+import { mountEditor } from "../../../editor";
 import { requiredHTMLElement } from "./utils";
 
 const root = requiredHTMLElement("editor-root");

@@ -1,18 +1,18 @@
 import { markdown } from "@codemirror/lang-markdown";
 import { describe, expect, it, vi } from "vitest";
-import { frontmatterField } from "../state/frontmatter-state";
 import { equationLabelExtension } from "../../core/parser/equation-label";
 import { fencedDiv } from "../../core/parser/fenced-div";
 import { mathExtension } from "../../core/parser/math-backslash";
-import { createPluginRegistryField } from "../state/plugin-registry";
+import type { DocumentAnalysis } from "../semantics/document";
 import { blockCounterField } from "../state/block-counter";
 import { documentAnalysisField } from "../state/document-analysis";
+import { frontmatterField } from "../state/frontmatter-state";
+import { createPluginRegistryField } from "../state/plugin-registry";
 import {
   createEditorState,
   makeBibStore,
   makeBlockPlugin,
 } from "../test-utils";
-import type { DocumentAnalysis } from "../semantics/document";
 import {
   collectCitationMatchesFromAnalysis,
   getAnalysisCitationRegistrationKey,

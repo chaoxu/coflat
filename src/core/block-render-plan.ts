@@ -1,38 +1,38 @@
 import type { SyntaxNode } from "@lezer/common";
 import {
+  type BlockPresentationPlan,
+  blockPresentationPlan,
+  type FencedDivEmissionPlan,
+  fencedDivEmissionPlan,
+  type SemanticBlockDisclosureMode,
+} from "./block-presentation";
+import {
   BLOCK_MANIFEST_ENTRIES,
   type BlockManifestEntry,
 } from "./constants/block-manifest";
 import { NODE } from "./constants/node-types";
 import {
-  blockPresentationPlan,
-  fencedDivEmissionPlan,
-  type BlockPresentationPlan,
-  type FencedDivEmissionPlan,
-  type SemanticBlockDisclosureMode,
-} from "./block-presentation";
-import {
   buildInlineFragments,
+  type InlineFragment,
   inlineFragmentsPlainText,
   parseInlineFragments,
-  type InlineFragment,
 } from "./inline-fragments";
-import {
-  isLooseListNode,
-  orderedListStartNumber,
-} from "./parser/list-shape";
+import { taskMarkerChecked } from "./list-surface";
+import { displayMathSourcePlan } from "./math-source";
 import {
   blankLineRangesBetweenBlocks,
   trailingBlankLineRangesAfterLastBlock,
 } from "./parser/blank-lines";
 import { extractDivClass } from "./parser/fenced-div-attrs";
 import { extractRawFrontmatter } from "./parser/frontmatter";
-import { taskMarkerChecked } from "./list-surface";
-import { displayMathSourcePlan } from "./math-source";
+import {
+  isLooseListNode,
+  orderedListStartNumber,
+} from "./parser/list-shape";
 import { parseTableDelimiterAlignments } from "./parser/table";
 import {
-  primaryClassNameForFencedDivClasses,
   type FencedDivNumberingInfo,
+  primaryClassNameForFencedDivClasses,
 } from "./semantics/block-numbering";
 
 export interface ParagraphRenderPlan {

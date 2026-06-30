@@ -2,6 +2,7 @@ import { StateEffect, StateField } from "@codemirror/state";
 
 import { type BibStore } from "../../core/citations/csl-json";
 import type { CitationFormatter } from "../../core/document-context-types";
+
 export { type BibStore };
 
 export type BibliographyFailureKind =

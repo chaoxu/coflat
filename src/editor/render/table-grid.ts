@@ -20,38 +20,38 @@
  */
 
 import {
-  EditorView,
-  keymap,
-} from "@codemirror/view";
-import {
   Annotation,
   EditorState,
   StateField,
   type Transaction,
 } from "@codemirror/state";
 import {
-  findTablesInState,
-  findTableAtCursor,
-  type TableRange,
-} from "./table-discovery";
-import { tableDiscoveryField } from "../state/table-discovery";
+  EditorView,
+  keymap,
+} from "@codemirror/view";
 import { rangesIntersect } from "../lib/range-helpers";
 import { programmaticDocumentChangeAnnotation } from "../state/programmatic-document-change";
+import { tableDiscoveryField } from "../state/table-discovery";
+import { tableClipboardHandlers } from "./table-clipboard";
 import {
-  formatTable,
-  type ParsedTable,
-} from "./table-utils";
+  findTableAtCursor,
+  findTablesInState,
+  type TableRange,
+} from "./table-discovery";
 import {
   buildTableGridArtifacts,
   computeDirtyTableGridUpdate,
   isStructuralAt,
-  updateTableGridArtifacts,
   type TableGridArtifacts,
+  updateTableGridArtifacts,
 } from "./table-grid-artifacts";
-import { tableClipboardHandlers } from "./table-clipboard";
 import { tableGridClickGuard } from "./table-grid-click-guard";
 import { createTableGridContextMenuHandler } from "./table-grid-context-menu";
 import { createTableGridKeyBindings } from "./table-grid-navigation";
+import {
+  formatTable,
+  type ParsedTable,
+} from "./table-utils";
 
 // ---------------------------------------------------------------------------
 // Bypass annotation — table operations dispatch with this so the

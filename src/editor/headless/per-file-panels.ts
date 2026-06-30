@@ -6,12 +6,12 @@ import {
   type DocumentOutlineEntry,
 } from "../../core/outline-surface";
 import { isFrontmatterDelimiterLine } from "../../core/parser/frontmatter";
+import { buildHeadingOutlineProjection } from "../../core/semantics/outline-plan";
 import { documentContextFacet } from "../document-context";
 import { renderDocumentFragmentToHtml } from "../document-surfaces";
 import { createEditorReferencePresentationController } from "../references/presentation";
-import { documentAnalysisField } from "../state/document-analysis";
 import type { DocumentAnalysis } from "../semantics/document";
-import { buildHeadingOutlineProjection } from "../../core/semantics/outline-plan";
+import { documentAnalysisField } from "../state/document-analysis";
 export interface OutlineEntry extends DocumentOutlineEntry {
   /** Heading inline Markdown without leading heading markers or trailing attributes. */
   readonly markdown: string;

@@ -3,10 +3,10 @@ import { EditorView, ViewPlugin, type ViewUpdate } from "@codemirror/view";
 import {
   getShellSurfaceSnapshot,
   measureShellSurfaceSnapshot,
-  setShellSurfaceSnapshot,
-  shellSurfaceUpdateEvent,
   type ShellSurface,
   type ShellSurfaceSnapshot,
+  setShellSurfaceSnapshot,
+  shellSurfaceUpdateEvent,
 } from "./shell-surface-model";
 
 function sameSnapshot(

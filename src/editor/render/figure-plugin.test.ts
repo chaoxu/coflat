@@ -1,10 +1,10 @@
 import { markdown } from "@codemirror/lang-markdown";
 import { describe, expect, it } from "vitest";
-import { frontmatterField } from "../state/frontmatter-state";
 import { fencedDiv } from "../../core/parser/fenced-div";
 import { defaultPlugins } from "../plugins/default-plugins";
 import { blockCounterField } from "../state/block-counter";
 import { documentAnalysisField } from "../state/document-analysis";
+import { frontmatterField } from "../state/frontmatter-state";
 import { mathMacrosField } from "../state/math-macros";
 import { createPluginRegistryField } from "../state/plugin-registry";
 import { createTestView, getDecorationSpecs } from "../test-utils";

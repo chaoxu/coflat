@@ -1,18 +1,24 @@
-import { describe, expect, it, afterEach, vi } from "vitest";
-import { EditorView } from "@codemirror/view";
 import { markdown } from "@codemirror/lang-markdown";
+import { EditorView } from "@codemirror/view";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { type CslJsonItem } from "../../core/citations/bibtex-parser";
-import { CslProcessor } from "./csl-processor";
 import { CSS } from "../../core/constants/css-classes";
-import chicagoAuthorDateStyle from "./chicago-author-date.csl?raw";
-import defaultCslStyle from "./ieee.csl?raw";
 import { equationLabelExtension } from "../../core/parser/equation-label";
 import { fencedDiv } from "../../core/parser/fenced-div";
 import { mathExtension } from "../../core/parser/math-backslash";
 import {
+  BibliographyWidget,
+  bibliographyDependenciesChanged,
+  bibliographyPlugin,
+  buildBibliographyDecorations,
+} from "../render/bibliography-render";
+import { destroyFloatingTooltip } from "../render/hover-tooltip";
+import { bibDataEffect, bibDataField } from "../state/bib-data";
+import { documentAnalysisField } from "../state/document-analysis";
+import {
+  createEditorState,
   createMockEditorView,
   createTestView,
-  createEditorState,
   getDecorationSpecs,
   makeBibStore,
 } from "../test-utils";
@@ -20,15 +26,9 @@ import {
   formatBibEntry,
   sortBibEntries,
 } from "./bibliography";
-import {
-  BibliographyWidget,
-  bibliographyDependenciesChanged,
-  buildBibliographyDecorations,
-  bibliographyPlugin,
-} from "../render/bibliography-render";
-import { destroyFloatingTooltip } from "../render/hover-tooltip";
-import { bibDataEffect, bibDataField } from "../state/bib-data";
-import { documentAnalysisField } from "../state/document-analysis";
+import chicagoAuthorDateStyle from "./chicago-author-date.csl?raw";
+import { CslProcessor } from "./csl-processor";
+import defaultCslStyle from "./ieee.csl?raw";
 
 const karger: CslJsonItem = {
   id: "karger2000",

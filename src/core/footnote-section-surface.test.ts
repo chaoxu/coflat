@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  footnoteBackrefHref,
   createFootnoteSectionElement,
+  footnoteBackrefHref,
   footnoteEntryId,
   footnoteSectionPlan,
   footnoteSectionPlanFromNumberedEntries,

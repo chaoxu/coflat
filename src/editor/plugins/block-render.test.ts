@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { CSS } from "../../core/constants/css-classes";
-import { formatBlockHeader, createBlockRender } from "./block-render";
+import { createBlockRender, formatBlockHeader } from "./block-render";
 
 describe("formatBlockHeader", () => {
   it("includes the number when present", () => {

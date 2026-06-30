@@ -1,62 +1,61 @@
 import type { ChangeSet, Extension } from "@codemirror/state";
 import { EditorView, type ViewUpdate } from "@codemirror/view";
-
-import {
-  createEditor,
-  editorModeField,
-  setEditorMode,
-  type EditorConfig,
-  type EditorLazyFeature,
-} from "./src/editor";
-import type {
-  EditorPlugin,
-  EditorPluginLifecycleEvent,
-} from "./src/editor/editor-plugin";
-import type { EditorPluginPresetName } from "./src/editor/editor-plugin-presets";
-import {
-  createPerFilePanelApi,
-  type Counts,
-  type CursorContext,
-  type HeadlessPanelStore,
-  type OutlineEntry,
-  type ScrollToLineOptions,
-  type ScrollToPositionOptions,
-} from "./src/editor/headless/per-file-panels";
-import { programmaticDocumentChangeAnnotation } from "./src/editor/state/programmatic-document-change";
-import {
-  autocompleteSourcesFacet,
-  requestHandlerFacet,
-  saveHandlerFacet,
-  statusEventsFacet,
-  type AutocompleteSource,
-  type RequestHandler,
-  type SaveHandler,
-  type StatusEvents,
-} from "./src/editor/editor-host-api";
-import {
-  commandRegistryExtension,
-  type Command,
-} from "./src/editor/command-registry";
-import type { DocumentContext } from "./src/core/document-context-types";
 import type { CslJsonItem } from "./src/core/citations/csl-json";
+import type { DocumentContext } from "./src/core/document-context-types";
 import type { FileSystem } from "./src/core/lib/file-system-types";
 import {
   sourceElementAtPosition,
   visibleSourcePositionInScroller,
 } from "./src/core/source-range-surface";
 import {
+  createEditor,
+  type EditorConfig,
+  type EditorLazyFeature,
+  editorModeField,
+  setEditorMode,
+} from "./src/editor";
+import {
+  type AssetUploader,
+  assetUploaderExtension,
+} from "./src/editor/asset-uploader";
+import { autocompleteSourceExtension } from "./src/editor/autocomplete-source-controller";
+import {
+  type Command,
+  commandRegistryExtension,
+} from "./src/editor/command-registry";
+import {
   documentContextExtension,
   setDocumentContext,
 } from "./src/editor/document-context";
-import { documentPathFacet, fileSystemFacet } from "./src/editor/lib/types";
-import { bibDataEffect, type BibData } from "./src/editor/state/bib-data";
-import { createSaveController, dirtyStateExtension, saveExtension } from "./src/editor/save-handler";
 import {
-  assetUploaderExtension,
-  type AssetUploader,
-} from "./src/editor/asset-uploader";
-import { autocompleteSourceExtension } from "./src/editor/autocomplete-source-controller";
+  type AutocompleteSource,
+  autocompleteSourcesFacet,
+  type RequestHandler,
+  requestHandlerFacet,
+  type SaveHandler,
+  type StatusEvents,
+  saveHandlerFacet,
+  statusEventsFacet,
+} from "./src/editor/editor-host-api";
+import type {
+  EditorPlugin,
+  EditorPluginLifecycleEvent,
+} from "./src/editor/editor-plugin";
+import type { EditorPluginPresetName } from "./src/editor/editor-plugin-presets";
+import {
+  type Counts,
+  type CursorContext,
+  createPerFilePanelApi,
+  type HeadlessPanelStore,
+  type OutlineEntry,
+  type ScrollToLineOptions,
+  type ScrollToPositionOptions,
+} from "./src/editor/headless/per-file-panels";
+import { documentPathFacet, fileSystemFacet } from "./src/editor/lib/types";
 import { sidenotesCollapsedField } from "./src/editor/render";
+import { createSaveController, dirtyStateExtension, saveExtension } from "./src/editor/save-handler";
+import { type BibData, bibDataEffect } from "./src/editor/state/bib-data";
+import { programmaticDocumentChangeAnnotation } from "./src/editor/state/programmatic-document-change";
 
 export type StandaloneEditorMode = "rich" | "rich-readonly" | "source";
 
@@ -508,10 +507,10 @@ export function mountEditor(options: MountEditorOptions): MountedEditor {
 
 export {
   EditableReader,
-  preloadEditableReaderEditor,
   type EditableReaderMode,
   type EditableReaderProps,
   type EditableReaderRenderOptions,
+  preloadEditableReaderEditor,
 } from "./editable-reader";
 export type {
   DocumentContext,
@@ -519,10 +518,10 @@ export type {
   HostReferenceResolution,
   LinkResolver,
   LinkResolverEnv,
+  ReferenceMode,
   RefResolver,
   RefResolverClusterEnv,
   RefResolverEnv,
-  ReferenceMode,
   SourceRange,
 } from "./src/core/document-context-types";
 

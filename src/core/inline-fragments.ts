@@ -1,12 +1,12 @@
 import type { SyntaxNode } from "@lezer/common";
-import { parseMarkdownSource } from "./parser";
-import { MARK_NODES } from "./parser/inline-mark-nodes";
 import {
   BRACKETED_REFERENCE_EXACT_RE,
   BRACKETED_REFERENCE_GLOBAL_RE,
   extractReferenceCluster,
   NARRATIVE_REFERENCE_GLOBAL_RE,
 } from "./lib/reference-grammar";
+import { parseMarkdownSource } from "./parser";
+import { MARK_NODES } from "./parser/inline-mark-nodes";
 
 export type InlineFragment =
   | ({ kind: "text"; text: string } & InlineFragmentMeta)

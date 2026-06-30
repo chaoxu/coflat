@@ -3,7 +3,6 @@ import { EditorView } from "@codemirror/view";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { CSS } from "../core/constants/css-classes";
-import { createTestView } from "./test-utils";
 import {
   collectVisibleSearchMatches,
   findReplaceExtension,
@@ -15,6 +14,7 @@ import {
   setSearchControllerQuery,
   _updateSearchMatchCacheForTest as updateSearchMatchCache,
 } from "./find-replace";
+import { createTestView } from "./test-utils";
 
 const views: EditorView[] = [];
 

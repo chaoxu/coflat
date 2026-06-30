@@ -13,6 +13,13 @@ import {
   planDirtyWindows,
 } from "./dirty-window-planning";
 import {
+  createFencedDivSlice,
+  type DocumentAnalysisRevisionInfo,
+  type DocumentAnalysisSliceName,
+  type DocumentAnalysisSlices,
+  ZERO_REVISION_INFO,
+} from "./slice-registry";
+import {
   mergeEquationSlice,
 } from "./slices/equation-slice";
 import {
@@ -34,19 +41,12 @@ import {
   mergeReferenceSlice,
 } from "./slices/reference-slice";
 import {
-  createFencedDivSlice,
-  ZERO_REVISION_INFO,
-  type DocumentAnalysisRevisionInfo,
-  type DocumentAnalysisSliceName,
-  type DocumentAnalysisSlices,
-} from "./slice-registry";
-import {
   buildSlicesAndExcludedRanges,
   canMapReferenceIndexInputs,
   createDocumentAnalysisSnapshotFromAnalysis as createSnapshotFromAnalysis,
+  type DocumentAnalysisSnapshot,
   finalizeDocumentAnalysis,
   snapshotFor,
-  type DocumentAnalysisSnapshot,
 } from "./snapshot-finalize";
 import type { SemanticDelta } from "./types";
 import { extractStructuralWindow } from "./window-extractor";

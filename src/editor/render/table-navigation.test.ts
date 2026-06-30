@@ -1,9 +1,9 @@
-import { type EditorView, runScopeHandlers } from "@codemirror/view";
 import { forceParsing } from "@codemirror/language";
+import { type EditorView, runScopeHandlers } from "@codemirror/view";
 import { afterEach, describe, expect, it } from "vitest";
 import { createMarkdownLanguageExtensions } from "../base-editor-extensions";
-import { createTestView } from "../test-utils";
 import { tableDiscoveryField } from "../state/table-discovery";
+import { createTestView } from "../test-utils";
 import { findCellBounds } from "./table-discovery";
 import { tableKeybindings } from "./table-navigation";
 

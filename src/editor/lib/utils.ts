@@ -5,11 +5,11 @@
  * framework — safe to import from plugins/, render/, semantics/, and app/.
  */
 
+import { type ClassValue, clsx } from "clsx";
 import {
   basename as patheBasename,
   dirname as patheDirname,
 } from "pathe";
-import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
 export function cn(...inputs: ClassValue[]): string {

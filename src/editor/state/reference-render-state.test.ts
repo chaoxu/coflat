@@ -1,16 +1,9 @@
-import { afterEach, describe, expect, it } from "vitest";
 import { markdown } from "@codemirror/lang-markdown";
 import { EditorView } from "@codemirror/view";
-
+import { afterEach, describe, expect, it } from "vitest";
+import { equationLabelExtension } from "../../core/parser/equation-label";
 import { fencedDiv } from "../../core/parser/fenced-div";
 import { mathExtension } from "../../core/parser/math-backslash";
-import { equationLabelExtension } from "../../core/parser/equation-label";
-import { frontmatterField } from "./frontmatter-state";
-import { documentAnalysisField } from "./document-analysis";
-import { blockCounterField } from "./block-counter";
-import { createPluginRegistryField } from "./plugin-registry";
-import type { BlockPlugin } from "./block-plugin";
-import { bibDataEffect, bibDataField } from "./bib-data";
 import { CslProcessor } from "../citations/csl-processor";
 import {
   createCslFixture,
@@ -18,6 +11,12 @@ import {
   makeBibStore,
   makeBlockPlugin,
 } from "../test-utils";
+import { bibDataEffect, bibDataField } from "./bib-data";
+import { blockCounterField } from "./block-counter";
+import type { BlockPlugin } from "./block-plugin";
+import { documentAnalysisField } from "./document-analysis";
+import { frontmatterField } from "./frontmatter-state";
+import { createPluginRegistryField } from "./plugin-registry";
 import {
   getTableReferenceRenderDependencySignature,
   tableReferenceRenderDependenciesChanged,

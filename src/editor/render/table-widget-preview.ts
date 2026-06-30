@@ -1,9 +1,9 @@
 import { findInlineNeutralAnchor } from "../inline-fragments";
-import { isReferenceWidgetTarget } from "./reference-widget";
 import {
-  renderInlineMarkdown,
   type InlineReferenceRenderContext,
+  renderInlineMarkdown,
 } from "./inline-render";
+import { isReferenceWidgetTarget } from "./reference-widget";
 
 export function restoreRenderedTableCell(
   cell: HTMLElement,

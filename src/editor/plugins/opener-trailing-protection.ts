@@ -1,7 +1,7 @@
 import { EditorState, type Extension, type Transaction } from "@codemirror/state";
 import { collectFencedDivs } from "../fenced-block/model";
-import { fenceOperationAnnotation } from "./fence-protection";
 import { programmaticDocumentChangeAnnotation } from "../state/programmatic-document-change";
+import { fenceOperationAnnotation } from "./fence-protection";
 
 /**
  * Block insertions that would corrupt the opener line of a fenced div by

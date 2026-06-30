@@ -5,33 +5,33 @@
  * otherwise replaces it with a document title widget (or hides it
  * entirely when there is no title).
  */
+
+import type { Transaction } from "@codemirror/state";
 import { EditorState, type Extension, type Range } from "@codemirror/state";
 import { Decoration, DecorationSet, EditorView, type WidgetType } from "@codemirror/view";
-import { renderDocumentFragmentToDom } from "../document-surfaces";
 import { CSS } from "../../core/constants/css-classes";
 import { documentContextFacet } from "../document-context";
+import { renderDocumentFragmentToDom } from "../document-surfaces";
 import {
   createCatalogReferencePresentationController,
   createEditorReferencePresentationController,
 } from "../references/presentation";
 import { getEditorDocumentReferenceCatalog } from "../semantics/editor-reference-catalog";
 import { bibDataEffect, bibDataField } from "../state/bib-data";
-import type { InlineReferenceRenderContext } from "./inline-render";
-
+import {
+  activateFrontmatterStructureEdit,
+  hasStructureEditEffect,
+  isFrontmatterStructureEditActive,
+} from "../state/cm-structure-edit";
 import { frontmatterField } from "../state/frontmatter-state";
+import { isFrontmatterActive } from "../state/shell-ownership";
+import type { InlineReferenceRenderContext } from "./inline-render";
 import {
   createDecorationsField,
   editorFocusField,
   focusTracker,
   ShellMacroAwareWidget,
 } from "./render-core";
-import type { Transaction } from "@codemirror/state";
-import {
-  activateFrontmatterStructureEdit,
-  hasStructureEditEffect,
-  isFrontmatterStructureEditActive,
-} from "../state/cm-structure-edit";
-import { isFrontmatterActive } from "../state/shell-ownership";
 
 /** Widget that renders article frontmatter fields. */
 class ArticleHeaderWidget extends ShellMacroAwareWidget {

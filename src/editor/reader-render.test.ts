@@ -1,10 +1,10 @@
-import { describe, expect, it, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
+import type { LinkResolver } from "../../reader";
 import {
   hydrateReferences,
   renderToHtml,
   renderToText,
 } from "../../reader";
-import type { LinkResolver } from "../../reader";
 import { createNumericCitationFormatter } from "../core/citations/numeric";
 import type { FileSystem } from "../core/lib/file-system-types";
 import {

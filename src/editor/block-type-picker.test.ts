@@ -7,20 +7,20 @@
  * Also covers the picker UI trigger path at a light integration level.
  */
 
-import { describe, expect, it, afterEach, vi } from "vitest";
 import { markdown } from "@codemirror/lang-markdown";
 import { EditorView } from "@codemirror/view";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { markdownExtensions } from "../core/parser";
 import {
   blockTypePickerExtension,
-  isPickerVisible,
+  _collectAncestorFencesForTest as collectAncestorFences,
   _getPickerEntriesForTest as getPickerEntries,
   _insertBlockForTest as insertBlock,
-  _collectAncestorFencesForTest as collectAncestorFences,
+  isPickerVisible,
 } from "./block-type-picker";
 import {
-  registerPlugins,
   createRegistryState,
+  registerPlugins,
 } from "./plugins";
 import { frontmatterField } from "./state/frontmatter-state";
 import { createPluginRegistryField } from "./state/plugin-registry";

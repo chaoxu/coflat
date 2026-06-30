@@ -1,34 +1,34 @@
-import { describe, expect, it, afterEach } from "vitest";
-import { EditorState, StateEffect } from "@codemirror/state";
 import { markdown } from "@codemirror/lang-markdown";
+import { EditorState, StateEffect } from "@codemirror/state";
+import { afterEach, describe, expect, it } from "vitest";
+import type { CitationFormatter } from "../../core/document-context-types";
+import { equationLabelExtension } from "../../core/parser/equation-label";
 import { fencedDiv } from "../../core/parser/fenced-div";
 import { mathExtension } from "../../core/parser/math-backslash";
-import { equationLabelExtension } from "../../core/parser/equation-label";
-import { frontmatterField } from "../state/frontmatter-state";
-import { createPluginRegistryField } from "../state/plugin-registry";
+import { CslProcessor } from "../citations/csl-processor";
+import { documentContextFacet } from "../document-context";
+import { documentReferenceCatalogField } from "../semantics/editor-reference-catalog";
+import type { DocumentReferenceCatalog } from "../semantics/reference-catalog";
+import { bibDataEffect, bibDataField } from "../state/bib-data";
 import { blockCounterField } from "../state/block-counter";
 import { documentAnalysisField } from "../state/document-analysis";
-import { documentReferenceCatalogField } from "../semantics/editor-reference-catalog";
-import { bibDataEffect, bibDataField } from "../state/bib-data";
-import { CslProcessor } from "../citations/csl-processor";
+import { frontmatterField } from "../state/frontmatter-state";
+import { createPluginRegistryField } from "../state/plugin-registry";
 import {
   applyStateEffects,
-  createEditorState,
   CSL_FIXTURES,
+  createEditorState,
   makeBibStore,
   makeBlockPlugin,
 } from "../test-utils";
-import type { DocumentReferenceCatalog } from "../semantics/reference-catalog";
-import { documentContextFacet } from "../document-context";
-import type { CitationFormatter } from "../../core/document-context-types";
 import {
   createCatalogReferencePresentationController,
   getReferencePresentationComputationCountForTest,
   getReferencePresentationModel,
   planReferencePresentation,
+  type ReferencePresentationInput,
   referencePresentationField,
   resetReferencePresentationComputationCountForTest,
-  type ReferencePresentationInput,
 } from "./presentation";
 
 function createState(doc: string): EditorState {

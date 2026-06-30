@@ -7,17 +7,17 @@
  */
 
 import { type Extension } from "@codemirror/state";
-import { codeBlockDecorationField,
-  docChangeTouchesCodeBlockContent,
-  computeCodeBlockDirtyRegion,
-  incrementalCodeBlockUpdate,} from "./code-block-decorations";
-import { codeBlockHoverPlugin } from "./code-block-hover";
 import {
   type CodeBlockInfo,
   codeBlockStructureField,
   collectCodeBlocks,
   getCodeBlockStructureRevision,
 } from "../state/code-block-structure";
+import { codeBlockDecorationField,
+  computeCodeBlockDirtyRegion,
+  docChangeTouchesCodeBlockContent,
+  incrementalCodeBlockUpdate,} from "./code-block-decorations";
+import { codeBlockHoverPlugin } from "./code-block-hover";
 import {
   editorFocusField,
   focusTracker,
@@ -29,8 +29,8 @@ export {
   codeBlockStructureField,
   codeBlockStructureField as _codeBlockStructureFieldForTest,
   collectCodeBlocks,
-  docChangeTouchesCodeBlockContent as _docChangeTouchesCodeBlockContentForTest,
   computeCodeBlockDirtyRegion as _computeCodeBlockDirtyRegionForTest,
+  docChangeTouchesCodeBlockContent as _docChangeTouchesCodeBlockContentForTest,
   getCodeBlockStructureRevision,
   incrementalCodeBlockUpdate as _incrementalCodeBlockUpdateForTest,
 };

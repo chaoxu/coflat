@@ -1,12 +1,12 @@
 import type { EditorState, Extension } from "@codemirror/state";
-import { ViewPlugin, type EditorView, type ViewUpdate } from "@codemirror/view";
+import { type EditorView, ViewPlugin, type ViewUpdate } from "@codemirror/view";
+import { measureSync } from "../lib/perf";
+import { rangesOverlap } from "../lib/range-helpers";
 import type { MathSemantics } from "../semantics/document";
 import { documentAnalysisField } from "../state/document-analysis";
-import { clearKatexHtmlCache, renderKatexToHtml } from "./inline-shared";
 import { mathMacrosField } from "../state/math-macros";
+import { clearKatexHtmlCache, renderKatexToHtml } from "./inline-shared";
 import { serializeMacros } from "./source-widget";
-import { rangesOverlap } from "../lib/range-helpers";
-import { measureSync } from "../lib/perf";
 
 function scheduleIdle(callback: (deadline?: IdleDeadline) => void): void {
   if (typeof requestIdleCallback === "function") {

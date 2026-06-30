@@ -1,5 +1,5 @@
-import { syntaxTree } from "@codemirror/language";
 import { markdown } from "@codemirror/lang-markdown";
+import { syntaxTree } from "@codemirror/language";
 import { EditorState } from "@codemirror/state";
 import type { SyntaxNode } from "@lezer/common";
 import { describe, expect, it } from "vitest";

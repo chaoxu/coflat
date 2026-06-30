@@ -3,17 +3,17 @@ import { EditorState } from "@codemirror/state";
 import { describe, expect, it } from "vitest";
 
 import { markdownExtensions } from "../../../../core/parser";
-import { ensureFullSyntaxTree } from "../../../test-utils";
 import { editorStateTextSource } from "../../../state/document-analysis";
+import { ensureFullSyntaxTree } from "../../../test-utils";
 import { buildSemanticDelta } from "../semantic-delta";
 import { extractStructuralWindow } from "../window-extractor";
 import {
   buildMathSlice,
+  type DirtyMathWindowExtraction,
+  type MathSlice,
   mapMathRegionUpdate,
   mapMathSemantics,
   mergeMathSlice,
-  type DirtyMathWindowExtraction,
-  type MathSlice,
 } from "./math-slice";
 
 function createState(doc: string): EditorState {

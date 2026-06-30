@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from "vitest";
 import type { EditorView } from "@codemirror/view";
+import { describe, expect, it, vi } from "vitest";
 import {
   captureScrollAnchor,
   mutateWithScrollStabilizedMeasure,

@@ -3,8 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   hydrateRichReadonlyDocument,
   mountRichReadonlyDocument,
-  renderFastRichReadonlyHtml,
   type RichReadonlyLifecyclePhase,
+  renderFastRichReadonlyHtml,
 } from "./rich-readonly";
 
 describe("@chaoxu/coflat/rich-readonly", () => {

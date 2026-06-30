@@ -6,31 +6,25 @@
  * to check which decorations are applied for a given document + cursor position.
  */
 
-import { describe, expect, it } from "vitest";
+import { markdown } from "@codemirror/lang-markdown";
 import { Compartment, EditorState } from "@codemirror/state";
 import { Decoration } from "@codemirror/view";
-import { markdown } from "@codemirror/lang-markdown";
+import { describe, expect, it } from "vitest";
+import { CSS } from "../../core/constants/css-classes";
 import { markdownExtensions } from "../../core/parser";
-import {
-  _blockDecorationFieldForTest as blockDecorationField,
-  _blockDecorationInputsChangedForTest as blockDecorationInputsChanged,
-} from "./plugin-render";
-import {
-  BlockCaptionWidget,
-  BlockHeaderWidget,
-} from "./plugin-adapters/chrome";
+import { defaultPlugins } from "../plugins/default-plugins";
+import { bibDataField } from "../state/bib-data";
 import { blockCounterField } from "../state/block-counter";
-import { createPluginRegistryField } from "../state/plugin-registry";
-import { documentAnalysisField } from "../state/document-analysis";
-import { mathMacrosField } from "../state/math-macros";
-import { editorFocusField, focusEffect } from "./render-core";
-import { widgetSourceMap } from "./render-core";
-import { frontmatterField } from "../state/frontmatter-state";
 import {
   activeStructureEditField,
   createFencedStructureEditTarget,
   setStructureEditTargetEffect,
 } from "../state/cm-structure-edit";
+import { withCm6BlockPlugin } from "../state/cm6-block-plugin";
+import { documentAnalysisField } from "../state/document-analysis";
+import { frontmatterField } from "../state/frontmatter-state";
+import { mathMacrosField } from "../state/math-macros";
+import { createPluginRegistryField } from "../state/plugin-registry";
 import {
   applyStateEffects,
   createEditorState,
@@ -40,10 +34,15 @@ import {
   hasMarkClassInRange,
   makeBlockPlugin,
 } from "../test-utils";
-import { CSS } from "../../core/constants/css-classes";
-import { defaultPlugins } from "../plugins/default-plugins";
-import { withCm6BlockPlugin } from "../state/cm6-block-plugin";
-import { bibDataField } from "../state/bib-data";
+import {
+  BlockCaptionWidget,
+  BlockHeaderWidget,
+} from "./plugin-adapters/chrome";
+import {
+  _blockDecorationFieldForTest as blockDecorationField,
+  _blockDecorationInputsChangedForTest as blockDecorationInputsChanged,
+} from "./plugin-render";
+import { editorFocusField, focusEffect, widgetSourceMap } from "./render-core";
 
 /** Create an EditorState with all extensions needed for block decorations. */
 function createTestState(doc: string, cursorPos = 0, focused = false) {

@@ -176,6 +176,7 @@ export function scanTableInlineSpan(
 
   return null;
 }
+
 import {
   isPandocDollarMathCloser,
   isPandocDollarMathOpener,

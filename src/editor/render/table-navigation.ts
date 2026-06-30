@@ -1,5 +1,5 @@
-import { Prec, type Extension } from "@codemirror/state";
-import { keymap, type EditorView } from "@codemirror/view";
+import { type Extension, Prec } from "@codemirror/state";
+import { type EditorView, keymap } from "@codemirror/view";
 import {
   findCellBounds,
   findTableAtCursor,

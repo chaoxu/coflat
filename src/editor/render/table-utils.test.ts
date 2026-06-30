@@ -1,15 +1,15 @@
-import { describe, it, expect } from "vitest";
-import {
-  parseTable,
-  formatTable,
-  serializeTable,
-  detectAlignment,
-  addRow,
-  addColumn,
-  deleteRow,
-  deleteColumn,
-} from "./table-utils";
+import { describe, expect, it } from "vitest";
 import type { ParsedTable } from "./table-utils";
+import {
+  addColumn,
+  addRow,
+  deleteColumn,
+  deleteRow,
+  detectAlignment,
+  formatTable,
+  parseTable,
+  serializeTable,
+} from "./table-utils";
 
 /** Helper that parses a table and asserts it is not null. */
 function mustParse(lines: readonly string[]): ParsedTable {

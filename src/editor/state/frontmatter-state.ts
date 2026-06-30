@@ -11,11 +11,11 @@ import { EditorState, StateField, type Text } from "@codemirror/state";
 
 import {
   type BlockConfig,
-  isFrontmatterDelimiterLine,
-  parseFrontmatter,
   type FrontmatterConfig,
   type FrontmatterResult,
   type FrontmatterStatus,
+  isFrontmatterDelimiterLine,
+  parseFrontmatter,
 } from "../../core/parser/frontmatter";
 import { mergeConfigs, projectConfigFacet } from "../project-config";
 

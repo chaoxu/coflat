@@ -5,8 +5,8 @@ import { CSS } from "../../core/constants";
 import {
   createMarkdownLanguageExtensions,
 } from "../base-editor-extensions";
-import { frontmatterField } from "../state/frontmatter-state";
 import { documentAnalysisField } from "../state/document-analysis";
+import { frontmatterField } from "../state/frontmatter-state";
 import { mathMacrosField } from "../state/math-macros";
 
 const { mathPreviewPlugin } = await import("./math-preview");

@@ -1,8 +1,8 @@
-import { describe, it, expect, afterEach } from "vitest";
 import { EditorView } from "@codemirror/view";
-import { focusModeExtension, toggleFocusMode } from "./focus-mode";
+import { afterEach, describe, expect, it } from "vitest";
 import { CSS } from "../../core/constants/css-classes";
 import { createTestView } from "../test-utils";
+import { focusModeExtension, toggleFocusMode } from "./focus-mode";
 
 let view: EditorView | undefined;
 

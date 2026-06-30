@@ -1,12 +1,12 @@
-import {
-  DOCUMENT_SURFACE_CLASS,
-  documentSurfaceClassNames,
-} from "./document-surface-classes";
 import type {
   TableCellRenderPlan,
   TableRenderPlan,
   TableRowRenderPlan,
 } from "./block-render-plan";
+import {
+  DOCUMENT_SURFACE_CLASS,
+  documentSurfaceClassNames,
+} from "./document-surface-classes";
 
 export type TableCellAlign = "left" | "center" | "right";
 

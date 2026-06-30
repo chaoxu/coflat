@@ -1,13 +1,13 @@
 import type { DocumentAnalysis } from "../semantics/document";
 import { type BibStore } from "../state/bib-data";
 import {
-  type CslProcessor,
-  registerCitationsWithProcessor,
-} from "./csl-processor";
-import {
   collectCitationMatchesFromAnalysis,
   getCitationRegistrationKey,
 } from "./citation-matching";
+import {
+  type CslProcessor,
+  registerCitationsWithProcessor,
+} from "./csl-processor";
 
 /**
  * Ensure citations from the current document analysis are registered with the

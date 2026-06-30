@@ -1,8 +1,8 @@
-import { describe, expect, it } from "vitest";
 import { parser } from "@lezer/markdown";
-import { tableExtension } from "./table";
-import { mathExtension } from "./math-backslash";
+import { describe, expect, it } from "vitest";
 import { equationLabelExtension } from "./equation-label";
+import { mathExtension } from "./math-backslash";
+import { tableExtension } from "./table";
 
 const mdParser = parser.configure([mathExtension, equationLabelExtension, tableExtension]);
 

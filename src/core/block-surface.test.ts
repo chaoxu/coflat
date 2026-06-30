@@ -1,17 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { DOCUMENT_SURFACE_CLASS } from "./document-surface-classes";
 import {
   blockContainerSurfaceAttrs,
   blockContainerSurfaceClassNames,
   blockSurfaceClassNames,
-  createBlockContainerElement,
   createBlankLineElement,
+  createBlockContainerElement,
   createBlockquoteElement,
   createHorizontalRuleElement,
   renderBlankLineHtml,
   renderBlockquoteHtml,
   renderHorizontalRuleHtml,
 } from "./block-surface";
+import { DOCUMENT_SURFACE_CLASS } from "./document-surface-classes";
 
 describe("block surface", () => {
   it("shares generic block wrapper classes", () => {

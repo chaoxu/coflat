@@ -6,9 +6,9 @@
  * and a formatted header string.
  */
 
-import type { BlockAttrs, BlockDecorationSpec } from "./block-plugin";
-import { CSS } from "../../core/constants/css-classes";
 import { blockPresentationPlan } from "../../core/block-presentation";
+import { CSS } from "../../core/constants/css-classes";
+import type { BlockAttrs, BlockDecorationSpec } from "./block-plugin";
 
 /**
  * Build a standard block header label string (widget text only).

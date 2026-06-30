@@ -1,8 +1,8 @@
 import type { ReferenceSemantics } from "../../document-model";
 import {
-  rangesOverlap,
   type PositionMapper,
   type RangeLike,
+  rangesOverlap,
 } from "../merge-utils";
 import type { DirtyWindow, SemanticDelta } from "../types";
 import type { StructuralWindowExtraction } from "../window-extractor";
