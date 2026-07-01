@@ -204,3 +204,26 @@ describe("raw YAML escape hatch", () => {
     expect(setRawFrontmatter(DOC, readRawFrontmatter(DOC))).toBe(DOC);
   });
 });
+
+describe("robustness against malformed / colliding input", () => {
+  it("setMathMacro replaces a non-map `math` with a fresh map instead of throwing", () => {
+    const doc = `---\ntitle: T\nmath: not-a-map\n---\nbody\n`;
+    const out = setMathMacro(doc, "\\cl", "\\operatorname{cl}");
+    expect(readPanelProperties(out).math).toEqual({ "\\cl": "\\operatorname{cl}" });
+  });
+
+  it("renameFrontmatterScalar is a no-op when the target key already exists", () => {
+    const doc = `---\ntitle: T\nkeywords: kw\n---\nbody\n`;
+    // Renaming keywords -> title must NOT destroy the existing title.
+    const out = renameFrontmatterScalar(doc, "keywords", "title");
+    expect(out).toBe(doc);
+    expect(readPanelProperties(out).title).toBe("T");
+  });
+
+  it("renameMathMacro is a no-op when the target macro already exists", () => {
+    const doc = `---\nmath:\n  \\a: x\n  \\b: y\n---\nbody\n`;
+    const out = renameMathMacro(doc, "\\a", "\\b");
+    expect(out).toBe(doc);
+    expect(readPanelProperties(out).math).toEqual({ "\\a": "x", "\\b": "y" });
+  });
+});

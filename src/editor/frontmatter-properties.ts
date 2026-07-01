@@ -168,7 +168,11 @@ export function setFrontmatterScalar(
   });
 }
 
-/** Rename a top-level scalar key, keeping its value. No-op if `oldKey` is absent. */
+/**
+ * Rename a top-level scalar key, keeping its value. No-op if `oldKey` is absent
+ * or `newKey` already exists (renaming onto an existing key would silently
+ * destroy that key's value).
+ */
 export function renameFrontmatterScalar(
   source: string,
   oldKey: string,
@@ -176,7 +180,7 @@ export function renameFrontmatterScalar(
 ): string {
   if (oldKey === newKey || newKey === "") return source;
   return editFrontmatter(source, (doc) => {
-    if (!doc.has(oldKey)) return;
+    if (!doc.has(oldKey) || doc.has(newKey)) return;
     const value = doc.get(oldKey, true);
     doc.delete(oldKey);
     doc.set(newKey, value);
@@ -186,6 +190,10 @@ export function renameFrontmatterScalar(
 /** Add or update a math macro (keys carry the leading backslash, e.g. `\\cl`). */
 export function setMathMacro(source: string, name: string, expansion: string): string {
   return editFrontmatter(source, (doc) => {
+    // `setIn(["math", ...])` throws if `math` exists but isn't a map. Replace a
+    // non-map `math` with a fresh map so "+ add macro" works regardless.
+    const math = doc.get("math");
+    if (math !== undefined && !isMap(math)) doc.delete("math");
     doc.setIn(["math", name], expansion);
   });
 }
@@ -199,12 +207,18 @@ export function removeMathMacro(source: string, name: string): string {
   });
 }
 
-/** Rename a macro key while keeping its expansion and position best-effort. */
+/**
+ * Rename a macro key while keeping its expansion and position best-effort. No-op
+ * if `oldName` is absent or `newName` already exists (renaming onto an existing
+ * macro would silently destroy it).
+ */
 export function renameMathMacro(source: string, oldName: string, newName: string): string {
-  if (oldName === newName) return source;
+  if (oldName === newName || newName === "") return source;
   return editFrontmatter(source, (doc) => {
+    const math = doc.get("math");
+    if (!isMap(math)) return;
     const expansion = doc.getIn(["math", oldName]);
-    if (expansion === undefined) return;
+    if (expansion === undefined || doc.getIn(["math", newName]) !== undefined) return;
     doc.deleteIn(["math", oldName]);
     doc.setIn(["math", newName], expansion);
   });

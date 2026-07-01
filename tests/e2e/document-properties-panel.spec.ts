@@ -208,6 +208,59 @@ test("document-properties form: add property adds an editable row and a frontmat
   await expect.poll(() => h.getDoc()).toMatch(/license:\s*"?CC-BY"?/);
 });
 
+test("document-properties form: + add macro adds distinct rows on each click", async ({ page }) => {
+  const h = harness(page);
+  await page.goto("/tests/e2e/fixtures/index.html");
+  await h.setDoc(DOC);
+  await settle(page);
+
+  await page.locator(".cf-doc-title").click();
+  await page.locator(".cf-doc-properties-add-macro").click();
+  await page.locator(".cf-doc-properties-add-macro").click();
+  // Two clicks must yield two distinct macro rows (regression: always used \new).
+  await expect(page.locator(".cf-doc-properties-macro-row")).toHaveCount(3); // 1 seed (\cl) + 2 added
+  await expect.poll(() => h.getDoc()).toMatch(/\\new\b/);
+  await expect.poll(() => h.getDoc()).toMatch(/\\new2\b/);
+});
+
+test("document-properties form: add works (no crash) on malformed/non-map math", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push("PAGEERROR: " + e.message));
+  const h = harness(page);
+  await page.goto("/tests/e2e/fixtures/index.html");
+  await h.setDoc(`---\ntitle: T\nmath: not-a-map\n---\n\nBody.\n`);
+  await settle(page);
+
+  await page.locator(".cf-doc-title").click();
+  await page.locator(".cf-doc-properties-add-macro").click();
+  await settle(page);
+  // The non-map math is replaced with a real map; add-macro succeeds, no crash.
+  await expect(page.locator(".cf-doc-properties-macro-row")).toHaveCount(1);
+  await expect.poll(() => h.getDoc()).toMatch(/\\new\b/);
+  expect(errors).toEqual([]);
+});
+
+test("document-properties form: does not get stuck open after setDoc replaces the document", async ({ page }) => {
+  const h = harness(page);
+  await page.goto("/tests/e2e/fixtures/index.html");
+  await h.setDoc(DOC);
+  await settle(page);
+
+  await page.locator(".cf-doc-title").click();
+  await page.locator(".cf-doc-properties-input").first().click(); // focus a field → formFocused=true
+  await expect(page.locator(".cf-doc-properties")).toBeVisible();
+
+  // Replace the whole document programmatically (no mode reconfigure) — the
+  // panel must not stay open bound to the new doc.
+  await page.evaluate(() => {
+    (window as unknown as { __coflatEditor: EditorHarness }).__coflatEditor.setDoc(
+      "---\ntitle: Fresh\n---\n\nA different document.\n",
+    );
+  });
+  await settle(page);
+  await expect(page.locator(".cf-doc-properties")).toHaveCount(0);
+});
+
 test("document-properties form: + add property commits a pending field edit", async ({ page }) => {
   const h = harness(page);
   await page.goto("/tests/e2e/fixtures/index.html");
