@@ -116,6 +116,11 @@ class ArticleHeaderWidget extends ShellMacroAwareWidget {
     view: EditorView,
   ): void {
     el.style.cursor = "pointer";
+    // Idempotent: updateDOM runs on the persistent title node across rebuilds, so
+    // binding unconditionally would stack a new mousedown listener every time
+    // (leak + N-fold activation on a single click). Bind once per element.
+    if (el.dataset.cfRevealBound === "1") return;
+    el.dataset.cfRevealBound = "1";
     el.addEventListener("mousedown", (event) => {
       event.preventDefault();
       event.stopPropagation();

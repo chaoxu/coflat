@@ -120,12 +120,47 @@ function frontmatterSource(state: EditorState): string {
 }
 
 /**
- * Apply a frontmatter source mutation as a minimal diff: dispatch only the
- * changed span between the common prefix and suffix, so an edit touches the
- * smallest possible range and leaves the rest of the document untouched.
+ * True while a panel `render()` is tearing down its DOM. Removing a focused,
+ * dirty input fires that input's native `change` synchronously mid-teardown —
+ * which runs inside CM6's update cycle. Swallow those so they neither re-enter
+ * `view.dispatch` (a hard CM6 error) nor resurrect a row the user just removed;
+ * the real value was already committed via `commitFocusedEdit` or a prior blur.
+ */
+let panelRebuilding = false;
+
+/** The smallest {from,to,insert} turning `oldStr` into `newStr` (common prefix/suffix). */
+function minimalChange(oldStr: string, newStr: string): { from: number; to: number; insert: string } {
+  const limit = Math.min(oldStr.length, newStr.length);
+  let from = 0;
+  while (from < limit && oldStr[from] === newStr[from]) from++;
+  let oldEnd = oldStr.length;
+  let newEnd = newStr.length;
+  while (oldEnd > from && newEnd > from && oldStr[oldEnd - 1] === newStr[newEnd - 1]) {
+    oldEnd--;
+    newEnd--;
+  }
+  return { from, to: oldEnd, insert: newStr.slice(from, newEnd) };
+}
+
+/**
+ * Apply a frontmatter source mutation as a minimal, bounded diff.
+ *
+ * When the frontmatter block ends in a newline (a body follows — the common
+ * case), mutate only the `[0, end]` slice and dispatch a change bounded to it,
+ * so the cost is O(frontmatter) regardless of document size and the body is never
+ * materialized. A frontmatter-only doc with no trailing newline can't round-trip
+ * that way (the mutator would append one), so it falls back to the full-document
+ * path.
  */
 function applyFrontmatterEdit(view: EditorView, mutate: (source: string) => string): void {
-  const oldSource = view.state.doc.toString();
+  // See panelRebuilding: a teardown `change` during a rebuild must not dispatch.
+  if (panelRebuilding) return;
+
+  const end = view.state.field(frontmatterField, false)?.end ?? 0;
+  const block = end > 0 ? view.state.doc.sliceString(0, end) : "";
+  const useSlice = end > 0 && block.endsWith("\n");
+  const oldSource = useSlice ? block : view.state.doc.toString();
+
   let newSource: string;
   try {
     newSource = mutate(oldSource);
@@ -137,17 +172,9 @@ function applyFrontmatterEdit(view: EditorView, mutate: (source: string) => stri
     return;
   }
   if (newSource === oldSource) return;
-
-  const limit = Math.min(oldSource.length, newSource.length);
-  let from = 0;
-  while (from < limit && oldSource[from] === newSource[from]) from++;
-  let oldEnd = oldSource.length;
-  let newEnd = newSource.length;
-  while (oldEnd > from && newEnd > from && oldSource[oldEnd - 1] === newSource[newEnd - 1]) {
-    oldEnd--;
-    newEnd--;
-  }
-  view.dispatch({ changes: { from, to: oldEnd, insert: newSource.slice(from, newEnd) } });
+  // Slice positions are already document positions (the slice starts at 0), so
+  // the bounded change leaves the body untouched.
+  view.dispatch({ changes: minimalChange(oldSource, newSource) });
 }
 
 // KaTeX output is pure given (name, expansion). A structural rebuild re-creates
@@ -210,6 +237,8 @@ class DocumentPropertiesBuilder {
     private readonly props: PanelProperties,
     private readonly mode: PanelMode,
     private readonly setMode: (mode: PanelMode) => void,
+    /** Live bibliography-picker controllers, aborted when the panel unmounts. */
+    private readonly pendingPickers: Set<AbortController>,
   ) {}
 
   build(view: EditorView): HTMLElement {
@@ -342,11 +371,18 @@ class DocumentPropertiesBuilder {
         wrap.className = "cf-doc-properties-input-group";
         const browse = actionButton(view, "Browse…", "cf-doc-properties-browse", () => {
           const controller = new AbortController();
-          handler.openBibliographyPicker?.({ current: input.value, signal: controller.signal }).then((result) => {
-            if (result) {
-              applyFrontmatterEdit(view, (source) => setFrontmatterScalar(source, "bibliography", result.path));
-            }
-          });
+          this.pendingPickers.add(controller);
+          handler.openBibliographyPicker?.({ current: input.value, signal: controller.signal })
+            .then((result) => {
+              this.pendingPickers.delete(controller);
+              // Bail if the panel was unmounted (controller aborted) or the view
+              // was torn down while the picker was open — don't write behind the
+              // user's back or dispatch into a dead view.
+              if (result && !controller.signal.aborted && view.dom.isConnected) {
+                applyFrontmatterEdit(view, (source) => setFrontmatterScalar(source, "bibliography", result.path));
+              }
+            })
+            .catch(() => this.pendingPickers.delete(controller));
         });
         wrap.append(input, browse);
         return fieldRow(label, wrap);
@@ -438,6 +474,7 @@ function createPropertiesPanel(view: EditorView): Panel {
   dom.className = "cf-doc-properties-host";
   let lastKey = "";
   let mode: PanelMode = "form";
+  const pendingPickers = new Set<AbortController>();
 
   // Re-rendering replaces the inputs, dropping focus. Capture which control was
   // focused (by class + index) and restore it after the rebuild, so editing a
@@ -484,7 +521,15 @@ function createPropertiesPanel(view: EditorView): Panel {
     if (!force && key === lastKey) return;
     lastKey = key;
     const focus = captureFocus();
-    dom.replaceChildren(new DocumentPropertiesBuilder(props, mode, setMode).build(view));
+    // Guard the teardown: removing a focused, dirty input fires its native
+    // `change` synchronously here; panelRebuilding makes that a no-op instead of
+    // a re-entrant dispatch (see applyFrontmatterEdit).
+    panelRebuilding = true;
+    try {
+      dom.replaceChildren(new DocumentPropertiesBuilder(props, mode, setMode, pendingPickers).build(view));
+    } finally {
+      panelRebuilding = false;
+    }
     restoreFocus(focus);
   };
 
@@ -531,6 +576,8 @@ function createPropertiesPanel(view: EditorView): Panel {
     },
     destroy() {
       if (pendingFrame) cancelAnimationFrame(pendingFrame);
+      for (const controller of pendingPickers) controller.abort();
+      pendingPickers.clear();
       dom.removeEventListener("focusin", onFocusIn);
       dom.removeEventListener("focusout", onFocusOut);
     },

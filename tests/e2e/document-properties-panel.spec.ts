@@ -208,6 +208,39 @@ test("document-properties form: add property adds an editable row and a frontmat
   await expect.poll(() => h.getDoc()).toMatch(/license:\s*"?CC-BY"?/);
 });
 
+test("document-properties form: removing a row while its value field is focused-and-edited does not crash", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push("PAGEERROR: " + e.message));
+  page.on("console", (m) => { if (m.type() === "error" && !/favicon/.test(m.text())) errors.push(m.text()); });
+  const h = harness(page);
+  await page.goto("/tests/e2e/fixtures/index.html");
+  await h.setDoc(`---\ntitle: T\nkeywords: kw\nmath:\n  \\cl: "\\\\operatorname{cl}"\n---\n\nBody.\n`);
+  await settle(page);
+  await page.locator(".cf-doc-title").click();
+
+  // Extra property: focus its value, type (no blur), then click its × remove.
+  // Previously the focused input's teardown re-entered view.dispatch mid-update
+  // and threw an uncaught CM6 error.
+  const extraVal = page.locator(".cf-doc-properties-extra-value").first();
+  await extraVal.click();
+  await extraVal.fill("edited-not-blurred");
+  await page.locator(".cf-doc-properties-extra-row .cf-doc-properties-macro-remove").first().click();
+  await settle(page);
+  await expect.poll(() => h.getDoc()).not.toContain("keywords");
+
+  // Re-open and do the same for a macro value field + its × remove.
+  await page.locator(".cf-doc-title").click();
+  const macroVal = page.locator(".cf-doc-properties-macro-value").first();
+  await macroVal.click();
+  await macroVal.fill("changed");
+  await page.locator(".cf-doc-properties-macro-row .cf-doc-properties-macro-remove").first().click();
+  await settle(page);
+  await expect.poll(() => h.getDoc()).not.toContain("\\cl");
+
+  // No uncaught CM6 update error from either teardown.
+  expect(errors).toEqual([]);
+});
+
 test("document-properties form: + add macro adds distinct rows on each click", async ({ page }) => {
   const h = harness(page);
   await page.goto("/tests/e2e/fixtures/index.html");
