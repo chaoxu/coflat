@@ -92,18 +92,13 @@ class ArticleHeaderWidget extends ShellMacroAwareWidget {
   }
 
   override toDOM(view?: EditorView): HTMLElement {
+    // createDOM already renders the title once with this.referenceContext. Every
+    // input to that render (title/macros/reference key) is part of eq, so a given
+    // widget instance never spans a change to any of them — the previous
+    // re-render here with a freshly-built context was always identical, i.e. a
+    // wasted second title render (doubling KaTeX/citation work for rich titles).
     const el = this.createDOM();
     this.syncWidgetAttrs(el, view);
-    const referenceContext = view
-      ? createFrontmatterReferenceContext(view.state)
-      : this.referenceContext;
-    if (view) {
-      const titleForRender = el.querySelector<HTMLElement>(`.${CSS.docTitle}`);
-      if (titleForRender) {
-        titleForRender.replaceChildren();
-        this.renderTitle(titleForRender, referenceContext);
-      }
-    }
     const title = el.querySelector<HTMLElement>(`.${CSS.docTitle}`);
     if (title && view) {
       this.bindSourceReveal(title, view);
