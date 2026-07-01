@@ -22,11 +22,11 @@ import {
   activateFrontmatterStructureEdit,
   hasStructureEditEffect,
 } from "../state/cm-structure-edit";
-import { frontmatterField } from "../state/frontmatter-state";
 import {
   frontmatterRevealActive,
   propertiesFormFocusedField,
-} from "./document-properties-panel";
+} from "../state/frontmatter-reveal";
+import { frontmatterField } from "../state/frontmatter-state";
 import { isFrontmatterActive } from "../state/shell-ownership";
 import { addCollapsedStructureLine } from "./fenced-block-core.js";
 import type { InlineReferenceRenderContext } from "./inline-render";

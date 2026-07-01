@@ -18,7 +18,7 @@
  * down mid-typing.
  */
 
-import { type EditorState, type Extension, StateEffect, StateField } from "@codemirror/state";
+import { type EditorState, type Extension } from "@codemirror/state";
 import { EditorView, type Panel, showPanel } from "@codemirror/view";
 import katex from "katex";
 
@@ -35,12 +35,13 @@ import {
   setRawFrontmatter,
 } from "../frontmatter-properties.js";
 import { requestHandlerFacet } from "../editor-host-api";
+import { activeStructureEditField } from "../state/cm-structure-edit";
 import {
-  activeStructureEditField,
-  isFrontmatterStructureEditActive,
-} from "../state/cm-structure-edit";
+  frontmatterRevealActive,
+  propertiesFormFocusedField,
+  setPropertiesFormFocused,
+} from "../state/frontmatter-reveal";
 import { frontmatterField } from "../state/frontmatter-state";
-import { programmaticDocumentChangeAnnotation } from "../state/programmatic-document-change";
 
 type PanelMode = "form" | "raw";
 
@@ -73,33 +74,6 @@ function actionButton(view: EditorView, label: string, className: string, onClic
   });
   return button;
 }
-
-/**
- * Whether focus currently lives inside the properties form. The form's inputs
- * sit outside the editor's contentDOM, so focusing one blurs the editor and
- * clears the frontmatter structure-edit reveal. We keep the form mounted while
- * it holds focus so editing a field doesn't unmount the field mid-edit.
- */
-const setPropertiesFormFocused = StateEffect.define<boolean>();
-
-export const propertiesFormFocusedField = StateField.define<boolean>({
-  create: () => false,
-  update(value, tr) {
-    for (const effect of tr.effects) {
-      if (effect.is(setPropertiesFormFocused)) return effect.value;
-    }
-    // Clear the stuck-open case: the panel is destroyed (and its focusout
-    // listener with it) whenever the frontmatter disappears or the document is
-    // replaced, so it can never dispatch `false` itself. Reset here so a stale
-    // `true` doesn't reopen the reveal on the next/replacement document.
-    if (value) {
-      if (tr.annotation(programmaticDocumentChangeAnnotation) === true) return false;
-      const frontmatter = tr.state.field(frontmatterField, false);
-      if (!frontmatter || frontmatter.end <= 0) return false;
-    }
-    return value;
-  },
-});
 
 const SCALAR_FIELDS: ReadonlyArray<{ key: "title" | "bibliography" | "type" | "status" | "target"; label: string }> = [
   { key: "title", label: "Title" },
@@ -582,24 +556,6 @@ function createPropertiesPanel(view: EditorView): Panel {
       dom.removeEventListener("focusout", onFocusOut);
     },
   };
-}
-
-/**
- * Whether the frontmatter reveal is active: while the frontmatter structure-edit
- * is active (title click / cursor in frontmatter), or while the properties form
- * holds focus (so focusing a field — which blurs the editor — keeps it open).
- *
- * Shared with {@link ../frontmatter-render}, which hides the frontmatter region
- * whenever this is true so the form is the only frontmatter surface. Navigating
- * away into the body clears both.
- */
-export function frontmatterRevealActive(state: EditorState): boolean {
-  const frontmatter = state.field(frontmatterField, false);
-  if (!frontmatter || frontmatter.end <= 0) return false;
-  return (
-    isFrontmatterStructureEditActive(state) ||
-    (state.field(propertiesFormFocusedField, false) ?? false)
-  );
 }
 
 /** Rich-mode document-properties form, revealed alongside the frontmatter YAML. */
