@@ -1,6 +1,6 @@
 {
   "name": "@chaoxu/coflat",
-  "version": "0.2.17",
+  "version": "0.2.18",
   "description": "Math-aware Markdown editor library built on CodeMirror 6, Lezer, and KaTeX.",
   "type": "module",
   "homepage": "http://chaoxu.prof/coflat/",
