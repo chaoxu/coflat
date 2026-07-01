@@ -8,7 +8,7 @@
     "outDir": "./dist",
     "rootDir": "."
   },
-  "include": ["editor.ts", "editor-lazy.ts", "inline-render.ts", "editable-reader.tsx", "reader.ts", "rich-readonly.ts", "reader-worker.ts", "parse.ts", "citeproc.ts", "numeric.ts", "latex.ts", "src/**/*.d.ts", "src/**/*.d.mts"],
+  "include": ["editor.ts", "inline-render.ts", "reader.ts", "rich-readonly.ts", "reader-worker.ts", "parse.ts", "citeproc.ts", "numeric.ts", "latex.ts", "src/**/*.d.ts", "src/**/*.d.mts"],
   "exclude": [
     "src/**/*.test.ts",
     "src/**/__tests__/**"

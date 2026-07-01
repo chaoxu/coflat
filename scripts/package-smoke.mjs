@@ -36,7 +36,6 @@ const latexFilter = read("dist/latex/filter.lua");
 const latexSyntaxManifest = read("dist/latex/syntax-manifest.lua");
 const jsExports = [
   "../dist/editor.mjs",
-  "../dist/editor-lazy.mjs",
   "../dist/inline-render.mjs",
   "../dist/reader.mjs",
   "../dist/rich-readonly.mjs",
@@ -49,6 +48,22 @@ const jsExports = [
   "../dist/browser-test-utils.js",
 ];
 for (const entry of jsExports) {
+  await import(entry);
+}
+const packageExports = [
+  "@chaoxu/coflat",
+  "@chaoxu/coflat/reader",
+  "@chaoxu/coflat/reader/worker",
+  "@chaoxu/coflat/rich-readonly",
+  "@chaoxu/coflat/inline-render",
+  "@chaoxu/coflat/parse",
+  "@chaoxu/coflat/citeproc",
+  "@chaoxu/coflat/numeric",
+  "@chaoxu/coflat/latex",
+  "@chaoxu/coflat/test-utils",
+  "@chaoxu/coflat/browser-test-utils",
+];
+for (const entry of packageExports) {
   await import(entry);
 }
 const { renderToHtml } = await import("../dist/reader.mjs");
@@ -93,8 +108,6 @@ assertNotMatches(surfaceCss, /(^|})\s*\[data-section-number\]::before/, "dist/do
 
 const richReadonlyBundle = read("dist/rich-readonly.mjs");
 assertNotMatches(richReadonlyBundle, /@codemirror|react|react-dom|pdfjs-dist|@citation-js|cmdk|@radix-ui/, "dist/rich-readonly.mjs");
-const lazyEditorBundle = read("dist/editor-lazy.mjs");
-assertNotMatches(lazyEditorBundle, /@codemirror\/lang-(cpp|css|html|java|javascript|json|python|rust)|cmdk|@radix-ui\/react-context-menu/, "dist/editor-lazy.mjs");
 const packageGraph = measurePackageGraph();
 assertPackageGraphBoundaries(packageGraph);
 console.log(formatPackageGraphReport(packageGraph));

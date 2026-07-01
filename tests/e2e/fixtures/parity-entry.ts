@@ -1,8 +1,7 @@
 import "katex/dist/katex.min.css";
 import "../../../src/editor/editor-theme.css";
 import { EditorView } from "@codemirror/view";
-import type { StandaloneEditorMode } from "../../../editor";
-import { applyThemePreset, mountEditor, themePresets } from "../../../editor";
+import { mountEditor, type EditorMode } from "../../../editor";
 import { buildReferenceCatalog } from "../../../parse";
 import {
   hydrateMath,
@@ -13,6 +12,7 @@ import {
 import { mountRichReadonlyDocument } from "../../../rich-readonly";
 import { CSS } from "../../../src/core/constants/css-classes";
 import { parseFrontmatter } from "../../../src/core/parser";
+import { applyThemePreset, themePresets } from "../../../src/editor/theme-config";
 import {
   DEFAULT_PARITY_SOURCE,
   PARITY_SOURCE_KEY,
@@ -26,7 +26,7 @@ if (presetKey && presetKey in themePresets) {
 }
 document.body.dataset.surface = params.get("surface") ?? "split";
 const requestedMode = params.get("mode");
-const editorMode: StandaloneEditorMode =
+const editorMode: EditorMode =
   requestedMode === "source" || requestedMode === "rich-readonly" ? requestedMode : "rich";
 const readerMode = params.get("reader");
 

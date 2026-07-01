@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { mountLazyEditor } from "./editor-lazy";
+import { mountEditor } from "./editor";
 
 function dispatchHeldEnter(parent: HTMLElement, repeats: number): void {
   const content = parent.querySelector<HTMLElement>(".cm-content");
@@ -23,21 +23,25 @@ function dispatchHeldEnter(parent: HTMLElement, repeats: number): void {
   }
 }
 
-describe("@chaoxu/coflat/editor-lazy", () => {
-  it("mounts an editable rich editor and reports lazy feature readiness", async () => {
+describe("@chaoxu/coflat", () => {
+  it("mounts an editable rich editor and reports feature readiness", async () => {
     const parent = document.createElement("div");
     const ready: string[] = [];
+    const plugins: string[] = [];
 
-    const editor = mountLazyEditor({
+    const editor = mountEditor({
       parent,
       doc: "# Intro\n\nbody",
-      onLazyFeatureReady: (feature) => ready.push(feature),
+      onFeatureReady: (feature) => ready.push(feature),
+      onPluginReady: (event) => plugins.push(event.id),
     });
 
     expect(parent.querySelector(".cm-editor")).not.toBeNull();
     expect(editor.getDoc()).toBe("# Intro\n\nbody");
 
+    await expect.poll(() => ready).toContain("list-outliner");
     await expect.poll(() => ready).toContain("block-type-picker");
+    await expect.poll(() => plugins).toContain("list-outliner");
 
     editor.unmount();
     expect(parent.querySelector(".cm-editor")).toBeNull();
@@ -45,7 +49,7 @@ describe("@chaoxu/coflat/editor-lazy", () => {
 
   it("treats held Enter repeat as repeated list editing immediately after mount", () => {
     const parent = document.createElement("div");
-    const editor = mountLazyEditor({
+    const editor = mountEditor({
       parent,
       doc: "- item",
       mode: "rich",
@@ -62,7 +66,7 @@ describe("@chaoxu/coflat/editor-lazy", () => {
 
   it("can mount directly in read-only rich mode", () => {
     const parent = document.createElement("div");
-    const editor = mountLazyEditor({
+    const editor = mountEditor({
       parent,
       doc: "# Intro\n\nbody",
       mode: "rich-readonly",
@@ -73,12 +77,12 @@ describe("@chaoxu/coflat/editor-lazy", () => {
     editor.unmount();
   });
 
-  it("exposes host save state and headless panels without the full editor entry", async () => {
+  it("exposes host save state and headless panels without exposing the CM6 view", async () => {
     const parent = document.createElement("div");
     const saves: string[] = [];
     const dirty: boolean[] = [];
 
-    const editor = mountLazyEditor({
+    const editor = mountEditor({
       parent,
       doc: "# Intro\n\nbody",
       saveHandler: {
@@ -109,7 +113,7 @@ describe("@chaoxu/coflat/editor-lazy", () => {
 
   it("does not expose a retained CodeMirror view after unmount", () => {
     const parent = document.createElement("div");
-    const editor = mountLazyEditor({
+    const editor = mountEditor({
       parent,
       doc: "# Intro\n\nbody",
     });

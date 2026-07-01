@@ -167,9 +167,9 @@ export interface EditorConfig {
   /** Plugin manager for toggleable editor features. */
   pluginManager?: EditorPluginManagerType;
   /**
-   * Built-in plugin preset. `full` preserves the default editor workbench,
-   * `workbench` enables user-facing optional UI, and `core` mounts only the
-   * shared render/edit surface plus essential editing chrome.
+   * Built-in plugin preset. `workbench` enables user-facing optional UI, and
+   * `core` mounts only the shared render/edit surface plus essential editing
+   * chrome.
    */
   pluginPreset?: EditorPluginPresetName;
   /** Explicit plugin descriptors. Overrides `pluginPreset` when provided. */
@@ -183,19 +183,20 @@ export interface EditorConfig {
    * features are dynamically imported so first editor pixels are not blocked
    * by autocomplete or picker UI code.
    */
-  onLazyFeatureReady?: (feature: EditorLazyFeature) => void;
-  /** Called as lazy editor plugins become active. */
+  onFeatureReady?: (feature: EditorFeature) => void;
+  /** Called as optional editor plugins become active. */
   onPluginReady?: (event: EditorPluginLifecycleEvent) => void;
 }
 
 export type Cm6HistoryState = unknown;
-export type EditorLazyFeature =
-  | "block-type-picker"
-  | "debug-inspector"
-  | "find-replace"
-  | "hover-preview"
-  | "reference-autocomplete"
-  | "list-outliner";
+const editorFeatureIds = [
+  "block-type-picker",
+  "find-replace",
+  "reference-autocomplete",
+  "list-outliner",
+] as const;
+export type EditorFeature = (typeof editorFeatureIds)[number];
+const editorFeatureIdSet = new Set<string>(editorFeatureIds);
 
 export function captureEditorHistoryState(state: EditorState): Cm6HistoryState | undefined {
   return state.field(historyField, false);
@@ -271,12 +272,9 @@ export function createEditor(config: EditorConfig): EditorView {
   );
   const onPluginReady = (event: EditorPluginLifecycleEvent) => {
     config.onPluginReady?.(event);
-    if (event.id === "block-type-picker") config.onLazyFeatureReady?.("block-type-picker");
-    if (event.id === "debug-inspector") config.onLazyFeatureReady?.("debug-inspector");
-    if (event.id === "find-replace") config.onLazyFeatureReady?.("find-replace");
-    if (event.id === "hover-preview") config.onLazyFeatureReady?.("hover-preview");
-    if (event.id === "reference-autocomplete") config.onLazyFeatureReady?.("reference-autocomplete");
-    if (event.id === "list-outliner") config.onLazyFeatureReady?.("list-outliner");
+    if (editorFeatureIdSet.has(event.id)) {
+      config.onFeatureReady?.(event.id as EditorFeature);
+    }
   };
 
   const state = EditorState.create({
@@ -308,7 +306,7 @@ export function createEditor(config: EditorConfig): EditorView {
         renderingExtensions: cm6RichRenderExtensions,
       }),
 
-      // Toggleable/lazy editor plugins.
+      // Toggleable/optional editor plugins.
       ...pluginManager.initialExtensions({ isDark }),
 
       // User-configurable settings (word wrap, line numbers, tab size)

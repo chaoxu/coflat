@@ -15,8 +15,8 @@ import {
 export { sharedInlineRenderExtensions } from "./render/inline-render-extensions";
 
 // Inline editors use the same semantic Markdown profile as inactive inline
-// rendering (`parseInlineFragments`) and the full rich editor. Keeping this as
-// an alias prevents table cells/block-title editing from drifting when FORMAT
+// rendering (`parseInlineFragments`) and the rich editor. Keeping this as an
+// alias prevents table cells/block-title editing from drifting when FORMAT
 // syntax extensions are added.
 export const inlineMarkdownExtensions: readonly MarkdownExtension[] = markdownExtensions;
 

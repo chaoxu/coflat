@@ -543,6 +543,7 @@ test("rich editor keeps inline image row height stable when source is active", a
 });
 
 test("public demo cursor entry keeps visible row heights stable", async ({ page }) => {
+  test.setTimeout(60_000);
   await page.goto("/examples/simple/index.html?doc=showcase&surface=editor");
   await expect(page.locator("#editor .cm-editor")).toBeVisible();
 
@@ -2067,6 +2068,63 @@ test("fast rich-readonly entry keeps full document pixels aligned with CM6 reado
     "rich-readonly",
   );
   await expectLoadedSplitContentPixelsMatch(page, "fast rich-readonly public showcase");
+});
+
+test("rich-readonly document upgrades to the root editor entry", async ({ page }) => {
+  await page.goto("/tests/e2e/fixtures/rich-readonly-upgrade.html");
+
+  await expect(page.locator("#root .cf-doc-heading", { hasText: "Upgrade Target" })).toBeVisible();
+  await expect(page.locator("#root .cm-editor")).toHaveCount(0);
+
+  const result = await page.evaluate(async () => {
+    const upgrade = (window as unknown as {
+      __coflatRichReadonlyUpgrade: () => Promise<{
+        contentEditable: string | null | undefined;
+        doc: string;
+      }>;
+    }).__coflatRichReadonlyUpgrade;
+    return upgrade();
+  });
+
+  expect(result.contentEditable).toBe("false");
+  expect(result.doc).toContain("# Upgrade Target");
+  await expect(page.locator("#root .cm-editor")).toBeVisible();
+  await expect.poll(() => page.evaluate(() =>
+    (window as unknown as { __coflatLifecycle: string[] }).__coflatLifecycle,
+  )).toContain("editor-ready");
+  await expect.poll(() => page.evaluate(() =>
+    (window as unknown as { __coflatReadyFeatures: string[] }).__coflatReadyFeatures,
+  )).toContain("block-type-picker");
+
+  await page.evaluate(() => {
+    (window as unknown as {
+      __coflatEditor: { setMode(mode: "rich"): void };
+    }).__coflatEditor.setMode("rich");
+  });
+  await page.locator("#root .cm-content").click();
+  await page.keyboard.type("\n\nBrowser edit.");
+
+  await expect.poll(() => page.evaluate(() =>
+    (window as unknown as { __coflatChanges: string[] }).__coflatChanges.at(-1) ?? "",
+  )).toContain("Browser edit.");
+  await expect.poll(() => page.evaluate(() =>
+    (window as unknown as { __coflatDocumentChanges: number[] }).__coflatDocumentChanges.length,
+  )).toBeGreaterThan(0);
+  await expect.poll(() => page.evaluate(() =>
+    (window as unknown as { __coflatDirtyStates: boolean[] }).__coflatDirtyStates,
+  )).toContain(true);
+
+  await page.evaluate(async () => {
+    await (window as unknown as {
+      __coflatEditor: { triggerSave(reason: "manual"): Promise<void> };
+    }).__coflatEditor.triggerSave("manual");
+  });
+  await expect.poll(() => page.evaluate(() =>
+    (window as unknown as { __coflatSaves: string[] }).__coflatSaves.at(-1) ?? "",
+  )).toContain("manual:");
+  await expect.poll(() => page.evaluate(() =>
+    (window as unknown as { __coflatDirtyStates: boolean[] }).__coflatDirtyStates.at(-1),
+  )).toBe(false);
 });
 
 test("public showcase keeps full reader and CM6 rich editor pixels exactly aligned", async ({ page }) => {

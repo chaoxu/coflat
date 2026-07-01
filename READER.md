@@ -182,7 +182,7 @@ With `@chaoxu/coflat/document-surface.css` imported, this surface owns document
 width, padding, content font, line height, headings, paragraph/list rhythm,
 code blocks, tables, blockquotes, math placeholders, hover preview surfaces,
 KaTeX CSS, and H1/H2 section numbering. Use `@chaoxu/coflat/style.css` only
-when mounting the full editor bundle.
+when mounting the editor.
 
 Call `hydrateBlockDisclosures` after inserting full reader HTML when theorem
 and definition blocks should be collapsible. The static output keeps header

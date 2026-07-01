@@ -5,14 +5,14 @@ import { describe, expect, it } from "vitest";
 import { type EditorPlugin, EditorPluginManager } from "./editor-plugin";
 
 describe("EditorPluginManager", () => {
-  it("keeps lazy plugins out of the initial state and loads them after mount", async () => {
+  it("keeps after-mount plugins out of the initial state and loads them after mount", async () => {
     const ready: string[] = [];
     const plugin: EditorPlugin = {
-      id: "lazy-test",
-      name: "Lazy Test",
+      id: "after-mount-test",
+      name: "After Mount Test",
       defaultEnabled: true,
       loadTiming: "after-mount",
-      readyPhase: "lazy-test-ready",
+      readyPhase: "after-mount-test-ready",
       load: async () => EditorState.readOnly.of(true),
     };
     const manager = new EditorPluginManager([plugin], {
@@ -32,12 +32,12 @@ describe("EditorPluginManager", () => {
 
     manager.attach(view);
     await expect.poll(() => view.state.facet(EditorState.readOnly)).toBe(true);
-    expect(ready).toContain("lazy-test-ready");
+    expect(ready).toContain("after-mount-test-ready");
 
     view.destroy();
   });
 
-  it("can enable lazy plugins on demand", async () => {
+  it("can enable manual plugins on demand", async () => {
     const plugin: EditorPlugin = {
       id: "manual-test",
       name: "Manual Test",

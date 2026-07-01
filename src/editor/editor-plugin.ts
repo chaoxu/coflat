@@ -81,6 +81,7 @@ export interface EditorPluginManagerOptions {
  */
 export class EditorPluginManager {
   private readonly entries = new Map<string, PluginEntry>();
+  private readonly pendingReadyEvents: EditorPluginLifecycleEvent[] = [];
   private context: EditorPluginRuntimeContext = {};
   private onReady?: (event: EditorPluginLifecycleEvent) => void;
 
@@ -130,6 +131,7 @@ export class EditorPluginManager {
   attach(view: EditorView, options: EditorPluginManagerOptions = {}): void {
     this.context = options.context ?? this.context;
     this.onReady = options.onReady ?? this.onReady;
+    this.flushReadyEvents();
     for (const entry of this.entries.values()) {
       if (!entry.enabled) continue;
       if ((entry.plugin.loadTiming ?? "initial") === "after-mount") {
@@ -229,9 +231,22 @@ export class EditorPluginManager {
   }
 
   private emitReady(entry: PluginEntry): void {
-    this.onReady?.({
+    const event = {
       id: entry.plugin.id,
       phase: entry.plugin.readyPhase ?? `plugin:${entry.plugin.id}:ready`,
-    });
+    };
+    if (!this.onReady) {
+      this.pendingReadyEvents.push(event);
+      return;
+    }
+    this.onReady(event);
+  }
+
+  private flushReadyEvents(): void {
+    if (!this.onReady) return;
+    while (this.pendingReadyEvents.length > 0) {
+      const event = this.pendingReadyEvents.shift();
+      if (event) this.onReady(event);
+    }
   }
 }

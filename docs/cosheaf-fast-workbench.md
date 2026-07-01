@@ -2,8 +2,8 @@
 
 Use `@chaoxu/coflat/rich-readonly` for the first document surface in editable
 Markdown routes. It renders through the same `renderToHtml` core as
-`@chaoxu/coflat/reader` and uses the same `cf-doc-*` CSS classes as the full
-editor rich/read-only surface.
+`@chaoxu/coflat/reader` and uses the same `cf-doc-*` CSS classes as the editor
+rich/read-only surface.
 
 ## Initial CSS
 
@@ -14,7 +14,7 @@ import "@chaoxu/coflat/document-surface.css";
 import "@chaoxu/coflat/themes/blueprint-book.css";
 ```
 
-Use `@chaoxu/coflat/style.css` only when the full editor is mounted. It includes
+Use `@chaoxu/coflat/style.css` only when the editor is mounted. It includes
 the document surface plus CodeMirror/editor chrome styling.
 
 Keep the same theme wrapper that the existing workbench uses:
@@ -71,7 +71,7 @@ blocks:
 ```
 
 That keeps theorem/proof/definition labels, counters, captions, reference
-targets, and CSS classes aligned across `rich-readonly`, `reader`, and the full
+targets, and CSS classes aligned across `rich-readonly`, `reader`, and the
 editor.
 
 ## Lightweight Hydration
@@ -106,7 +106,7 @@ Lifecycle phases are:
 - `outline-ready`
 - `citations-ready`
 - `math-ready`
-- `full-editor-ready`
+- `editor-ready`
 
 ## Client-Only Mount
 
@@ -125,16 +125,16 @@ const mounted = mountRichReadonlyDocument({
 await mounted.ready;
 ```
 
-## Full Editor Upgrade
+## Editor Upgrade
 
 When the user starts editing or when idle time is available, dynamically load
-the lazy editor entry:
+the editor entry:
 
 ```ts
-const editor = await mounted.upgradeToLazyEditor({
+const editor = await mounted.upgradeToEditor({
   mode: "rich-readonly",
   pluginPreset: "workbench",
-  onLazyFeatureReady(feature) {
+  onFeatureReady(feature) {
     performance.mark(`coflat:editor:${feature}:ready`);
   },
   onPluginReady(event) {
@@ -143,34 +143,19 @@ const editor = await mounted.upgradeToLazyEditor({
 });
 ```
 
-`@chaoxu/coflat/editor-lazy` mounts the editable CM6 document surface without
-the full editor barrel. Fenced-code language packs load only when CodeMirror
-asks for that language. Optional workbench features such as list outliner,
-reference autocomplete, and block picker are editor plugins that attach after
-first editor mount.
+`@chaoxu/coflat` mounts the editable CM6 document surface. Fenced-code language
+packs load only when CodeMirror asks for that language. Optional workbench
+features such as list outliner, reference autocomplete, and block picker are
+editor plugins that attach after first editor mount.
 
-The lazy editor entry accepts:
+The editor entry accepts:
 
-- `pluginPreset: "core" | "workbench" | "full"`
+- `pluginPreset: "core" | "workbench"`
 - `plugins` for an explicit plugin descriptor list
 - `extensions` for host-owned CM6 additions
 
-Keep full-editor integrations such as save handlers, request handlers, asset
-upload, and autocomplete sources on `@chaoxu/coflat`.
-
-Use the full editor only when the route needs the complete batteries-included
-surface:
-
-```ts
-const editor = await mounted.upgradeToEditor({
-  mode: "rich-readonly",
-  requestHandler,
-  saveHandler,
-});
-```
-
-This imports the full `@chaoxu/coflat` editor entry and therefore all public
-editor exports needed by advanced host integrations.
+Host integrations such as save handlers, request handlers, asset upload, and
+autocomplete sources all live on this single editor entry.
 
 ## Package Boundary Check
 
@@ -180,8 +165,7 @@ Use the package graph smoke before migrating a route:
 pnpm measure:package-graph
 ```
 
-The check reports the static graph for `rich-readonly`, `editor-lazy`, and the
-full editor. It fails if `rich-readonly` statically imports CodeMirror, React,
-CSL, PDF, or editor chunks, or if `editor-lazy` statically imports the
-full-editor barrel, fenced-code language packs, context-menu UI, or block-picker
-UI.
+The check reports the static graph for `rich-readonly` and `editor`. It fails
+if `rich-readonly` statically imports CodeMirror, React, CSL, PDF, or editor
+chunks, or if `editor` statically imports fenced-code language packs,
+context-menu UI, or block-picker UI.

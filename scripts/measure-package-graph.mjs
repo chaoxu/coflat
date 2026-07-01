@@ -10,7 +10,6 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const distRoot = resolve(root, "dist");
 const ENTRYPOINTS = Object.freeze([
   "rich-readonly.mjs",
-  "editor-lazy.mjs",
   "editor.mjs",
 ]);
 const STATIC_IMPORT_RE =
@@ -28,13 +27,12 @@ const RICH_READONLY_FORBIDDEN_STATIC_PACKAGES = Object.freeze([
 ]);
 const RICH_READONLY_FORBIDDEN_STATIC_FILES = Object.freeze([
   /^editor\.mjs$/,
-  /^editor-lazy\.mjs$/,
   /^shared\/editor-/,
   /^shared\/editor-mode-state-/,
   /^shared\/block-type-picker-/,
   /^shared\/context-menu-/,
 ]);
-const EDITOR_LAZY_FORBIDDEN_STATIC_PACKAGES = Object.freeze([
+const EDITOR_FORBIDDEN_STATIC_PACKAGES = Object.freeze([
   /^@citation-js\//,
   /^@codemirror\/lang-(?:cpp|css|html|java|javascript|json|python|rust)$/,
   /^@radix-ui\/react-context-menu$/,
@@ -43,8 +41,7 @@ const EDITOR_LAZY_FORBIDDEN_STATIC_PACKAGES = Object.freeze([
   /^react$/,
   /^react-dom$/,
 ]);
-const EDITOR_LAZY_FORBIDDEN_STATIC_FILES = Object.freeze([
-  /^editor\.mjs$/,
+const EDITOR_FORBIDDEN_STATIC_FILES = Object.freeze([
   /^shared\/block-type-picker-/,
   /^shared\/context-menu-/,
 ]);
@@ -170,9 +167,9 @@ export function assertPackageGraphBoundaries(graph) {
     staticFiles: RICH_READONLY_FORBIDDEN_STATIC_FILES,
     staticPackages: RICH_READONLY_FORBIDDEN_STATIC_PACKAGES,
   });
-  assertEntryBoundary(graph, "editor-lazy.mjs", {
-    staticFiles: EDITOR_LAZY_FORBIDDEN_STATIC_FILES,
-    staticPackages: EDITOR_LAZY_FORBIDDEN_STATIC_PACKAGES,
+  assertEntryBoundary(graph, "editor.mjs", {
+    staticFiles: EDITOR_FORBIDDEN_STATIC_FILES,
+    staticPackages: EDITOR_FORBIDDEN_STATIC_PACKAGES,
   });
 }
 

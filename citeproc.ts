@@ -4,8 +4,7 @@
  * The main editor entry no longer ships citation-js / CSL processing in its
  * bundle. Hosts that want classic CSL-formatted citations import the symbols
  * below to parse `.bib` files, build a `CslProcessor`, and attach it to the
- * editor as a `CitationFormatter` via `documentContextFacet` or the
- * `bibDataEffect` state effect.
+ * editor as a `CitationFormatter` through `DocumentContext`.
  *
  * Minimal example:
  *
@@ -15,17 +14,17 @@
  *   parseBibTeX,
  *   CslProcessor,
  *   createCslCitationFormatter,
- *   bibDataEffect,
  * } from "@chaoxu/coflat/citeproc";
  *
  * const items = parseBibTeX(await fetch("refs.bib").then((r) => r.text()));
  * const processor = await CslProcessor.create(items);
- * const editor = mountEditor({ parent: el });
- * editor.view.dispatch({
- *   effects: bibDataEffect.of({
- *     store: new Map(items.map((i) => [i.id, i])),
- *     formatter: createCslCitationFormatter(processor),
- *   }),
+ * const formatter = createCslCitationFormatter(processor);
+ * const editor = mountEditor({
+ *   parent: el,
+ *   context: {
+ *     citationFormatter: formatter,
+ *     citationKeys: new Set(items.map((item) => item.id)),
+ *   },
  * });
  * ```
  */

@@ -73,7 +73,7 @@ export {
   captureEditorHistoryState,
   createEditor,
   type EditorConfig,
-  type EditorLazyFeature,
+  type EditorFeature,
   lineNumbersCompartment,
   tabSizeCompartment,
   tabSizeExtension,
@@ -119,13 +119,11 @@ export {
   blockTypePickerEditorPlugin,
   type EditorPluginPresetName,
   editorPluginPresets,
-  fullEditorPlugins,
   listOutlinerEditorPlugin,
   referenceAutocompleteEditorPlugin,
   resolveEditorPluginPreset,
   workbenchEditorPlugins,
 } from "./editor-plugin-presets";
-export { defaultEditorPlugins } from "./editor-plugins-registry";
 export {
   closeSearch,
   collectVisibleSearchMatches,

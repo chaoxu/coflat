@@ -1,7 +1,7 @@
 import type { EditorPlugin } from "./editor-plugin";
 import { listOutlinerExtension } from "./list-outliner";
 
-export type EditorPluginPresetName = "core" | "workbench" | "full";
+export type EditorPluginPresetName = "core" | "workbench";
 
 export const listOutlinerEditorPlugin: EditorPlugin = {
   id: "list-outliner",
@@ -49,20 +49,15 @@ export const workbenchEditorPlugins: readonly EditorPlugin[] = [
   findReplaceEditorPlugin,
 ];
 
-export const fullEditorPlugins: readonly EditorPlugin[] = [
-  ...workbenchEditorPlugins,
-];
-
 export const editorPluginPresets: Record<EditorPluginPresetName, readonly EditorPlugin[]> = {
   core: [],
   workbench: workbenchEditorPlugins,
-  full: fullEditorPlugins,
 };
 
 export function resolveEditorPluginPreset(
   preset: EditorPluginPresetName | readonly EditorPlugin[] | undefined,
 ): readonly EditorPlugin[] {
-  if (!preset) return editorPluginPresets.full;
+  if (!preset) return editorPluginPresets.workbench;
   if (typeof preset !== "string") return preset;
   return editorPluginPresets[preset];
 }

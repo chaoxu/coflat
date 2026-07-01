@@ -3,17 +3,13 @@
  *
  * This entrypoint is intentionally reader-first: it mounts the shared Coflat
  * document surface without importing CodeMirror, React, autocomplete, pdfjs, or
- * citation-js. Hosts can dynamically upgrade to the full editor afterward.
+ * citation-js. Hosts can dynamically upgrade to the editor afterward.
  */
 
 import type {
   MountEditorOptions,
   MountedEditor,
 } from "./editor";
-import type {
-  MountedLazyEditor,
-  MountLazyEditorOptions,
-} from "./editor-lazy";
 import {
   COFLAT_READER_CLASS,
   type DocumentContext,
@@ -39,7 +35,7 @@ export type RichReadonlyLifecyclePhase =
   | "outline-ready"
   | "citations-ready"
   | "math-ready"
-  | "full-editor-ready";
+  | "editor-ready";
 
 export interface RichReadonlyLifecycleEvent {
   readonly phase: RichReadonlyLifecyclePhase;
@@ -110,17 +106,11 @@ export interface MountedRichReadonlyDocument {
   readonly ready: Promise<void>;
   readonly dispose: () => void;
   upgradeToEditor(options?: UpgradeRichReadonlyToEditorOptions): Promise<MountedEditor>;
-  upgradeToLazyEditor(options?: UpgradeRichReadonlyToLazyEditorOptions): Promise<MountedLazyEditor>;
 }
 
 export type UpgradeRichReadonlyToEditorOptions =
   Omit<MountEditorOptions, "parent" | "doc" | "context"> &
   Partial<Pick<MountEditorOptions, "parent" | "doc" | "context">> & {
-    readonly onLifecycle?: RichReadonlyLifecycleCallback;
-  };
-export type UpgradeRichReadonlyToLazyEditorOptions =
-  Omit<MountLazyEditorOptions, "parent" | "doc" | "context"> &
-  Partial<Pick<MountLazyEditorOptions, "parent" | "doc" | "context">> & {
     readonly onLifecycle?: RichReadonlyLifecycleCallback;
   };
 
@@ -223,15 +213,6 @@ export function mountRichReadonlyDocument(
         onLifecycle: upgradeOptions.onLifecycle ?? options.onLifecycle,
       });
     },
-    upgradeToLazyEditor(upgradeOptions = {}) {
-      dispose();
-      return upgradeRichReadonlyToLazyEditor(options.root, {
-        ...upgradeOptions,
-        doc: upgradeOptions.doc ?? options.source,
-        context: upgradeOptions.context ?? options.context,
-        onLifecycle: upgradeOptions.onLifecycle ?? options.onLifecycle,
-      });
-    },
   };
 }
 
@@ -317,24 +298,7 @@ export async function upgradeRichReadonlyToEditor(
     context: options.context,
     mode: options.mode ?? "rich-readonly",
   });
-  emitLifecycle(options.onLifecycle, "full-editor-ready", parent);
-  return mounted;
-}
-
-export async function upgradeRichReadonlyToLazyEditor(
-  root: HTMLElement,
-  options: UpgradeRichReadonlyToLazyEditorOptions = {},
-): Promise<MountedLazyEditor> {
-  const editorModule = await import("./editor-lazy");
-  const parent = options.parent ?? root;
-  const mounted = editorModule.mountLazyEditor({
-    ...options,
-    parent,
-    doc: options.doc ?? "",
-    context: options.context,
-    mode: options.mode ?? "rich-readonly",
-  });
-  emitLifecycle(options.onLifecycle, "full-editor-ready", parent);
+  emitLifecycle(options.onLifecycle, "editor-ready", parent);
   return mounted;
 }
 

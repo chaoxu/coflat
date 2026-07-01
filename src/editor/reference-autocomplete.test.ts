@@ -95,8 +95,8 @@ function createEditorWithReferenceAutocomplete(
   });
   const view = createEditor({
     ...config,
-    onLazyFeatureReady(feature) {
-      config.onLazyFeatureReady?.(feature);
+    onFeatureReady(feature) {
+      config.onFeatureReady?.(feature);
       if (feature === "reference-autocomplete") resolveReady();
     },
   });

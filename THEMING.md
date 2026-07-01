@@ -30,12 +30,11 @@ different themes on the same page.
 </div>
 ```
 
-`EditableReader` already uses `cf-theme-scope` on its root and
-`cf-reader` on its read-mode output. Plain `renderToHtml` callers should
-wrap the returned HTML themselves. Use the full reader wrapper above for
-pages, long issue bodies, PR descriptions, and exported documents. For compact
-snippets or comments, keep `cf-reader cf-doc-flow` and add a host-owned compact
-class that overrides width, padding, and rhythm locally.
+Plain `renderToHtml` callers should wrap the returned HTML themselves. Use the
+full reader wrapper above for pages, long issue bodies, PR descriptions, and
+exported documents. For compact snippets or comments, keep
+`cf-reader cf-doc-flow` and add a host-owned compact class that overrides
+width, padding, and rhythm locally.
 
 The default stylesheet is `@chaoxu/coflat/style.css`. Optional
 theme CSS is imported separately by hosts.

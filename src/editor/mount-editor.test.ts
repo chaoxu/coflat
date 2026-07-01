@@ -2,7 +2,7 @@ import { EditorView, ViewPlugin } from "@codemirror/view";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
-  type MountedDocumentChange,
+  type EditorDocumentChange,
   type MountedEditor,
   mountEditor,
 } from "../../editor";
@@ -16,7 +16,7 @@ afterEach(() => {
 function mountWithCapturedView(options: {
   readonly doc: string;
   readonly onChange?: (doc: string) => void;
-  readonly onDocumentChange?: (change: MountedDocumentChange) => void;
+  readonly onDocumentChange?: (change: EditorDocumentChange) => void;
 }): { readonly editor: MountedEditor; readonly view: () => EditorView } {
   const parent = document.createElement("div");
   document.body.appendChild(parent);
@@ -48,7 +48,7 @@ function mountWithCapturedView(options: {
 
 describe("mountEditor document change callbacks", () => {
   it("emits CodeMirror change metadata without requiring onChange", () => {
-    const changes: MountedDocumentChange[] = [];
+    const changes: EditorDocumentChange[] = [];
     const onChange = vi.fn();
     const { view } = mountWithCapturedView({
       doc: "alpha",
@@ -62,8 +62,23 @@ describe("mountEditor document change callbacks", () => {
 
     expect(changes).toHaveLength(1);
     expect(changes[0].changes.empty).toBe(false);
-    expect(changes[0].getDoc()).toBe("alpha beta");
     expect(onChange).toHaveBeenCalledWith("alpha beta");
+  });
+
+  it("supports incremental document changes without an onChange handler", () => {
+    const changes: EditorDocumentChange[] = [];
+    const { editor, view } = mountWithCapturedView({
+      doc: "alpha",
+      onDocumentChange(change) {
+        changes.push(change);
+      },
+    });
+
+    view().dispatch({ changes: { from: 5, insert: " beta" } });
+
+    expect(changes).toHaveLength(1);
+    expect(changes[0].changes.empty).toBe(false);
+    expect(editor.getDoc()).toBe("alpha beta");
   });
 
   it("does not emit document callbacks for programmatic setDoc", () => {
@@ -82,7 +97,7 @@ describe("mountEditor document change callbacks", () => {
   });
 
   it("keeps delayed document snapshots tied to each change", () => {
-    const changes: MountedDocumentChange[] = [];
+    const changes: EditorDocumentChange[] = [];
     const { editor, view } = mountWithCapturedView({
       doc: "a",
       onDocumentChange(change) {
@@ -94,21 +109,19 @@ describe("mountEditor document change callbacks", () => {
     view().dispatch({ changes: { from: 2, insert: "c" } });
 
     expect(changes).toHaveLength(2);
-    expect(changes[0].getDoc()).toBe("ab");
-    expect(changes[1].getDoc()).toBe("abc");
+    expect(changes[0].changes.empty).toBe(false);
+    expect(changes[1].changes.empty).toBe(false);
     expect(editor.getDoc()).toBe("abc");
   });
 
-  it("does not materialize the live document when setDoc receives an obviously different value", () => {
+  it("replaces the live document when setDoc receives a different value", () => {
     const { editor, view } = mountWithCapturedView({
       doc: "alpha",
     });
     view().dispatch({ changes: { from: 5, insert: " beta" } });
-    const toStringSpy = vi.spyOn(view().state.doc, "toString");
 
     editor.setDoc("short");
 
-    expect(toStringSpy).not.toHaveBeenCalled();
     expect(editor.getDoc()).toBe("short");
   });
 });

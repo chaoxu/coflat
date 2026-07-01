@@ -2,6 +2,18 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import { describe, expect, it } from "vitest";
+import * as editorEntry from "../../editor";
+import type {
+  AutocompleteSource,
+  DocumentContext,
+  EditorDocumentChange,
+  EditorMode,
+  MountedEditor,
+  MountEditorOptions,
+  RequestHandler,
+  SaveHandler,
+  StatusEvents,
+} from "../../editor";
 
 interface PackageExport {
   readonly import?: string;
@@ -23,6 +35,36 @@ function readPackageJson(): PackageManifest {
 }
 
 describe("package editor export", () => {
+  it("keeps the root editor API narrow and host-facing", () => {
+    expect(editorEntry).toHaveProperty("mountEditor");
+    expect(editorEntry).toHaveProperty("formatUploadedAssetMarkdown");
+    expect(editorEntry).not.toHaveProperty("mountLazyEditor");
+    expect(editorEntry).not.toHaveProperty("applyThemePreset");
+    expect(editorEntry).not.toHaveProperty("themePresets");
+
+    type PublicMode = EditorMode;
+    type PublicOptions = MountEditorOptions;
+    type PublicMounted = MountedEditor;
+    type PublicChange = EditorDocumentChange;
+    type PublicContext = DocumentContext;
+    type PublicRequestHandler = RequestHandler;
+    type PublicSaveHandler = SaveHandler;
+    type PublicStatusEvents = StatusEvents;
+    type PublicAutocompleteSource = AutocompleteSource;
+    const _typecheck: [
+      PublicMode,
+      PublicOptions["context"],
+      PublicMounted["getDoc"],
+      PublicChange["changes"],
+      PublicContext,
+      PublicRequestHandler | undefined,
+      PublicSaveHandler | undefined,
+      PublicStatusEvents | undefined,
+      PublicAutocompleteSource | undefined,
+    ] | null = null;
+    expect(_typecheck).toBeNull();
+  });
+
   it("keeps the public package surface explicit", () => {
     const packageJson = readPackageJson();
 
@@ -31,7 +73,6 @@ describe("package editor export", () => {
       "./browser-test-utils",
       "./citeproc",
       "./document-surface.css",
-      "./editor-lazy",
       "./inline-render",
       "./latex",
       "./latex/csl/ieee.csl",

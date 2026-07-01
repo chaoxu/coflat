@@ -40,8 +40,8 @@ class ResizeObserverStub {
 vi.stubGlobal("ResizeObserver", ResizeObserverStub);
 
 /**
- * Create extensions matching the full inline editor setup (including
- * citation support). Mirrors createInlineEditor's extension list for
+ * Create extensions matching the inline editor setup (including citation
+ * support). Mirrors createInlineEditor's extension list for
  * isolated state/view testing.
  */
 function fullInlineEditorExtensions(macros: Record<string, string> = {}) {

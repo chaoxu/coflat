@@ -33,10 +33,6 @@
       "types": "./dist/rich-readonly.d.ts",
       "import": "./dist/rich-readonly.mjs"
     },
-    "./editor-lazy": {
-      "types": "./dist/editor-lazy.d.ts",
-      "import": "./dist/editor-lazy.mjs"
-    },
     "./inline-render": {
       "types": "./dist/inline-render.d.ts",
       "import": "./dist/inline-render.mjs"

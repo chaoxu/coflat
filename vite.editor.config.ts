@@ -66,7 +66,6 @@ export default defineConfig(({ mode }) => ({
     lib: {
       entry: {
         editor: fileURLToPath(new URL("./editor.ts", import.meta.url)),
-        "editor-lazy": fileURLToPath(new URL("./editor-lazy.ts", import.meta.url)),
         "inline-render": fileURLToPath(new URL("./inline-render.ts", import.meta.url)),
         reader: fileURLToPath(new URL("./reader.ts", import.meta.url)),
         "rich-readonly": fileURLToPath(new URL("./rich-readonly.ts", import.meta.url)),

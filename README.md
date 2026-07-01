@@ -62,14 +62,7 @@ Available stores:
 - `editor.cursorContext`: `{ line, column, from, currentHeadingPath }`
 
 `subscribe` returns an unsubscribe function. All remaining subscriptions are
-cleared by `editor.unmount()`. The API is additive, so existing consumers that
-only use `getDoc`, `setDoc`, `getMode`, `setMode`, `focus`, or `unmount` keep
-working unchanged.
-
-For finer-grained control, the lower-level CodeMirror primitives are also
-re-exported from this package — `createEditor`, `editorModeField`,
-`coflatTheme`, `createPerFilePanelApi`, etc. See `src/editor/index.ts` in
-source for the full surface.
+cleared by `editor.unmount()`.
 
 ## Reference resolution and CSL helpers (`./citeproc`)
 
@@ -85,18 +78,17 @@ import {
   parseBibTeX,
   CslProcessor,
   createCslCitationFormatter,
-  bibDataEffect,
 } from "@chaoxu/coflat/citeproc";
 
 const items = parseBibTeX(await fetch("/refs.bib").then((r) => r.text()));
 const processor = await CslProcessor.create(items /*, optional CSL XML */);
-const editor = mountEditor({ parent: el });
-
-editor.view.dispatch({
-  effects: bibDataEffect.of({
-    store: new Map(items.map((i) => [i.id, i])),
-    formatter: createCslCitationFormatter(processor),
-  }),
+const formatter = createCslCitationFormatter(processor);
+const editor = mountEditor({
+  parent: el,
+  context: {
+    citationFormatter: formatter,
+    citationKeys: new Set(items.map((item) => item.id)),
+  },
 });
 ```
 
@@ -274,7 +266,7 @@ bundled `blueprintBookThemeManifest`.
 ## Building a minimal editor host
 
 If you want to integrate coflat content into a context that can't (or
-shouldn't) load the full 600 KB CodeMirror editor — e.g. a Forgejo-style
+shouldn't) load the editor bundle — e.g. a Forgejo-style
 read-mostly UI, a CLI preview, or a textarea-based comment box — the
 reader is the only piece you need.
 

@@ -16,7 +16,7 @@ The canonical filter profile runs `pandoc-crossref` before `citeproc` when expor
 
 Coflat has two runtime surfaces for the same document format:
 
-- The editor surface (`@chaoxu/coflat`) mounts a CodeMirror-based rich/source editor. It is the full interactive version for authoring, source rewrites, selections, autocomplete, structure editing, and inline widgets.
+- The editor surface (`@chaoxu/coflat`) mounts a CodeMirror-based rich/source editor for authoring, source rewrites, selections, autocomplete, structure editing, and inline widgets.
 - The reader surface (`@chaoxu/coflat/reader`) renders the same FORMAT.md source to sanitized HTML without CodeMirror or React. It is the lighter read-only version for static pages, issue bodies, review panes, search snippets, server-side rendering, and host-built preview panels.
 
 Both surfaces share the parser, document classes, math/citation/reference semantics, and `DocumentContext` resolver contract. Hosts should use the editor where users need to edit and the reader where they only need to display Coflat content.

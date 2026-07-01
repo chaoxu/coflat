@@ -13,8 +13,8 @@
  *    dirty-state, asset-upload progress. The host listens; nothing
  *    waits on a return value.
  *
- * Command UI is host-overridable here; command registration itself lives in
- * the command registry.
+ * Command palette UI is host-overridable here. Command registration is an
+ * internal editor concern, not part of the root package host API.
  *
  * The two interfaces are exposed as separate facets — `requestHandlerFacet`
  * and `statusEventsFacet` — so editor-instance behavior is decoupled

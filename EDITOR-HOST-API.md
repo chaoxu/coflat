@@ -18,8 +18,8 @@ interfaces:
 - `AssetUploader`
 - `AutocompleteSource`
 
-These are provided through editor mount options and CodeMirror facets. Missing
-hooks fall back to built-in behavior where the editor has a reasonable default.
+These are provided through editor mount options. Missing hooks fall back to
+built-in behavior where the editor has a reasonable default.
 
 ```ts
 import {
@@ -74,6 +74,29 @@ Typical events:
 
 Status callbacks do not control editor behavior and should not be used as a
 storage protocol.
+
+## Document Changes
+
+`onChange` receives the full source string for ordinary user edits.
+`onDocumentChange` receives the CodeMirror `ChangeSet` for hosts that can apply
+incremental updates:
+
+```ts
+mountEditor({
+  parent,
+  doc,
+  onChange(source) {
+    cacheLatestSource(source);
+  },
+  onDocumentChange(change) {
+    applyIncrementalChange(change.changes);
+  },
+});
+```
+
+The root editor API does not expose the live `EditorView` or per-change
+snapshot helpers. Hosts that need a full snapshot outside `onChange` should
+call `editor.getDoc()`.
 
 ## Save
 
