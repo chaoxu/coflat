@@ -148,6 +148,43 @@ test("document-properties form: Edit as YAML edits the whole frontmatter block",
   await expect(page.locator(".cf-doc-properties-input").first()).toHaveValue("Raw Edited");
 });
 
+test("document-properties form: switching modes commits a pending field edit", async ({ page }) => {
+  const h = harness(page);
+  await page.goto("/tests/e2e/fixtures/index.html");
+  await h.setDoc(DOC);
+  await settle(page);
+
+  await page.locator(".cf-doc-title").click();
+  // Type into Title but do NOT blur, then switch to YAML — the edit must persist.
+  await page.locator(".cf-doc-properties-input").first().fill("Committed On Switch");
+  await page.locator(".cf-doc-properties-yaml").click(); // Edit as YAML
+  await expect(page.locator(".cf-doc-properties-raw-input")).toHaveValue(/title: "Committed On Switch"/);
+
+  // Type into the raw textarea but do NOT blur, then switch back — must persist.
+  await page.locator(".cf-doc-properties-raw-input").fill('title: "Round Tripped"');
+  await page.locator(".cf-doc-properties-yaml").click(); // Back to form
+  await expect(page.locator(".cf-doc-properties-input").first()).toHaveValue("Round Tripped");
+  await expect.poll(() => h.getDoc()).toContain('title: "Round Tripped"');
+});
+
+test("document-properties form: mode switch stays open when a field held focus", async ({ page }) => {
+  const h = harness(page);
+  await page.goto("/tests/e2e/fixtures/index.html");
+  await h.setDoc(DOC);
+  await settle(page);
+
+  await page.locator(".cf-doc-title").click();
+  // Focus a field first, so `formFocused` is the only thing keeping it open.
+  await page.locator(".cf-doc-properties-input").first().click();
+  await expect(page.locator(".cf-doc-properties")).toBeVisible();
+
+  // Switch to YAML and back — the panel must not close on either switch.
+  await page.locator(".cf-doc-properties-yaml").click(); // Edit as YAML
+  await expect(page.locator(".cf-doc-properties-raw-input")).toBeVisible();
+  await page.locator(".cf-doc-properties-yaml").click(); // Back to form
+  await expect(page.locator(".cf-doc-properties-input").first()).toBeVisible();
+});
+
 test("document-properties form: add property adds an editable row and a frontmatter key", async ({ page }) => {
   const h = harness(page);
   await page.goto("/tests/e2e/fixtures/index.html");
@@ -169,6 +206,20 @@ test("document-properties form: add property adds an editable row and a frontmat
   await page.locator(".cf-doc-properties-extra-value").first().fill("CC-BY");
   await page.locator(".cf-doc-properties-extra-value").first().blur();
   await expect.poll(() => h.getDoc()).toMatch(/license:\s*"?CC-BY"?/);
+});
+
+test("document-properties form: + add property commits a pending field edit", async ({ page }) => {
+  const h = harness(page);
+  await page.goto("/tests/e2e/fixtures/index.html");
+  await h.setDoc(DOC);
+  await settle(page);
+
+  await page.locator(".cf-doc-title").click();
+  // Type into Title (no blur), then click "+ add property" — Title must commit.
+  await page.locator(".cf-doc-properties-input").first().fill("Kept On Add");
+  await page.locator(".cf-doc-properties-add-property").click();
+  await expect(page.locator(".cf-doc-properties-extra-row")).toHaveCount(1);
+  await expect.poll(() => h.getDoc()).toContain('title: "Kept On Add"');
 });
 
 test("document-properties form: closes when navigating away after editing", async ({ page }) => {

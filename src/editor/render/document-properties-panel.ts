@@ -1,22 +1,21 @@
 /**
  * Rich-mode "document properties" form.
  *
- * Part of the frontmatter structure-edit reveal: normally the frontmatter is
- * collapsed to the title widget, and clicking the title (or otherwise moving the
- * cursor into the frontmatter) activates the frontmatter structure edit. While
- * that edit is active the raw YAML lines are revealed for editing AND this form
- * appears above them — a field/macro editor for the panel-relevant keys (title,
- * bibliography, type, status, target) plus math macros, so the two editing
- * surfaces sit together like the rest of a revealed block. When the edit clears
- * (cursor leaves, blur) the form disappears with the YAML.
+ * Clicking the document title (or otherwise moving the cursor into the
+ * frontmatter) activates the frontmatter reveal. While the reveal is active the
+ * frontmatter is hidden from the document entirely and this form is the sole
+ * frontmatter editor — a field/macro editor for the panel-relevant keys (title,
+ * bibliography, type, status, target), arbitrary extra scalar properties, and
+ * math macros, plus an "Edit as YAML" mode for the whole block. When the reveal
+ * clears (cursor leaves, blur) the form disappears and the title collapses back.
  *
  * Mounted as a top editor panel (`showPanel`), gated on the reveal state — never
  * a document decoration. The form lives outside the document model, so the
  * frontmatter edits it commits (which add/remove lines) can't crash a
  * doc-anchored block widget the way an earlier version did ("Cannot destructure
  * 'tile'"). Edits commit on `change`/blur (never per keystroke); the form
- * re-renders only when the frontmatter content actually changes, so a focused
- * input is never rebuilt out from under the user mid-typing.
+ * rebuilds only when its row structure changes, so a focused input is never torn
+ * down mid-typing.
  */
 
 import { type EditorState, type Extension, StateEffect, StateField } from "@codemirror/state";
@@ -35,28 +34,44 @@ import {
   setMathMacro,
   setRawFrontmatter,
 } from "../frontmatter-properties.js";
-
-type PanelMode = "form" | "raw";
-
-/** A panel action button: shared style, and mousedown-preventDefault so clicking
- *  it never steals focus out of the form (which would close the reveal). */
-function actionButton(label: string, className: string, onClick: () => void): HTMLButtonElement {
-  const button = document.createElement("button");
-  button.type = "button";
-  button.className = `cf-doc-properties-btn ${className}`;
-  button.textContent = label;
-  button.addEventListener("mousedown", (event) => {
-    event.preventDefault();
-    onClick();
-  });
-  return button;
-}
 import { requestHandlerFacet } from "../editor-host-api";
 import {
   activeStructureEditField,
   isFrontmatterStructureEditActive,
 } from "../state/cm-structure-edit";
 import { frontmatterField } from "../state/frontmatter-state";
+
+type PanelMode = "form" | "raw";
+
+/**
+ * Commit a pending edit in the currently-focused form control. Panel buttons use
+ * mousedown-preventDefault so clicking one never blurs the focused input — which
+ * also means the input's `change` (which writes the edit through) hasn't fired.
+ * Firing it synthetically, without moving focus, commits the edit before the
+ * button's action rebuilds the form. Scoped to our own controls by class.
+ */
+function commitFocusedEdit(view: EditorView): void {
+  const active = view.root.activeElement;
+  if (active instanceof HTMLElement && active.className.includes("cf-doc-properties")) {
+    active.dispatchEvent(new Event("change"));
+  }
+}
+
+/** A panel action button: shared style, mousedown-preventDefault so it never
+ *  steals focus out of the form (which would close the reveal), and it commits
+ *  any pending field edit first. */
+function actionButton(view: EditorView, label: string, className: string, onClick: () => void): HTMLButtonElement {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = `cf-doc-properties-btn ${className}`;
+  button.textContent = label;
+  button.addEventListener("mousedown", (event) => {
+    event.preventDefault();
+    commitFocusedEdit(view);
+    onClick();
+  });
+  return button;
+}
 
 /**
  * Whether focus currently lives inside the properties form. The form's inputs
@@ -120,6 +135,14 @@ function macroPreview(name: string, expansion: string): HTMLElement {
   return el;
 }
 
+/** Pick a property key that doesn't collide with an existing frontmatter key. */
+function freeExtraKey(extra: Readonly<Record<string, string>>): string {
+  const taken = new Set<string>([...SCALAR_FIELDS.map((f) => f.key), "id", "math", ...Object.keys(extra)]);
+  let key = "property";
+  for (let n = 2; taken.has(key); n++) key = `property${n}`;
+  return key;
+}
+
 function fieldRow(label: string, control: HTMLElement): HTMLElement {
   const row = document.createElement("label");
   row.className = "cf-doc-properties-row";
@@ -161,7 +184,7 @@ class DocumentPropertiesBuilder {
     const actions = document.createElement("div");
     actions.className = "cf-doc-properties-actions";
     actions.append(
-      actionButton("Edit as YAML", "cf-doc-properties-yaml", () => this.setMode("raw")),
+      actionButton(view, "Edit as YAML", "cf-doc-properties-yaml", () => this.setMode("raw")),
     );
     root.append(actions);
     return root;
@@ -185,7 +208,7 @@ class DocumentPropertiesBuilder {
     const actions = document.createElement("div");
     actions.className = "cf-doc-properties-actions";
     actions.append(
-      actionButton("← Back to form", "cf-doc-properties-yaml", () => this.setMode("form")),
+      actionButton(view, "← Back to form", "cf-doc-properties-yaml", () => this.setMode("form")),
     );
     wrap.append(actions);
     return wrap;
@@ -201,25 +224,15 @@ class DocumentPropertiesBuilder {
     }
 
     section.append(
-      actionButton("+ add property", "cf-doc-properties-add-property", () => {
-        const newKey = this.freeExtraKey();
+      actionButton(view, "+ add property", "cf-doc-properties-add-property", () => {
+        // Read live state, not this.props: commitFocusedEdit (run first) may have
+        // just renamed/added a key, so the render-time snapshot can be stale.
+        const existing = readPanelProperties(view.state.doc.toString()).extra;
+        const newKey = freeExtraKey(existing);
         applyFrontmatterEdit(view, (source) => setFrontmatterScalar(source, newKey, ""));
       }),
     );
     return section;
-  }
-
-  /** Pick a property key that doesn't collide with an existing frontmatter key. */
-  private freeExtraKey(): string {
-    const taken = new Set<string>([
-      ...SCALAR_FIELDS.map((f) => f.key),
-      "id",
-      "math",
-      ...Object.keys(this.props.extra),
-    ]);
-    let key = "property";
-    for (let n = 2; taken.has(key); n++) key = `property${n}`;
-    return key;
   }
 
   private extraRow(view: EditorView, key: string, value: string): HTMLElement {
@@ -252,6 +265,7 @@ class DocumentPropertiesBuilder {
     remove.textContent = "×";
     remove.addEventListener("mousedown", (event) => {
       event.preventDefault();
+      commitFocusedEdit(view);
       applyFrontmatterEdit(view, (source) => setFrontmatterScalar(source, key, null));
     });
 
@@ -274,7 +288,7 @@ class DocumentPropertiesBuilder {
       if (handler.openBibliographyPicker) {
         const wrap = document.createElement("span");
         wrap.className = "cf-doc-properties-input-group";
-        const browse = actionButton("Browse…", "cf-doc-properties-browse", () => {
+        const browse = actionButton(view, "Browse…", "cf-doc-properties-browse", () => {
           const controller = new AbortController();
           handler.openBibliographyPicker?.({ current: input.value, signal: controller.signal }).then((result) => {
             if (result) {
@@ -302,7 +316,7 @@ class DocumentPropertiesBuilder {
     }
 
     section.append(
-      actionButton("+ add macro", "cf-doc-properties-add-macro", () => {
+      actionButton(view, "+ add macro", "cf-doc-properties-add-macro", () => {
         applyFrontmatterEdit(view, (source) => setMathMacro(source, "\\new", ""));
       }),
     );
@@ -337,6 +351,7 @@ class DocumentPropertiesBuilder {
     remove.textContent = "×";
     remove.addEventListener("mousedown", (event) => {
       event.preventDefault();
+      commitFocusedEdit(view);
       applyFrontmatterEdit(view, (source) => removeMathMacro(source, name));
     });
 
@@ -358,12 +373,12 @@ function structureKey(p: PanelProperties): string {
 }
 
 /**
- * The form is a top editor panel (`showPanel`), gated on the frontmatter
- * structure-edit reveal — it appears with the revealed YAML and disappears when
- * the reveal clears. Living outside the document model keeps the frontmatter
- * edits it commits (which add/remove lines) from crashing a doc-anchored block
- * widget. While mounted it re-renders only when the frontmatter content changes,
- * preserving focused inputs during unrelated edits.
+ * The form is a top editor panel (`showPanel`), gated on the frontmatter reveal
+ * — it appears when the reveal activates and disappears when it clears. Living
+ * outside the document model keeps the frontmatter edits it commits (which
+ * add/remove lines) from crashing a doc-anchored block widget. While mounted it
+ * rebuilds only when its row structure changes, preserving focused inputs during
+ * value edits.
  */
 function createPropertiesPanel(view: EditorView): Panel {
   const dom = document.createElement("div");
@@ -395,8 +410,19 @@ function createPropertiesPanel(view: EditorView): Panel {
 
   const setMode = (next: PanelMode): void => {
     if (mode === next) return;
+    // The toggle button already committed any pending edit (see actionButton)
+    // before invoking this.
     mode = next;
     render(true);
+    // The rebuild dropped focus (the toggle button used preventDefault, so the
+    // previously-focused input stayed focused until replaceChildren removed it).
+    // Move focus to the new mode's primary control so the form keeps focus and
+    // stays open even when `formFocused` is its only gate — otherwise the
+    // navigate-away watcher would close it.
+    const primary = dom.querySelector<HTMLElement>(
+      next === "raw" ? ".cf-doc-properties-raw-input" : ".cf-doc-properties-input",
+    );
+    primary?.focus();
   };
 
   const render = (force = false): void => {
@@ -453,11 +479,11 @@ function createPropertiesPanel(view: EditorView): Panel {
 /**
  * Whether the frontmatter reveal is active: while the frontmatter structure-edit
  * is active (title click / cursor in frontmatter), or while the properties form
- * holds focus (so editing a field keeps both the form and the raw YAML revealed).
+ * holds focus (so focusing a field — which blurs the editor — keeps it open).
  *
- * Shared with {@link ../frontmatter-render} so the YAML source and the form
- * appear and disappear together — editing a field updates the visible YAML, and
- * navigating away into the body closes both.
+ * Shared with {@link ../frontmatter-render}, which hides the frontmatter region
+ * whenever this is true so the form is the only frontmatter surface. Navigating
+ * away into the body clears both.
  */
 export function frontmatterRevealActive(state: EditorState): boolean {
   const frontmatter = state.field(frontmatterField, false);
