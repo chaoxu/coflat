@@ -98,6 +98,9 @@ describe("theme CSS contract", () => {
     expect(cssRuleBody(css, ".cf-preview-surface-shell")).toContain(
       "position: fixed;",
     );
+    expect(cssRuleBody(css, ".cf-preview-surface-shell.cf-math-preview")).toContain(
+      "position: absolute;",
+    );
     expect(cssRuleBody(css, ".cf-preview-surface-content")).toContain(
       "font-family: var(--cf-content-font, KaTeX_Main, \"Times New Roman\", serif);",
     );

@@ -409,7 +409,7 @@
   z-index: var(--cf-layer-preview-surface);
 }
 
-.cf-math-preview {
+.cf-preview-surface-shell.cf-math-preview {
   position: absolute;
   width: fit-content;
   cursor: grab;
