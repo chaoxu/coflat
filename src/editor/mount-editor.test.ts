@@ -124,4 +124,51 @@ describe("mountEditor document change callbacks", () => {
 
     expect(editor.getDoc()).toBe("short");
   });
+
+  it("inserts text at the current selection as a normal editor change", () => {
+    const onChange = vi.fn();
+    const changes: EditorDocumentChange[] = [];
+    const { editor, view } = mountWithCapturedView({
+      doc: "alpha omega",
+      onChange,
+      onDocumentChange(change) {
+        changes.push(change);
+      },
+    });
+    view().dispatch({ selection: { anchor: 5 } });
+
+    editor.insertText(" beta");
+
+    expect(editor.getDoc()).toBe("alpha beta omega");
+    expect(onChange).toHaveBeenCalledWith("alpha beta omega");
+    expect(changes).toHaveLength(1);
+    expect(changes[0].changes.empty).toBe(false);
+  });
+
+  it("replaces the current selection when inserting text", () => {
+    const { editor, view } = mountWithCapturedView({
+      doc: "alpha TODO omega",
+    });
+    const from = "alpha ".length;
+    const to = from + "TODO".length;
+    view().dispatch({ selection: { anchor: from, head: to } });
+
+    editor.insertText("done");
+
+    expect(editor.getDoc()).toBe("alpha done omega");
+  });
+
+  it("inserts text at an explicit source position without replacing the current selection", () => {
+    const { editor, view } = mountWithCapturedView({
+      doc: "alpha TODO omega",
+    });
+    const from = "alpha ".length;
+    const to = from + "TODO".length;
+    view().dispatch({ selection: { anchor: from, head: to } });
+
+    editor.insertText(" beta", { position: "alpha TODO".length });
+
+    expect(editor.getDoc()).toBe("alpha TODO beta omega");
+  });
+
 });
