@@ -38,7 +38,13 @@ export class HostRefWidget extends ReferenceWidget {
       refMode: this.mode,
     });
     root.dataset.referenceWidget = "true";
-    if (this.hasOnClick) root.dataset.refResolver = "1";
+    if (this.hasOnClick) {
+      root.dataset.refResolver = "1";
+    }
+    if (this.hasOnClick && this.href === undefined) {
+      root.tabIndex = 0;
+      root.setAttribute("role", "button");
+    }
     if (this.href !== undefined && isSafeUrl(this.href)) {
       const anchor = document.createElement("a");
       applyLinkSurface(anchor, this.href);

@@ -70,6 +70,21 @@ describe("HostRefWidget", () => {
     expect(base.eq(themed)).toBe(false);
   });
 
+  it("makes host-clickable references keyboard focusable", () => {
+    const el = new HostRefWidget("local note", "local:la_aaaaaaaaaaaa", "bracketed", undefined, "cf-local-annotation", true).toDOM();
+    expect(el.getAttribute("data-ref-resolver")).toBe("1");
+    expect(el.getAttribute("tabindex")).toBe("0");
+    expect(el.getAttribute("role")).toBe("button");
+  });
+
+  it("keeps host-clickable links focused through their anchor", () => {
+    const el = new HostRefWidget("Chapter", "chapter", "bracketed", "chapter.md", "host-ref", true).toDOM();
+    expect(el.getAttribute("data-ref-resolver")).toBe("1");
+    expect(el.hasAttribute("tabindex")).toBe(false);
+    expect(el.hasAttribute("role")).toBe(false);
+    expect(el.querySelector("a")?.getAttribute("href")).toBe("chapter.md");
+  });
+
   it("uses the shared link layout contract for host reference anchors", () => {
     const external = new HostRefWidget(
       "External",

@@ -6,7 +6,7 @@
  * editor mount or on demand.
  */
 
-import type { ChangeSet, Extension } from "@codemirror/state";
+import { EditorSelection, type ChangeSet, type Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import type { CslJsonItem } from "./src/core/citations/csl-json";
 import type { DocumentContext } from "./src/core/document-context-types";
@@ -121,9 +121,17 @@ export interface EditorScrollToSourcePositionOptions {
   readonly center?: boolean;
 }
 
+export interface EditorInsertTextOptions {
+  /** Insert at an explicit 0-based source offset. When set, selection is not replaced. */
+  readonly position?: number;
+  /** Replace the active selection when no explicit position is set. Defaults to true. */
+  readonly replaceSelection?: boolean;
+}
+
 export interface MountedEditor {
   getDoc(): string;
   setDoc(doc: string): void;
+  insertText(text: string, opts?: EditorInsertTextOptions): void;
   setContext(context: DocumentContext): void;
   getMode(): EditorMode;
   setMode(mode: EditorMode): void;
@@ -310,6 +318,30 @@ export function mountEditor(options: MountEditorOptions): MountedEditor {
         annotations: programmaticDocumentChangeAnnotation.of(true),
       });
       view.scrollDOM.scrollTop = 0;
+    },
+
+    insertText(text, opts = {}) {
+      if (!view || text.length === 0) return;
+      const explicitPosition = typeof opts.position === "number" && Number.isFinite(opts.position)
+        ? Math.max(0, Math.min(view.state.doc.length, Math.floor(opts.position)))
+        : null;
+      const transaction = explicitPosition === null
+        ? view.state.changeByRange((range) => {
+            const from = opts.replaceSelection === false ? range.head : range.from;
+            const to = opts.replaceSelection === false ? range.head : range.to;
+            return {
+              changes: { from, to, insert: text },
+              range: EditorSelection.cursor(from + text.length),
+            };
+          })
+        : view.state.update({
+            changes: { from: explicitPosition, to: explicitPosition, insert: text },
+            selection: { anchor: explicitPosition + text.length },
+          });
+      view.dispatch(transaction, {
+        scrollIntoView: true,
+        userEvent: "input",
+      });
     },
 
     setContext(context) {
