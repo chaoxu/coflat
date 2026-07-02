@@ -130,6 +130,10 @@ export const baseThemeStyles = {
   },
   ".cf-doc-properties-host": {
     padding: "var(--cf-spacing-sm) var(--cf-doc-content-padding-inline, 16px)",
+    boxSizing: "border-box",
+    maxHeight: "min(50dvh, 420px)",
+    overflowY: "auto",
+    overscrollBehavior: "contain",
   },
   ".cf-doc-properties": {
     display: "flex",
@@ -162,6 +166,15 @@ export const baseThemeStyles = {
   ".cf-doc-properties-label": {
     fontSize: "var(--cf-ui-font-size-sm)",
     color: "var(--cf-muted)",
+  },
+  ".cf-doc-properties-actions": {
+    position: "sticky",
+    bottom: "calc(-1 * var(--cf-spacing-md))",
+    display: "flex",
+    gap: "var(--cf-spacing-xs)",
+    padding: "var(--cf-spacing-xs) 0 0",
+    background: "var(--cf-bg)",
+    zIndex: "1",
   },
   ".cf-doc-properties-input, .cf-doc-properties-macro-name, .cf-doc-properties-macro-value": {
     width: "100%",
@@ -232,6 +245,8 @@ export const baseThemeStyles = {
   ".cf-doc-properties-raw-input": {
     width: "100%",
     boxSizing: "border-box",
+    maxHeight: "min(36dvh, 320px)",
+    overflow: "auto",
     padding: "var(--cf-spacing-sm)",
     border: "1px solid var(--cf-border)",
     borderRadius: "var(--cf-border-radius)",

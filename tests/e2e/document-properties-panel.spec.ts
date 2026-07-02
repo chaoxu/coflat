@@ -326,3 +326,75 @@ test("document-properties form: closes when navigating away after editing", asyn
   await expect(page.locator(".cf-doc-properties")).toHaveCount(0);
   await expect(page.locator(".cf-frontmatter-line")).toHaveCount(0);
 });
+
+test("document-properties form: stays bounded in fixed-frame hosts", async ({ page }) => {
+  const h = harness(page);
+  await page.setViewportSize({ width: 720, height: 360 });
+  await page.goto("/tests/e2e/fixtures/index.html");
+  await h.setDoc(`---
+title: "Tall properties"
+id: tall
+bibliography: refs.bib
+type: article
+status: draft
+target: lab
+field01: value
+field02: value
+field03: value
+field04: value
+field05: value
+field06: value
+field07: value
+field08: value
+field09: value
+field10: value
+math:
+  \\a: "a"
+  \\b: "b"
+  \\c: "c"
+  \\d: "d"
+  \\e: "e"
+  \\f: "f"
+  \\g: "g"
+  \\h: "h"
+---
+
+Body line one.
+
+Body line two.
+`);
+  await settle(page);
+
+  await page.locator(".cf-doc-title").click();
+  await expect(page.locator(".cf-doc-properties")).toBeVisible();
+
+  const geometry = await page.evaluate(() => {
+    const panelHost = document.querySelector<HTMLElement>(".cf-doc-properties-host");
+    const scroller = document.querySelector<HTMLElement>(".cm-scroller");
+    const body = document.body;
+    if (!panelHost || !scroller) throw new Error("missing panel or editor scroller");
+    const hostRect = panelHost.getBoundingClientRect();
+    const scrollerRect = scroller.getBoundingClientRect();
+    return {
+      bodyScrollHeight: body.scrollHeight,
+      bodyClientHeight: body.clientHeight,
+      panelHostHeight: hostRect.height,
+      panelClientHeight: panelHost.clientHeight,
+      panelScrollHeight: panelHost.scrollHeight,
+      scrollerHeight: scrollerRect.height,
+    };
+  });
+
+  expect(geometry.bodyScrollHeight).toBeLessThanOrEqual(geometry.bodyClientHeight + 1);
+  expect(geometry.panelHostHeight).toBeLessThanOrEqual(181);
+  expect(geometry.panelScrollHeight).toBeGreaterThan(geometry.panelClientHeight + 20);
+  expect(geometry.scrollerHeight).toBeGreaterThan(120);
+
+  await page.locator(".cf-doc-properties-yaml").click();
+  const rawGeometry = await page.locator(".cf-doc-properties-raw-input").evaluate((el) => ({
+    clientHeight: el.clientHeight,
+    scrollHeight: el.scrollHeight,
+  }));
+  expect(rawGeometry.clientHeight).toBeLessThanOrEqual(130);
+  expect(rawGeometry.scrollHeight).toBeGreaterThan(rawGeometry.clientHeight);
+});
