@@ -64,6 +64,10 @@ import { documentPathFacet, fileSystemFacet } from "./src/editor/lib/types";
 import { sidenotesCollapsedField } from "./src/editor/render";
 import { createSaveController, saveExtension } from "./src/editor/save-handler";
 import { type BibData, bibDataEffect } from "./src/editor/state/bib-data";
+export {
+  type FrontmatterState,
+  frontmatterField,
+} from "./src/editor/state/frontmatter-state";
 import { programmaticDocumentChangeAnnotation } from "./src/editor/state/programmatic-document-change";
 
 export type EditorMode = "rich" | "rich-readonly" | "source";
