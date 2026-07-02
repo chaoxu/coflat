@@ -71,7 +71,7 @@ body {
   min-height: 36px;
   width: 100%;
   border: 0;
-  border-radius: 6px;
+  border-radius: 0;
   padding: 8px;
   background: transparent;
   color: #202124;

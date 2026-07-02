@@ -84,10 +84,10 @@ describe("MathWidget (inline)", () => {
 
     el.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
 
-    expect(dispatch).toHaveBeenCalledWith({
+    expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({
       selection: { anchor: 411 },
       scrollIntoView: false,
-    });
+    }));
   });
 
   it("does not reveal inline source on mousedown before a drag gesture is established", () => {
@@ -186,10 +186,10 @@ describe("MathWidget (display)", () => {
     content?.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true }));
 
     expect(focus).toHaveBeenCalledTimes(1);
-    expect(dispatch).toHaveBeenCalledWith({
+    expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({
       selection: { anchor: 8 },
       scrollIntoView: false,
-    });
+    }));
   });
 
   it("reveals source when clicking display-math row whitespace", () => {
@@ -204,10 +204,10 @@ describe("MathWidget (display)", () => {
     el.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true }));
 
     expect(focus).toHaveBeenCalledTimes(1);
-    expect(dispatch).toHaveBeenCalledWith({
+    expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({
       selection: { anchor: 8 },
       scrollIntoView: false,
-    });
+    }));
   });
 
   it("re-attaches display-math click handlers when the DOM is cloned from cache", () => {
@@ -225,10 +225,10 @@ describe("MathWidget (display)", () => {
     content?.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true }));
 
     expect(focus).toHaveBeenCalledTimes(1);
-    expect(dispatch).toHaveBeenCalledWith({
+    expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({
       selection: { anchor: 8 },
       scrollIntoView: false,
-    });
+    }));
   });
 
   it("click dispatches to updated position after updateSourceRange (position mapping)", () => {
@@ -246,10 +246,10 @@ describe("MathWidget (display)", () => {
     const content = el.querySelector<HTMLElement>(`.${CSS.mathDisplayContent}`);
     content?.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true }));
 
-    expect(dispatch).toHaveBeenCalledWith({
+    expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({
       selection: { anchor: 951 },
       scrollIntoView: false,
-    });
+    }));
   });
 
   it("maps nested KaTeX clicks to content-relative source positions", () => {

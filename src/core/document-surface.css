@@ -126,8 +126,8 @@
   --cf-table-line-height: 1.5;
 
   /* Border radius */
-  --cf-border-radius: 2px;
-  --cf-border-radius-lg: 4px;
+  --cf-border-radius: 0;
+  --cf-border-radius-lg: 0;
 
   /* Spacing scale */
   --cf-spacing-xs: 4px;
@@ -751,8 +751,8 @@
   z-index: var(--cf-layer-preview-surface);
   background: var(--cf-bg);
   border: 1px solid var(--cf-border);
-  border-radius: 8px;
-  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  border-radius: 0;
+  box-shadow: none;
   max-width: min(var(--cf-preview-surface-max-width), calc(100vw - 10px));
   max-height: min(var(--cf-preview-surface-max-height), calc(100vh - 10px));
   overflow: auto;

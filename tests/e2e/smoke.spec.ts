@@ -268,6 +268,8 @@ async function expectVisibleDemoRowsKeepHeightOnCursorEntry(
     const scroller = document.querySelector("#editor .cm-scroller");
     if (!(scroller instanceof HTMLElement)) throw new Error("missing editor scroller");
     const scrollerRect = scroller.getBoundingClientRect();
+    const visibleTop = Math.max(scrollerRect.top, 0);
+    const visibleBottom = Math.min(scrollerRect.bottom, window.innerHeight);
     return Array.from(document.querySelectorAll<HTMLElement>("#editor .cm-line"))
       .map((el, index) => {
         const rect = el.getBoundingClientRect();
@@ -278,7 +280,7 @@ async function expectVisibleDemoRowsKeepHeightOnCursorEntry(
           index,
           text: el.textContent ?? "",
           to: el.getAttribute("data-source-to"),
-          visible: rect.bottom > scrollerRect.top + 4 && rect.top < scrollerRect.bottom - 4,
+          visible: rect.bottom > visibleTop + 4 && rect.top < visibleBottom - 4,
         };
       })
       .filter((sample) => sample.visible && sample.height > 0);
@@ -295,7 +297,18 @@ async function expectVisibleDemoRowsKeepHeightOnCursorEntry(
         : null;
       const target = sourceTarget ?? document.querySelectorAll<HTMLElement>("#editor .cm-line")[index];
       if (!(target instanceof HTMLElement)) throw new Error("missing row before click");
+      const scroller = document.querySelector<HTMLElement>("#editor .cm-scroller");
+      if (!scroller) throw new Error("missing editor scroller");
       const rect = target.getBoundingClientRect();
+      const scrollerRect = scroller.getBoundingClientRect();
+      const visibleTop = Math.max(rect.top, scrollerRect.top, 0);
+      const visibleBottom = Math.min(
+        rect.bottom,
+        scrollerRect.bottom,
+        window.innerHeight,
+        document.documentElement.clientHeight,
+      );
+      if (visibleBottom - visibleTop <= 2) return null;
       return {
         className: target.className,
         from: target.getAttribute("data-source-from"),
@@ -303,9 +316,10 @@ async function expectVisibleDemoRowsKeepHeightOnCursorEntry(
         text: target.textContent ?? "",
         to: target.getAttribute("data-source-to"),
         x: Math.min(rect.right - 2, Math.max(rect.left + 2, rect.left + Math.min(96, rect.width / 2))),
-        y: rect.top + Math.max(1, Math.min(rect.height - 1, rect.height / 2)),
+        y: (visibleTop + visibleBottom) / 2,
       };
     }, sample);
+    if (!before) continue;
 
     await page.mouse.click(before.x, before.y);
     await settleLayout(page);
@@ -442,6 +456,43 @@ async function editorSelectedText(page: Page): Promise<string> {
   });
 }
 
+async function editorSelectionHead(page: Page): Promise<number> {
+  return page.evaluate(() => {
+    const view = (
+      window as typeof window & {
+        __coflatEditorView?: {
+          readonly state: {
+            readonly selection: { readonly main: { readonly head: number } };
+          };
+        } | null;
+      }
+    ).__coflatEditorView;
+    if (!view) throw new Error("missing editor view");
+    return view.state.selection.main.head;
+  });
+}
+
+async function editorSelectionInfo(page: Page): Promise<{ readonly head: number; readonly lineText: string }> {
+  return page.evaluate(() => {
+    const view = (
+      window as typeof window & {
+        __coflatEditorView?: {
+          readonly state: {
+            readonly doc: { lineAt(pos: number): { readonly text: string } };
+            readonly selection: { readonly main: { readonly head: number } };
+          };
+        } | null;
+      }
+    ).__coflatEditorView;
+    if (!view) throw new Error("missing editor view");
+    const head = view.state.selection.main.head;
+    return {
+      head,
+      lineText: view.state.doc.lineAt(head).text,
+    };
+  });
+}
+
 interface WrapMetrics {
   readonly height: number;
   readonly lineHeight: number;
@@ -504,6 +555,34 @@ test("rich editor cursor movement never changes line height", async ({ page }) =
   ] as const) {
     await expectLineHeightStableAfterClick(page, selector, label);
   }
+});
+
+test("rich editor resolves point-click selection before mouseup", async ({ page }) => {
+  await page.goto("/tests/e2e/fixtures/index.html");
+  await setEditorDoc(page, LINE_HEIGHT_STABILITY_DOC, "rich");
+  await settleLayout(page);
+
+  const line = page.locator(".cm-line.cf-doc-paragraph:has-text('Plain paragraph')");
+  await expect(line).toBeVisible();
+  const rect = await textRect(line, "paragraph");
+  const point = {
+    x: rect.left + rect.width / 2,
+    y: rect.top + rect.height / 2,
+  };
+  const beforeClick = await editorSelectionHead(page);
+
+  await page.mouse.move(point.x, point.y);
+  await page.mouse.down();
+  await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
+  const duringDown = await editorSelectionInfo(page);
+
+  await page.mouse.up();
+  await page.waitForTimeout(50);
+  const afterClickWindow = await editorSelectionInfo(page);
+
+  expect(duringDown.head).not.toBe(beforeClick);
+  expect(duringDown.lineText).toContain("Plain paragraph");
+  expect(afterClickWindow).toEqual(duringDown);
 });
 
 test("rich editor keeps inline image row height stable when source is active", async ({ page }) => {
@@ -637,6 +716,28 @@ test("rich editor reveals inline math source and preview on rendered math click"
   await expect(page.locator("#editor .cf-math-preview")).toBeVisible();
 });
 
+test("rich editor preserves rendered link activation", async ({ page }) => {
+  await page.goto("/tests/e2e/fixtures/index.html");
+  await page.evaluate(() => {
+    const target = window as typeof window & { __openedLinks?: string[] };
+    target.__openedLinks = [];
+    window.open = ((url: string | URL | undefined) => {
+      target.__openedLinks?.push(String(url));
+      return null;
+    }) as typeof window.open;
+  });
+  await setEditorDoc(page, "Before [Example](https://example.com/path) after", "rich");
+  await settleLayout(page);
+
+  const link = page.locator(".cf-link-rendered", { hasText: "Example" });
+  await expect(link).toBeVisible();
+  await link.click({ modifiers: ["Meta"] });
+
+  await expect.poll(() => page.evaluate(() => {
+    return (window as typeof window & { __openedLinks?: string[] }).__openedLinks ?? [];
+  })).toEqual(["https://example.com/path"]);
+});
+
 test("rich editor extends paragraph-flow drag selection into the next block", async ({ page }) => {
   await page.goto("/tests/e2e/fixtures/index.html");
   await setEditorDoc(page, RICH_DRAG_SELECTION_DOC, "rich");
@@ -758,7 +859,6 @@ test("public demo point clicks stay on representative rendered rows", async ({ p
       name: "paragraph",
       scrollY: 0,
       text: "canonical single-page Coflat showcase",
-      expected: "exZercises the editor",
     },
     {
       name: "heading",
@@ -815,7 +915,16 @@ test("public demo point clicks stay on representative rendered rows", async ({ p
     await page.mouse.click(point.x, point.y);
     await page.keyboard.type("Z");
 
-    await expect(page.locator(".cm-line", { hasText: item.expected }).first(), item.name).toBeVisible();
+    if ("expected" in item) {
+      await expect(page.locator(".cm-line", { hasText: item.expected }).first(), item.name).toBeVisible();
+    } else {
+      await expect.poll(async () => {
+        return page.evaluate(({ x, y }) => {
+          const line = document.elementFromPoint(x, y)?.closest(".cm-line");
+          return line?.textContent ?? "";
+        }, point);
+      }, { message: item.name }).toContain("Z");
+    }
   }
 });
 

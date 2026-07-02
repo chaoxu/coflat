@@ -73,8 +73,8 @@ export const marginThemeStyles = {
   ".cm-tooltip.cm-tooltip-autocomplete.cf-reference-completion-tooltip": {
     backgroundColor: "var(--cf-bg)",
     border: "1px solid var(--cf-border)",
-    borderRadius: "8px",
-    boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)",
+    borderRadius: "0",
+    boxShadow: "none",
     color: "var(--cf-fg)",
     fontFamily: "var(--cf-ui-font)",
   },
@@ -90,7 +90,7 @@ export const marginThemeStyles = {
     whiteSpace: "normal",
   },
   ".cm-tooltip.cm-tooltip-autocomplete.cf-reference-completion-tooltip > ul > li": {
-    borderRadius: "var(--cf-border-radius-lg)",
+    borderRadius: "0",
     color: "var(--cf-fg)",
     lineHeight: "1.4",
     margin: "2px 0",

@@ -34,13 +34,11 @@ function ensureContextMenuStyles(): void {
       min-width: 10rem;
       overflow: hidden;
       border: 1px solid var(--cf-border);
-      border-radius: var(--cf-border-radius-lg, 4px);
+      border-radius: 0;
       background: var(--cf-bg);
       color: var(--cf-fg);
       padding: 4px;
-      box-shadow:
-        0 10px 38px rgba(0, 0, 0, 0.14),
-        0 10px 20px rgba(0, 0, 0, 0.08);
+      box-shadow: none;
       font-family: var(--cf-ui-font, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif);
       font-size: var(--cf-ui-font-size-base, 14px);
     }
@@ -49,7 +47,7 @@ function ensureContextMenuStyles(): void {
       position: relative;
       display: flex;
       align-items: center;
-      border-radius: var(--cf-border-radius, 2px);
+      border-radius: 0;
       padding: 6px 8px;
       outline: none;
       user-select: none;
