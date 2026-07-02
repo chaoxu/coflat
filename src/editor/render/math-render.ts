@@ -397,6 +397,8 @@ const mathDecorationField = createDecorationStateField({
       tr.state.field(editorFocusField, false) ?? false,
     );
     const activeMathChanged = inlineRevealTargetChanged(beforeActive, afterActive);
+    const activeMathNeedsSelectionRefresh =
+      tr.selection !== undefined && afterActive !== undefined;
     const beforeActiveBlockquote = activeFlowBlockquoteRange(
       tr.startState,
       tr.startState.field(editorFocusField, false) ?? false,
@@ -458,7 +460,7 @@ const mathDecorationField = createDecorationStateField({
       dirtyRanges: (_transaction, context) => {
         const activeDirtyRanges = collectActiveMathDirtyRanges(
           tr,
-          activeMathChanged,
+          activeMathChanged || activeMathNeedsSelectionRefresh,
           beforeActive,
           afterActive,
         );

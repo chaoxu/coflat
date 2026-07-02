@@ -113,6 +113,20 @@ export function createMathRenderView(doc: string, cursorPos = 0): EditorView {
   return view;
 }
 
+export function createUnfocusedMathRenderView(doc: string, cursorPos = 0): EditorView {
+  return createTestView(doc, {
+    cursorPos,
+    focus: false,
+    extensions: [
+      markdown({ extensions: [mathExtension, equationLabelExtension] }),
+      frontmatterField,
+      activeStructureEditField,
+      documentAnalysisField,
+      mathRenderPlugin,
+    ],
+  });
+}
+
 export function activateDisplayMathSourceView(view: EditorView, pos: number): void {
   const target = createStructureEditTargetAt(view.state, pos);
   expect(target?.kind).toBe("display-math");

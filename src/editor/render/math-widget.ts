@@ -22,6 +22,7 @@ import {
 } from "../state/cm-structure-edit";
 import { documentAnalysisField } from "../state/document-analysis";
 import { isPlainPrimaryMouseEvent } from "../state/mouse-selection";
+import { focusEffect } from "./focus-state";
 import { clearKatexHtmlCache, renderKatexToHtml } from "./inline-shared";
 import {
   LazyMacroAwareWidget,
@@ -211,6 +212,7 @@ export class MathWidget extends LazyMacroAwareWidget {
     el.addEventListener(eventType, (event) => {
       if (!isPlainPrimaryMouseEvent(event)) return;
       event.preventDefault();
+      event.stopPropagation();
       view.focus();
 
       const root = findMathRoot(el);
@@ -241,7 +243,11 @@ export class MathWidget extends LazyMacroAwareWidget {
           return;
         }
       }
-      view.dispatch({ selection: { anchor: pos }, scrollIntoView: false });
+      view.dispatch({
+        effects: focusEffect.of(true),
+        selection: { anchor: pos },
+        scrollIntoView: false,
+      });
     });
   }
 

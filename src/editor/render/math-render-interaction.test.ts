@@ -13,6 +13,7 @@ import {
   countWidgets,
   createMathRenderView,
   createMathView,
+  createUnfocusedMathRenderView,
 } from "./math-render-test-utils";
 import { widgetSourceMap } from "./render-core";
 
@@ -350,5 +351,28 @@ describe("focused inline math touch reveal", () => {
 
     expect(view.contentDOM.querySelector(`.${CSS.mathSource}`)).toBeNull();
     expect(view.contentDOM.querySelector(`.${CSS.mathInline}`)).not.toBeNull();
+  });
+
+  it("reveals source when clicking rendered inline math from an unfocused editor", () => {
+    const doc = "text $x^2$ more";
+    view = createUnfocusedMathRenderView(doc, 0);
+
+    const inline = view.contentDOM.querySelector<HTMLElement>(`.${CSS.mathInline}`);
+    expect(inline).not.toBeNull();
+    if (!inline) throw new Error("expected inline math");
+
+    inline.dispatchEvent(new MouseEvent("click", {
+      bubbles: true,
+      cancelable: true,
+      button: 0,
+      clientX: 1,
+      clientY: 1,
+      detail: 1,
+    }));
+
+    expect(view.state.selection.main.head).toBeGreaterThan(doc.indexOf("$x^2$"));
+    expect(view.state.selection.main.head).toBeLessThan(doc.indexOf("$x^2$") + "$x^2$".length);
+    expect(view.contentDOM.querySelector(`.${CSS.mathInline}`)).toBeNull();
+    expect(view.contentDOM.querySelector(`.${CSS.mathSource}`)).not.toBeNull();
   });
 });

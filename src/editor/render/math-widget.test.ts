@@ -5,6 +5,7 @@ import { createMockEditorView } from "../test-utils";
 import { renderInlineMarkdown } from "./inline-render";
 import { renderKatexToHtml } from "./inline-shared";
 import { clearKatexCache, MathWidget, renderKatex } from "./math-widget";
+import { focusEffect } from "./render-core";
 import { widgetSourceMap } from "./render-core";
 
 describe("MathWidget (inline)", () => {
@@ -42,10 +43,12 @@ describe("MathWidget (inline)", () => {
 
     el.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
 
-    expect(dispatch).toHaveBeenCalledWith({
+    expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({
       selection: { anchor: 411 },
       scrollIntoView: false,
-    });
+    }));
+    expect(dispatch.mock.calls[0]?.[0].effects?.is(focusEffect)).toBe(true);
+    expect(dispatch.mock.calls[0]?.[0].effects?.value).toBe(true);
   });
 });
 
@@ -93,10 +96,12 @@ describe("MathWidget (display)", () => {
     content?.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true }));
 
     expect(focus).toHaveBeenCalledTimes(1);
-    expect(dispatch).toHaveBeenCalledWith({
+    expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({
       selection: { anchor: 8 },
       scrollIntoView: false,
-    });
+    }));
+    expect(dispatch.mock.calls[0]?.[0].effects?.is(focusEffect)).toBe(true);
+    expect(dispatch.mock.calls[0]?.[0].effects?.value).toBe(true);
   });
 
   it("stamps shell-surface range attributes for display math", () => {

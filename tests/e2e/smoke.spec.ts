@@ -622,6 +622,21 @@ test("rich editor maps paragraph-flow drag endpoints on rendered math", async ({
   await expect(renderedMath).toHaveClass(/cf-selection-atom-selected/);
 });
 
+test("rich editor reveals inline math source and preview on rendered math click", async ({ page }) => {
+  await page.goto("/examples/simple/index.html?doc=showcase&surface=editor");
+  await expect(page.locator("#editor .cm-editor")).toBeVisible();
+  await settleLayout(page);
+
+  const renderedMath = page.locator("#editor .cf-doc-inline-math").first();
+  await expect(renderedMath).toBeVisible();
+  await renderedMath.click({ position: { x: 12, y: 8 } });
+
+  await expect(page.locator("#editor .cf-math-source", {
+    hasText: "x^2 + y^2 = z^2",
+  })).toBeVisible();
+  await expect(page.locator("#editor .cf-math-preview")).toBeVisible();
+});
+
 test("rich editor extends paragraph-flow drag selection into the next block", async ({ page }) => {
   await page.goto("/tests/e2e/fixtures/index.html");
   await setEditorDoc(page, RICH_DRAG_SELECTION_DOC, "rich");
