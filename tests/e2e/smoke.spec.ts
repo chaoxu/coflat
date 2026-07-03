@@ -1084,6 +1084,10 @@ test("public demo sidebar switches to the format guide", async ({ page }) => {
     "page",
   );
   await expect(page.locator(".cm-content")).toContainText("Coflat Document Format");
+  await expect(page.locator(".cm-content")).toContainText("Paragraphs and Line Breaks");
+  await expect(page.locator(".cm-content")).toContainText(
+    "Do not add manual newlines just to wrap prose in source control",
+  );
   await expect(page.locator(".cm-content")).toContainText("pandoc-crossref");
 
   await page.getByRole("link", { name: "Showcase" }).click();

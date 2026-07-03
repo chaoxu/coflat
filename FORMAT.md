@@ -224,8 +224,8 @@ Backtick-quoted text (`` `...` ``) renders as plain monospace — no background 
 
 A blank line starts a new paragraph.
 
-A single source newline inside a paragraph is a visible soft line break in the
-Coflat reader and editor surfaces:
+A single source newline inside a paragraph is preserved visually by Coflat's
+reader and editor surfaces, but remains a Pandoc soft break for export:
 
 ```markdown
 first visual line
@@ -233,14 +233,17 @@ second visual line
 ```
 
 Do not add manual newlines just to wrap prose in source control. In Coflat those
-newlines affect presentation and can create unintended ragged line breaks.
-Write ordinary prose as one paragraph and let the editor, reader, browser, or
-export target wrap it naturally.
+newlines affect reader/editor presentation and can create unintended ragged line
+breaks. Write ordinary prose as one paragraph and let the editor, reader,
+browser, or export target wrap it naturally. Pandoc, LaTeX, and ordinary HTML
+export treat a soft line break as normal whitespace unless an explicit hard
+break is used.
 
-Use an intentional source newline only when the line break is part of the
-document's meaning. Use a blank line for a new paragraph. Use Markdown's hard
-line break syntax, two trailing spaces before the newline, only when a hard
-break is required by the target format.
+Use an intentional source newline only when the visual break matters in Coflat's
+reader/editor presentation. Use a blank line for a new paragraph. Outside
+tables, use Markdown's hard line break syntax, two trailing spaces before the
+newline, only when the exported target must receive a hard break. For table-cell
+line breaks, use the table-cell rule below.
 
 ## Headings
 
