@@ -220,6 +220,28 @@ article metadata above.
 
 Backtick-quoted text (`` `...` ``) renders as plain monospace — no background or badge. In mathematical writing this corresponds to `\texttt{}` in LaTeX: a font switch, not a code block. The same syntax can mean either "inline code" or "monospace emphasis" depending on context; Coflat does not distinguish between them.
 
+## Paragraphs and Line Breaks
+
+A blank line starts a new paragraph.
+
+A single source newline inside a paragraph is a visible soft line break in the
+Coflat reader and editor surfaces:
+
+```markdown
+first visual line
+second visual line
+```
+
+Do not add manual newlines just to wrap prose in source control. In Coflat those
+newlines affect presentation and can create unintended ragged line breaks.
+Write ordinary prose as one paragraph and let the editor, reader, browser, or
+export target wrap it naturally.
+
+Use an intentional source newline only when the line break is part of the
+document's meaning. Use a blank line for a new paragraph. Use Markdown's hard
+line break syntax, two trailing spaces before the newline, only when a hard
+break is required by the target format.
+
 ## Headings
 
 ATX headings (`#` through `######`). Auto-numbered unless marked unnumbered. Explicit heading IDs are supported via trailing Pandoc attributes and can be cross-referenced.
