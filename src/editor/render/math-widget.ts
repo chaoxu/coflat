@@ -33,6 +33,26 @@ import { findMathRegionAtPos } from "./math-source";
 import { widgetSourceMap } from "./source-widget";
 import { cloneRenderedHTMLElement } from "./widget-core";
 
+// These module-level caches survive editor unmount, so they must be bounded or
+// a long-lived session accumulates a detached KaTeX subtree for every equation
+// of every document ever opened (and one more generation per macro edit, since
+// the cache key embeds the macro signature). The DOM caches hold the expensive
+// entries; cap them with oldest-first eviction. See katexHtmlCache in
+// inline-shared for the sibling string cache.
+const MAX_MATH_DOM_CACHE_ENTRIES = 256;
+
+function setBoundedMathDomCache(
+  cache: Map<string, HTMLElement>,
+  key: string,
+  value: HTMLElement,
+): void {
+  if (cache.size >= MAX_MATH_DOM_CACHE_ENTRIES && !cache.has(key)) {
+    const oldest = cache.keys().next().value;
+    if (oldest !== undefined) cache.delete(oldest);
+  }
+  cache.set(key, value);
+}
+
 const displayMathHeightCache = new Map<string, number>();
 const displayMathDomCache = new Map<string, HTMLElement>();
 const inlineMathDomCache = new Map<string, HTMLElement>();
@@ -55,6 +75,7 @@ export function clearKatexCache(): void {
   clearKatexHtmlCache();
   displayMathDomCache.clear();
   inlineMathDomCache.clear();
+  displayMathHeightCache.clear();
 }
 
 /**
@@ -266,7 +287,7 @@ export class MathWidget extends LazyMacroAwareWidget {
     replaceDisplayMathContent(el, content, this.equationNumber);
     this.syncDisplayLayout(el);
     this.syncDisplayEquationNumber(el);
-    displayMathDomCache.set(this.displayDomCacheKey, cloneRenderedHTMLElement(el));
+    setBoundedMathDomCache(displayMathDomCache, this.displayDomCacheKey, cloneRenderedHTMLElement(el));
     return el;
   }
 
@@ -278,7 +299,7 @@ export class MathWidget extends LazyMacroAwareWidget {
 
     const el = createInlineMathSurfaceElement(document, this.latex);
     renderKatex(el, this.latex, this.isDisplay, this.macros);
-    inlineMathDomCache.set(this.inlineDomCacheKey, cloneRenderedHTMLElement(el));
+    setBoundedMathDomCache(inlineMathDomCache, this.inlineDomCacheKey, cloneRenderedHTMLElement(el));
     return el;
   }
 

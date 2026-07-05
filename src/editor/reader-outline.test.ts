@@ -61,6 +61,25 @@ describe("renderToHtml outline option", () => {
     expect(proofHeading?.html).not.toContain("@thm:fundamental");
   });
 
+  it("does not let a frontmatter YAML {#id} steal a real heading's anchor", () => {
+    // The last frontmatter line, underlined by the closing `---`, parses as a
+    // phantom Setext heading; its `{#intro}` must not reserve the slug so the
+    // real `# Intro` keeps "intro" instead of being suffixed to "intro-1".
+    const src = [
+      "---",
+      "subtitle: see {#intro}",
+      "---",
+      "# Intro",
+      "",
+      "body",
+    ].join("\n");
+    const { html, outline } = renderToHtml(src, undefined, { outline: true });
+    expect(outline).toHaveLength(1);
+    expect(outline?.[0]?.id).toBe("intro");
+    expect(html).toContain('id="intro"');
+    expect(html).not.toContain('id="intro-1"');
+  });
+
   it("emits a matching id on every heading so outline anchors resolve", () => {
     const { html, outline } = renderToHtml(doc, undefined, { outline: true });
     for (const entry of outline ?? []) {

@@ -148,7 +148,11 @@ function handleRequest(req: WorkerRequest): WorkerResponse {
     return { id: req.id, ok: false, error: `Unknown method: ${String(method)}` };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    return { id: req.id, ok: false, error: msg };
+    // `req` may be malformed (e.g. null data). Never let `req.id` throw here,
+    // or the failure escapes handleRequest and surfaces as an uncaught worker
+    // 'error' event that tears down the whole reader.
+    const id = req && typeof req.id === "number" ? req.id : -1;
+    return { id, ok: false, error: msg };
   }
 }
 
@@ -175,16 +179,18 @@ if (isWorkerContext()) {
  * tests substitute an in-memory fake without dragging in the real
  * `Worker` global.
  */
+type WorkerLikeEvent = { data?: unknown; message?: string };
+
 interface WorkerLike {
   postMessage(msg: unknown): void;
   terminate(): void;
   addEventListener(
-    type: "message",
-    listener: (ev: { data: unknown }) => void,
+    type: "message" | "error" | "messageerror",
+    listener: (ev: WorkerLikeEvent) => void,
   ): void;
   removeEventListener?(
-    type: "message",
-    listener: (ev: { data: unknown }) => void,
+    type: "message" | "error" | "messageerror",
+    listener: (ev: WorkerLikeEvent) => void,
   ): void;
 }
 
@@ -221,8 +227,17 @@ export function createWorkerReaderInternal(
     number,
     { resolve: (v: unknown) => void; reject: (e: Error) => void }
   >();
+  // Once the worker dies (failed load, crash, terminate) it never comes back:
+  // reject everything outstanding and fail future requests fast instead of
+  // leaving their promises pending forever.
+  let broken: Error | null = null;
 
-  const onMessage = (ev: { data: unknown }): void => {
+  const failAllPending = (err: Error): void => {
+    for (const entry of pending.values()) entry.reject(err);
+    pending.clear();
+  };
+
+  const onMessage = (ev: WorkerLikeEvent): void => {
     const res = ev.data as WorkerResponse;
     if (!res || typeof res.id !== "number") return;
     const entry = pending.get(res.id);
@@ -231,12 +246,28 @@ export function createWorkerReaderInternal(
     if (res.ok) entry.resolve(res.result);
     else entry.reject(new Error(res.error));
   };
+  // 'error' is fatal: a worker that fails to load or throws at module scope
+  // never recovers. ('messageerror' — a per-message deserialization failure —
+  // is intentionally NOT treated as fatal; it cannot occur with these
+  // JSON-shaped payloads and latching the whole reader on it would be wrong.)
+  const onError = (ev: WorkerLikeEvent): void => {
+    broken ??= new Error(
+      `Worker failed: ${
+        typeof ev?.message === "string" && ev.message
+          ? ev.message
+          : "worker failed to load or crashed"
+      }`,
+    );
+    failAllPending(broken);
+  };
   worker.addEventListener("message", onMessage);
+  worker.addEventListener("error", onError);
 
   function request<T>(
     method: WorkerRequest["method"],
     input: WorkerReaderRenderInput,
   ): Promise<T> {
+    if (broken) return Promise.reject(broken);
     const id = nextId++;
     return new Promise<T>((resolve, reject) => {
       pending.set(id, {
@@ -256,12 +287,12 @@ export function createWorkerReaderInternal(
     },
     terminate() {
       worker.removeEventListener?.("message", onMessage);
+      worker.removeEventListener?.("error", onError);
       worker.terminate();
+      const err = new Error("Worker terminated");
+      broken ??= err;
       // Reject any outstanding requests so callers don't hang.
-      for (const entry of pending.values()) {
-        entry.reject(new Error("Worker terminated"));
-      }
-      pending.clear();
+      failAllPending(err);
     },
   };
 }

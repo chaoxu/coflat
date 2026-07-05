@@ -18,6 +18,12 @@ export {
   imageUrlRemoveEffect,
 } from "../state/image-url";
 
+// Data URLs are the full base64 encoding of each image (often hundreds of KB
+// each) and this map is module-level, so it must be bounded or a long-lived
+// session that previews many images pins them all for the life of the page.
+// Mirrors pdf-preview-cache's canvas cap (#486).
+const MAX_DATA_URL_CACHE_SIZE = 64;
+
 const dataUrlCache = new Map<string, string>();
 const pendingPaths = new Map<string, number>();
 const pathGenerations = new Map<string, number>();
@@ -74,7 +80,16 @@ export async function requestImageDataUrl(
   if (pendingPaths.get(path) === generation) return;
   pendingPaths.set(path, generation);
 
-  safeDispatch(view, { path, entry: { status: "loading" } });
+  // This runs synchronously inside imageRequestPlugin.update()/constructor,
+  // where a direct view.dispatch() is a re-entrant update that throws (and was
+  // being silently swallowed, so the loading state never showed). Defer it out
+  // of the update cycle; the generation guard drops it if the request was
+  // invalidated in the meantime.
+  queueMicrotask(() => {
+    if (isCurrentGeneration(path, generation)) {
+      safeDispatch(view, { path, entry: { status: "loading" } });
+    }
+  });
 
   try {
     const dataUrl = await readImageFileAsDataUrl(path, fs);
@@ -84,6 +99,15 @@ export async function requestImageDataUrl(
       return;
     }
 
+    // Evict the oldest entry when full so the cache stays bounded; reset its
+    // StateField entry so the next decoration pass re-requests on demand.
+    if (dataUrlCache.size >= MAX_DATA_URL_CACHE_SIZE && !dataUrlCache.has(path)) {
+      const oldest = dataUrlCache.keys().next().value;
+      if (oldest !== undefined) {
+        dataUrlCache.delete(oldest);
+        safeRemove(view, oldest);
+      }
+    }
     dataUrlCache.set(path, dataUrl);
     safeDispatch(view, { path, entry: { status: "ready" } });
   } catch (_error) {

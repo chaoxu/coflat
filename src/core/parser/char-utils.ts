@@ -33,20 +33,25 @@ export const TILDE = 126;
 
 // ── Whitespace scanning ─────────────────────────────────────────────
 
-/** Skip space and tab characters starting at `pos`. Returns the new position. */
+// These two helpers scan within a single line of text. @lezer/markdown splits
+// lines on `\n` only, so a CRLF source leaves a trailing `\r` on every
+// `line.text` that reaches the raw-source parsers (reader/Node; the editor is
+// immune because CodeMirror normalizes line separators). A trailing CR is line
+// noise, never content, so it is treated as horizontal whitespace here — this
+// keeps `:::` closers, display-math delimiters, and titles from being corrupted
+// by the CR. LF-only input never contains `\r`, so this is a no-op there.
+
+/** Skip space, tab, and CR characters starting at `pos`. Returns the new position. */
 export function skipSpaceTab(text: string, pos: number): number {
-  while (
-    pos < text.length &&
-    (text.charCodeAt(pos) === SPACE || text.charCodeAt(pos) === TAB)
-  ) {
+  while (pos < text.length && isSpaceTab(text.charCodeAt(pos))) {
     pos++;
   }
   return pos;
 }
 
-/** Test whether a char code is a space or tab. */
+/** Test whether a char code is a space, tab, or carriage return. */
 export function isSpaceTab(ch: number): boolean {
-  return ch === SPACE || ch === TAB;
+  return ch === SPACE || ch === TAB || ch === CR;
 }
 
 /**

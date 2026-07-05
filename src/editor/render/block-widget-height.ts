@@ -10,6 +10,12 @@ export interface BlockWidgetHeightBinding {
 
 const MAX_DETACHED_MEASURE_ATTEMPTS = 8;
 
+// Height caches key on widget content (+ equation number for math), so every
+// content edit or renumber mints a fresh key and the cache would otherwise grow
+// unbounded across an editing session. Cap with oldest-first eviction — a height
+// entry is only a measurement hint, so an evicted widget just re-measures.
+const MAX_BLOCK_WIDGET_HEIGHT_CACHE_ENTRIES = 256;
+
 export function estimatedBlockWidgetHeight(
   cache: ReadonlyMap<string, number>,
   key: string,
@@ -35,6 +41,13 @@ export function cacheBlockWidgetHeight(
     return false;
   }
 
+  if (
+    previous === undefined &&
+    cache.size >= MAX_BLOCK_WIDGET_HEIGHT_CACHE_ENTRIES
+  ) {
+    const oldest = cache.keys().next().value;
+    if (oldest !== undefined) cache.delete(oldest);
+  }
   cache.set(key, normalized);
   return true;
 }

@@ -76,4 +76,19 @@ describe("removeDecorationsInRanges (touch semantics)", () => {
     const next = removeDecorationsInRanges(decorations, [{ from: 5, to: 11 }]);
     expect(rangeBounds(next)).toHaveLength(0);
   });
+
+  it("removes touched decorations and keeps an untouched one between far-apart dirty ranges", () => {
+    // The bounded filter scans only [min-1, max+1]; a decoration inside that
+    // window but touching no dirty range must still survive.
+    const decorations = RangeSet.of([
+      Decoration.mark({ class: "x" }).range(10, 12),
+      Decoration.mark({ class: "x" }).range(500, 502),
+      Decoration.mark({ class: "x" }).range(1000, 1002),
+    ], true);
+    const next = removeDecorationsInRanges(decorations, [
+      { from: 11, to: 11 },
+      { from: 1001, to: 1001 },
+    ]);
+    expect(rangeBounds(next)).toEqual([{ from: 500, to: 502 }]);
+  });
 });

@@ -23,28 +23,32 @@ import {
 // work were truly off-thread).
 // ---------------------------------------------------------------------------
 
+type FakeListener = (ev: { data?: unknown; message?: string }) => void;
+
 interface FakeWorkerHandle {
   worker: {
     postMessage: (msg: unknown) => void;
     terminate: () => void;
     addEventListener: (
-      type: "message",
-      listener: (ev: { data: unknown }) => void,
+      type: "message" | "error" | "messageerror",
+      listener: FakeListener,
     ) => void;
     removeEventListener: (
-      type: "message",
-      listener: (ev: { data: unknown }) => void,
+      type: "message" | "error" | "messageerror",
+      listener: FakeListener,
     ) => void;
   };
   terminated: () => boolean;
+  /** Simulate the browser firing an `error` event on the Worker object. */
+  fireError: (message: string) => void;
 }
 
 function makeFakeWorker(opts?: { delayMs?: number }): FakeWorkerHandle {
-  const listeners = new Set<(ev: { data: unknown }) => void>();
+  const listeners = new Map<string, Set<FakeListener>>();
   let terminated = false;
 
-  const deliver = (data: unknown): void => {
-    for (const l of listeners) l({ data });
+  const deliver = (type: string, ev: { data?: unknown; message?: string }): void => {
+    for (const l of listeners.get(type) ?? []) l(ev);
   };
 
   return {
@@ -73,16 +77,16 @@ function makeFakeWorker(opts?: { delayMs?: number }): FakeWorkerHandle {
                 truncate: req.input.truncate,
                 referencePreviews: req.input.referencePreviews,
               });
-              deliver({ id: req.id, ok: true, result: r });
+              deliver("message", { data: { id: req.id, ok: true, result: r } });
             } else {
               const r = renderToText(req.input.source, undefined, {
                 truncate: req.input.truncate,
               });
-              deliver({ id: req.id, ok: true, result: r });
+              deliver("message", { data: { id: req.id, ok: true, result: r } });
             }
           } catch (err) {
             const message = err instanceof Error ? err.message : String(err);
-            deliver({ id: req.id, ok: false, error: message });
+            deliver("message", { data: { id: req.id, ok: false, error: message } });
           }
         });
       },
@@ -90,14 +94,22 @@ function makeFakeWorker(opts?: { delayMs?: number }): FakeWorkerHandle {
         terminated = true;
         listeners.clear();
       },
-      addEventListener(_type, listener) {
-        listeners.add(listener);
+      addEventListener(type, listener) {
+        let set = listeners.get(type);
+        if (!set) {
+          set = new Set();
+          listeners.set(type, set);
+        }
+        set.add(listener);
       },
-      removeEventListener(_type, listener) {
-        listeners.delete(listener);
+      removeEventListener(type, listener) {
+        listeners.get(type)?.delete(listener);
       },
     },
     terminated: () => terminated,
+    fireError(message: string) {
+      deliver("error", { message });
+    },
   };
 }
 
@@ -120,7 +132,7 @@ describe("createWorkerReader — renderToHtml round-trip", () => {
   it("returns sanitized HTML for a simple paragraph", async () => {
     const { reader } = makeReader();
     const res = await reader.renderToHtml({ source: "**bold** text" });
-    expect(res.html).toContain("<strong>bold</strong>");
+    expect(res.html).toContain('<strong class="cf-bold">bold</strong>');
     expect(res.hasMath).toBe(false);
     reader.terminate();
   });
@@ -191,6 +203,23 @@ describe("createWorkerReader — error handling", () => {
     ).rejects.toThrow();
     reader.terminate();
   });
+
+  it("rejects in-flight requests and fails fast when the worker fires 'error'", async () => {
+    const handle = makeFakeWorker({ delayMs: 50 });
+    const { reader } = makeReader(handle);
+    const pending = reader.renderToHtml({ source: "hello" });
+
+    // Worker crashes / fails to load before any response arrives.
+    handle.fireError("Failed to load worker module");
+    await expect(pending).rejects.toThrow(/Failed to load worker module/);
+
+    // A dead worker never recovers: later requests reject synchronously
+    // rather than hanging forever.
+    await expect(reader.renderToHtml({ source: "again" })).rejects.toThrow(
+      /Worker failed/,
+    );
+    reader.terminate();
+  });
 });
 
 describe("createWorkerReader — lifecycle", () => {
@@ -225,10 +254,16 @@ describe("createWorkerReader — concurrency", () => {
       terminate() {
         listeners.clear();
       },
-      addEventListener(_t: "message", l: (ev: { data: unknown }) => void) {
-        listeners.add(l);
+      addEventListener(
+        type: "message" | "error" | "messageerror",
+        l: (ev: { data?: unknown; message?: string }) => void,
+      ) {
+        if (type === "message") listeners.add(l);
       },
-      removeEventListener(_t: "message", l: (ev: { data: unknown }) => void) {
+      removeEventListener(
+        _type: "message" | "error" | "messageerror",
+        l: (ev: { data?: unknown; message?: string }) => void,
+      ) {
         listeners.delete(l);
       },
     };
@@ -245,8 +280,8 @@ describe("createWorkerReader — concurrency", () => {
     queue[1]();
 
     const [a, b, c] = await Promise.all([pA, pB, pC]);
-    expect(a.html).toContain("<strong>A</strong>");
-    expect(b.html).toContain("<em>B</em>");
+    expect(a.html).toContain('<strong class="cf-bold">A</strong>');
+    expect(b.html).toContain('<em class="cf-italic">B</em>');
     expect(c.html).toBe("C");
 
     reader.terminate();

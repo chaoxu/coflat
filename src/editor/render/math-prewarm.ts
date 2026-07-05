@@ -5,7 +5,8 @@ import { rangesOverlap } from "../lib/range-helpers";
 import type { MathSemantics } from "../semantics/document";
 import { documentAnalysisField } from "../state/document-analysis";
 import { mathMacrosField } from "../state/math-macros";
-import { clearKatexHtmlCache, renderKatexToHtml } from "./inline-shared";
+import { renderKatexToHtml } from "./inline-shared";
+import { clearKatexCache } from "./math-widget";
 import { serializeMacros } from "./source-widget";
 
 function scheduleIdle(callback: (deadline?: IdleDeadline) => void): void {
@@ -138,7 +139,11 @@ export const mathPrewarmPlugin: Extension = ViewPlugin.fromClass(
       this.lastMacrosKey = serializeMacros(macros);
 
       if (clearCache) {
-        clearKatexHtmlCache();
+        // Macros changed: the HTML string cache AND the detached-DOM caches are
+        // keyed by the old macro signature, so clear all of them or stale
+        // generations are stranded (and re-rendered per keystroke while editing
+        // a macro in a document with many equations).
+        clearKatexCache();
       }
 
       if (regions.length === 0) return;

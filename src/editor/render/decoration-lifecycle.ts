@@ -92,7 +92,19 @@ export function removeDecorationsInRanges<T extends DecorationRangeBounds>(
   dirtyRanges: readonly T[],
 ): DecorationSet {
   if (dirtyRanges.length === 0) return decorations;
+  // Bound the scan to the dirty span so CM6 visits only the decorations that
+  // could touch a dirty range instead of the whole set. The ±1 pad preserves
+  // the point-adjacency semantics of rangesTouch (a decoration ending exactly
+  // at range.from, or starting exactly at range.to, still counts as touching).
+  let filterFrom = Infinity;
+  let filterTo = -Infinity;
+  for (const range of dirtyRanges) {
+    if (range.from < filterFrom) filterFrom = range.from;
+    if (range.to > filterTo) filterTo = range.to;
+  }
   return decorations.update({
+    filterFrom: Math.max(0, filterFrom - 1),
+    filterTo: filterTo + 1,
     filter: (from, to) => !dirtyRanges.some((range) =>
       rangesTouch(from, to, range)
     ),

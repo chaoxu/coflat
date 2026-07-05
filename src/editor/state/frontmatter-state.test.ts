@@ -64,6 +64,42 @@ describe("frontmatterField", () => {
     expect(fm2).toBe(fm1);
   });
 
+  it("re-parses when the closing delimiter is at the doc end and text is appended there", () => {
+    // No trailing newline: the closing `---` is the final line, so
+    // value.end === doc.length and an append lands at fromA === value.end.
+    const doc = "---\ntitle: Hello\n---";
+    const state = createState(doc);
+    const fm1 = state.field(frontmatterField);
+    expect(fm1.config.title).toBe("Hello");
+    expect(fm1.end).toBe(doc.length);
+
+    // Typing at the very end turns `---` into `---x`, which is no longer a
+    // closing delimiter, so the frontmatter must be invalidated.
+    const tr = state.update({
+      changes: { from: doc.length, insert: "x" },
+    });
+    const fm2 = tr.state.field(frontmatterField);
+    expect(fm2.end).toBe(-1);
+    expect(fm2.config.title).toBeUndefined();
+  });
+
+  it("does not re-parse a frontmatter-only doc (trailing newline) when a body is appended", () => {
+    // Frontmatter-only with a trailing newline: value.end === doc.length here
+    // too, but unlike the unterminated-closer case an append starts a fresh
+    // body line and must NOT invalidate — so the cached state stays identical.
+    const doc = "---\ntitle: x\n---\n";
+    const state = createState(doc);
+    const fm1 = state.field(frontmatterField);
+    expect(fm1.config.title).toBe("x");
+    expect(fm1.end).toBe(doc.length);
+
+    const tr = state.update({
+      changes: { from: doc.length, insert: "body text" },
+    });
+    const fm2 = tr.state.field(frontmatterField);
+    expect(fm2).toBe(fm1);
+  });
+
   it("re-parses when frontmatter is added to a document without one", () => {
     const state = createState("# Heading\nContent");
     const fm1 = state.field(frontmatterField);

@@ -143,6 +143,21 @@ describe("requestImageDataUrl", () => {
     expect(view.state.field(imageUrlField).get("posts/diagram.png")).toEqual({ status: "ready" });
   });
 
+  it("evicts the oldest data URL once the cache is full", async () => {
+    const fs = createMockFs();
+    const view = createMockView();
+
+    // 65 distinct images into a 64-entry cache: the first one is evicted.
+    for (let i = 0; i <= 64; i++) {
+      await requestImageDataUrl(view, `posts/img${i}.png`, fs);
+    }
+
+    expect(getImageDataUrl("posts/img0.png")).toBeUndefined();
+    expect(getImageDataUrl("posts/img64.png")).toBeDefined();
+    // The evicted path's field entry is reset so it re-requests on next render.
+    expect(view.state.field(imageUrlField).get("posts/img0.png")).toBeUndefined();
+  });
+
   it("marks the entry as error when the path has no image extension", async () => {
     const fs = createMockFs();
     const view = createMockView();

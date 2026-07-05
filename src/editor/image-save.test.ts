@@ -1,5 +1,6 @@
 import type { EditorView } from "@codemirror/view";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { FileSystem } from "../core/lib/file-system-types";
 import {
   altTextFromFilename,
   generateImageFilename,
@@ -9,6 +10,7 @@ import {
   insertImageMarkdown,
   isImageMime,
   logImageError,
+  planImageTarget,
 } from "./image-save";
 import { createTestView } from "./test-utils";
 
@@ -93,6 +95,69 @@ describe("generateImageFilename", () => {
     const file = new File([], "..\\..\\secrets\\diagram.png", { type: "image/png" });
     expect(generateImageFilename(file, "png")).toBe("diagram.png");
   });
+
+  it("forces the MIME extension so a disguised filename cannot write another type", () => {
+    const file = new File([], "evil.html", { type: "image/png" });
+    expect(generateImageFilename(file, "png")).toBe("evil.png");
+  });
+
+  it("keeps a double extension inside the basename but still writes the MIME type", () => {
+    const file = new File([], "report.pdf.svg", { type: "image/png" });
+    expect(generateImageFilename(file, "png")).toBe("report.pdf.png");
+  });
+
+  it("does not write a dotfile from a leading-dot filename", () => {
+    const file = new File([], ".htaccess", { type: "image/png" });
+    expect(generateImageFilename(file, "png")).toMatch(/^image-\d+\.png$/);
+  });
+});
+
+describe("planImageTarget — path traversal", () => {
+  function fsStub(): FileSystem {
+    return {
+      listTree: vi.fn(),
+      readFile: vi.fn(),
+      writeFile: vi.fn(),
+      createFile: vi.fn(),
+      exists: vi.fn().mockResolvedValue(false),
+      renameFile: vi.fn(),
+      createDirectory: vi.fn().mockResolvedValue(undefined),
+      deleteFile: vi.fn(),
+      writeFileBinary: vi.fn(),
+      readFileBinary: vi.fn(),
+      resolveAssetUrl: vi.fn(),
+    };
+  }
+
+  it("refuses a frontmatter image-folder that escapes the project root", async () => {
+    const fs = fsStub();
+    await expect(
+      planImageTarget(fs, "notes/doc.md", "../../../../etc", "x.png"),
+    ).rejects.toThrow(/outside the project root/);
+    expect(fs.createDirectory).not.toHaveBeenCalled();
+  });
+
+  it("refuses an absolute (Windows drive-letter) image-folder with no `..`", async () => {
+    const fs = fsStub();
+    // A root-level doc leaves the drive letter intact after normalization, so
+    // the path escapes root without any `..` segment.
+    await expect(
+      planImageTarget(fs, "doc.md", "C:/Users/victim/evil", "x.png"),
+    ).rejects.toThrow(/outside the project root/);
+    await expect(
+      planImageTarget(fs, "doc.md", "C:\\Users\\victim\\evil", "x.png"),
+    ).rejects.toThrow(/outside the project root/);
+    expect(fs.createDirectory).not.toHaveBeenCalled();
+  });
+
+  it("allows an in-root relative image-folder", async () => {
+    const fs = fsStub();
+    const target = await planImageTarget(fs, "chapters/ch1.md", "../assets", "x.png");
+    // ../assets from chapters/ resolves to assets/ (still in root). Pin the exact
+    // resolved path so a folder-dropping or doc-dir regression is caught, not
+    // just the absence of a literal "..".
+    expect(target.targetPath).toBe("assets/x.png");
+  });
 });
 
 describe("altTextFromFilename", () => {
@@ -154,6 +219,35 @@ describe("insertImageMarkdown", () => {
     expect(view.state.doc.toString()).toBe(
       "some text\n![fig](assets/fig.png)\n",
     );
+  });
+
+  it("neutralizes markdown injection in filename-derived alt text", () => {
+    const view = makeView();
+    insertImageMarkdown(view, "assets/fig.png", "x](javascript:alert(1))");
+    const doc = view.state.doc.toString();
+    // The `]` breakout is gone, so the injected link cannot close the label.
+    expect(doc).not.toContain("![x](javascript:alert(1))](");
+    expect(doc).toContain("(assets/fig.png)");
+  });
+
+  it("neutralizes a carriage-return line-break breakout in alt text", () => {
+    const view = makeView();
+    insertImageMarkdown(view, "assets/fig.png", "x\r\r# Pwned");
+    const doc = view.state.doc.toString();
+    // A bare CR is a CommonMark line ending; it must not survive into the label.
+    expect(doc).not.toContain("\r");
+    expect(doc).toContain("(assets/fig.png)");
+  });
+
+  it("neutralizes a trailing backslash so it cannot escape the closing bracket", () => {
+    const view = makeView();
+    // A label ending in an odd number of backslashes would escape the `]` we
+    // append (`![photo\](url)`), so the parser never closes the label and the
+    // image is emitted as literal text. The backslash must be stripped.
+    insertImageMarkdown(view, "assets/fig.png", "photo\\");
+    const doc = view.state.doc.toString();
+    expect(doc).not.toContain("\\");
+    expect(doc).toBe("![photo](assets/fig.png)\n");
   });
 });
 
