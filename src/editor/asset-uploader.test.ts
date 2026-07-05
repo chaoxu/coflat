@@ -19,7 +19,7 @@ import {
   isUploadedAssetImage,
   uploadedAssetLabel,
 } from "./asset-uploader";
-import { statusEventsFacet } from "./editor-host-api";
+import { requestHandlerFacet, statusEventsFacet } from "./editor-host-api";
 
 interface Deferred<T> {
   promise: Promise<T>;
@@ -248,6 +248,18 @@ describe("uploaded asset Markdown helpers", () => {
         mimeType: "image/png",
       }),
     ).toBe("![my figure](assets/my%20figure(1%29.png)");
+  });
+
+  it("strips a trailing backslash so the label cannot escape its closing bracket", () => {
+    // A filename ending in `\` yields a label ending in `\`, which would escape
+    // the `]` and turn `![foo\](url)` into literal text. The escape must drop it.
+    const md = formatUploadedAssetMarkdown({
+      path: "assets/x.png",
+      name: "foo\\.png",
+      kind: "image",
+    });
+    expect(md).toBe("![foo](assets/x.png)");
+    expect(md).not.toContain("\\");
   });
 
   it("formats non-image uploads as links", () => {
@@ -489,6 +501,10 @@ describe("assetUploaderExtension paste", () => {
       view.dispatch({ changes: { from: 2, to: 2, insert: "broken" } });
     });
 
+    // Cancellation side effects are deferred out of the update cycle to avoid
+    // a re-entrant dispatch, so flush the microtask queue before asserting.
+    await flush();
+
     expect(uploader.cancel).toHaveBeenCalledWith(file);
     expect(events.onAssetUploadFailed).toHaveBeenCalledWith({
       placeholderId,
@@ -500,6 +516,81 @@ describe("assetUploaderExtension paste", () => {
     await flush();
     expect(events.onAssetUploadSucceeded).not.toHaveBeenCalled();
     expect(view.state.doc.toString()).not.toContain("![](assets/a.png)");
+  });
+
+  it("aborts the upload toast signal once the upload settles", async () => {
+    const deferred = defer<{ path: string; alt?: string } | { error: string }>();
+    let toastSignal: AbortSignal | undefined;
+    const parent = document.createElement("div");
+    document.body.appendChild(parent);
+    const view = new EditorView({
+      parent,
+      state: EditorState.create({
+        doc: "hi",
+        selection: { anchor: 0 },
+        extensions: [
+          requestHandlerFacet.of({
+            showUploadToast: async (req) => {
+              toastSignal = req.signal;
+            },
+          }),
+          assetUploaderExtension({ upload: async () => deferred.promise }),
+        ],
+      }),
+    });
+    cleanups.push(() => {
+      view.destroy();
+      parent.remove();
+    });
+
+    firePaste(parent, [makeFile("a.png")]);
+    await flush();
+    expect(toastSignal?.aborted).toBe(false);
+
+    deferred.resolve({ path: "assets/a.png" });
+    await flush();
+    await flush();
+    // The toast's signal must fire so host chrome stops its spinner.
+    expect(toastSignal?.aborted).toBe(true);
+  });
+
+  it("defers the toast-signal abort out of the update cycle when a placeholder is edited", async () => {
+    const deferred = defer<{ path: string; alt?: string } | { error: string }>();
+    let toastSignal: AbortSignal | undefined;
+    const parent = document.createElement("div");
+    document.body.appendChild(parent);
+    const view = new EditorView({
+      parent,
+      state: EditorState.create({
+        doc: "hi",
+        selection: { anchor: 0 },
+        extensions: [
+          requestHandlerFacet.of({
+            showUploadToast: async (req) => {
+              toastSignal = req.signal;
+            },
+          }),
+          assetUploaderExtension({ upload: async () => deferred.promise }),
+        ],
+      }),
+    });
+    cleanups.push(() => {
+      view.destroy();
+      parent.remove();
+    });
+
+    firePaste(parent, [makeFile("a.png")]);
+    await flush();
+    expect(toastSignal?.aborted).toBe(false);
+
+    // Break the placeholder from inside the update cycle. controller.abort()
+    // fires the toast signal's listeners synchronously, so it must be deferred
+    // out of the CM6 update to avoid a re-entrant dispatch: the signal stays
+    // un-aborted until the microtask runs, then flips.
+    view.dispatch({ changes: { from: 2, to: 2, insert: "broken" } });
+    expect(toastSignal?.aborted).toBe(false);
+    await flush();
+    expect(toastSignal?.aborted).toBe(true);
   });
 
   it("rewrites multiple pending placeholders when uploads complete out of order", async () => {

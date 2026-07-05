@@ -311,11 +311,21 @@ function parseSource(source: string): Tree {
 // ---------------------------------------------------------------------------
 
 /**
- * If none of these characters appear, the source contains only plain
- * inline markdown (`*`, `_`, `~`, `\`-escape). No links, no code, no
- * math, no block constructs — a tiny inline-only renderer suffices.
+ * If none of these match, the source is plain inline text with no markup at
+ * all, so a bare HTML-escape reproduces the Lezer path exactly and the fast
+ * path is safe. Anything else falls through to the real parser. The char class
+ * covers inline delimiters — emphasis (`* _ ~`), escapes (`\`), highlight (`=`),
+ * citations (`@`), bullets (`- + *`), links/code/math, headings (`#`),
+ * blockquote/HTML (`< >`) and pipes — plus `\n` (multi-line always parses) and
+ * a literal `-`, which already forces `---` frontmatter, setext underlines and
+ * thematic breaks through the parser. `[ \t]$` bails on trailing horizontal
+ * whitespace, which CommonMark strips from paragraph text. The anchored
+ * alternatives cover the only line-start block constructs whose lead char is
+ * not already a delimiter above: ordered lists (`1.`/`1)`, with or without
+ * trailing content) and leading-indent content. Hand-rolling these semantics
+ * here silently diverged from the canonical render — see the reader parity tests.
  */
-const FAST_PATH_RE = /[$[:`#^<>\n|-]|^---\n/m;
+const FAST_PATH_RE = /[$*_~=@+\\[:`#^<>\n|-]|[ \t]$|^(?:\d{1,9}[.)](?:[ \t]|$)|[ \t])/m;
 
 // ---------------------------------------------------------------------------
 // HTML / text escaping.
@@ -332,11 +342,13 @@ function computeReaderBlockNumbers(
   tree: Tree,
   getSpec: BlockNumberingSpecLookup,
   numbering: NumberingScheme,
+  frontmatterEnd: number,
 ): BlockCounterState {
   const blocks: FencedDivNumberingInfo[] = [];
   tree.iterate({
     enter(node) {
       if (node.name !== NODE.FencedDiv) return;
+      if (node.from < frontmatterEnd) return false;
       const info = fencedDivNumberingInfo(source, node.node);
       if (info) blocks.push(info);
     },
@@ -501,10 +513,10 @@ function addClassToLastHtmlBlock(blocks: BlockResult[], className: string): void
 // ---------------------------------------------------------------------------
 // Fast-path inline renderer.
 //
-// Handles only **bold**, __bold__, *italic*, _italic_, ~~strike~~, and
-// `\`-escapes. No links, no code (the sieve excluded `[`, `` ` ``, `<`).
-// Returns sanitized-safe HTML *fragment* (no outer tags) plus an optional
-// linear `sourceToText` map for the corresponding `renderToText` call.
+// FAST_PATH_RE guarantees the source contains no inline markup, so rendering is
+// a pure HTML-escape with an identity source->text map. Returns a sanitize-safe
+// HTML *fragment* (no outer tags) plus the linear `sourceToText` map for the
+// corresponding `renderToText` call.
 // ---------------------------------------------------------------------------
 
 interface FastInlineResult {
@@ -514,143 +526,9 @@ interface FastInlineResult {
 }
 
 function fastRenderInline(source: string): FastInlineResult {
-  type Part =
-    | { kind: "text"; html: string; text: string; sourceFrom: number; sourceTo: number }
-    | { kind: "tag"; html: string; sourceFrom: number; sourceTo: number };
-
-  type Span = {
-    delim: "**" | "__" | "*" | "_" | "~~";
-    placeholderIdx: number;
-    openFrom: number;
-    openTo: number;
-  };
-
-  const parts: Part[] = [];
-  const stack: Span[] = [];
-
-  function pushTextPart(text: string, from: number, to: number): void {
-    parts.push({
-      kind: "text",
-      html: escapeHtml(text),
-      text,
-      sourceFrom: from,
-      sourceTo: to,
-    });
-  }
-
-  function tagsFor(delim: Span["delim"]): { open: string; close: string } {
-    if (delim === "**" || delim === "__") return { open: "<strong>", close: "</strong>" };
-    if (delim === "*" || delim === "_") return { open: "<em>", close: "</em>" };
-    return { open: "<del>", close: "</del>" };
-  }
-
-  function matchOpenSpan(delim: Span["delim"]): number {
-    for (let i = stack.length - 1; i >= 0; i--) {
-      if (stack[i].delim === delim) return i;
-    }
-    return -1;
-  }
-
-  function closeSpan(delim: Span["delim"], from: number, to: number): void {
-    const idx = matchOpenSpan(delim);
-    if (idx < 0) {
-      pushTextPart(source.slice(from, to), from, to);
-      return;
-    }
-    const span = stack[idx];
-    stack.length = idx;
-
-    const tags = tagsFor(delim);
-    parts[span.placeholderIdx] = {
-      kind: "tag",
-      html: tags.open,
-      sourceFrom: span.openFrom,
-      sourceTo: span.openTo,
-    };
-    parts.push({
-      kind: "tag",
-      html: tags.close,
-      sourceFrom: from,
-      sourceTo: to,
-    });
-  }
-
-  function tryOpenSpan(delim: Span["delim"], from: number, to: number): void {
-    const placeholderIdx = parts.length;
-    pushTextPart(source.slice(from, to), from, to);
-    stack.push({ delim, placeholderIdx, openFrom: from, openTo: to });
-  }
-
-  let i = 0;
-  while (i < source.length) {
-    const c = source[i];
-
-    if (c === "\\" && i + 1 < source.length) {
-      const next = source[i + 1];
-      pushTextPart(next, i, i + 2);
-      i += 2;
-      continue;
-    }
-
-    if ((c === "*" || c === "_") && source[i + 1] === c) {
-      const delim = (c + c) as "**" | "__";
-      const openIdx = matchOpenSpan(delim);
-      if (openIdx >= 0) closeSpan(delim, i, i + 2);
-      else tryOpenSpan(delim, i, i + 2);
-      i += 2;
-      continue;
-    }
-
-    if (c === "~" && source[i + 1] === "~") {
-      const openIdx = matchOpenSpan("~~");
-      if (openIdx >= 0) closeSpan("~~", i, i + 2);
-      else tryOpenSpan("~~", i, i + 2);
-      i += 2;
-      continue;
-    }
-
-    if (c === "*" || c === "_") {
-      const delim = c as "*" | "_";
-      const openIdx = matchOpenSpan(delim);
-      if (openIdx >= 0) closeSpan(delim, i, i + 1);
-      else tryOpenSpan(delim, i, i + 1);
-      i += 1;
-      continue;
-    }
-
-    pushTextPart(c, i, i + 1);
-    i += 1;
-  }
-
-  const htmlOut: string[] = [];
-  const textOut: string[] = [];
-  const s2t = new Uint32Array(source.length + 1);
-  let textPos = 0;
-  for (const part of parts) {
-    if (part.kind === "text") {
-      const srcLen = part.sourceTo - part.sourceFrom;
-      const txtLen = part.text.length;
-      for (let k = 0; k < srcLen; k++) {
-        const t = txtLen === 0 ? textPos : textPos + Math.min(k, txtLen - 1);
-        s2t[part.sourceFrom + k] = t;
-      }
-      htmlOut.push(part.html);
-      textOut.push(part.text);
-      textPos += part.text.length;
-    } else {
-      for (let k = part.sourceFrom; k < part.sourceTo; k++) {
-        s2t[k] = textPos;
-      }
-      htmlOut.push(part.html);
-    }
-  }
-  s2t[source.length] = textPos;
-
-  return {
-    html: htmlOut.join(""),
-    text: textOut.join(""),
-    sourceToText: s2t,
-  };
+  const sourceToText = new Uint32Array(source.length + 1);
+  for (let i = 0; i <= source.length; i++) sourceToText[i] = i;
+  return { html: escapeHtml(source), text: source, sourceToText };
 }
 
 // ---------------------------------------------------------------------------
@@ -1373,11 +1251,16 @@ function renderBlock(ctx: WalkContext, node: SyntaxNode): BlockResult {
 
 /** Reserve every explicit `{#id}` heading id so auto-slugs yield to author-set
  *  anchors (explicit ids win; an auto-slug that would collide gets suffixed). */
-function reserveExplicitHeadingIds(ctx: WalkContext, tree: Tree): void {
+function reserveExplicitHeadingIds(ctx: WalkContext, tree: Tree, frontmatterEnd: number): void {
   const headings: Array<{ id?: string }> = [];
   tree.iterate({
     enter(node) {
       if (!headingLevelFor(node.name)) return;
+      // The last frontmatter YAML line, underlined by the closing `---`, parses
+      // as a Setext heading. Skip anything inside the frontmatter byte range so
+      // a `{#id}` appearing in a YAML value cannot reserve — and thereby steal —
+      // a real heading's anchor id.
+      if (node.from < frontmatterEnd) return false;
       const plan = headingRenderPlan(ctx.source, node.node);
       headings.push({ id: plan.attributes?.id });
       // A heading can't contain another heading — skip its inline subtree.
@@ -1840,6 +1723,7 @@ function walkDocument(
       tree,
       blockNumberingSpec,
       blockNumbering,
+      frontmatterEnd,
     ),
     equationCounter: initialEquationNumberCounter(),
     footnotes: createFootnoteEmissionState(),
@@ -1856,7 +1740,7 @@ function walkDocument(
     sourceAnchorCounts: new Map(),
   };
 
-  if (ctx.collectOutline) reserveExplicitHeadingIds(ctx, tree);
+  if (ctx.collectOutline) reserveExplicitHeadingIds(ctx, tree, frontmatterEnd);
 
   const truncate = opts.truncate;
   const budgetKind: "lines" | "chars" | null = truncate
@@ -2164,8 +2048,10 @@ export function renderToHtml(
     !opts.resolveReferences &&
     !opts.referencePreviews
   ) {
-    const fast = fastRenderInline(source);
-    return { html: sanitize(fast.html), hasMath: false };
+    // Plain single-line text with no markup: a bare HTML-escape is byte-for-byte
+    // the canonical render. Escape directly instead of routing through
+    // fastRenderInline, whose identity source→text map only renderToText needs.
+    return { html: sanitize(escapeHtml(source)), hasMath: false };
   }
 
   const tree = parseSource(source);
@@ -2282,7 +2168,6 @@ function isReaderLocalAssetSrc(src: string): boolean {
 
 const BLOCK_DISCLOSURE_HYDRATED_ATTR = "data-cf-block-disclosure-hydrated";
 const BLOCK_OPEN_ATTR = "data-cf-block-open";
-const SECTION_DISCLOSURE_HYDRATED_ATTR = "data-cf-section-disclosure-hydrated";
 const SECTION_OPEN_ATTR = "data-cf-section-open";
 
 interface DisclosureParts {
@@ -2405,8 +2290,6 @@ function createSectionDisclosureToggle(): HTMLButtonElement {
 }
 
 function hydrateSectionDisclosures(root: HTMLElement): void {
-  if (root.getAttribute(SECTION_DISCLOSURE_HYDRATED_ATTR) === "true") return;
-
   const headings = [
     ...(root.classList.contains(DOCUMENT_SURFACE_CLASS.heading) ? [root] : []),
     ...Array.from(root.querySelectorAll<HTMLElement>(`.${DOCUMENT_SURFACE_CLASS.heading}`)),
@@ -2416,6 +2299,11 @@ function hydrateSectionDisclosures(root: HTMLElement): void {
     const heading = headings[index];
     const level = headingElementLevel(heading);
     if (level === 0) continue;
+    // Guard on the per-heading structure this pass creates rather than a marker
+    // on the host root: the root survives remounts (rich-readonly swaps only
+    // its children), so a root marker would permanently skip disclosures for
+    // every document mounted after the first. This is also idempotent.
+    if (heading.classList.contains(CSS.sectionHeadingCollapsible)) continue;
 
     const body = document.createElement("div");
     body.className = CSS.sectionDisclosureBody;
@@ -2443,8 +2331,6 @@ function hydrateSectionDisclosures(root: HTMLElement): void {
       );
     });
   }
-
-  root.setAttribute(SECTION_DISCLOSURE_HYDRATED_ATTR, "true");
 }
 
 /** Attach reader disclosure behavior for semantic blocks and sections. */
@@ -2525,6 +2411,12 @@ function hydrateReferenceElement(
   }
 }
 
+// Tracks the click handler attached to each hydrated anchor so a re-hydration
+// pass can detach the previous one instead of stacking (or stranding a stale
+// handler when the resolution changes). WeakMap-keyed, so entries drop with the
+// element — no manual cleanup, no leak.
+const linkClickHandlers = new WeakMap<HTMLElement, (e: MouseEvent) => void>();
+
 function hydrateLinkElement(
   el: HTMLAnchorElement,
   ctx: DocumentContext,
@@ -2554,8 +2446,18 @@ function hydrateLinkElement(
   if (resolved.href === undefined && resolved.title !== undefined) {
     el.title = resolved.title;
   }
+  // hydrateReferences is re-runnable: hosts call it again when async resolver
+  // data arrives, and the resolution (href/onClick) can change between passes.
+  // Always detach any handler from a prior pass first — including when the live
+  // resolution has no onClick — so clicks match the current resolution and
+  // listeners never stack or leak a stale handler.
+  const previous = linkClickHandlers.get(el);
+  if (previous) el.removeEventListener("click", previous);
   if (typeof resolved.onClick === "function") {
     el.addEventListener("click", resolved.onClick);
+    linkClickHandlers.set(el, resolved.onClick);
+  } else {
+    linkClickHandlers.delete(el);
   }
 }
 

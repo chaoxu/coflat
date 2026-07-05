@@ -31,7 +31,7 @@ import {
   type RequestHandler,
   requestHandlerFacet,
 } from "./editor-host-api";
-import { escapeMarkdownPath } from "./image-save";
+import { escapeMarkdownLabel, escapeMarkdownPath } from "./image-save";
 
 /* ────────────────────────────────────────────────────────────────────────────
  * Public API
@@ -75,10 +75,6 @@ export function isUploadedAssetImage(
   );
 }
 
-function escapeMarkdownLabel(label: string): string {
-  return label.replace(/[[\]\n]/g, " ").trim();
-}
-
 export function uploadedAssetLabel(name: string | undefined): string {
   const raw = name?.replace(/\.[^.]+$/, "").trim() || "asset";
   return escapeMarkdownLabel(raw) || "asset";
@@ -114,6 +110,8 @@ interface PendingUpload {
   to: number;
   cancelled: boolean;
   resolved: boolean;
+  /** Aborts the host toast's signal once the upload settles or is cancelled. */
+  controller?: AbortController;
 }
 
 interface PerViewState {
@@ -137,11 +135,6 @@ function makePlaceholderId(s: PerViewState): string {
   return `upload-${s.counter}`;
 }
 
-function escapeAlt(alt: string): string {
-  // Square brackets and newlines would break the alt text.
-  return alt.replace(/[[\]\n]/g, " ").trim();
-}
-
 const PLACEHOLDER_ALT = "uploading…";
 
 function placeholderMarkdown(id: string): string {
@@ -149,7 +142,7 @@ function placeholderMarkdown(id: string): string {
 }
 
 function failureMarkdown(id: string, error: string): string {
-  return `![upload failed: ${escapeAlt(error)}](upload-error:${id})`;
+  return `![upload failed: ${escapeMarkdownLabel(error)}](upload-error:${id})`;
 }
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -201,6 +194,7 @@ async function runUpload(
   }
   pending.resolved = true;
   s.pending.delete(pending.placeholderId);
+  pending.controller?.abort();
 
   if (s.destroyed) return;
 
@@ -215,7 +209,7 @@ async function runUpload(
   }
 
   const altRaw = result.alt ?? PLACEHOLDER_ALT;
-  const alt = escapeAlt(altRaw === PLACEHOLDER_ALT ? "" : altRaw);
+  const alt = escapeMarkdownLabel(altRaw === PLACEHOLDER_ALT ? "" : altRaw);
   const replacement = formatUploadedAssetMarkdown({
     path: result.path,
     alt,
@@ -269,6 +263,7 @@ function startUpload(
   // Optional host chrome — fire-and-forget.
   if (handler.showUploadToast) {
     const controller = new AbortController();
+    pending.controller = controller;
     try {
       void handler.showUploadToast({
         placeholderId,
@@ -338,14 +333,29 @@ export function assetUploaderExtension(uploader: AssetUploader): Extension {
             if (current !== placeholderMarkdown(pending.placeholderId)) {
               pending.cancelled = true;
               s.pending.delete(pending.placeholderId);
-              try {
-                uploader.cancel?.(pending.file);
-              } catch {
-                /* host cancel is best-effort */
-              }
-              emitStatusEvent(update.view, "onAssetUploadFailed", {
-                placeholderId: pending.placeholderId,
-                error: "cancelled",
+              // controller.abort(), uploader.cancel and onAssetUploadFailed all
+              // call into host code that may dispatch a transaction (abort fires
+              // the toast signal's listeners synchronously); invoking them here
+              // would be a re-entrant CM6 update. Defer out of the update cycle.
+              const view = update.view;
+              const { file, placeholderId, controller } = pending;
+              queueMicrotask(() => {
+                // Always abort the upload — the entry is already removed from
+                // s.pending, so destroy()'s own cancel loop won't reach it, and
+                // a synchronous destroy after this edit must not leak the
+                // in-flight upload. Only the host event is skipped once torn
+                // down (its UI is gone, and it must not run mid-teardown).
+                controller?.abort();
+                try {
+                  uploader.cancel?.(file);
+                } catch {
+                  /* host cancel is best-effort */
+                }
+                if (s.destroyed) return;
+                emitStatusEvent(view, "onAssetUploadFailed", {
+                  placeholderId,
+                  error: "cancelled",
+                });
               });
             }
           }
@@ -355,6 +365,7 @@ export function assetUploaderExtension(uploader: AssetUploader): Extension {
           for (const pending of s.pending.values()) {
             if (pending.resolved || pending.cancelled) continue;
             pending.cancelled = true;
+            pending.controller?.abort();
             try {
               uploader.cancel?.(pending.file);
             } catch {

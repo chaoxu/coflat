@@ -129,8 +129,21 @@ export const frontmatterField = StateField.define<FrontmatterStateInternal>({
         if (fromA === 0 || startsWithDelimiter) affectsFrontmatter = true;
       });
     } else {
+      // When the closing `---` is the final line with no trailing newline,
+      // value.end === doc.length and edits appended at the end (fromA === end)
+      // extend the closing delimiter line itself, so they must invalidate the
+      // cached config. A frontmatter-only doc that ends in a newline also has
+      // value.end === doc.length, but there an append starts a fresh body line
+      // and must NOT invalidate — so require the char before value.end to not be
+      // a newline to isolate the genuine unterminated-closer case.
+      const closerUnterminated =
+        value.end === tr.startState.doc.length &&
+        (value.end === 0 ||
+          tr.startState.doc.sliceString(value.end - 1, value.end) !== "\n");
       tr.changes.iterChangedRanges((fromA) => {
-        if (fromA < value.end) affectsFrontmatter = true;
+        if (fromA < value.end || (closerUnterminated && fromA === value.end)) {
+          affectsFrontmatter = true;
+        }
       });
     }
 

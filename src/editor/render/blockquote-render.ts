@@ -12,14 +12,18 @@ import {
   EditorView,
 } from "@codemirror/view";
 import type { SyntaxNode, SyntaxNodeRef } from "@lezer/common";
-import { parseFrontmatter } from "../../core/parser";
+import type { FrontmatterConfig } from "../state/frontmatter-state";
+import { frontmatterField } from "../state/frontmatter-state";
 import { mathMacrosField } from "../state/math-macros";
 import { buildDecorations } from "./decoration-core";
 import {
   editorFocusField,
   focusTracker,
 } from "./focus-state";
-import { buildPreviewBlockOptions } from "./hover-preview-block-options";
+import {
+  buildPreviewBlockOptions,
+  getPreviewRenderDependencySignature,
+} from "./hover-preview-block-options";
 import { renderPreviewBlockContentToDom } from "./preview-block-renderer";
 import { RenderWidget } from "./source-widget";
 
@@ -42,14 +46,15 @@ class BlockquoteWidget extends RenderWidget {
 
   constructor(
     private readonly source: string,
-    private readonly fullDocumentSource: string,
+    private readonly config: FrontmatterConfig,
+    private readonly renderKey: string,
   ) {
     super();
   }
 
   override toDOM(view?: EditorView): HTMLElement {
     const host = document.createElement("div");
-    const config = parseFrontmatter(this.fullDocumentSource).config;
+    const config = this.config;
     const options = view
       ? buildPreviewBlockOptions(
         view,
@@ -67,17 +72,24 @@ class BlockquoteWidget extends RenderWidget {
   }
 
   override eq(other: BlockquoteWidget): boolean {
+    // `renderKey` is getPreviewRenderDependencySignature: it captures every
+    // render input this widget's toDOM consumes beyond its own source —
+    // numbering/crossrefs, bibliography, macros and the config identity. Baking
+    // it in (rather than the whole document source) lets an unrelated keystroke
+    // reuse this blockquote's DOM, while a change to any referenced number,
+    // citation or macro still forces a re-render. Mirrors ParagraphFlowWidget.
     return (
       other instanceof BlockquoteWidget &&
       this.source === other.source &&
-      this.fullDocumentSource === other.fullDocumentSource
+      this.renderKey === other.renderKey
     );
   }
 }
 
 function collectBlockquoteDecorations(state: EditorState): DecorationSet {
   const focused = state.field(editorFocusField, false) ?? false;
-  const fullDocumentSource = state.doc.toString();
+  const config = state.field(frontmatterField, false)?.config ?? {};
+  const renderKey = getPreviewRenderDependencySignature(state);
   const items: Range<Decoration>[] = [];
   syntaxTree(state).iterate({
     enter(node: SyntaxNodeRef) {
@@ -88,7 +100,8 @@ function collectBlockquoteDecorations(state: EditorState): DecorationSet {
       }
       const widget = new BlockquoteWidget(
         state.sliceDoc(blockquote.from, blockquote.to),
-        fullDocumentSource,
+        config,
+        renderKey,
       );
       widget.updateSourceRange(blockquote.from, blockquote.to);
       items.push(
@@ -105,6 +118,10 @@ function shouldRebuildBlockquotes(tr: Transaction): boolean {
     tr.docChanged ||
     !tr.startState.selection.eq(tr.state.selection) ||
     tr.startState.field(editorFocusField, false) !== tr.state.field(editorFocusField, false) ||
+    // Numbering/bibliography/macro updates can change the render signature
+    // without a doc change (e.g. async bib data); rebuild so eq is re-consulted.
+    getPreviewRenderDependencySignature(tr.startState) !==
+      getPreviewRenderDependencySignature(tr.state) ||
     (
       syntaxTree(tr.state) !== syntaxTree(tr.startState) &&
       syntaxTreeAvailable(tr.state, tr.state.doc.length)
@@ -131,6 +148,7 @@ const blockquoteField = StateField.define<DecorationSet>({
 export const blockquoteRenderPlugin: Extension = [
   editorFocusField,
   focusTracker,
+  frontmatterField,
   blockquoteField,
 ];
 

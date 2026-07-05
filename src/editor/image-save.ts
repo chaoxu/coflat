@@ -107,9 +107,25 @@ export interface ImageSaveContext {
 export function generateImageFilename(file: File, ext: string): string {
   const sanitizedName = sanitizeImageFilename(file.name);
   if (sanitizedName && sanitizedName !== "image.png" && sanitizedName !== "blob") {
-    return sanitizedName;
+    // Force the on-disk extension to the MIME-validated one and drop any
+    // leading dots, so a crafted `File.name` (e.g. "evil.html", ".htaccess",
+    // "report.pdf.svg") cannot write an arbitrary file type or a server-config
+    // dotfile into the asset directory — only the MIME gate decides the type.
+    const base = sanitizedName.replace(/\.[^.]+$/, "").replace(/^\.+/, "").trim();
+    if (base) return `${base}.${ext}`;
   }
   return `image-${Date.now()}.${ext}`;
+}
+
+/**
+ * True if a project-relative path escapes the project root. Normalization
+ * collapses in-root `../`, so only genuine escapes retain a `..` segment — but
+ * an absolute path (POSIX `/…`, a Windows drive letter `C:/…`, or a UNC `//…`)
+ * escapes with no `..` at all and must be rejected on its own.
+ */
+function pathEscapesProjectRoot(path: string): boolean {
+  if (/^([a-zA-Z]:|[/\\])/.test(path)) return true;
+  return path.split(/[/\\]/).some((segment) => segment === "..");
 }
 
 /**
@@ -143,6 +159,19 @@ export function logImageError(operation: string, err: unknown): void {
  */
 export function escapeMarkdownPath(path: string): string {
   return path.replace(/ /g, "%20").replace(/\)/g, "%29");
+}
+
+/**
+ * Neutralize a string for use inside a markdown `[…]` label or `![…]` alt.
+ *
+ * Square brackets, line breaks (LF or a bare CR), and backslashes are replaced
+ * with a space. The backslash matters for security: a value ending in an odd
+ * number of `\` would escape the closing `]` we append and break out of the
+ * label. This is the single source of truth for label/alt escaping — the asset
+ * uploader routes its labels through here too.
+ */
+export function escapeMarkdownLabel(label: string): string {
+  return label.replace(/[[\]\n\r\\]/g, " ").trim();
 }
 
 /**
@@ -186,6 +215,15 @@ export async function planImageTarget(
   rawFilename: string,
 ): Promise<PlannedImageTarget> {
   const targetDir = resolveMarkdownReferencePathFromDocument(docPath, imageFolder);
+
+  // `imageFolder` is document-controlled (frontmatter `image-folder`); refuse a
+  // value that resolves outside the project root rather than handing a traversal
+  // path to createDirectory/writeFileBinary.
+  if (targetDir && pathEscapesProjectRoot(targetDir)) {
+    throw new Error(
+      `Refusing to write image outside the project root: ${imageFolder}`,
+    );
+  }
 
   if (targetDir) {
     try {
@@ -285,7 +323,11 @@ export function insertImageMarkdown(
   const line = view.state.doc.lineAt(insertFrom);
   const prefix = line.text.trim() === "" && insertFrom === line.from ? "" : "\n";
   const safePath = escapeMarkdownPath(path);
-  const snippet = `${prefix}![${alt}](${safePath})\n`;
+  // Alt text is filename-derived (attacker-influenceable); `]` or a line break
+  // (LF or a bare CR, which CommonMark also treats as a line ending) would
+  // break out of the `![…]` label and inject markdown into the saved document.
+  const safeAlt = escapeMarkdownLabel(alt);
+  const snippet = `${prefix}![${safeAlt}](${safePath})\n`;
   view.dispatch({
     changes: { from: insertFrom, to: insertTo, insert: snippet },
     selection: { anchor: insertFrom + snippet.length },

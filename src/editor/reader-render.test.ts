@@ -16,51 +16,101 @@ beforeEach(() => {
   resetLezerInvocationCount();
 });
 
-describe("renderToHtml — fast path (plain inline markdown)", () => {
+describe("renderToHtml — fast path (plain text only)", () => {
   it("renders plain text", () => {
     const r = renderToHtml("plain text");
     expect(r.html).toBe("plain text");
     expect(r.hasMath).toBe(false);
   });
 
-  it("renders **bold**", () => {
-    expect(renderToHtml("**bold**").html).toBe("<strong>bold</strong>");
-  });
-
-  it("renders __bold__", () => {
-    expect(renderToHtml("__bold__").html).toBe("<strong>bold</strong>");
-  });
-
-  it("renders *italic*", () => {
-    expect(renderToHtml("*italic*").html).toBe("<em>italic</em>");
-  });
-
-  it("renders _italic_", () => {
-    expect(renderToHtml("_italic_").html).toBe("<em>italic</em>");
-  });
-
-  it("renders ~~strike~~", () => {
-    expect(renderToHtml("~~strike~~").html).toBe("<del>strike</del>");
-  });
-
-  it("renders mixed bold and italic", () => {
-    const r = renderToHtml("a *b* c **d** e");
-    expect(r.html).toBe("a <em>b</em> c <strong>d</strong> e");
-  });
-
-  it("escapes ampersands and angle brackets in plain runs", () => {
-    // `<` triggers the slow path, but `&` and `>` alone do not.
-    const r = renderToHtml("a & b > c");
-    expect(r.html).toContain("&amp;");
-    expect(r.html).toContain("&gt;");
-  });
-
-  it("does NOT invoke Lezer for plain-inline inputs", () => {
+  it("escapes ampersands in plain runs without invoking Lezer", () => {
     resetLezerInvocationCount();
-    renderToHtml("**bold** and *italic*");
-    renderToHtml("plain text");
-    renderToHtml("a ~~strike~~ b");
+    const r = renderToHtml("a & b");
+    expect(r.html).toBe("a &amp; b");
     expect(getLezerInvocationCount()).toBe(0);
+  });
+
+  it("does NOT invoke Lezer for pure plain-text inputs", () => {
+    resetLezerInvocationCount();
+    renderToHtml("just some words");
+    renderToHtml("plain text");
+    expect(getLezerInvocationCount()).toBe(0);
+  });
+
+  it("falls through to the real parser for any inline delimiter", () => {
+    // The hand-rolled fast path only ever sees plain text now; anything that
+    // could carry markup semantics (emphasis, escape, highlight, citation)
+    // must go to Lezer so the output matches the canonical render.
+    for (const s of ["**bold**", "a_b", "x~y", "==hi==", "see @doe2020", "50\\% off"]) {
+      resetLezerInvocationCount();
+      renderToHtml(s);
+      expect(getLezerInvocationCount(), s).toBeGreaterThan(0);
+    }
+  });
+
+  it("routes single-line block constructs to the real parser, not literal text", () => {
+    // `+` bullets, ordered-list markers and leading indent are block constructs
+    // the fast path would otherwise emit as raw markdown.
+    expect(renderToHtml("+ item").html).toContain('class="cf-doc-list');
+    expect(renderToHtml("1. item").html).toContain('class="cf-doc-list');
+    expect(renderToHtml("2) foo").html).toContain('start="2"');
+    // A bare ordered-list marker (no trailing content) is still a list.
+    expect(renderToHtml("1.").html).toContain('class="cf-doc-list');
+    expect(renderToHtml("1)").html).toContain('class="cf-doc-list');
+    // Indented content is stripped by the parser, not kept verbatim.
+    expect(renderToHtml("    code").html).toBe("code");
+  });
+
+  it("keeps fast/slow parity for trailing whitespace (CommonMark strips it)", () => {
+    // A plain line ending in space/tab must NOT take the fast path, or it would
+    // preserve the trailing whitespace the canonical parser strips.
+    for (const s of ["hello   ", "hello\t", "a b\t\t", "word "]) {
+      const fast = renderToHtml(s).html;
+      const slow = renderToHtml(s, undefined, { resolveReferences: true }).html;
+      expect(fast, JSON.stringify(s)).toBe(slow);
+    }
+    // Genuine plain text without a trailing space is unaffected (fast == slow).
+    expect(renderToHtml("hello").html).toBe("hello");
+    expect(renderToHtml("3.5 mm").html).toBe("3.5 mm");
+  });
+});
+
+describe("renderToHtml — inline marks render canonically", () => {
+  it("renders bold/italic/strike/highlight with canonical classes", () => {
+    // Formerly the fast path emitted unclassed <strong>/<em>/<del> and dropped
+    // ==highlight== entirely, diverging from every other coflat render surface.
+    expect(renderToHtml("**bold**").html).toBe('<strong class="cf-bold">bold</strong>');
+    expect(renderToHtml("__bold__").html).toBe('<strong class="cf-bold">bold</strong>');
+    expect(renderToHtml("*italic*").html).toBe('<em class="cf-italic">italic</em>');
+    expect(renderToHtml("_italic_").html).toBe('<em class="cf-italic">italic</em>');
+    expect(renderToHtml("~~strike~~").html).toBe('<del class="cf-strikethrough">strike</del>');
+    expect(renderToHtml("==hi==").html).toBe('<mark class="cf-highlight">hi</mark>');
+  });
+
+  it("does not invent emphasis inside snake_case identifiers", () => {
+    expect(renderToHtml("snake_case_name").html).toBe("snake_case_name");
+  });
+
+  it("applies backslash escapes via the real parser", () => {
+    expect(renderToHtml("50\\% done").html).toBe("50% done");
+  });
+
+  it("fast (plain-text) and Lezer paths agree byte-for-byte", () => {
+    // resolveReferences forces the Lezer path even for target-free plain text;
+    // the two renders must be identical or the fast path is unsound.
+    const corpus = [
+      "hello world",
+      "a & b",
+      "one two three",
+      "café résumé",
+      "tabs\tand spaces",
+      "digits 123 456",
+    ];
+    for (const s of corpus) {
+      const fast = renderToHtml(s).html;
+      const slow = renderToHtml(s, undefined, { resolveReferences: true }).html;
+      expect(slow, s).toBe(fast);
+    }
   });
 });
 
@@ -495,22 +545,17 @@ describe("renderToText", () => {
   });
 
   it("emits sourceToText for the fast path", () => {
-    const r = renderToText("**bold**");
+    // Plain text stays on the fast path (fastRenderInline), which is the only
+    // producer of a linear sourceToText map.
+    const r = renderToText("bold text");
     expect(r.sourceToText).toBeDefined();
-    // Source: '**bold**' (8 chars). Text: 'bold' (4 chars).
-    // Source index 2 ('b') → text index 2 (after the '**' literals
-    // tentatively counted; the spans collapse on close — we accept that
-    // the implementation maps to the *tentative* text position).
     const { sourceToText: map } = r;
     if (!map) throw new Error("expected sourceToText map");
-    // The map should at least be monotonic.
+    // Plain text is 1:1, so the map is the identity and strictly monotonic.
     for (let i = 1; i < map.length; i++) {
       expect(map[i]).toBeGreaterThanOrEqual(map[i - 1]);
     }
-    // Final sentinel matches text length (after collapsing the wrappers).
-    // Tentative spans were committed before close, so the final text
-    // length recorded equals 8 (the tentative literal length). Accept
-    // monotonicity as the load-bearing contract for v1.
+    expect(map[map.length - 1]).toBe("bold text".length);
   });
 
   it("omits sourceToText for the slow path", () => {
@@ -1062,6 +1107,91 @@ describe("renderToHtml — block-level rendering ()", () => {
     expect(link?.getAttribute("data-cf-link-layout")).toBe("flow");
   });
 
+  it("does not stack link click handlers across repeated hydration", () => {
+    const root = document.createElement("div");
+    const source = "See [docs](./docs.md).";
+    root.innerHTML = renderToHtml(source, undefined, { sourcePositions: true }).html;
+
+    let clicks = 0;
+    const ctx = {
+      linkResolver: {
+        resolve: (href: string) => ({
+          href: `https://example.com/${href}`,
+          onClick: () => {
+            clicks += 1;
+          },
+        }),
+      },
+    };
+
+    // Hosts re-run hydrateReferences when async resolver data arrives; the
+    // click listener must be attached at most once per anchor.
+    hydrateReferences(root, ctx, { documentPath: "paper.md", source });
+    hydrateReferences(root, ctx, { documentPath: "paper.md", source });
+    hydrateReferences(root, ctx, { documentPath: "paper.md", source });
+
+    root.querySelector("a")?.dispatchEvent(new MouseEvent("click"));
+    expect(clicks).toBe(1);
+  });
+
+  it("binds the latest link click handler when a later pass resolves a new one", () => {
+    const root = document.createElement("div");
+    const source = "See [docs](./docs.md).";
+    root.innerHTML = renderToHtml(source, undefined, { sourcePositions: true }).html;
+
+    const fired: string[] = [];
+    const ctxWith = (label: string) => ({
+      linkResolver: {
+        resolve: (href: string) => ({
+          href: `https://example.com/${href}`,
+          onClick: () => {
+            fired.push(label);
+          },
+        }),
+      },
+    });
+
+    // First pass binds a "stale" handler; a later pass (e.g. async resolver
+    // data arriving) resolves a different handler. The click must fire the
+    // latest one, not the one bound on the first pass.
+    hydrateReferences(root, ctxWith("stale"), { documentPath: "paper.md", source });
+    hydrateReferences(root, ctxWith("fresh"), { documentPath: "paper.md", source });
+
+    root.querySelector("a")?.dispatchEvent(new MouseEvent("click"));
+    expect(fired).toEqual(["fresh"]);
+  });
+
+  it("drops a stale link handler when a later pass resolves without onClick", () => {
+    const root = document.createElement("div");
+    const source = "See [docs](./docs.md).";
+    root.innerHTML = renderToHtml(source, undefined, { sourcePositions: true }).html;
+
+    let clicks = 0;
+    const withClick = {
+      linkResolver: {
+        resolve: (href: string) => ({
+          href: `https://example.com/${href}`,
+          onClick: () => {
+            clicks += 1;
+          },
+        }),
+      },
+    };
+    const withoutClick = {
+      linkResolver: {
+        resolve: (href: string) => ({ href: `https://example.com/${href}` }),
+      },
+    };
+
+    // First pass attaches a handler; a later pass resolves the same anchor
+    // without an onClick. The stale handler must be detached, not left bound.
+    hydrateReferences(root, withClick, { documentPath: "paper.md", source });
+    hydrateReferences(root, withoutClick, { documentPath: "paper.md", source });
+
+    root.querySelector("a")?.dispatchEvent(new MouseEvent("click"));
+    expect(clicks).toBe(0);
+  });
+
   it("emits data-source-line when sourceLineAttribution is enabled", () => {
     const src = "# top\n\nfirst paragraph\n\n## h2\n\nsecond";
     const r = renderToHtml(src, undefined, { sourceLineAttribution: true });
@@ -1085,7 +1215,7 @@ describe("renderToHtml — block-level rendering ()", () => {
 
   it("keeps bare-inline shape for single-paragraph (no <p>)", () => {
     const r = renderToHtml("hello *world*");
-    expect(r.html).toBe("hello <em>world</em>");
+    expect(r.html).toBe('hello <em class="cf-italic">world</em>');
   });
 });
 

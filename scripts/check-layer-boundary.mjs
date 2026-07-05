@@ -17,6 +17,7 @@
 
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 
 const ROOT = new URL("../", import.meta.url).pathname;
 const SRC = join(ROOT, "src");
@@ -43,6 +44,11 @@ const FORBIDDEN_BY_LAYER = {
 };
 
 const IMPORT_RE = /^\s*import\s+(?:type\s+)?(?:[\s\S]*?from\s+)?["']([^"']+)["']/gm;
+// Re-exports (`export … from "spec"`) create a real dependency edge but were
+// invisible to IMPORT_RE — the exact syntax core/ barrels use. Requiring the
+// `from` clause keeps `export const x = "…"` from matching.
+const EXPORT_FROM_RE =
+  /^\s*export\s+(?:type\s+)?(?:\*(?:\s+as\s+[\w$]+)?|\{[\s\S]*?\})\s+from\s+["']([^"']+)["']/gm;
 const DYNAMIC_RE = /\bimport\s*\(\s*["']([^"']+)["']\s*\)/g;
 
 function walk(dir) {
@@ -76,13 +82,13 @@ function resolveRelativeRoot(fromFile, spec) {
   return root || "."; // "." for imports that land at src/ itself
 }
 
-function checkFile(absPath, layer) {
-  const src = readFileSync(absPath, "utf8");
+export function checkSource(src, layer, absPath = "<memory>") {
   const violations = [];
   const rules = FORBIDDEN_BY_LAYER[layer];
 
   const staticImports = [];
   for (const m of src.matchAll(IMPORT_RE)) staticImports.push(m[1]);
+  for (const m of src.matchAll(EXPORT_FROM_RE)) staticImports.push(m[1]);
 
   const dynamicImports = [];
   for (const m of src.matchAll(DYNAMIC_RE)) dynamicImports.push(m[1]);
@@ -135,20 +141,33 @@ function checkFile(absPath, layer) {
   return violations;
 }
 
-let bad = 0;
-for (const file of walk(SRC)) {
-  const layer = layerOf(file);
-  const violations = checkFile(file, layer);
-  if (violations.length > 0) {
-    bad++;
-    const rel = relative(ROOT, file);
-    console.error(`${rel} [${layer}]`);
-    for (const v of violations) console.error(`  ${v}`);
-  }
+function checkFile(absPath, layer) {
+  return checkSource(readFileSync(absPath, "utf8"), layer, absPath);
 }
 
-if (bad > 0) {
-  console.error(`\n${bad} file(s) violate the layer-boundary rule. See README.md "Package architecture" for the rule.`);
-  process.exit(1);
+function run() {
+  let bad = 0;
+  for (const file of walk(SRC)) {
+    const layer = layerOf(file);
+    const violations = checkFile(file, layer);
+    if (violations.length > 0) {
+      bad++;
+      const rel = relative(ROOT, file);
+      console.error(`${rel} [${layer}]`);
+      for (const v of violations) console.error(`  ${v}`);
+    }
+  }
+
+  if (bad > 0) {
+    console.error(`\n${bad} file(s) violate the layer-boundary rule. See README.md "Package architecture" for the rule.`);
+    process.exit(1);
+  }
+  console.log("Layer boundary clean.");
 }
-console.log("Layer boundary clean.");
+
+// Run when invoked directly, but stay importable for the unit test. Compares
+// the entry path rather than `import.meta.main`, which is undefined before
+// Node 24.2 and would silently turn this lint gate into a no-op there.
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  run();
+}

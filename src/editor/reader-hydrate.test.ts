@@ -484,6 +484,24 @@ describe("hydrateReaderDisclosures", () => {
     expect(root.querySelectorAll(".cf-section-disclosure-toggle")).toHaveLength(1);
   });
 
+  it("re-hydrates section disclosures after the root's content is replaced", () => {
+    const first = renderToHtml("# Alpha\n\nalpha body");
+    const root = makeRoot(first.html);
+    hydrateReaderDisclosures(root);
+    expect(root.querySelectorAll(".cf-section-disclosure-toggle")).toHaveLength(1);
+
+    // Simulate rich-readonly remounting a new document into the same root: it
+    // swaps the children but leaves attributes on root itself untouched.
+    root.innerHTML = renderToHtml("# Beta\n\nbeta body").html;
+    hydrateReaderDisclosures(root);
+
+    // The fresh content must get its own toggle, not be skipped by a stale
+    // root-level hydration marker.
+    expect(root.querySelectorAll(".cf-section-disclosure-toggle")).toHaveLength(1);
+    const heading = root.querySelector<HTMLElement>(".cf-doc-section-heading-collapsible");
+    expect(heading?.textContent).toContain("Beta");
+  });
+
   it("keeps the block disclosure hydrator as a compatibility alias", () => {
     const { html } = renderToHtml("# Intro\n\nbody");
     const root = makeRoot(html);

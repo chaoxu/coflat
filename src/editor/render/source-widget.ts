@@ -44,6 +44,8 @@ export function serializeMacros(macros: Record<string, string>): string {
  */
 export const widgetSourceMap = new WeakMap<HTMLElement, RenderWidget>();
 const widgetSearchHighlightTargets = new WeakMap<EditorView, Set<HTMLElement>>();
+const widgetHighlightRegisterCounts = new WeakMap<EditorView, number>();
+const widgetHighlightSweepScheduled = new WeakSet<EditorView>();
 
 export interface WidgetSourceRange {
   readonly from: number;
@@ -171,16 +173,64 @@ function resolveSourceRevealTargetFromPointer(
     : fallbackPos;
 }
 
+// The highlight-target set is only pruned while search is active (see
+// syncRegisteredWidgetSearchHighlights). Without a sweep here, a session that
+// never opens the search panel would retain the detached DOM subtree of every
+// widget instance ever rendered (full KaTeX/table trees), since scrolling and
+// document swaps recreate widgets without ever unregistering the old ones.
+// Sweep disconnected entries once the set grows past this threshold so it stays
+// bounded by the live widget count.
+const WIDGET_HIGHLIGHT_TARGET_SWEEP_THRESHOLD = 256;
+
+// Drop entries whose element is no longer in the view's DOM. Must run OUTSIDE a
+// CM6 build burst: during the build every new widget's toDOM has run but its
+// element is still detached, so an inline connectivity check would wrongly prune
+// same-burst siblings that are about to be attached. Deferring to a microtask
+// lets the burst finish attaching first, making `isConnected` accurate.
+function sweepDisconnectedHighlightTargets(view: EditorView): void {
+  widgetHighlightSweepScheduled.delete(view);
+  const targets = widgetSearchHighlightTargets.get(view);
+  if (!targets) return;
+  for (const existing of targets) {
+    if (!existing.isConnected || !view.dom.contains(existing)) {
+      targets.delete(existing);
+    }
+  }
+}
+
 export function registerWidgetSearchHighlightTarget(
   view: EditorView,
   el: HTMLElement,
 ): void {
-  const targets = widgetSearchHighlightTargets.get(view);
-  if (targets) {
-    targets.add(el);
-    return;
+  let targets = widgetSearchHighlightTargets.get(view);
+  if (!targets) {
+    targets = new Set();
+    widgetSearchHighlightTargets.set(view, targets);
   }
-  widgetSearchHighlightTargets.set(view, new Set([el]));
+  targets.add(el);
+  // Sweep disconnected entries once every N registrations rather than on every
+  // call: a document with more live widgets than the threshold would otherwise
+  // re-scan the whole set on each register, making a render pass O(n²). The
+  // counter amortizes the sweep to O(1) per registration; the sweep itself is
+  // deferred to a microtask (guarded so at most one is queued) so it sees the
+  // post-burst connected state and never prunes not-yet-attached widgets.
+  const count = (widgetHighlightRegisterCounts.get(view) ?? 0) + 1;
+  if (count >= WIDGET_HIGHLIGHT_TARGET_SWEEP_THRESHOLD) {
+    widgetHighlightRegisterCounts.set(view, 0);
+    if (!widgetHighlightSweepScheduled.has(view)) {
+      widgetHighlightSweepScheduled.add(view);
+      queueMicrotask(() => sweepDisconnectedHighlightTargets(view));
+    }
+  } else {
+    widgetHighlightRegisterCounts.set(view, count);
+  }
+}
+
+/** @internal Test seam: inspect the registered highlight-target set for a view. */
+export function _widgetSearchHighlightTargetsForTest(
+  view: EditorView,
+): ReadonlySet<HTMLElement> | undefined {
+  return widgetSearchHighlightTargets.get(view);
 }
 
 export function syncWidgetSearchHighlightClasses(
