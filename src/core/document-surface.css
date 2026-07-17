@@ -1114,12 +1114,19 @@ div.cf-image-wrapper:not(.cf-image-loading):not(.cf-image-placeholder) {
   max-height: 400px;
 }
 
-.cf-doc-block--figure.cf-image-wrapper:not(.cf-image-loading):not(.cf-image-placeholder),
 .cf-doc-block--figure .cf-image-wrapper:not(.cf-image-loading):not(.cf-image-placeholder) {
   display: block;
   width: fit-content;
   max-width: 100%;
   margin: 0 auto;
+}
+
+/* Compound form: the CM6 block image widget carries the figure container
+ * class on the wrapper itself. That wrapper stands in for the reader's
+ * full-width paragraph, so it stays full-width for block-geometry parity;
+ * the image inside is centered by the `.cf-doc-block--figure img` rule. */
+.cf-doc-block--figure.cf-image-wrapper:not(.cf-image-loading):not(.cf-image-placeholder) {
+  display: block;
 }
 
 .cf-doc-block--figure.cf-image-loading,
@@ -1141,7 +1148,8 @@ div.cf-image-wrapper:not(.cf-image-loading):not(.cf-image-placeholder) {
   vertical-align: middle;
 }
 
-.cf-doc-block--figure img {
+.cf-doc-block--figure img,
+.cf-doc-block--figure canvas {
   display: block;
   margin-inline: auto;
   max-width: 100%;

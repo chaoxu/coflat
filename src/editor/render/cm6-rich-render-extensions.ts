@@ -5,6 +5,7 @@ import { codeBlockRenderPlugin, codeBlockStructureField } from "./code-block-ren
 import { containerAttributesPlugin } from "./container-attributes";
 import { endMatterRenderPlugin } from "./end-matter-render";
 import { fenceGuidePlugin } from "./fence-guide";
+import { fencedDivBlockWrapper } from "./fenced-div-block-wrapper";
 import { frontmatterDecoration } from "./frontmatter-render";
 import { documentPropertiesPanel } from "./document-properties-panel";
 import { hoverPreviewExtension } from "./hover-preview";
@@ -39,6 +40,7 @@ export const cm6RichRenderExtensions: Extension[] = [
   paragraphFlowRenderPlugin,
   codeBlockRenderPlugin,
   containerAttributesPlugin,
+  fencedDivBlockWrapper,
   richClipboardOutputFilter,
   tableRenderPlugin,
   checkboxRenderPlugin,

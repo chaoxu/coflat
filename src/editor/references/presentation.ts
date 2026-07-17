@@ -1,6 +1,7 @@
 import { type EditorState, StateField, type Transaction } from "@codemirror/state";
 import type { CslJsonItem } from "../../core/citations/csl-json";
 import type {
+  CitationCiteExtras,
   CitationFormatter,
   DocumentContext,
   LinkResolver,
@@ -87,6 +88,7 @@ interface ReferencePresentationControllerOptions {
   readonly cite?: (
     ids: readonly string[],
     locators: readonly (string | undefined)[],
+    extras?: readonly (CitationCiteExtras | undefined)[],
   ) => string;
   readonly citeNarrative?: (id: string) => string;
   readonly getCitationPreview?: (id: string) => string | undefined;
@@ -250,8 +252,8 @@ function createReferencePresentationController(
       });
     },
 
-    cite(ids, locators) {
-      return cite(ids, locators);
+    cite(ids, locators, extras) {
+      return cite(ids, locators, extras);
     },
 
     citeNarrative(id) {
@@ -344,7 +346,7 @@ export function createEditorReferencePresentationController(
       documentContext,
       documentPath,
       equationLabels: options.equationLabels,
-      cite: (ids, locators) => formatter?.cite([...ids], [...locators]) ?? "",
+      cite: (ids, locators, extras) => formatter?.cite([...ids], [...locators], extras) ?? "",
       citeNarrative: (id) => formatter?.citeNarrative(id) ?? id,
       surface: options.surface ?? "editor",
       registerCitations: (references) => {
@@ -416,8 +418,8 @@ export function createPreviewReferencePresentationController(
     documentContext: options.documentContext,
     documentPath: options.documentPath,
     surface: options.surface ?? "editor-widget",
-    cite: (ids, locators) => {
-      const rendered = formatter?.cite([...ids], [...locators]);
+    cite: (ids, locators, extras) => {
+      const rendered = formatter?.cite([...ids], [...locators], extras);
       if (rendered) return rendered;
       return `(${ids.map((id, index) => locators[index] ? `${id}, ${locators[index]}` : id).join("; ")})`;
     },

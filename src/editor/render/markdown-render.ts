@@ -1,5 +1,6 @@
-import { ensureSyntaxTree, syntaxTree } from "@codemirror/language";
+import { syntaxTree } from "@codemirror/language";
 import {
+  type EditorSelection,
   type EditorState,
   type Extension,
   type Range,
@@ -9,17 +10,24 @@ import {
 } from "@codemirror/state";
 import {
   Decoration,
+  type DecorationSet,
   EditorView,
   ViewPlugin,
   type ViewUpdate,
 } from "@codemirror/view";
 import type { SyntaxNodeRef, Tree } from "@lezer/common";
 import { CSS } from "../../core/constants/css-classes";
+import { measureSync } from "../lib/perf";
 import { containsRange } from "../lib/range-helpers";
+import { computeAnalyzableFrontier } from "../semantics/incremental/engine";
 import {
   buildDecorations,
+  decorationHidden,
 } from "./decoration-core";
-import { createLifecycleDecorationStateField } from "./decoration-field";
+import {
+  hasProgrammaticDocumentRewrite,
+  removeDecorationsInRanges,
+} from "./decoration-lifecycle";
 import {
   editorFocusField,
   focusTracker,
@@ -35,26 +43,43 @@ import {
   MARKDOWN_HANDLERS,
   type MarkdownHandlerContext,
 } from "./markdown-render-handlers";
+import { createCursorSensitiveViewPlugin } from "./view-plugin-factories";
 import {
   mergeRanges,
   normalizeDirtyRange,
   type VisibleRange,
 } from "./viewport-diff";
 
-const MARKDOWN_LAYOUT_PARSE_TIMEOUT_MS = 1000;
 const MARKDOWN_REVEAL_FREEZE_TAIL_MS = 100;
 
 const setMarkdownRevealFrozen = StateEffect.define<boolean>();
 
-const markdownRevealFrozenField = StateField.define<boolean>({
-  create: () => false,
-  update(frozen, tr) {
+/**
+ * Pre-drag reveal context for the pointer freeze: while frozen, holds the
+ * selection captured when the freeze started (mapped through doc changes);
+ * null while unfrozen. Reveal decisions for ranges collected mid-drag (e.g.
+ * content scrolled in during an auto-scroll drag) use this snapshot instead of
+ * the live drag selection so they match the frozen decorations — parity with
+ * the old whole-document field, which left everything untouched while frozen.
+ */
+const markdownRevealFrozenField = StateField.define<EditorSelection | null>({
+  create: () => null,
+  update(frozenSelection, tr) {
     for (const effect of tr.effects) {
-      if (effect.is(setMarkdownRevealFrozen)) return effect.value;
+      if (effect.is(setMarkdownRevealFrozen)) {
+        return effect.value ? tr.startState.selection.map(tr.changes) : null;
+      }
     }
-    return frozen;
+    return frozenSelection && tr.docChanged
+      ? frozenSelection.map(tr.changes)
+      : frozenSelection;
   },
 });
+
+/** Selection to use for reveal decisions: frozen snapshot while a pointer freeze is active. */
+function markdownRevealSelection(state: EditorState): EditorSelection {
+  return state.field(markdownRevealFrozenField, false) ?? state.selection;
+}
 
 function transactionUnfreezesMarkdownReveal(tr: Transaction): boolean {
   return tr.effects.some((effect) =>
@@ -129,14 +154,6 @@ const markdownRevealFreezePlugin: Extension = ViewPlugin.fromClass(class {
   }
 });
 
-function markdownLayoutTree(state: EditorState): Tree {
-  return ensureSyntaxTree(
-    state,
-    state.doc.length,
-    MARKDOWN_LAYOUT_PARSE_TIMEOUT_MS,
-  ) ?? syntaxTree(state);
-}
-
 function uniqueNodeKey(node: SyntaxNodeRef): string {
   return `${node.name}:${node.from}:${node.to}`;
 }
@@ -188,7 +205,9 @@ function collectMarkdownDirtyRangesInState(
   rangeTo: number,
   pushRange: (from: number, to: number) => void,
 ): void {
-  const tree = markdownLayoutTree(state);
+  // Plain syntaxTree: interactive paths must never force a whole-document
+  // parse; the viewport plugin re-renders on tree progress instead.
+  const tree = syntaxTree(state);
   const seenRanges = new Set<string>();
   const pushUniqueRange = (from: number, to: number) => {
     const key = `${from}:${to}`;
@@ -244,7 +263,7 @@ function collectCursorContextSnapshot(
   }
 
   const { from, to } = state.selection.main;
-  const tree = markdownLayoutTree(state);
+  const tree = syntaxTree(state);
   const entriesByKey = new Map<string, CursorContextEntry>();
 
   const positions = from === to ? [from] : [from, to];
@@ -279,8 +298,6 @@ function collectCursorContextSnapshot(
   };
 }
 
-const cursorChangeRangeCache = new WeakMap<ViewUpdate, readonly VisibleRange[]>();
-
 function focusStates(update: ViewUpdate): { readonly startFocused: boolean; readonly endFocused: boolean } {
   const endFocused = update.view.hasFocus;
   return {
@@ -293,7 +310,49 @@ function markdownDocChangeNeedsContextMerge(update: ViewUpdate): boolean {
   return update.focusChanged || !update.state.selection.eq(update.startState.selection);
 }
 
+interface MarkdownContextRangeCacheEntry {
+  readonly startState: EditorState;
+  readonly startFocused: boolean;
+  readonly endFocused: boolean;
+  readonly result: readonly VisibleRange[];
+}
+
+/**
+ * Shared per-state-pair cache: the residual line-break field (transaction
+ * path) and the view plugin (ViewUpdate path) request the same computation
+ * for one dispatch; keying on (startState, state, focus) lets them share a
+ * single tree walk instead of caching per Transaction and per ViewUpdate.
+ */
+const markdownContextRangeCache = new WeakMap<EditorState, MarkdownContextRangeCacheEntry[]>();
+
 function computeMarkdownContextChangeRangesBetween(
+  startState: EditorState,
+  state: EditorState,
+  changes: Transaction["changes"],
+  startFocused: boolean,
+  endFocused: boolean,
+): readonly VisibleRange[] {
+  const cachedEntries = markdownContextRangeCache.get(state);
+  const hit = cachedEntries?.find((entry) =>
+    entry.startState === startState
+    && entry.startFocused === startFocused
+    && entry.endFocused === endFocused
+  );
+  if (hit) return hit.result;
+  const result = computeMarkdownContextChangeRangesBetweenUncached(
+    startState,
+    state,
+    changes,
+    startFocused,
+    endFocused,
+  );
+  const entry = { startState, startFocused, endFocused, result };
+  if (cachedEntries) cachedEntries.push(entry);
+  else markdownContextRangeCache.set(state, [entry]);
+  return result;
+}
+
+function computeMarkdownContextChangeRangesBetweenUncached(
   startState: EditorState,
   state: EditorState,
   changes: Transaction["changes"],
@@ -329,9 +388,6 @@ function computeMarkdownContextChangeRangesBetween(
 export function computeMarkdownContextChangeRanges(
   update: ViewUpdate,
 ): readonly VisibleRange[] {
-  const cached = cursorChangeRangeCache.get(update);
-  if (cached) return cached;
-
   const { startFocused, endFocused } = focusStates(update);
   const mergedDirtyRanges = computeMarkdownContextChangeRangesBetween(
     update.startState,
@@ -340,7 +396,6 @@ export function computeMarkdownContextChangeRanges(
     startFocused,
     endFocused,
   );
-  cursorChangeRangeCache.set(update, mergedDirtyRanges);
   return mergedDirtyRanges;
 }
 
@@ -348,15 +403,32 @@ function stateFocus(state: EditorState): boolean {
   return state.field(editorFocusField, false) ?? false;
 }
 
-function computeMarkdownContextChangeRangesForTransaction(
-  tr: Transaction,
+/**
+ * Structural view over the shape Transaction and ViewUpdate share — the state
+ * pair plus the change set between them. Both satisfy it, so the residual
+ * StateField (transaction path) and the view plugin (ViewUpdate path) share
+ * one implementation of the editorFocusField-based range computations below.
+ */
+type MarkdownStateTransition = Pick<Transaction, "startState" | "state" | "changes">;
+
+/**
+ * editorFocusField-based context ranges for the production plugin and field.
+ *
+ * Reveal state must key off the same focus source as the collect pass
+ * (editorFocusField, kept in sync by focusTracker), not the raw
+ * update.focusChanged/hasFocus signal used by the exported ViewUpdate
+ * predicates: the plugin is constructed before the view gains focus, and the
+ * focusEffect transaction is what flips reveal semantics.
+ */
+function computeMarkdownContextChangeRangesForTransition(
+  transition: MarkdownStateTransition,
 ): readonly VisibleRange[] {
   return computeMarkdownContextChangeRangesBetween(
-    tr.startState,
-    tr.state,
-    tr.changes,
-    stateFocus(tr.startState),
-    stateFocus(tr.state),
+    transition.startState,
+    transition.state,
+    transition.changes,
+    stateFocus(transition.startState),
+    stateFocus(transition.state),
   );
 }
 
@@ -409,51 +481,99 @@ export function markdownShouldUpdate(update: ViewUpdate): boolean {
  * valid, and merges in any local cursor/focus context changes for the same
  * transaction.
  */
+const NO_SEED_RANGES: readonly VisibleRange[] = [];
+
+interface MarkdownDocChangeRangeCacheEntry {
+  readonly startState: EditorState;
+  readonly seedRanges: readonly VisibleRange[];
+  readonly result: readonly VisibleRange[];
+}
+
+/**
+ * Shared per-state-pair cache (see markdownContextRangeCache): seeds are
+ * matched by identity, which holds because they come from the context cache
+ * above or the NO_SEED_RANGES constant.
+ */
+const markdownDocChangeRangeCache = new WeakMap<EditorState, MarkdownDocChangeRangeCacheEntry[]>();
+
+function computeMarkdownDocChangeRangesBetween(
+  startState: EditorState,
+  state: EditorState,
+  changes: Transaction["changes"],
+  seedRanges: readonly VisibleRange[],
+): readonly VisibleRange[] {
+  const cachedEntries = markdownDocChangeRangeCache.get(state);
+  const hit = cachedEntries?.find((entry) =>
+    entry.startState === startState && entry.seedRanges === seedRanges
+  );
+  if (hit) return hit.result;
+  const result = computeMarkdownDocChangeRangesBetweenUncached(
+    startState,
+    state,
+    changes,
+    seedRanges,
+  );
+  const entry = { startState, seedRanges, result };
+  if (cachedEntries) cachedEntries.push(entry);
+  else markdownDocChangeRangeCache.set(state, [entry]);
+  return result;
+}
+
+function computeMarkdownDocChangeRangesBetweenUncached(
+  startState: EditorState,
+  state: EditorState,
+  changes: Transaction["changes"],
+  seedRanges: readonly VisibleRange[],
+): readonly VisibleRange[] {
+  const dirtyRanges = [...seedRanges];
+  const pushRange = (from: number, to: number) => {
+    dirtyRanges.push(normalizeDirtyRange(from, to, state.doc.length));
+  };
+
+  changes.iterChangedRanges((fromA, toA, fromB, toB) => {
+    collectMarkdownDirtyRangesInState(startState, fromA, toA, (nodeFrom, nodeTo) => {
+      dirtyRanges.push(mapNodeRange(changes, state, nodeFrom, nodeTo));
+    });
+    collectMarkdownDirtyRangesInState(state, fromB, toB, pushRange);
+  });
+
+  return mergeRanges(dirtyRanges);
+}
+
 export function computeMarkdownDocChangeRanges(
   update: ViewUpdate,
 ): readonly VisibleRange[] | null {
-  const dirtyRanges = markdownDocChangeNeedsContextMerge(update)
-    ? [...computeMarkdownContextChangeRanges(update)]
-    : [];
-  const pushRange = (from: number, to: number) => {
-    dirtyRanges.push(normalizeDirtyRange(from, to, update.state.doc.length));
-  };
-
-  update.changes.iterChangedRanges((fromA, toA, fromB, toB) => {
-    collectMarkdownDirtyRangesInState(update.startState, fromA, toA, (nodeFrom, nodeTo) => {
-      dirtyRanges.push(mapNodeRange(update.changes, update.state, nodeFrom, nodeTo));
-    });
-    collectMarkdownDirtyRangesInState(update.state, fromB, toB, pushRange);
-  });
-
-  return mergeRanges(dirtyRanges);
-}
-
-function markdownTransactionNeedsContextMerge(tr: Transaction): boolean {
-  return (
-    stateFocus(tr.startState) !== stateFocus(tr.state) ||
-    !tr.state.selection.eq(tr.startState.selection)
+  return computeMarkdownDocChangeRangesBetween(
+    update.startState,
+    update.state,
+    update.changes,
+    markdownDocChangeNeedsContextMerge(update)
+      ? computeMarkdownContextChangeRanges(update)
+      : NO_SEED_RANGES,
   );
 }
 
-function computeMarkdownDocChangeRangesForTransaction(
-  tr: Transaction,
+function markdownTransitionNeedsContextMerge(
+  transition: MarkdownStateTransition,
+): boolean {
+  return (
+    stateFocus(transition.startState) !== stateFocus(transition.state) ||
+    !transition.state.selection.eq(transition.startState.selection)
+  );
+}
+
+/** editorFocusField-based dual of computeMarkdownDocChangeRanges for the plugin and field. */
+function computeMarkdownDocChangeRangesForTransition(
+  transition: MarkdownStateTransition,
 ): readonly VisibleRange[] | null {
-  const dirtyRanges = markdownTransactionNeedsContextMerge(tr)
-    ? [...computeMarkdownContextChangeRangesForTransaction(tr)]
-    : [];
-  const pushRange = (from: number, to: number) => {
-    dirtyRanges.push(normalizeDirtyRange(from, to, tr.state.doc.length));
-  };
-
-  tr.changes.iterChangedRanges((fromA, toA, fromB, toB) => {
-    collectMarkdownDirtyRangesInState(tr.startState, fromA, toA, (nodeFrom, nodeTo) => {
-      dirtyRanges.push(mapNodeRange(tr.changes, tr.state, nodeFrom, nodeTo));
-    });
-    collectMarkdownDirtyRangesInState(tr.state, fromB, toB, pushRange);
-  });
-
-  return mergeRanges(dirtyRanges);
+  return computeMarkdownDocChangeRangesBetween(
+    transition.startState,
+    transition.state,
+    transition.changes,
+    markdownTransitionNeedsContextMerge(transition)
+      ? computeMarkdownContextChangeRangesForTransition(transition)
+      : NO_SEED_RANGES,
+  );
 }
 
 /**
@@ -477,10 +597,14 @@ function collectMarkdownItemsForState(
   const ctx: MarkdownHandlerContext = {
     state,
     focused,
+    // Injection point for the pointer-freeze parity: while frozen, handlers
+    // decide reveal from the pre-drag selection snapshot, so ranges collected
+    // mid-drag render like the frozen ones instead of the live drag selection.
+    revealSelection: markdownRevealSelection(state),
     items: [],
     cursorInHeading: false,
   };
-  const tree = markdownLayoutTree(state);
+  const tree = syntaxTree(state);
   const seenNodes = new Set<string>();
 
   for (const { from, to } of ranges) {
@@ -503,22 +627,71 @@ function collectMarkdownItemsForState(
   return ctx.items;
 }
 
+/**
+ * True for hide replacements that span a line break (the HardBreak node covers
+ * its trailing newline). CM6 forbids ViewPlugins from providing replace
+ * decorations that cross line breaks, so these stay in a residual StateField.
+ */
+function isLineBreakCrossingHide(
+  state: EditorState,
+  item: Range<Decoration>,
+): boolean {
+  return item.value === decorationHidden &&
+    item.to > state.doc.lineAt(item.from).to;
+}
+
 function collectMarkdownItems(
   view: EditorView,
   ranges: readonly VisibleRange[],
   skip: (nodeFrom: number) => boolean,
 ): Range<Decoration>[] {
-  return collectMarkdownItemsForState(view.state, view.hasFocus, ranges, skip);
+  return collectMarkdownItemsForState(view.state, stateFocus(view.state), ranges, skip)
+    .filter((item) => !isLineBreakCrossingHide(view.state, item));
 }
 
-function buildMarkdownDecorationsFromState(state: EditorState) {
+function collectHardBreakSpans(
+  state: EditorState,
+  ranges: readonly VisibleRange[],
+): VisibleRange[] {
+  const tree = syntaxTree(state);
+  const spans: VisibleRange[] = [];
+  const seen = new Set<number>();
+  for (const { from, to } of ranges) {
+    tree.iterate({
+      from,
+      to,
+      enter(node) {
+        if (node.name !== "HardBreak") return undefined;
+        if (!seen.has(node.from)) {
+          seen.add(node.from);
+          spans.push({ from: node.from, to: node.to });
+        }
+        return false;
+      },
+    });
+  }
+  return spans;
+}
+
+/**
+ * Collect only the line-break-crossing hides (HardBreak) within the given
+ * ranges. Walking the handler pipeline from each HardBreak span keeps the
+ * revealed-ancestor skip semantics (e.g. cursor inside an Emphasis containing
+ * the break) identical to the main viewport collection.
+ */
+function collectMarkdownLineBreakItems(
+  state: EditorState,
+  ranges: readonly VisibleRange[],
+): Range<Decoration>[] {
+  const spans = collectHardBreakSpans(state, ranges);
+  if (spans.length === 0) return [];
+  return collectMarkdownItemsForState(state, stateFocus(state), spans, () => false)
+    .filter((item) => isLineBreakCrossingHide(state, item));
+}
+
+function buildMarkdownLineBreakDecorations(state: EditorState): DecorationSet {
   return buildDecorations(
-    collectMarkdownItemsForState(
-      state,
-      stateFocus(state),
-      [{ from: 0, to: state.doc.length }],
-      () => false,
-    ),
+    collectMarkdownLineBreakItems(state, [{ from: 0, to: state.doc.length }]),
   );
 }
 
@@ -530,37 +703,156 @@ export function _linkDecorationCacheSizeForTest(): number {
   return linkDecorationCacheSizeForTest();
 }
 
-const markdownDecorationField = createLifecycleDecorationStateField({
-  spanName: "cm6.markdownRender",
-  build: buildMarkdownDecorationsFromState,
-  collectRanges(state, dirtyRanges) {
-    return collectMarkdownItemsForState(
-      state,
-      stateFocus(state),
+interface MarkdownLineBreakFieldValue {
+  readonly decorations: DecorationSet;
+  /** Parse frontier the HardBreak collection has covered so far. */
+  readonly frontier: number;
+}
+
+function markdownParseFrontier(state: EditorState): number {
+  return computeAnalyzableFrontier(state.doc.length, syntaxTree(state));
+}
+
+function buildMarkdownLineBreakValue(state: EditorState): MarkdownLineBreakFieldValue {
+  return {
+    decorations: buildMarkdownLineBreakDecorations(state),
+    frontier: markdownParseFrontier(state),
+  };
+}
+
+function applyMarkdownLineBreakDirtyRanges(
+  decorations: DecorationSet,
+  state: EditorState,
+  dirtyRanges: readonly VisibleRange[],
+): DecorationSet {
+  const next = removeDecorationsInRanges(decorations, dirtyRanges);
+  const items = collectMarkdownLineBreakItems(state, dirtyRanges);
+  return items.length === 0 ? next : next.update({ add: items, sort: true });
+}
+
+function updateMarkdownLineBreakValue(
+  value: MarkdownLineBreakFieldValue,
+  tr: Transaction,
+): MarkdownLineBreakFieldValue {
+  if (hasProgrammaticDocumentRewrite(tr) || transactionUnfreezesMarkdownReveal(tr)) {
+    return buildMarkdownLineBreakValue(tr.state);
+  }
+
+  const treeChanged = syntaxTree(tr.state) !== syntaxTree(tr.startState);
+  const frozen = Boolean(tr.state.field(markdownRevealFrozenField, false));
+
+  if (!tr.docChanged) {
+    const contextRanges = frozen
+      ? NO_SEED_RANGES
+      : computeMarkdownContextChangeRangesForTransition(tr);
+    if (treeChanged) {
+      const newFrontier = markdownParseFrontier(tr.state);
+      if (contextRanges.length > 0 || newFrontier <= value.frontier) {
+        // Context changes coinciding with parse progress are rare, and a
+        // frontier that failed to advance means the tree was replaced rather
+        // than extended; both keep the previous full-rebuild behavior.
+        return buildMarkdownLineBreakValue(tr.state);
+      }
+      // Doc-unchanged parse progress is prefix-stable: only the newly parsed
+      // window can contain HardBreaks that were not collected yet.
+      const delta = normalizeDirtyRange(value.frontier, newFrontier, tr.state.doc.length);
+      let decorations = removeDecorationsInRanges(value.decorations, [delta]);
+      // Breaks ending exactly at the old frontier were fully parsed before and
+      // survive the removal above; drop their re-collected twins.
+      const items = collectMarkdownLineBreakItems(tr.state, [delta])
+        .filter((item) => item.to > value.frontier);
+      if (items.length > 0) {
+        decorations = decorations.update({ add: items, sort: true });
+      }
+      return { decorations, frontier: newFrontier };
+    }
+    if (contextRanges.length === 0) return value;
+    return {
+      decorations: applyMarkdownLineBreakDirtyRanges(
+        value.decorations,
+        tr.state,
+        contextRanges,
+      ),
+      frontier: value.frontier,
+    };
+  }
+
+  // Doc changed: mapped decorations can sit beyond the new parse frontier, so
+  // keep the smaller of the mapped frontier and the parsed prefix — the
+  // progress path above re-validates anything in between on later ticks.
+  const frontier = Math.min(
+    tr.changes.mapPos(value.frontier, -1),
+    markdownParseFrontier(tr.state),
+  );
+  if (
+    !treeChanged &&
+    (frozen || computeMarkdownContextChangeRangesForTransition(tr).length === 0)
+  ) {
+    return { decorations: value.decorations.map(tr.changes), frontier };
+  }
+  const dirtyRanges = computeMarkdownDocChangeRangesForTransition(tr);
+  if (dirtyRanges === null) {
+    return buildMarkdownLineBreakValue(tr.state);
+  }
+  if (dirtyRanges.length === 0) {
+    return { decorations: value.decorations.map(tr.changes), frontier };
+  }
+  return {
+    decorations: applyMarkdownLineBreakDirtyRanges(
+      value.decorations.map(tr.changes),
+      tr.state,
       dirtyRanges,
-      () => false,
+    ),
+    frontier,
+  };
+}
+
+/**
+ * Residual StateField for the HardBreak hides only: replace decorations that
+ * cross line breaks may not come from a ViewPlugin, so they keep the previous
+ * StateField substrate while everything else moved to the viewport-scoped
+ * plugin below. The value tracks the parse frontier already collected so
+ * doc-unchanged tree-progress ticks only scan the newly parsed window instead
+ * of rebuilding over the whole document.
+ */
+const markdownLineBreakHideField = StateField.define<MarkdownLineBreakFieldValue>({
+  create(state) {
+    return measureSync(
+      "cm6.markdownRender.lineBreak.create",
+      () => buildMarkdownLineBreakValue(state),
     );
   },
-  semanticChanged(beforeState, afterState) {
-    return syntaxTree(afterState) !== syntaxTree(beforeState);
+  update(value, tr) {
+    return measureSync(
+      "cm6.markdownRender.lineBreak.update",
+      () => updateMarkdownLineBreakValue(value, tr),
+    );
   },
-  contextChanged(tr) {
-    if (tr.state.field(markdownRevealFrozenField, false)) return false;
-    return computeMarkdownContextChangeRangesForTransaction(tr).length > 0;
-  },
-  shouldRebuild(tr) {
-    return transactionUnfreezesMarkdownReveal(tr);
-  },
-  contextUpdateMode: "dirty-ranges",
-  dirtyRangeFn(tr, context) {
-    if (context.docChanged) {
-      return computeMarkdownDocChangeRangesForTransaction(tr);
-    }
-    if (context.contextChanged) {
-      return computeMarkdownContextChangeRangesForTransaction(tr);
-    }
-    return [];
-  },
+  provide: (field) =>
+    EditorView.decorations.from(field, (value) => value.decorations),
+});
+
+function markdownPluginContextChangeRanges(
+  update: ViewUpdate,
+): readonly VisibleRange[] {
+  if (update.state.field(markdownRevealFrozenField, false)) return [];
+  return computeMarkdownContextChangeRangesForTransition(update);
+}
+
+/**
+ * Viewport-scoped markdown decorations (#579/#823 predicates, now live).
+ *
+ * Builds only view.visibleRanges, patches newly visible fragments on scroll,
+ * applies cursor-context and doc-change dirty ranges incrementally, and does a
+ * viewport-sized (not whole-document) rebuild on tree progress and on
+ * pointer-freeze release.
+ */
+const markdownViewPlugin = createCursorSensitiveViewPlugin(collectMarkdownItems, {
+  contextChangeRanges: markdownPluginContextChangeRanges,
+  docChangeRanges: computeMarkdownDocChangeRangesForTransition,
+  extraRebuildCheck: (update) =>
+    update.transactions.some(transactionUnfreezesMarkdownReveal),
+  spanName: "cm6.markdownRender",
 });
 
 const renderedLinkEventHandlers = EditorView.domEventHandlers({
@@ -573,7 +865,8 @@ export const markdownRenderPlugin: Extension = [
   focusTracker,
   markdownRevealFrozenField,
   markdownRevealFreezePlugin,
-  markdownDecorationField,
+  markdownLineBreakHideField,
+  markdownViewPlugin,
   renderedLinkEventHandlers,
 ];
 

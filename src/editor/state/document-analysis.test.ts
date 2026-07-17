@@ -40,6 +40,23 @@ describe("documentAnalysisField perf spans", () => {
     expect(spanNames).toContain("cm6.documentAnalysis.text.materialize");
   });
 
+  it("reuses the materialized doc text across text sources for the same doc", () => {
+    const state = createEditorState("# Alpha\n\nBody\n", {
+      extensions: [markdown()],
+    });
+    const first = editorStateTextSource(state);
+    for (let i = 0; i < 8; i += 1) {
+      first.slice(0, 2);
+    }
+
+    clearFrontendPerf();
+    const second = editorStateTextSource(state);
+    expect(second.slice(0, second.length)).toBe(state.doc.toString());
+
+    const spanNames = getFrontendPerfSnapshot().recent.map((record) => record.name);
+    expect(spanNames).not.toContain("cm6.documentAnalysis.text.materialize");
+  });
+
   it("records update and slice merge spans for semantic updates", () => {
     const state = createEditorState("# Alpha\n\nBody\n", {
       extensions: [markdown(), documentAnalysisField],

@@ -1,4 +1,4 @@
-import type { Tree } from "@lezer/common";
+import type { SyntaxNode, Tree } from "@lezer/common";
 import { headingLevelFor } from "../../../core/block-render-plan";
 import { NODE } from "../../../core/constants/node-types";
 import { extractRawFrontmatter } from "../../../core/parser/frontmatter";
@@ -147,6 +147,28 @@ export function expandRangeToParagraphBoundaries(
 }
 
 /**
+ * Over-approximate the start of an analysis window backwards so content that
+ * a partial parse cut at a frontier (an unclosed fenced div or code block, a
+ * paragraph that later turns out to be a setext heading or lazy continuation)
+ * is re-extracted from the start of its enclosing block in the new tree.
+ *
+ * At clean block gaps `resolveInner(from, -1)` lands on the Document root;
+ * the root is treated as "no containing block" so the backoff stays local —
+ * a root hit means the old cut was at a genuine block boundary.
+ */
+export function backoffWindowStart(
+  tree: Tree,
+  doc: TextSource,
+  from: number,
+): number {
+  let node: SyntaxNode | null = tree.resolveInner(from, -1);
+  while (node && node.parent && node.parent.parent) node = node.parent;
+  const blockFrom = node && node.parent && node.from < from ? node.from : from;
+  const paragraphFrom = expandRangeToParagraphBoundaries(doc, { from, to: from }).from;
+  return Math.min(blockFrom, paragraphFrom);
+}
+
+/**
  * Compute the narrative-ref extraction range and its fresh excluded ranges.
  *
  * Expands to the full paragraph containing the dirty window, then walks the
@@ -169,6 +191,13 @@ export function computeNarrativeExtractionRange(
   });
 
   const excludedRanges: ExcludedRange[] = [];
+  // Frontmatter is a textual overlay with no tree node; match
+  // collectStructuralWindow so windowed re-extraction never resurrects
+  // references inside it.
+  const frontmatterEnd = scanFrontmatterOpener(doc)?.end ?? -1;
+  if (frontmatterEnd > range.from) {
+    excludedRanges.push({ from: 0, to: Math.min(frontmatterEnd, range.to) });
+  }
   const c = tree.cursor();
   scan: for (;;) {
     if (c.from <= range.to && c.to >= range.from) {
@@ -190,6 +219,23 @@ export function computeNarrativeExtractionRange(
   }
 
   return { range, excludedRanges };
+}
+
+/**
+ * Frontmatter boundary scan for windowed extraction, gated on the opener
+ * line so the common no-frontmatter case never materializes the document.
+ * Returns undefined when the document does not start with a `---` opener;
+ * otherwise `end` is the frontmatter end, or undefined while the block is
+ * unclosed (callers decide how conservative to be about that case).
+ */
+export function scanFrontmatterOpener(
+  doc: TextSource,
+): { readonly end: number | undefined } | undefined {
+  const firstLine = doc.lineAt(0).text;
+  if (!(firstLine.startsWith("---") && firstLine.slice(3).trim().length === 0)) {
+    return undefined;
+  }
+  return { end: extractRawFrontmatter(doc.slice(0, doc.length))?.end };
 }
 
 export function collectStructuralWindow(

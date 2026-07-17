@@ -12,6 +12,7 @@ import {
 import type { IncrementalDocumentAnalysisState } from "./slice-registry";
 import {
   type ExtractedDirtyStructuralWindow,
+  type ExtractionWindowBudget,
   extractDirtyFencedDivWindows,
   mapFencedDivSemantics,
 } from "./slices/fenced-div-slice";
@@ -39,10 +40,24 @@ export interface DirtyWindowPlan {
   readonly useParagraphStructuralExtraction: boolean;
   readonly extractedDirtyWindows: readonly ExtractedDirtyStructuralWindow[];
   readonly dirtyExtractions: readonly ExtractedDirtyStructuralWindow[];
+  /**
+   * New-doc ranges of windows removed by the syntax-availability probe —
+   * either before extraction or after window expansion escaped past the
+   * parsed frontier. Callers record these as pending regions so a later
+   * tree-progress update reconciles them.
+   */
+  readonly droppedWindows: readonly { readonly from: number; readonly to: number }[];
 }
 
 export interface DirtyWindowPlanningOptions {
   readonly isSyntaxTreeAvailable?: (to: number) => boolean;
+  /**
+   * When set, dirty-window extraction charges each window's expanded
+   * (post-backoff, post-chase) length against this budget; windows whose
+   * expansion no longer fits are dropped to `droppedWindows` instead of
+   * extracted, for a later pending drain to reconcile.
+   */
+  readonly extractionBudget?: ExtractionWindowBudget;
 }
 
 export function createPositionMapper(
@@ -254,10 +269,17 @@ export function planDirtyWindows(
     delta.mapOldToNew,
     true,
   );
+  const droppedWindows: { from: number; to: number }[] = [];
   const availableDirtyWindows = options.isSyntaxTreeAvailable
-    ? expandedForExcluded.filter((window) => options.isSyntaxTreeAvailable?.(window.toNew) ?? true)
+    ? expandedForExcluded.filter((window) => {
+        const available = options.isSyntaxTreeAvailable?.(window.toNew) ?? true;
+        if (!available) {
+          droppedWindows.push({ from: window.fromNew, to: window.toNew });
+        }
+        return available;
+      })
     : expandedForExcluded;
-  const extractedDirtyWindows = structuralExtractionMode === "skip"
+  const rawExtractedWindows = structuralExtractionMode === "skip"
     ? []
     : useParagraphStructuralExtraction
       ? extractDirtyParagraphWindows(doc, tree, availableDirtyWindows)
@@ -267,7 +289,22 @@ export function planDirtyWindows(
           tree,
           changes,
           availableDirtyWindows,
+          options.extractionBudget,
+          (range) => droppedWindows.push({ from: range.from, to: range.to }),
         );
+  // Re-check availability after expansion: chasing a stale mapped div span
+  // (or paragraph expansion) can grow a window past the parsed frontier,
+  // where merging against the empty tree region would delete structures that
+  // were merely unparsed. Drop the whole expanded range instead.
+  const extractedDirtyWindows = options.isSyntaxTreeAvailable
+    ? rawExtractedWindows.filter((extracted) => {
+        const available = options.isSyntaxTreeAvailable?.(extracted.range.to) ?? true;
+        if (!available) {
+          droppedWindows.push({ from: extracted.range.from, to: extracted.range.to });
+        }
+        return available;
+      })
+    : rawExtractedWindows;
   const dirtyExtractions = extractedDirtyWindows.map(({ window, range, structural }) => ({
     window: {
       ...window,
@@ -284,6 +321,7 @@ export function planDirtyWindows(
     useParagraphStructuralExtraction,
     extractedDirtyWindows,
     dirtyExtractions,
+    droppedWindows,
   };
 }
 

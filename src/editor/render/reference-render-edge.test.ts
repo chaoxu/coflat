@@ -3,9 +3,11 @@ import { afterEach, describe, expect, it } from "vitest";
 import { CSS } from "../../core/constants/css-classes";
 import { CslProcessor } from "../citations/csl-processor";
 import { bibDataEffect } from "../state/bib-data";
+import { documentAnalysisField } from "../state/document-analysis";
 import { makeBibStore } from "../test-utils";
 import { collectReferenceRanges } from "./reference-render";
 import {
+  createPluginView,
   createView,
   expectPresent,
   revealReferenceAt,
@@ -79,5 +81,25 @@ describe("collectReferenceRanges edge-cases", () => {
     );
     expectPresent(refAfter, "reference range after clearing processor");
     expect(widgetClass(refAfter)).toBe("UnresolvedRefWidget");
+  });
+
+  it("drops stale reference widgets when a doc change swaps the reference slice without '@' on edited lines", () => {
+    const doc = [
+      "Plain intro line.",
+      "",
+      "See [@karger2000].",
+    ].join("\n");
+    view = createPluginView(doc, 0);
+    expect(view.dom.querySelector("[data-reference-widget]")).not.toBeNull();
+
+    // Typing a fence opener on a line without "@" turns the rest of the
+    // document into code; the same doc-changed transaction's pending
+    // consumption removes the reference from the analysis while the
+    // doc-change dirty ranges stay empty (no "@" near the edit).
+    view.dispatch({ changes: { from: 0, insert: "```\n" } });
+
+    // Test premise: the reference is gone from the analysis in-transaction.
+    expect(view.state.field(documentAnalysisField).references).toHaveLength(0);
+    expect(view.dom.querySelector("[data-reference-widget]")).toBeNull();
   });
 });

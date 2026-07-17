@@ -14,6 +14,7 @@
  */
 
 import { type CslJsonItem } from "../../core/citations/csl-json";
+import type { CitationCiteExtras } from "../../core/document-context-types";
 import {
   type CitationCluster,
   getCitationRegistrationKey,
@@ -68,24 +69,95 @@ export type CslStyleStatus =
   | { readonly state: "ok" }
   | { readonly state: "error"; readonly message: string };
 
-/** Pandoc-style locator label terms mapped to CSL locator labels. */
+export interface CslProcessorOptions {
+  /**
+   * CSL locale code used for rendering, e.g. "en-US" or "de-DE". Defaults to
+   * "en-US". citation-js bundles en-US, nl-NL, fr-FR, de-DE, and es-ES; any
+   * other locale needs its XML supplied via `localeXml`.
+   */
+  readonly locale?: string;
+  /** CSL locale XML registered for `locale` (host-supplied, not bundled). */
+  readonly localeXml?: string;
+}
+
+const DEFAULT_CSL_LOCALE = "en-US";
+
+/**
+ * Pandoc-style locator label terms mapped to CSL locator labels.
+ *
+ * English, German, and French labels (ported from the CSL locale files via
+ * Zettlr's locator table). citeproc translates the CSL term on output, so a
+ * German "S. 5" input renders as "p. 5" under an English locale and vice
+ * versa. Where Zettlr and the pre-existing coflat table disagree ("no." →
+ * number here, issue there), the coflat mapping wins for compatibility.
+ */
 const LOCATOR_TERMS: ReadonlyMap<string, string> = new Map([
-  ["book", "book"], ["bk.", "book"], ["bks.", "book"],
-  ["chapter", "chapter"], ["chap.", "chapter"], ["chaps.", "chapter"],
-  ["column", "column"], ["col.", "column"], ["cols.", "column"],
-  ["figure", "figure"], ["fig.", "figure"], ["figs.", "figure"],
-  ["folio", "folio"], ["fol.", "folio"], ["fols.", "folio"],
-  ["number", "number"], ["no.", "number"], ["nos.", "number"],
-  ["line", "line"], ["l.", "line"], ["ll.", "line"],
-  ["note", "note"], ["n.", "note"], ["nn.", "note"],
-  ["opus", "opus"], ["op.", "opus"], ["opp.", "opus"],
-  ["page", "page"], ["p.", "page"], ["pp.", "page"],
-  ["paragraph", "paragraph"], ["para.", "paragraph"], ["paras.", "paragraph"],
-  ["part", "part"], ["pt.", "part"], ["pts.", "part"],
-  ["section", "section"], ["sec.", "section"], ["secs.", "section"],
-  ["sub verbo", "sub-verbo"], ["s.v.", "sub-verbo"], ["s.vv.", "sub-verbo"],
-  ["verse", "verse"], ["v.", "verse"], ["vv.", "verse"],
-  ["volume", "volume"], ["vol.", "volume"], ["vols.", "volume"],
+  ["art.", "article-locator"], ["arts.", "article-locator"],
+  ["article", "article-locator"], ["articles", "article-locator"],
+  ["artikel", "article-locator"],
+  ["book", "book"], ["books", "book"], ["bk.", "book"], ["bks.", "book"],
+  ["buch", "book"], ["bücher", "book"], ["b.", "book"],
+  ["livre", "book"], ["livres", "book"], ["liv.", "book"],
+  ["can.", "canon"], ["cann.", "canon"], ["canon", "canon"], ["canons", "canon"],
+  ["chapter", "chapter"], ["chapters", "chapter"],
+  ["chap.", "chapter"], ["chaps.", "chapter"], ["c.", "chapter"], ["cc.", "chapter"],
+  ["kapitel", "chapter"], ["kap.", "chapter"],
+  ["chapitre", "chapter"], ["chapitres", "chapter"],
+  ["column", "column"], ["columns", "column"],
+  ["col.", "column"], ["cols.", "column"], ["cols", "column"],
+  ["spalte", "column"], ["spalten", "column"], ["sp.", "column"],
+  ["colonne", "column"], ["colonnes", "column"],
+  ["loc.", "elocation"], ["locs.", "elocation"],
+  ["location", "elocation"], ["locations", "elocation"],
+  ["emplacement", "elocation"], ["emplacements", "elocation"],
+  ["eq.", "equation"], ["eqq.", "equation"],
+  ["equation", "equation"], ["equations", "equation"],
+  ["équation", "equation"], ["équations", "equation"],
+  ["figure", "figure"], ["figures", "figure"],
+  ["fig.", "figure"], ["figs.", "figure"], ["figs", "figure"],
+  ["abbildung", "figure"], ["abbildungen", "figure"], ["abb.", "figure"],
+  ["folio", "folio"], ["folios", "folio"],
+  ["fol.", "folio"], ["fols.", "folio"], ["fols", "folio"],
+  ["blatt", "folio"], ["blätter", "folio"], ["fᵒ", "folio"], ["fᵒˢ", "folio"],
+  ["nummer", "issue"], ["nummern", "issue"], ["nr.", "issue"],
+  ["numéro", "issue"], ["numéros", "issue"], ["nᵒ", "issue"], ["nᵒˢ", "issue"],
+  ["number", "number"], ["numbers", "number"], ["no.", "number"], ["nos.", "number"],
+  ["line", "line"], ["lines", "line"], ["l.", "line"], ["ll.", "line"],
+  ["zeile", "line"], ["zeilen", "line"], ["z", "line"],
+  ["ligne", "line"], ["lignes", "line"],
+  ["note", "note"], ["notes", "note"], ["noten", "note"],
+  ["n.", "note"], ["nn.", "note"],
+  ["opus", "opus"], ["opera", "opus"], ["op.", "opus"], ["opp.", "opus"],
+  ["page", "page"], ["pages", "page"], ["p.", "page"], ["pp.", "page"],
+  ["seite", "page"], ["seiten", "page"], ["s.", "page"],
+  ["paragraph", "paragraph"], ["paragraphs", "paragraph"],
+  ["para.", "paragraph"], ["paras.", "paragraph"], ["paras", "paragraph"],
+  ["absatz", "paragraph"], ["absätze", "paragraph"], ["abs.", "paragraph"],
+  ["paragraphe", "paragraph"], ["paragraphes", "paragraph"], ["paragr.", "paragraph"],
+  ["¶", "paragraph"], ["¶¶", "paragraph"],
+  ["part", "part"], ["parts", "part"], ["pt.", "part"], ["pts.", "part"], ["pts", "part"],
+  ["teil", "part"], ["teile", "part"], ["part.", "part"],
+  ["partie", "part"], ["parties", "part"],
+  ["règle", "rule"], ["règles", "rule"], ["r.", "rule"], ["rr.", "rule"],
+  ["rule", "rule"], ["rules", "rule"],
+  ["section", "section"], ["sections", "section"],
+  ["sec.", "section"], ["secs.", "section"], ["secs", "section"], ["sect.", "section"],
+  ["abschnitt", "section"], ["abschnitte", "section"], ["abschn.", "section"],
+  ["§", "section"], ["§§", "section"],
+  ["sub verbo", "sub-verbo"], ["sub verbis", "sub-verbo"],
+  ["s.v.", "sub-verbo"], ["s.vv.", "sub-verbo"],
+  ["supp.", "supplement"], ["supps.", "supplement"],
+  ["supplement", "supplement"], ["supplements", "supplement"],
+  ["tableau", "table"], ["tableaux", "table"],
+  ["tab.", "table"], ["tbl.", "table"], ["tbls.", "table"],
+  ["table", "table"], ["tables", "table"],
+  ["titre", "title-locator"], ["titres", "title-locator"],
+  ["tit.", "title-locator"], ["titt.", "title-locator"],
+  ["title", "title-locator"], ["titles", "title-locator"],
+  ["verse", "verse"], ["verses", "verse"], ["v.", "verse"], ["vv.", "verse"],
+  ["vers", "verse"], ["verset", "verse"], ["versets", "verse"],
+  ["volume", "volume"], ["volumes", "volume"], ["vol.", "volume"], ["vols.", "volume"],
+  ["band", "volume"], ["bände", "volume"], ["bd.", "volume"], ["bde.", "volume"],
 ]);
 
 /** Sorted keys for matching (longest first to avoid prefix conflicts). */
@@ -93,45 +165,113 @@ const SORTED_LOCATOR_KEYS = [...LOCATOR_TERMS.keys()].sort(
   (a, b) => b.length - a.length,
 );
 
+/** One locator value word: a number with optional letter tail, or a roman numeral. */
+const LOCATOR_VALUE_TOKEN_RE = /^(?:\d+[a-z]{0,2}|[ivxlcdm]+)/i;
+/** Range/verse connectors between locator value words. */
+const LOCATOR_VALUE_CONNECTOR_RE = /^\s*[-–—:.]\s*/;
+
 /**
- * Parse a Pandoc-style locator string into a CSL label and locator value.
- * E.g. "chap. 36" -> { label: "chapter", locator: "36" }
- * E.g. "pp. 100-120" -> { label: "page", locator: "100-120" }
- * E.g. "theorem 3" -> { locator: "theorem 3" } (no recognized label)
+ * Length of the leading locator value ("12", "100-120", "3.2", "xiv") of
+ * `text`, or 0 when it does not start with one. A value word must not run
+ * into an ordinary word ("12a" is a value, the "d" of "dog" is not).
  */
-export function parseLocator(raw: string): { locator: string; label?: string } {
-  const text = raw.trim();
-
-  for (const prefix of SORTED_LOCATOR_KEYS) {
-    if (text.toLowerCase().startsWith(prefix)) {
-      const rest = text.slice(prefix.length).trim();
-      if (rest) {
-        return { locator: rest, label: LOCATOR_TERMS.get(prefix) };
-      }
-    }
+function matchLocatorValueEnd(text: string): number {
+  const first = LOCATOR_VALUE_TOKEN_RE.exec(text);
+  if (!first || /[a-z0-9]/i.test(text[first[0].length] ?? "")) return 0;
+  let end = first[0].length;
+  for (;;) {
+    const connector = LOCATOR_VALUE_CONNECTOR_RE.exec(text.slice(end));
+    if (!connector) return end;
+    const token = LOCATOR_VALUE_TOKEN_RE.exec(text.slice(end + connector[0].length));
+    if (!token) return end;
+    const candidateEnd = end + connector[0].length + token[0].length;
+    if (/[a-z0-9]/i.test(text[candidateEnd] ?? "")) return end;
+    end = candidateEnd;
   }
+}
 
-  return { locator: text };
+export interface ParsedLocator {
+  readonly locator?: string;
+  readonly label?: string;
+  readonly suffix?: string;
 }
 
 /**
- * Build CitationItem objects from parallel id/locator arrays.
+ * Parse Pandoc-style text after a citation key's comma into a CSL label,
+ * locator value, and suffix, following Pandoc's rules.
+ * E.g. "chap. 36" -> { label: "chapter", locator: "36" }
+ * E.g. "pp. 100-120" -> { label: "page", locator: "100-120" }
+ * E.g. "p. 12, emphasis mine" -> { label: "page", locator: "12", suffix: ", emphasis mine" }
+ * E.g. "theorem 3" -> { suffix: ", theorem 3" } (no recognized label → plain suffix)
+ */
+export function parseLocator(raw: string): ParsedLocator {
+  const text = raw.trim();
+  if (!text) return {};
+
+  const lower = text.toLowerCase();
+  for (const key of SORTED_LOCATOR_KEYS) {
+    if (!lower.startsWith(key)) continue;
+    const next = text[key.length];
+    // The label must not run into a word ("page" must not claim "pagesx").
+    if (next !== undefined && /[a-z]/i.test(next)) continue;
+    const rest = text.slice(key.length).replace(/^\s+/, "");
+    const valueEnd = matchLocatorValueEnd(rest);
+    if (valueEnd > 0) {
+      const suffix = rest.slice(valueEnd);
+      return {
+        label: LOCATOR_TERMS.get(key),
+        locator: rest.slice(0, valueEnd),
+        ...(suffix.trim() ? { suffix } : {}),
+      };
+    }
+    // Pandoc: a recognized label without a parsable value is suffix text.
+    return { suffix: `, ${text}` };
+  }
+
+  const valueEnd = matchLocatorValueEnd(text);
+  if (valueEnd > 0) {
+    const suffix = text.slice(valueEnd);
+    return {
+      locator: text.slice(0, valueEnd),
+      ...(suffix.trim() ? { suffix } : {}),
+    };
+  }
+
+  return { suffix: `, ${text}` };
+}
+
+/**
+ * Build CitationItem objects from parallel id/locator/extras arrays.
  *
  * Both `registerCitations` and `cite` need to convert raw locator strings
- * into citeproc CitationItem objects with parsed label/locator fields.
+ * into citeproc CitationItem objects with parsed label/locator/suffix fields.
  * Centralised here to avoid duplicating the parseLocator dispatch.
  */
 function buildCitationItems(
   ids: readonly string[],
   locators?: readonly (string | undefined)[],
-): Array<{ id: string; locator?: string; label?: string }> {
+  extras?: readonly (CitationCiteExtras | undefined)[],
+): Array<{
+  id: string;
+  locator?: string;
+  label?: string;
+  prefix?: string;
+  suffix?: string;
+  "suppress-author"?: boolean;
+}> {
   return ids.map((id, i) => {
     const raw = locators?.[i];
-    if (raw) {
-      const parsed = parseLocator(raw);
-      return { id, locator: parsed.locator, label: parsed.label };
-    }
-    return { id };
+    const extra = extras?.[i];
+    const parsed = raw ? parseLocator(raw) : undefined;
+    return {
+      id,
+      ...(parsed?.locator !== undefined ? { locator: parsed.locator } : {}),
+      ...(parsed?.label !== undefined ? { label: parsed.label } : {}),
+      ...(parsed?.suffix !== undefined ? { suffix: parsed.suffix } : {}),
+      // Pandoc emits the prefix with its separating space kept.
+      ...(extra?.prefix ? { prefix: `${extra.prefix} ` } : {}),
+      ...(extra?.suppressAuthor ? { "suppress-author": true } : {}),
+    };
   });
 }
 
@@ -177,6 +317,8 @@ export class CslProcessor {
   private items: Map<string, CslJsonItem>;
   private engine: CiteprocEngine | null = null;
   private styleXml: string;
+  private readonly locale: string;
+  private readonly localeXml: string | undefined;
   private engineRevision = 0;
   // Registration state is shared across rich mode and preview
   // surfaces that reuse the same processor instance.
@@ -187,12 +329,14 @@ export class CslProcessor {
   private styleGeneration = 0;
   private activeEngineStyleGeneration = -1;
 
-  constructor(entries: CslJsonItem[], styleXml?: string) {
+  constructor(entries: CslJsonItem[], styleXml?: string, options?: CslProcessorOptions) {
     this.items = new Map();
     for (const item of entries) {
       this.items.set(item.id, item);
     }
     this.styleXml = styleXml ?? defaultCslStyle;
+    this.locale = options?.locale ?? DEFAULT_CSL_LOCALE;
+    this.localeXml = options?.localeXml;
     // Skip engine initialization when there are no entries. The citeproc
     // engine cache (`@citation-js/plugin-csl`) is keyed by style+locale,
     // so creating an empty engine replaces the `retrieveItem` callback on
@@ -212,8 +356,12 @@ export class CslProcessor {
    * Async factory: creates a processor and waits for citeproc to load.
    * Use this in async contexts so the engine is ready before first use.
    */
-  static async create(entries: CslJsonItem[], styleXml?: string): Promise<CslProcessor> {
-    const p = new CslProcessor(entries, styleXml);
+  static async create(
+    entries: CslJsonItem[],
+    styleXml?: string,
+    options?: CslProcessorOptions,
+  ): Promise<CslProcessor> {
+    const p = new CslProcessor(entries, styleXml, options);
     await p.ensureReady();
     return p;
   }
@@ -280,12 +428,20 @@ export class CslProcessor {
     this.registeredCitationKey = registrationKey;
   }
 
-  /** Format a parenthetical citation for the given ids, with optional locators. */
-  cite(ids: readonly string[], locators?: readonly (string | undefined)[]): string {
+  /**
+   * Format a parenthetical citation for the given ids, with optional locators
+   * and per-item Pandoc extras (prefix / suppress-author). Suffix text after
+   * the locator value rides in the locator string and is split off here.
+   */
+  cite(
+    ids: readonly string[],
+    locators?: readonly (string | undefined)[],
+    extras?: readonly (CitationCiteExtras | undefined)[],
+  ): string {
     const engine = this.currentEngine();
     if (!engine || ids.length === 0) return "";
     try {
-      const items = buildCitationItems(ids, locators);
+      const items = buildCitationItems(ids, locators, extras);
       return engine.makeCitationCluster(items);
     } catch (e: unknown) {
       // Engine error — return raw ids as fallback
@@ -442,8 +598,13 @@ export class CslProcessor {
       // style-generation-specific key so processors cannot overwrite each
       // other's item lookup state, and style changes always force a new engine.
       cslConfig.templates.add(styleName, styleXml);
+      if (this.localeXml !== undefined) {
+        // The locale register is shared like the template register; keyed by
+        // locale code, so re-adding the same XML is idempotent.
+        cslConfig.locales?.add(this.locale, this.localeXml);
+      }
       const data = [...this.items.values()];
-      const engine = cslConfig.engine(data, styleName, "en-US", "html");
+      const engine = cslConfig.engine(data, styleName, this.locale, "html");
       if (styleGeneration === this.styleGeneration) {
         this.engine = engine;
         this.activeEngineStyleGeneration = styleGeneration;

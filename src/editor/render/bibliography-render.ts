@@ -41,6 +41,7 @@ import {
   getAnalysisCitationRegistrationKey,
   getCitationRegistrationKey,
 } from "../citations/citation-matching";
+import { resolveNociteIds } from "../../core/references/nocite";
 import { scanReferenceTokens } from "../lib/reference-tokens";
 import { sanitizeCslHtml } from "../lib/sanitize-csl-html";
 import type { FootnoteSemantics } from "../semantics/document";
@@ -48,6 +49,7 @@ import { type BibStore, bibDataEffect, bibDataField } from "../state/bib-data";
 import {
   documentAnalysisField,
 } from "../state/document-analysis";
+import { frontmatterField } from "../state/frontmatter-state";
 import { mathMacrosField } from "../state/math-macros";
 import { buildPreviewBlockOptions } from "./hover-preview-block-options";
 import {
@@ -368,6 +370,11 @@ function mergeBacklinks(
   return merged;
 }
 
+/** Normalized frontmatter `nocite` keys, or empty when the field is absent. */
+function getNociteConfig(state: EditorState): readonly string[] {
+  return state.field(frontmatterField, false)?.config.nocite ?? [];
+}
+
 function getBibliographyDependencyKey(state: EditorState): string {
   const { store } = state.field(bibDataField);
   const analysis = state.field(documentAnalysisField);
@@ -376,6 +383,7 @@ function getBibliographyDependencyKey(state: EditorState): string {
     getAnalysisCitationRegistrationKey(analysis, store),
     getAnalysisCitationBacklinkKey(analysis, store),
     footnoteTokens.map((token) => `${token.id}\0${token.clusterFrom}\0${token.clusterTo}\0${token.clusterIndex}\0${token.locator ?? ""}`).join("\u0002"),
+    getNociteConfig(state).join("\u0002"),
   ].join("\u0003");
 }
 
@@ -424,6 +432,10 @@ export function createBibliographyWidgetFromState(state: EditorState): Bibliogra
   };
   const citedIds = collectCitedIdsFromReferenceIndex(analysis.referenceIndex, store);
   appendUnique(citedIds, collectCitedIdsFromClusters(collectCitationClusters(footnoteTokens, store, localTargetOptions)));
+  // Pandoc nocite entries join the bibliography after every in-text citation.
+  const nociteIds = resolveNociteIds(getNociteConfig(state), store, localTargetOptions)
+    .filter((id) => !citedIds.includes(id));
+  citedIds.push(...nociteIds);
   if (citedIds.length === 0) return null;
   const backlinks = mergeBacklinks(
     collectCitationBacklinksFromAnalysis(analysis, store),
@@ -446,6 +458,11 @@ export function createBibliographyWidgetFromState(state: EditorState): Bibliogra
         ...collectCitationMatchesFromAnalysis(analysis, store),
         ...collectCitationClusters(footnoteTokens, store, localTargetOptions),
       ];
+      if (nociteIds.length > 0) {
+        // Registered last so numeric styles number nocite entries after all
+        // in-text citations, matching Pandoc.
+        matches.push({ ids: nociteIds, locators: [] });
+      }
       const registrationKey = getCitationRegistrationKey(matches);
       if (formatter.citationRegistrationKey !== registrationKey) {
         formatter.registerCitations(matches);

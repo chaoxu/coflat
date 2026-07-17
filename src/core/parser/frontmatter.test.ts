@@ -393,4 +393,39 @@ describe("parseFrontmatter", () => {
       warnSpy.mockRestore();
     });
   });
+
+  describe("nocite (Pandoc uncited bibliography entries)", () => {
+    it("parses a single quoted key and strips the leading @", () => {
+      const { config } = parseFrontmatter("---\nnocite: \"@karger2000\"\n---\n");
+      expect(config.nocite).toEqual(["karger2000"]);
+    });
+
+    it("splits a comma/semicolon separated string", () => {
+      const { config } = parseFrontmatter("---\nnocite: \"@a, @b; c\"\n---\n");
+      expect(config.nocite).toEqual(["a", "b", "c"]);
+    });
+
+    it("parses the Pandoc block-scalar form", () => {
+      const { config } = parseFrontmatter("---\nnocite: |\n  @item1, @item2\n---\n");
+      expect(config.nocite).toEqual(["item1", "item2"]);
+    });
+
+    it("parses list form and de-duplicates", () => {
+      const { config } = parseFrontmatter(
+        "---\nnocite:\n  - \"@a\"\n  - b\n  - \"@a\"\n---\n",
+      );
+      expect(config.nocite).toEqual(["a", "b"]);
+    });
+
+    it("normalizes the @* wildcard to *", () => {
+      const { config } = parseFrontmatter("---\nnocite: \"@*\"\n---\n");
+      expect(config.nocite).toEqual(["*"]);
+    });
+
+    it("ignores non-string values", () => {
+      expect(parseFrontmatter("---\nnocite: 3\n---\n").config.nocite).toBeUndefined();
+      expect(parseFrontmatter("---\nnocite:\n  a: b\n---\n").config.nocite).toBeUndefined();
+      expect(parseFrontmatter("---\nnocite: \"\"\n---\n").config.nocite).toBeUndefined();
+    });
+  });
 });

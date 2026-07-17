@@ -165,6 +165,7 @@ import {
 import {
   formatBlockReferenceLabel,
 } from "../core/references/format";
+import { resolveNociteIds } from "../core/references/nocite";
 import {
   classifyReferenceTarget,
   createHostReferenceRouteResolver,
@@ -926,8 +927,8 @@ function readerReferencePresentationContext(ctx: WalkContext): ReferencePresenta
         ? { kind: "citation", id }
         : resolved;
     },
-    cite(ids, locators) {
-      return coreCiteInline(ctx.resolvers.citationFormatter, ids, locators) ?? "";
+    cite(ids, locators, extras) {
+      return coreCiteInline(ctx.resolvers.citationFormatter, ids, locators, extras) ?? "";
     },
     citeNarrative(id) {
       return ctx.resolvers.citationFormatter?.citeNarrative(id) ?? id;
@@ -1663,6 +1664,23 @@ function renderFootnotesList(ctx: WalkContext): string {
   );
 }
 
+// Pandoc `nocite:` frontmatter — bibliography entries without an in-text
+// citation. Appended after the walk so they follow every real citation,
+// matching the editor's bibliography pipeline.
+function appendNociteCitedKeys(
+  ctx: WalkContext,
+  nocite: readonly string[] | undefined,
+): void {
+  const keys = ctx.resolvers.citationKeys;
+  if (!keys) return;
+  const nociteIds = resolveNociteIds(nocite, keys, {
+    isLocalTarget: (id) => readerCatalogCrossref(ctx, id) !== null,
+  });
+  for (const id of nociteIds) {
+    if (!ctx.citedKeys.includes(id)) ctx.citedKeys.push(id);
+  }
+}
+
 // The References list, emitted from the same citeproc formatter that produced
 // the inline labels — so the reader renders citations end to end instead of the
 // host bolting a bibliography on. Mirrors the editor's bibliography DOM so the
@@ -1865,6 +1883,7 @@ function walkDocument(
     };
   }
 
+  appendNociteCitedKeys(ctx, frontmatter.config.nocite);
   const references = renderReferencesList(ctx);
   if (references) {
     combined = {

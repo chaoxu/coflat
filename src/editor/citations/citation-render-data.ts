@@ -16,6 +16,7 @@ import {
   createReferenceIndexLocalTargetLookup,
   getCitationRegistrationKey,
 } from "./citation-matching";
+import type { BibliographyStatus } from "../state/bib-data";
 import { CslProcessor } from "./csl-processor";
 
 export interface CitationTextResourceResolver {
@@ -33,17 +34,25 @@ export interface CitationRenderData {
 export interface LoadedBibliography {
   readonly cslProcessor?: CslProcessor;
   readonly store: BibStore;
+  /** Load/parse status for hosts that surface bibliography diagnostics. */
+  readonly status?: BibliographyStatus;
 }
 
 const EMPTY_STORE: BibStore = new Map<string, CslJsonItem>();
 
-async function parseBibTeXLazy(content: string): Promise<CslJsonItem[]> {
-  const { parseBibTeX } = await import("../../core/citations/bibtex-parser");
-  return parseBibTeX(content);
+// Lazy import keeps citation-js (pulled in transitively via the BibTeX
+// parser) out of the main bundle, matching the old parseBibTeX path.
+async function parseBibliographyLazy(
+  content: string,
+  path: string,
+): Promise<import("../../core/citations/bibliography-parser").BibliographyParseResult> {
+  const { parseBibliography } = await import("../../core/citations/bibliography-parser");
+  return parseBibliography(content, { path });
 }
 
 export const EMPTY_BIBLIOGRAPHY: LoadedBibliography = {
   store: EMPTY_STORE,
+  status: { state: "idle" },
 };
 
 export const EMPTY_CITATIONS: CitationRenderData = {
@@ -77,23 +86,79 @@ export async function loadBibliographyResource(
   }
 
   const bibText = await resolver.readProjectTextFile(bibliographyPath);
-  if (!bibText) {
-    return EMPTY_BIBLIOGRAPHY;
+  if (bibText == null) {
+    return {
+      store: EMPTY_STORE,
+      status: {
+        state: "error",
+        kind: "read-bib",
+        bibPath: bibliographyPath,
+        message: `Could not read bibliography file "${bibliographyPath}"`,
+      },
+    };
   }
 
-  const items = await parseBibTeXLazy(bibText);
+  const parsed = await parseBibliographyLazy(bibText, bibliographyPath);
+  if (parsed.error) {
+    return {
+      store: EMPTY_STORE,
+      status: {
+        state: "error",
+        kind: parsed.format === null ? "detect-format" : "parse-bib",
+        bibPath: bibliographyPath,
+        message: parsed.error,
+      },
+    };
+  }
+
+  const items = parsed.items;
   const store: BibStore = new Map(items.map((item) => [item.id, item]));
   const cslPath = config.csl?.trim();
   const cslXml = cslPath
     ? await resolver.readProjectTextFile(cslPath) ?? undefined
     : undefined;
+  const cslProcessor = items.length > 0
+    ? await CslProcessor.create(items, cslXml)
+    : undefined;
 
-  return {
-    cslProcessor: items.length > 0
-      ? await CslProcessor.create(items, cslXml)
-      : undefined,
-    store,
-  };
+  let status: BibliographyStatus = parsed.skippedEntries > 0
+    ? {
+      state: "warning",
+      kind: "parse-bib",
+      bibPath: bibliographyPath,
+      ...(cslPath ? { cslPath } : {}),
+      message: `Skipped ${parsed.skippedEntries} invalid bibliography ${parsed.skippedEntries === 1 ? "entry" : "entries"}`,
+      entryCount: items.length,
+      skippedEntries: parsed.skippedEntries,
+    }
+    : {
+      state: "ok",
+      bibPath: bibliographyPath,
+      ...(cslPath ? { cslPath } : {}),
+      entryCount: items.length,
+    };
+  const styleStatus = cslProcessor?.styleStatus;
+  if (cslPath && cslXml === undefined) {
+    status = {
+      state: "warning",
+      kind: "read-csl",
+      bibPath: bibliographyPath,
+      cslPath,
+      message: `Could not read CSL style "${cslPath}"; using the default style`,
+      entryCount: items.length,
+    };
+  } else if (cslXml !== undefined && styleStatus?.state === "error") {
+    status = {
+      state: "warning",
+      kind: "style-csl",
+      bibPath: bibliographyPath,
+      cslPath,
+      message: styleStatus.message,
+      entryCount: items.length,
+    };
+  }
+
+  return { cslProcessor, store, status };
 }
 
 export function buildCitationRenderData(

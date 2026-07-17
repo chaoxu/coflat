@@ -13,7 +13,7 @@ import {
   EditorView,
   ViewPlugin,
 } from "@codemirror/view";
-import type { SyntaxNode, SyntaxNodeRef } from "@lezer/common";
+import type { SyntaxNode, SyntaxNodeRef, Tree } from "@lezer/common";
 import {
   DOCUMENT_SURFACE_CLASS,
   documentSurfaceClassNames,
@@ -22,12 +22,10 @@ import type { FrontmatterConfig } from "../state/frontmatter-state";
 import { frontmatterField } from "../state/frontmatter-state";
 import { mathMacrosField } from "../state/math-macros";
 import { buildDecorations } from "./decoration-core";
-import {
-  createDecorationStateField,
-  cursorSensitiveShouldRebuild,
-} from "./decoration-field";
+import { defaultShouldRebuild } from "./decoration-field";
 import {
   editorFocusField,
+  focusEffect,
   focusTracker,
 } from "./focus-state";
 import {
@@ -37,6 +35,8 @@ import {
 import { PARAGRAPH_FLOW_WIDGET_CLASS } from "./paragraph-flow-dom";
 import { renderPreviewBlockContentToDom } from "./preview-block-renderer";
 import {
+  applyFlowSelectionPatch,
+  isTopLevelBlockquote,
   selectionIntersectsRange,
   shouldRenderBlockquoteAsFlow,
 } from "./rendered-block-flow";
@@ -259,60 +259,160 @@ function paragraphFlowConfig(state: EditorState): FrontmatterConfig {
   return state.field(frontmatterField, false)?.config ?? {};
 }
 
-function collectParagraphFlowItems(
+type FlowCandidateKind = "paragraph" | "blockquote";
+
+interface FlowCandidate {
+  readonly from: number;
+  readonly to: number;
+  readonly kind: FlowCandidateKind;
+}
+
+interface ParagraphFlowFieldValue {
+  readonly decorations: DecorationSet;
+  // Every multi-line top-level paragraph and every top-level blockquote range,
+  // rendered or not. A revealed block has no decoration to test against, so
+  // selection diffing needs this list.
+  readonly candidates: readonly FlowCandidate[];
+  // Tree the candidates were collected from; selection-only patches bail to a
+  // full rebuild when the tree advanced in between.
+  readonly tree: Tree;
+}
+
+function paragraphFlowItem(
   state: EditorState,
+  from: number,
+  to: number,
+  config: FrontmatterConfig,
+  renderKey: string,
+): Range<Decoration> {
+  const widget = new ParagraphFlowWidget(state.sliceDoc(from, to), config, renderKey);
+  widget.updateSourceRange(from, to);
+  return Decoration.replace({
+    widget,
+    block: true,
+    class: PARAGRAPH_FLOW_WIDGET_CLASS,
+  }).range(from, to);
+}
+
+function blockquoteFlowItem(
+  state: EditorState,
+  from: number,
+  to: number,
+  config: FrontmatterConfig,
+  renderKey: string,
+): Range<Decoration> {
+  const widget = new BlockquoteFlowWidget(state.sliceDoc(from, to), config, renderKey);
+  widget.updateSourceRange(from, to);
+  return Decoration.replace({
+    widget,
+    block: true,
+    class: `${PARAGRAPH_FLOW_WIDGET_CLASS} ${BLOCKQUOTE_FLOW_WIDGET_CLASS}`,
+  }).range(from, to);
+}
+
+function buildParagraphFlowValue(state: EditorState): ParagraphFlowFieldValue {
+  const focused = state.field(editorFocusField, false) ?? false;
+  const selectionFrozen = state.field(paragraphFlowSelectionFrozenField, false) ?? false;
+  const config = paragraphFlowConfig(state);
+  const renderKey = getPreviewRenderDependencySignature(state);
+  const candidates: FlowCandidate[] = [];
+  const items: Range<Decoration>[] = [];
+  const tree = syntaxTree(state);
+  tree.iterate({
+    enter(node: SyntaxNodeRef) {
+      if (node.name === "Paragraph") {
+        const paragraph = node.node;
+        if (!isTopLevelParagraph(paragraph)) return undefined;
+        if (!isMultiLineRange(state, paragraph.from, paragraph.to)) return undefined;
+        candidates.push({ from: paragraph.from, to: paragraph.to, kind: "paragraph" });
+        if (!isEligibleParagraph(state, paragraph, focused, selectionFrozen)) return undefined;
+        items.push(paragraphFlowItem(state, paragraph.from, paragraph.to, config, renderKey));
+        return false;
+      }
+      if (node.name === "Blockquote") {
+        const blockquote = node.node;
+        if (!isTopLevelBlockquote(blockquote)) return undefined;
+        candidates.push({ from: blockquote.from, to: blockquote.to, kind: "blockquote" });
+        if (!isEligibleBlockquote(state, blockquote, focused)) return undefined;
+        items.push(blockquoteFlowItem(state, blockquote.from, blockquote.to, config, renderKey));
+        return false;
+      }
+      return undefined;
+    },
+  });
+  return { decorations: buildDecorations(items), candidates, tree };
+}
+
+function collectParagraphFlowItemsInRanges(
+  state: EditorState,
+  ranges: readonly FlowCandidate[],
 ): Range<Decoration>[] {
   const focused = state.field(editorFocusField, false) ?? false;
   const selectionFrozen = state.field(paragraphFlowSelectionFrozenField, false) ?? false;
   const config = paragraphFlowConfig(state);
   const renderKey = getPreviewRenderDependencySignature(state);
   const items: Range<Decoration>[] = [];
-  syntaxTree(state).iterate({
-    enter(node: SyntaxNodeRef) {
-      if (node.name === "Paragraph") {
-        const paragraph = node.node;
-        if (!isEligibleParagraph(state, paragraph, focused, selectionFrozen)) return undefined;
-        const widget = new ParagraphFlowWidget(
-          state.sliceDoc(paragraph.from, paragraph.to),
-          config,
-          renderKey,
-        );
-        widget.updateSourceRange(paragraph.from, paragraph.to);
-        items.push(
-          Decoration.replace({
-            widget,
-            block: true,
-            class: PARAGRAPH_FLOW_WIDGET_CLASS,
-          }).range(paragraph.from, paragraph.to),
-        );
-        return false;
-      }
-      if (node.name === "Blockquote") {
-        const blockquote = node.node;
-        if (!isEligibleBlockquote(state, blockquote, focused)) return undefined;
-        const widget = new BlockquoteFlowWidget(
-          state.sliceDoc(blockquote.from, blockquote.to),
-          config,
-          renderKey,
-        );
-        widget.updateSourceRange(blockquote.from, blockquote.to);
-        items.push(
-          Decoration.replace({
-            widget,
-            block: true,
-            class: `${PARAGRAPH_FLOW_WIDGET_CLASS} ${BLOCKQUOTE_FLOW_WIDGET_CLASS}`,
-          }).range(blockquote.from, blockquote.to),
-        );
-        return false;
-      }
-      return undefined;
-    },
-  });
+  for (const range of ranges) {
+    syntaxTree(state).iterate({
+      from: range.from,
+      to: range.to,
+      enter(node: SyntaxNodeRef) {
+        // Scoped iteration also enters blocks that merely touch the window;
+        // only the exact candidate may re-emit a widget — its neighbours'
+        // decorations are still in the set. Candidates are top-level, so
+        // nothing relevant nests inside another Paragraph/Blockquote.
+        const exact = node.from === range.from && node.to === range.to;
+        if (node.name === "Paragraph") {
+          if (!exact || range.kind !== "paragraph") return false;
+          const paragraph = node.node;
+          if (isEligibleParagraph(state, paragraph, focused, selectionFrozen)) {
+            items.push(paragraphFlowItem(state, paragraph.from, paragraph.to, config, renderKey));
+          }
+          return false;
+        }
+        if (node.name === "Blockquote") {
+          if (!exact || range.kind !== "blockquote") return false;
+          const blockquote = node.node;
+          if (isEligibleBlockquote(state, blockquote, focused)) {
+            items.push(blockquoteFlowItem(state, blockquote.from, blockquote.to, config, renderKey));
+          }
+          return false;
+        }
+        return undefined;
+      },
+    });
+  }
   return items;
 }
 
-function collectParagraphFlowDecorations(state: EditorState): DecorationSet {
-  return buildDecorations(collectParagraphFlowItems(state));
+// True when the candidate's source is revealed (no widget) for this selection.
+// Mirrors the eligibility rules: a frozen selection keeps paragraphs rendered
+// (freeze is paragraph-only — flow blockquotes still follow the selection).
+function flowCandidateRevealed(
+  state: EditorState,
+  candidate: FlowCandidate,
+  focused: boolean,
+  selectionFrozen: boolean,
+): boolean {
+  if (candidate.kind === "paragraph" && selectionFrozen) return false;
+  return selectionIntersects(state, candidate.from, candidate.to, focused);
+}
+
+// Selection-only path; the diff/patch machinery is applyFlowSelectionPatch.
+function applyParagraphFlowSelectionUpdate(
+  value: ParagraphFlowFieldValue,
+  tr: Transaction,
+): ParagraphFlowFieldValue {
+  const focused = tr.state.field(editorFocusField, false) ?? false;
+  const selectionFrozen = tr.state.field(paragraphFlowSelectionFrozenField, false) ?? false;
+  const decorations = applyFlowSelectionPatch(
+    value,
+    tr,
+    (state, candidate) => flowCandidateRevealed(state, candidate, focused, selectionFrozen),
+    collectParagraphFlowItemsInRanges,
+  );
+  if (decorations === null) return buildParagraphFlowValue(tr.state);
+  return decorations === value.decorations ? value : { ...value, decorations };
 }
 
 function paragraphFlowDependenciesNeedRebuild(tr: Transaction): boolean {
@@ -320,18 +420,25 @@ function paragraphFlowDependenciesNeedRebuild(tr: Transaction): boolean {
     getPreviewRenderDependencySignature(tr.state);
 }
 
-const paragraphFlowField = createDecorationStateField({
-  atomicRanges: true,
-  create: collectParagraphFlowDecorations,
+const paragraphFlowField = StateField.define<ParagraphFlowFieldValue>({
+  create: buildParagraphFlowValue,
   update(value, tr) {
     if (
       transactionChangesParagraphFlowSelectionFreeze(tr) ||
-      cursorSensitiveShouldRebuild(tr) ||
+      defaultShouldRebuild(tr) ||
+      tr.effects.some((effect) => effect.is(focusEffect)) ||
       paragraphFlowDependenciesNeedRebuild(tr)
     ) {
-      return collectParagraphFlowDecorations(tr.state);
+      return buildParagraphFlowValue(tr.state);
     }
-    return value;
+    if (tr.selection === undefined) return value;
+    return applyParagraphFlowSelectionUpdate(value, tr);
+  },
+  provide(field) {
+    return [
+      EditorView.decorations.from(field, (value) => value.decorations),
+      EditorView.atomicRanges.of((view) => view.state.field(field).decorations),
+    ];
   },
 });
 

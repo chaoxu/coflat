@@ -4,7 +4,7 @@
 // known bibliography keys. This is the single source of truth for "is this a
 // citation key", "what is its inline label", and "what is the bibliography",
 // so each surface wires it instead of re-deriving the rules.
-import type { CitationFormatter } from "../document-context-types";
+import type { CitationCiteExtras, CitationFormatter } from "../document-context-types";
 
 export interface BibliographyEntryHtml {
   readonly id: string;
@@ -130,9 +130,10 @@ export function citeInline(
   formatter: CitationFormatter | undefined,
   ids: readonly string[],
   locators: readonly (string | undefined)[] = [],
+  extras?: readonly (CitationCiteExtras | undefined)[],
 ): string | null {
   if (!formatter) return null;
-  return formatter.cite(ids, locators);
+  return formatter.cite(ids, locators, extras);
 }
 
 /**

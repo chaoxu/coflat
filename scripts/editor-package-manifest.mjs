@@ -32,6 +32,7 @@ export const EDITOR_EXTERNAL_DEPENDENCIES = Object.freeze([
   "react",
   "react-dom",
   "tailwind-merge",
+  "turndown",
   "yaml",
   "zustand",
 ]);

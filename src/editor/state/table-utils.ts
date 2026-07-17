@@ -149,7 +149,7 @@ export function parseTable(lines: readonly string[]): ParsedTable | null {
 // ---------------------------------------------------------------------------
 
 /** Build a separator cell string for the given alignment. */
-function alignmentToSeparator(alignment: Alignment, width: number): string {
+export function alignmentToSeparator(alignment: Alignment, width: number): string {
   const dashes = Math.max(width, 3);
   switch (alignment) {
     case "left":

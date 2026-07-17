@@ -86,12 +86,26 @@ export interface RefResolver {
 }
 
 /**
+ * Per-item Pandoc citation fields beyond id/locator: prefix text before the
+ * key (`[see @key]`) and the suppress-author flag (`-@key`). Suffix text
+ * rides in the locator string and is split off by the formatter.
+ */
+export interface CitationCiteExtras {
+  readonly prefix?: string;
+  readonly suppressAuthor?: boolean;
+}
+
+/**
  * Host-supplied formatter for citation rendering. CSL-style numeric or
  * author-date formatting goes through this seam. See
  * `@chaoxu/coflat/citeproc` for a default CSL implementation.
  */
 export interface CitationFormatter {
-  cite(ids: readonly string[], locators: readonly (string | undefined)[]): string;
+  cite(
+    ids: readonly string[],
+    locators: readonly (string | undefined)[],
+    extras?: readonly (CitationCiteExtras | undefined)[],
+  ): string;
   citeNarrative(id: string): string;
   bibliographyEntries(
     citedIds: readonly string[],

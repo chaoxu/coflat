@@ -82,6 +82,67 @@ describe("reader citations", () => {
     expect(html).not.toContain("cf-bibliography"); // no citation cited
   });
 
+  it("includes frontmatter nocite entries after the cited ones", () => {
+    const src = [
+      "---",
+      "nocite: \"@knuth1997\"",
+      "---",
+      "",
+      "See [@cormen2009].",
+    ].join("\n");
+    const { html } = renderToHtml(src, ctxWith(["knuth1997", "cormen2009"]));
+
+    expect(html).toContain('class="cf-bibliography"');
+    const bibCormen = html.indexOf("bib-cormen2009");
+    const bibKnuth = html.indexOf("bib-knuth1997");
+    expect(bibCormen).toBeGreaterThan(-1);
+    // nocite entries number after every in-text citation.
+    expect(bibKnuth).toBeGreaterThan(bibCormen);
+    // No inline citation was emitted for the nocite-only key.
+    expect(html).not.toContain('data-ref-key="knuth1997"');
+  });
+
+  it("renders a bibliography for a nocite @* wildcard with no in-text citations", () => {
+    const src = [
+      "---",
+      "nocite: \"@*\"",
+      "---",
+      "",
+      "No citations in the body.",
+    ].join("\n");
+    const { html } = renderToHtml(src, ctxWith(["knuth1997", "cormen2009"]));
+
+    expect(html).toContain('class="cf-bibliography"');
+    const bibKnuth = html.indexOf("bib-knuth1997");
+    const bibCormen = html.indexOf("bib-cormen2009");
+    expect(bibKnuth).toBeGreaterThan(-1);
+    expect(bibCormen).toBeGreaterThan(bibKnuth);
+  });
+
+  it("ignores nocite without citationKeys (backward compatible)", () => {
+    const src = "---\nnocite: \"@cormen2009\"\n---\n\nBody.";
+    const { html } = renderToHtml(src, { citationFormatter: fakeFormatter() });
+    expect(html).not.toContain("cf-bibliography");
+  });
+
+  it("excludes nocite keys that resolve to local reference targets", () => {
+    const src = [
+      "---",
+      "nocite: \"@eq:gaussian\"",
+      "---",
+      "",
+      "$$",
+      "x^2",
+      "$$ {#eq:gaussian}",
+      "",
+      "Body.",
+    ].join("\n");
+    const { html } = renderToHtml(src, ctxWith(["eq:gaussian"]), {
+      resolveReferences: true,
+    });
+    expect(html).not.toContain("cf-bibliography");
+  });
+
   it("prefers local reference targets over colliding citation keys for the bibliography", () => {
     const src = [
       "$$",

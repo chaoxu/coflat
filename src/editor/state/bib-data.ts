@@ -8,6 +8,7 @@ export { type BibStore };
 export type BibliographyFailureKind =
   | "read-bib"
   | "parse-bib"
+  | "detect-format"
   | "read-csl"
   | "style-csl"
   | "unexpected";
@@ -18,6 +19,8 @@ export type BibliographyStatus =
     readonly state: "ok";
     readonly bibPath: string;
     readonly cslPath?: string;
+    /** Number of entries loaded into the store. */
+    readonly entryCount?: number;
   }
   | {
     readonly state: "warning";
@@ -25,6 +28,10 @@ export type BibliographyStatus =
     readonly bibPath: string;
     readonly cslPath?: string;
     readonly message: string;
+    /** Number of entries loaded into the store despite the warning. */
+    readonly entryCount?: number;
+    /** Recoverable per-entry skips reported by the parser. */
+    readonly skippedEntries?: number;
   }
   | {
     readonly state: "error";

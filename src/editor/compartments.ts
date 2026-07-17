@@ -11,3 +11,4 @@ export const tabSizeCompartment = new Compartment();
 export const treeViewCompartment = new Compartment();
 export const referenceAutocompleteCompartment = new Compartment();
 export const blockTypePickerCompartment = new Compartment();
+export const autocorrectCompartment = new Compartment();

@@ -11,7 +11,7 @@ import {
   type DecorationSet,
   EditorView,
 } from "@codemirror/view";
-import type { SyntaxNode, SyntaxNodeRef } from "@lezer/common";
+import type { SyntaxNode, SyntaxNodeRef, Tree } from "@lezer/common";
 import type { FrontmatterConfig } from "../state/frontmatter-state";
 import { frontmatterField } from "../state/frontmatter-state";
 import { mathMacrosField } from "../state/math-macros";
@@ -25,6 +25,7 @@ import {
   getPreviewRenderDependencySignature,
 } from "./hover-preview-block-options";
 import { renderPreviewBlockContentToDom } from "./preview-block-renderer";
+import { applyFlowSelectionPatch } from "./rendered-block-flow";
 import { RenderWidget } from "./source-widget";
 
 function selectionIntersects(
@@ -86,37 +87,101 @@ class BlockquoteWidget extends RenderWidget {
   }
 }
 
-function collectBlockquoteDecorations(state: EditorState): DecorationSet {
+interface BlockquoteCandidate {
+  readonly from: number;
+  readonly to: number;
+}
+
+interface BlockquoteFieldValue {
+  readonly decorations: DecorationSet;
+  // Every outermost Blockquote range, rendered or not. A revealed blockquote
+  // has no decoration to test against, so selection diffing needs this list.
+  readonly candidates: readonly BlockquoteCandidate[];
+  // Tree the candidates were collected from; selection-only patches bail to a
+  // full rebuild when a background parse advanced the tree in between.
+  readonly tree: Tree;
+}
+
+function blockquoteItem(
+  state: EditorState,
+  from: number,
+  to: number,
+  config: FrontmatterConfig,
+  renderKey: string,
+): Range<Decoration> {
+  const widget = new BlockquoteWidget(state.sliceDoc(from, to), config, renderKey);
+  widget.updateSourceRange(from, to);
+  return Decoration.replace({ widget, block: true }).range(from, to);
+}
+
+function buildBlockquoteValue(state: EditorState): BlockquoteFieldValue {
   const focused = state.field(editorFocusField, false) ?? false;
   const config = state.field(frontmatterField, false)?.config ?? {};
   const renderKey = getPreviewRenderDependencySignature(state);
   const items: Range<Decoration>[] = [];
-  syntaxTree(state).iterate({
+  const candidates: BlockquoteCandidate[] = [];
+  const tree = syntaxTree(state);
+  tree.iterate({
     enter(node: SyntaxNodeRef) {
       if (node.name !== "Blockquote") return undefined;
       const blockquote: SyntaxNode = node.node;
-      if (selectionIntersects(state, blockquote.from, blockquote.to, focused)) {
-        return false;
+      candidates.push({ from: blockquote.from, to: blockquote.to });
+      if (!selectionIntersects(state, blockquote.from, blockquote.to, focused)) {
+        items.push(blockquoteItem(state, blockquote.from, blockquote.to, config, renderKey));
       }
-      const widget = new BlockquoteWidget(
-        state.sliceDoc(blockquote.from, blockquote.to),
-        config,
-        renderKey,
-      );
-      widget.updateSourceRange(blockquote.from, blockquote.to);
-      items.push(
-        Decoration.replace({ widget, block: true }).range(blockquote.from, blockquote.to),
-      );
       return false;
     },
   });
-  return buildDecorations(items);
+  return { decorations: buildDecorations(items), candidates, tree };
+}
+
+function collectBlockquoteItemsInRanges(
+  state: EditorState,
+  ranges: readonly BlockquoteCandidate[],
+): Range<Decoration>[] {
+  const focused = state.field(editorFocusField, false) ?? false;
+  const config = state.field(frontmatterField, false)?.config ?? {};
+  const renderKey = getPreviewRenderDependencySignature(state);
+  const items: Range<Decoration>[] = [];
+  for (const range of ranges) {
+    syntaxTree(state).iterate({
+      from: range.from,
+      to: range.to,
+      enter(node: SyntaxNodeRef) {
+        if (node.name !== "Blockquote") return undefined;
+        // Scoped iteration also enters blockquotes that merely touch the
+        // window; only the exact candidate may re-emit a widget — its
+        // neighbours' decorations are still in the set.
+        if (node.from !== range.from || node.to !== range.to) return false;
+        if (!selectionIntersects(state, node.from, node.to, focused)) {
+          items.push(blockquoteItem(state, node.from, node.to, config, renderKey));
+        }
+        return false;
+      },
+    });
+  }
+  return items;
+}
+
+// Selection-only path; the diff/patch machinery is applyFlowSelectionPatch.
+function applyBlockquoteSelectionUpdate(
+  value: BlockquoteFieldValue,
+  tr: Transaction,
+): BlockquoteFieldValue {
+  const focused = tr.state.field(editorFocusField, false) ?? false;
+  const decorations = applyFlowSelectionPatch(
+    value,
+    tr,
+    (state, candidate) => selectionIntersects(state, candidate.from, candidate.to, focused),
+    collectBlockquoteItemsInRanges,
+  );
+  if (decorations === null) return buildBlockquoteValue(tr.state);
+  return decorations === value.decorations ? value : { ...value, decorations };
 }
 
 function shouldRebuildBlockquotes(tr: Transaction): boolean {
   return (
     tr.docChanged ||
-    !tr.startState.selection.eq(tr.state.selection) ||
     tr.startState.field(editorFocusField, false) !== tr.state.field(editorFocusField, false) ||
     // Numbering/bibliography/macro updates can change the render signature
     // without a doc change (e.g. async bib data); rebuild so eq is re-consulted.
@@ -129,18 +194,21 @@ function shouldRebuildBlockquotes(tr: Transaction): boolean {
   );
 }
 
-const blockquoteField = StateField.define<DecorationSet>({
-  create: collectBlockquoteDecorations,
+const blockquoteField = StateField.define<BlockquoteFieldValue>({
+  create: buildBlockquoteValue,
   update(value, tr) {
     if (shouldRebuildBlockquotes(tr)) {
-      return collectBlockquoteDecorations(tr.state);
+      return buildBlockquoteValue(tr.state);
+    }
+    if (!tr.startState.selection.eq(tr.state.selection)) {
+      return applyBlockquoteSelectionUpdate(value, tr);
     }
     return value;
   },
   provide(field) {
     return [
-      EditorView.decorations.from(field),
-      EditorView.atomicRanges.of((view) => view.state.field(field)),
+      EditorView.decorations.from(field, (value) => value.decorations),
+      EditorView.atomicRanges.of((view) => view.state.field(field).decorations),
     ];
   },
 });

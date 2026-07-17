@@ -1,3 +1,4 @@
+import { codeLanguageDescriptions } from "./code-languages";
 import type { EditorPlugin } from "./editor-plugin";
 import { listOutlinerExtension } from "./list-outliner";
 
@@ -20,6 +21,22 @@ export const referenceAutocompleteEditorPlugin: EditorPlugin = {
   loadTiming: "after-mount",
   readyPhase: "autocomplete-ready",
   load: async () => (await import("./reference-autocomplete")).referenceAutocompleteExtension,
+};
+
+export const fenceLanguageAutocompleteEditorPlugin: EditorPlugin = {
+  id: "fence-language-autocomplete",
+  name: "Fence Language Autocomplete",
+  description: "Completions for code-fence info strings (``` languages)",
+  defaultEnabled: true,
+  loadTiming: "after-mount",
+  readyPhase: "fence-language-autocomplete-ready",
+  // Served through the single autocompletion instance owned by
+  // reference-autocomplete (extraCompletionSourcesFacet), so this plugin is
+  // inert until the reference-autocomplete plugin is active.
+  load: async () =>
+    (await import("./fence-language-autocomplete")).fenceLanguageAutocompleteExtension(
+      codeLanguageDescriptions,
+    ),
 };
 
 export const blockTypePickerEditorPlugin: EditorPlugin = {
@@ -45,6 +62,7 @@ export const findReplaceEditorPlugin: EditorPlugin = {
 export const workbenchEditorPlugins: readonly EditorPlugin[] = [
   listOutlinerEditorPlugin,
   referenceAutocompleteEditorPlugin,
+  fenceLanguageAutocompleteEditorPlugin,
   blockTypePickerEditorPlugin,
   findReplaceEditorPlugin,
 ];

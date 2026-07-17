@@ -3,10 +3,11 @@ import {
   type Completion,
   CompletionContext,
   type CompletionSource,
+  pickedCompletion,
   startCompletion,
 } from "@codemirror/autocomplete";
 import { syntaxTree } from "@codemirror/language";
-import type { EditorState, Extension } from "@codemirror/state";
+import { type EditorState, type Extension, Facet } from "@codemirror/state";
 import { EditorView, type ViewUpdate } from "@codemirror/view";
 import type { SyntaxNode } from "@lezer/common";
 import { CSS } from "../core/constants/css-classes";
@@ -16,7 +17,10 @@ import {
 import { findAncestor } from "./lib/syntax-tree-helpers";
 import { getReferencePresentationModel } from "./references/presentation";
 import { buildCrossrefCompletionPreviewContent } from "./render/hover-preview";
-import { getEditorDocumentReferenceCatalog } from "./semantics/editor-reference-catalog";
+import {
+  getDocumentAnalysisOrRecompute,
+  getEditorDocumentReferenceCatalog,
+} from "./semantics/editor-reference-catalog";
 import { bibDataEffect, bibDataField } from "./state/bib-data";
 
 const CROSSREF_SECTION = { name: "Cross-references", rank: 0 } as const;
@@ -56,6 +60,8 @@ export interface ReferenceCompletionCandidate {
   readonly preview?: string;
   /** Rendered citation form as it will appear (e.g. "(Karger 2000)"). */
   readonly formatted?: string;
+  /** How often the id is already referenced in the document. */
+  readonly usageCount?: number;
 }
 
 interface ReferenceAutocompleteCompletion extends Completion {
@@ -227,6 +233,24 @@ function referenceCompletionOptionClass(completion: Completion): string {
     : "";
 }
 
+/**
+ * Counts how often each reference id already occurs in the document, read
+ * from the incremental analysis `references` slice. Citation completions use
+ * these counts to float frequently-cited entries to the top (Zettlr
+ * autocomplete/citations.ts, sortCitationKeysByUsage).
+ */
+export function collectReferenceUsageCounts(
+  state: EditorState,
+): ReadonlyMap<string, number> {
+  const counts = new Map<string, number>();
+  for (const reference of getDocumentAnalysisOrRecompute(state).references) {
+    for (const id of reference.ids) {
+      counts.set(id, (counts.get(id) ?? 0) + 1);
+    }
+  }
+  return counts;
+}
+
 export function collectReferenceCompletionCandidates(
   state: EditorState,
 ): ReferenceCompletionCandidate[] {
@@ -267,6 +291,10 @@ export function collectReferenceCompletionCandidates(
 
   const store = state.field(bibDataField, false)?.store;
   if (store) {
+    const usageCounts = collectReferenceUsageCounts(state);
+    // No pre-sort: completion order is fully encoded by candidateToCompletion's
+    // sortText (usage count desc, then id), which CM6 uses regardless of
+    // input order.
     for (const item of store.values()) {
       if (candidates.has(item.id)) continue;
       const formatted = presentation.cite([item.id], []);
@@ -276,6 +304,7 @@ export function collectReferenceCompletionCandidates(
         detail: presentation.getDisplayText(item.id),
         preview: presentation.getPreviewText(item.id),
         formatted: formatted || undefined,
+        usageCount: usageCounts.get(item.id) ?? 0,
       });
     }
   }
@@ -300,6 +329,18 @@ function candidateCompletionDetail(
   candidate: ReferenceCompletionCandidate,
 ): string | undefined {
   return candidate.kind === "citation" ? candidate.detail : candidate.id;
+}
+
+const CITATION_USAGE_SORT_CEILING = 999_999;
+
+/**
+ * Encodes a usage count as a fixed-width, inverted decimal key so that
+ * lexicographic sortText comparison ranks higher counts first.
+ */
+function citationUsageSortKey(usageCount: number): string {
+  const inverted = CITATION_USAGE_SORT_CEILING
+    - Math.min(Math.max(usageCount, 0), CITATION_USAGE_SORT_CEILING);
+  return String(inverted).padStart(6, "0");
 }
 
 function candidateToCompletion(
@@ -341,10 +382,65 @@ function candidateToCompletion(
         citationFormatted: candidate.formatted,
         referenceCompletionKind: "citation",
         section: CITATION_SECTION,
-        sortText: `3-${candidate.id}`,
+        sortText: `3-${citationUsageSortKey(candidate.usageCount ?? 0)}-${candidate.id}`,
       };
   }
 }
+
+/**
+ * Insertion plan for a completion whose applied text contains a title/label
+ * portion the user will likely retype (e.g. host file-link completions that
+ * insert `target|Title`). Offsets are relative to `insert`.
+ */
+export interface CompletionInsertPlan {
+  /** Exact text spliced over the completed range. */
+  readonly insert: string;
+  /** Start (offset into `insert`) of the title/label portion to select. */
+  readonly selectFrom: number;
+  /** End of the selected portion; equal to `selectFrom` for a bare cursor. */
+  readonly selectTo: number;
+}
+
+/**
+ * Builds a CM6 completion `apply` callback that inserts `plan.insert` and
+ * leaves the designated title/label portion selected, so the user can
+ * immediately type over it (Zettlr autocomplete/files.ts post-apply title
+ * selection). A zero-length portion degenerates to cursor placement.
+ */
+export function applyCompletionInsertPlan(
+  plan: CompletionInsertPlan,
+): (view: EditorView, completion: Completion, from: number, to: number) => void {
+  return (view, completion, from, to) => {
+    const anchor = from + Math.min(Math.max(plan.selectFrom, 0), plan.insert.length);
+    const head = from + Math.min(Math.max(plan.selectTo, 0), plan.insert.length);
+    view.dispatch({
+      annotations: pickedCompletion.of(completion),
+      changes: { from, to, insert: plan.insert },
+      selection: { anchor, head },
+      userEvent: "input.complete",
+    });
+  };
+}
+
+/**
+ * Additional CM6 completion sources served by the single `autocompletion`
+ * instance this module owns. `autocompletion({ override })` cannot be
+ * instantiated twice with different overrides (CM6 config-merge conflict),
+ * so self-contained feature modules contribute their sources through this
+ * facet instead (e.g. the fence-language completion). Sources are tried in
+ * facet order; the first non-null result wins.
+ */
+export const extraCompletionSourcesFacet = Facet.define<CompletionSource>();
+
+const extraCompletionSource: CompletionSource = async (context) => {
+  for (const source of context.state.facet(extraCompletionSourcesFacet)) {
+    const result = await source(context);
+    if (result) {
+      return result;
+    }
+  }
+  return null;
+};
 
 export const referenceCompletionSource: CompletionSource = (
   context: CompletionContext,
@@ -395,7 +491,7 @@ export const referenceAutocompleteExtension: Extension = [
     activateOnTypingDelay: 0,
     addToOptions: [{ render: renderReferenceCompletionPreview, position: 90 }],
     optionClass: referenceCompletionOptionClass,
-    override: [referenceCompletionSource],
+    override: [referenceCompletionSource, extraCompletionSource],
     tooltipClass: () => CSS.referenceCompletionTooltip,
   }),
   refreshReferenceCompletionOnBibliographyUpdate,

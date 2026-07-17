@@ -1,12 +1,15 @@
 import { markdown } from "@codemirror/lang-markdown";
+import { forceParsing, syntaxTree } from "@codemirror/language";
 import { StateEffect } from "@codemirror/state";
 import { Decoration, EditorView, type ViewUpdate } from "@codemirror/view";
 import { afterEach, describe, expect, it } from "vitest";
 import { CSS } from "../../core/constants/css-classes";
 import { markdownExtensions } from "../../core/parser";
+import { decorationHidden } from "./decoration-core";
 import {
   createEditorState,
   createTestView,
+  type DecorationSpecInfo,
   getDecorationSpecs,
   hasLineClassAt,
   hasMarkClassInRange,
@@ -43,6 +46,20 @@ function createView(doc: string, cursorPos?: number): EditorView {
 function getAllDecorationSpecs(view: EditorView) {
   return view.state.facet(EditorView.decorations)
     .flatMap((source) => getDecorationSpecs(typeof source === "function" ? source(view) : source));
+}
+
+/** Split decoration specs by substrate: StateField sets vs ViewPlugin accessors. */
+function getDecorationSpecsBySource(view: EditorView) {
+  const fieldSpecs: DecorationSpecInfo[] = [];
+  const pluginSpecs: DecorationSpecInfo[] = [];
+  for (const source of view.state.facet(EditorView.decorations)) {
+    if (typeof source === "function") {
+      pluginSpecs.push(...getDecorationSpecs(source(view)));
+    } else {
+      fieldSpecs.push(...getDecorationSpecs(source));
+    }
+  }
+  return { fieldSpecs, pluginSpecs };
 }
 
 describe("cursorInRange", () => {
@@ -790,6 +807,156 @@ describe("markdownRenderPlugin (Decoration.mark approach)", () => {
       view = createView(longLine);
       expect(view.state.doc.toString().length).toBe(10000);
     });
+  });
+});
+
+describe("hard line break hides (residual state field)", () => {
+  let view: EditorView;
+
+  afterEach(() => {
+    view?.destroy();
+  });
+
+  it("hides the hard break through the newline from a state field, not the view plugin", () => {
+    const doc = "foo  \nbar";
+    const breakFrom = doc.indexOf("  \n");
+    view = createView(doc, 0);
+    const { fieldSpecs, pluginSpecs } = getDecorationSpecsBySource(view);
+
+    expect(fieldSpecs).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ from: breakFrom, to: breakFrom + 3 }),
+      ]),
+    );
+    expect(pluginSpecs.some((spec) =>
+      spec.from === breakFrom && spec.to === breakFrom + 3
+    )).toBe(false);
+    // The replaced line break joins the two source lines into one rendered line.
+    expect(view.contentDOM.querySelectorAll(".cm-line")).toHaveLength(1);
+  });
+
+  it("reveals the hard break when the cursor is inside an emphasis containing it", () => {
+    const doc = "a *b  \nc* d";
+    const breakFrom = doc.indexOf("  \n");
+    view = createView(doc, doc.indexOf("b") + 1);
+    const specs = getAllDecorationSpecs(view);
+
+    expect(specs.some((spec) =>
+      spec.from === breakFrom && spec.to === breakFrom + 3
+    )).toBe(false);
+    expect(view.contentDOM.querySelectorAll(".cm-line").length).toBeGreaterThan(1);
+  });
+
+  it("re-hides the hard break when the cursor leaves the emphasis", () => {
+    const doc = "a *b  \nc* d";
+    const breakFrom = doc.indexOf("  \n");
+    view = createView(doc, doc.indexOf("b") + 1);
+
+    view.dispatch({ selection: { anchor: doc.length } });
+
+    const specs = getAllDecorationSpecs(view);
+    expect(specs.some((spec) =>
+      spec.from === breakFrom && spec.to === breakFrom + 3
+    )).toBe(true);
+  });
+});
+
+describe("reveal-freeze parity for newly collected ranges", () => {
+  let view: EditorView;
+
+  afterEach(() => {
+    view?.destroy();
+  });
+
+  it("uses the frozen (pre-drag) selection for reveal decisions while frozen", () => {
+    const doc = "**bold** tail";
+    view = createView(doc, doc.length);
+    view.dispatch({ effects: setMarkdownRevealFrozen.of(true) });
+    // Live drag selection moves inside the bold node while frozen.
+    view.dispatch({ selection: { anchor: 4 } });
+
+    // Simulates the viewport plugin collecting a newly visible range mid-drag:
+    // reveal must follow the frozen selection, not the live one.
+    const items = collectMarkdownItems(view, [{ from: 0, to: doc.length }], () => false);
+
+    expect(items.some((item) =>
+      item.from === 0 && item.to === 2 && item.value === decorationHidden
+    )).toBe(true);
+    expect(items.some((item) => item.value.spec.class === CSS.sourceDelimiter)).toBe(false);
+  });
+
+  it("maps the frozen selection through doc changes", () => {
+    const doc = "**bold** tail";
+    view = createView(doc, 4);
+    view.dispatch({ effects: setMarkdownRevealFrozen.of(true) });
+    view.dispatch({ changes: { from: 0, insert: "x " } });
+    view.dispatch({ selection: { anchor: view.state.doc.length } });
+
+    const items = collectMarkdownItems(
+      view,
+      [{ from: 0, to: view.state.doc.length }],
+      () => false,
+    );
+
+    // The frozen cursor, mapped to stay inside the bold node, still reveals.
+    expect(items.some((item) => item.value.spec.class === CSS.sourceDelimiter)).toBe(true);
+  });
+
+  it("returns to live-selection reveal after unfreeze", () => {
+    const doc = "**bold** tail";
+    view = createView(doc, doc.length);
+    view.dispatch({ effects: setMarkdownRevealFrozen.of(true) });
+    view.dispatch({ selection: { anchor: 4 } });
+    view.dispatch({ effects: setMarkdownRevealFrozen.of(false) });
+
+    const items = collectMarkdownItems(view, [{ from: 0, to: doc.length }], () => false);
+
+    expect(items.some((item) => item.value.spec.class === CSS.sourceDelimiter)).toBe(true);
+    expect(items.some((item) =>
+      item.from === 0 && item.to === 2 && item.value === decorationHidden
+    )).toBe(false);
+  });
+});
+
+describe("hard line break hides under incremental parse progress", () => {
+  let view: EditorView;
+
+  afterEach(() => {
+    view?.destroy();
+  });
+
+  it("collects newly parsed hard breaks without duplicating earlier ones", () => {
+    const early = "alpha  \nbeta\n\n";
+    const filler = Array.from(
+      { length: 200 },
+      (_, index) =>
+        `paragraph ${index} with plain filler text pushing the document past the initial parse viewport.\n\n`,
+    ).join("");
+    const late = "gamma  \ndelta\n";
+    const doc = early + filler + late;
+    view = createView(doc, 0);
+
+    // Precondition: the initial parse stops well before the trailing break.
+    expect(syntaxTree(view.state).length).toBeLessThan(doc.length);
+
+    const earlyBreak = doc.indexOf("  \n");
+    const lateBreak = doc.indexOf("gamma  \n") + "gamma".length;
+    const breakSpecsAt = (from: number) =>
+      getDecorationSpecsBySource(view).fieldSpecs.filter(
+        (spec) => spec.from === from && spec.to === from + 3,
+      );
+
+    expect(breakSpecsAt(earlyBreak)).toHaveLength(1);
+    expect(breakSpecsAt(lateBreak)).toHaveLength(0);
+
+    // Advance the parse in two steps to exercise consecutive frontier deltas
+    // (each forceParsing dispatches a doc-unchanged tree-progress update).
+    forceParsing(view, Math.floor(doc.length / 2), 5000);
+    forceParsing(view, doc.length, 5000);
+    expect(syntaxTree(view.state).length).toBe(doc.length);
+
+    expect(breakSpecsAt(earlyBreak)).toHaveLength(1);
+    expect(breakSpecsAt(lateBreak)).toHaveLength(1);
   });
 });
 

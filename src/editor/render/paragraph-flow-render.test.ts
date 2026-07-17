@@ -1,4 +1,6 @@
 import { markdown } from "@codemirror/lang-markdown";
+import { EditorSelection, EditorState } from "@codemirror/state";
+import type { Decoration, DecorationSet } from "@codemirror/view";
 import { EditorView } from "@codemirror/view";
 import { afterEach, describe, expect, it } from "vitest";
 import { markdownExtensions } from "../../core/parser";
@@ -61,8 +63,18 @@ function createReferenceAwareParagraphFlowView(doc: string, cursorPos = doc.leng
 }
 
 function paragraphFlowSpecs(target: EditorView) {
-  return getDecorationSpecs(target.state.field(_paragraphFlowFieldForTest))
+  return getDecorationSpecs(target.state.field(_paragraphFlowFieldForTest).decorations)
     .filter((spec) => spec.widgetClass === "ParagraphFlowWidget" || spec.widgetClass === "BlockquoteFlowWidget");
+}
+
+function decorationEntries(set: DecorationSet) {
+  const entries: { from: number; to: number; value: Decoration }[] = [];
+  const cursor = set.iter();
+  while (cursor.value) {
+    entries.push({ from: cursor.from, to: cursor.to, value: cursor.value });
+    cursor.next();
+  }
+  return entries;
 }
 
 describe("paragraph flow render", () => {
@@ -214,5 +226,76 @@ describe("paragraph flow render", () => {
     const target = createParagraphFlowView(doc, doc.indexOf("second"));
 
     expect(paragraphFlowSpecs(target)).toEqual([]);
+  });
+
+  it("re-renders a flow blockquote when the caret leaves it", () => {
+    const doc = "> quoted *text*\n>\n> second paragraph\n\nnext";
+    const target = createParagraphFlowView(doc, doc.indexOf("second"));
+    expect(paragraphFlowSpecs(target)).toEqual([]);
+
+    target.dispatch({ selection: { anchor: doc.length } });
+
+    expect(paragraphFlowSpecs(target)).toEqual([
+      expect.objectContaining({
+        from: 0,
+        to: doc.indexOf("\n\nnext"),
+        widgetClass: "BlockquoteFlowWidget",
+      }),
+    ]);
+  });
+
+  it("keeps the field value identical when a caret move changes no block overlap", () => {
+    const first = "first source line\nsecond source line";
+    const doc = `${first}\n\nnext plain`;
+    const target = createParagraphFlowView(doc, doc.length);
+    const before = target.state.field(_paragraphFlowFieldForTest);
+    expect(getDecorationSpecs(before.decorations)).toHaveLength(1);
+
+    target.dispatch({ selection: { anchor: doc.length - 2 } });
+
+    expect(target.state.field(_paragraphFlowFieldForTest)).toBe(before);
+  });
+
+  it("removes only the entered paragraph's widget and keeps the neighbour's decoration identity", () => {
+    const first = "first source line\nsecond source line";
+    const second = "third source line\nfourth source line";
+    const doc = `${first}\n\n${second}\n\nnext`;
+    const target = createParagraphFlowView(doc, doc.length);
+    const entriesBefore = decorationEntries(target.state.field(_paragraphFlowFieldForTest).decorations);
+    expect(entriesBefore).toHaveLength(2);
+
+    target.dispatch({ selection: { anchor: doc.indexOf("first") + 2 } });
+
+    const entriesAfter = decorationEntries(target.state.field(_paragraphFlowFieldForTest).decorations);
+    expect(entriesAfter).toHaveLength(1);
+    expect(entriesAfter[0].from).toBe(first.length + 2);
+    expect(entriesAfter[0].value).toBe(entriesBefore[1].value);
+  });
+
+  it("reveals every block touched by a multi-range selection", () => {
+    const first = "first source line\nsecond source line";
+    const second = "third source line\nfourth source line";
+    const doc = `${first}\n\n${second}\n\nnext`;
+    view = createTestView(doc, {
+      cursorPos: doc.length,
+      extensions: [
+        markdown({ extensions: markdownExtensions }),
+        EditorState.allowMultipleSelections.of(true),
+        paragraphFlowRenderPlugin,
+      ],
+    });
+    view.dispatch({ effects: focusEffect.of(true) });
+    expect(paragraphFlowSpecs(view)).toHaveLength(2);
+
+    view.dispatch({
+      selection: EditorSelection.create([
+        EditorSelection.cursor(doc.indexOf("second")),
+        EditorSelection.cursor(doc.indexOf("fourth")),
+      ], 0),
+    });
+    expect(paragraphFlowSpecs(view)).toEqual([]);
+
+    view.dispatch({ selection: { anchor: doc.length } });
+    expect(paragraphFlowSpecs(view)).toHaveLength(2);
   });
 });

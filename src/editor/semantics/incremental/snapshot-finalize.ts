@@ -10,6 +10,11 @@ import type {
   TextSource,
 } from "../document-model";
 import {
+  NO_PENDING_REGIONS,
+  type PendingRegion,
+  pendingRegionsEqual,
+} from "./pending-regions";
+import {
   buildDocumentAnalysisBase,
   buildRevisionInfo,
   createFencedDivSlice,
@@ -115,6 +120,21 @@ export function createDocumentAnalysisSnapshotFromAnalysis(
     revisions,
     excludedRanges,
     referenceIndex,
+    pendingRegions: NO_PENDING_REGIONS,
+  });
+}
+
+/**
+ * Bookkeeping-only clone: swaps `pendingRegions` while reusing the analysis
+ * object and revisions, so no revision-gated consumer wakes up.
+ */
+export function withPendingRegions(
+  previous: DocumentAnalysisSnapshot,
+  pendingRegions: readonly PendingRegion[],
+): DocumentAnalysisSnapshot {
+  return createDocumentAnalysisSnapshotValue(previous.analysis, {
+    ...previous.incrementalState,
+    pendingRegions,
   });
 }
 
@@ -238,6 +258,7 @@ export function finalizeDocumentAnalysis(
   excludedRanges: readonly ExcludedRange[],
   doc: TextSource,
   referenceIndexOverride?: ReferenceIndexModel,
+  pendingRegions: readonly PendingRegion[] = NO_PENDING_REGIONS,
 ): DocumentAnalysisSnapshot {
   const previousState = previous?.incrementalState;
   if (
@@ -245,7 +266,10 @@ export function finalizeDocumentAnalysis(
     && sameSlices(previousState, slices)
     && previousState.excludedRanges === excludedRanges
   ) {
-    return previous;
+    if (pendingRegionsEqual(previousState.pendingRegions, pendingRegions)) {
+      return previous;
+    }
+    return withPendingRegions(previous, pendingRegions);
   }
 
   const revisions = buildRevisionInfo(previousState, slices);
@@ -266,5 +290,6 @@ export function finalizeDocumentAnalysis(
     revisions,
     excludedRanges,
     referenceIndex,
+    pendingRegions,
   });
 }

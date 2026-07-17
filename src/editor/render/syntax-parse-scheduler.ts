@@ -5,23 +5,11 @@ import {
 } from "@codemirror/language";
 import type { EditorView } from "@codemirror/view";
 
-type IdleTaskHandle = number;
-type IdleTaskDeadline = {
-  readonly didTimeout: boolean;
-  timeRemaining: () => number;
-};
-type WindowWithIdleTask = Window & {
-  requestIdleCallback?: (
-    callback: (deadline: IdleTaskDeadline) => void,
-    options?: { readonly timeout?: number },
-  ) => IdleTaskHandle;
-  cancelIdleCallback?: (handle: IdleTaskHandle) => void;
-};
-
-interface ScheduledHandle {
-  readonly kind: "idle" | "timeout";
-  readonly id: number;
-}
+import {
+  cancelScheduledHandle,
+  type ScheduledHandle,
+  scheduleIdleOrTimeout,
+} from "../lib/idle-scheduler";
 
 export interface SyntaxParseScheduleRequest {
   readonly targetTo: number;
@@ -30,32 +18,6 @@ export interface SyntaxParseScheduleRequest {
 }
 
 const DEFAULT_PARSE_BUDGET_MS = 25;
-const PARSE_IDLE_TIMEOUT_MS = 250;
-const PARSE_RETRY_DELAY_MS = 32;
-
-function scheduleIdleOrTimeout(task: () => void): ScheduledHandle {
-  const idleWindow = window as WindowWithIdleTask;
-  if (idleWindow.requestIdleCallback) {
-    return {
-      kind: "idle",
-      id: idleWindow.requestIdleCallback(task, { timeout: PARSE_IDLE_TIMEOUT_MS }),
-    };
-  }
-
-  return {
-    kind: "timeout",
-    id: window.setTimeout(task, PARSE_RETRY_DELAY_MS),
-  };
-}
-
-function cancelScheduledHandle(handle: ScheduledHandle): void {
-  if (handle.kind === "idle") {
-    const idleWindow = window as WindowWithIdleTask;
-    idleWindow.cancelIdleCallback?.(handle.id);
-    return;
-  }
-  window.clearTimeout(handle.id);
-}
 
 /**
  * Coalesces low-priority CM6 parse nudges for render plugins.

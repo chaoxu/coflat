@@ -2158,8 +2158,40 @@ test("theme presets keep reader and CM6 rich editor surfaces visually aligned", 
     [".parity-reader .cf-doc-block--proof", ".parity-editor .cm-line.cf-doc-block--proof", ["border-left-color", "border-left-style", "border-left-width", "font-style", "padding-left"]],
     [".parity-reader .cf-doc-block--proof .cf-doc-inline-math .katex", ".parity-editor .cm-line.cf-doc-block--proof .cf-doc-inline-math .katex", ["color", "font-size", "font-style", "font-weight"]],
     [".parity-reader .cf-doc-block--definition", ".parity-editor .cm-line.cf-doc-block--definition", ["font-style"]],
-    [".parity-reader .cf-doc-block--blockquote", ".parity-editor .cm-line.cf-doc-block--blockquote", ["border-left-color", "border-left-style", "border-left-width", "font-style", "padding-left"]],
+    [".parity-reader .cf-doc-block--blockquote", ".parity-editor .cm-line.cf-doc-block--blockquote", ["font-style"]],
   ] as const;
+
+  // Blockquote fenced-div lines carry the reader container's inset as margin
+  // (their border box must match the reader paragraph box for block-geometry
+  // parity) and paint the border via ::before. Assert the same visual
+  // contract against that mechanism: identical border, identical total inset.
+  async function expectBlockquoteInsetParity() {
+    const parity = await page.evaluate(() => {
+      const reader = document.querySelector(".parity-reader .cf-doc-block--blockquote");
+      const editorLine = document.querySelector(".parity-editor .cm-line.cf-doc-block--blockquote");
+      if (!reader || !editorLine) throw new Error("missing blockquote parity elements");
+      const readerStyle = getComputedStyle(reader);
+      const lineStyle = getComputedStyle(editorLine);
+      const lineBefore = getComputedStyle(editorLine, "::before");
+      return {
+        reader: {
+          borderLeftColor: readerStyle.borderLeftColor,
+          borderLeftStyle: readerStyle.borderLeftStyle,
+          borderLeftWidth: readerStyle.borderLeftWidth,
+          inset:
+            Number.parseFloat(readerStyle.borderLeftWidth) +
+            Number.parseFloat(readerStyle.paddingLeft),
+        },
+        editor: {
+          borderLeftColor: lineBefore.borderLeftColor,
+          borderLeftStyle: lineBefore.borderLeftStyle,
+          borderLeftWidth: lineBefore.borderLeftWidth,
+          inset: Number.parseFloat(lineStyle.marginLeft),
+        },
+      };
+    });
+    expect(parity.editor).toEqual(parity.reader);
+  }
 
   for (const preset of PARITY_PIXEL_PRESETS) {
     await setParitySource(page, NESTED_MATH_PARITY_SOURCE);
@@ -2167,6 +2199,7 @@ test("theme presets keep reader and CM6 rich editor surfaces visually aligned", 
     for (const [readerSelector, editorSelector, properties] of stylePairs) {
       await expectStylesMatch(readerSelector, editorSelector, properties);
     }
+    await expectBlockquoteInsetParity();
     const referenceParagraph = page.locator(".parity-editor .cf-paragraph-flow-widget .cf-doc-paragraph", {
       hasText: "References should align too",
     });

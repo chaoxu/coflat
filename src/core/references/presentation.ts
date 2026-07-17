@@ -1,10 +1,12 @@
 import type {
+  CitationCiteExtras,
   HostReferenceResolution,
   ReferenceMode,
   RefResolver,
   RefResolverEnv,
 } from "../document-context-types";
 import { escapeHtml } from "../lib/html-escape";
+import { parseReferenceClusterBody } from "../lib/reference-grammar";
 import { isSafeUrl } from "../lib/url-utils";
 
 export type CrossrefKind = "block" | "heading" | "equation" | "unresolved";
@@ -31,6 +33,7 @@ export interface ReferencePresentationContext {
   cite: (
     ids: readonly string[],
     locators: readonly (string | undefined)[],
+    extras?: readonly (CitationCiteExtras | undefined)[],
   ) => string;
   citeNarrative: (id: string) => string;
   resolveHostReference?: (
@@ -119,8 +122,46 @@ function citeSingle(
   context: Pick<ReferencePresentationContext, "cite">,
   id: string,
   locator: string | undefined,
+  extra?: CitationCiteExtras,
 ): string {
-  return context.cite([id], locator === undefined ? [] : [locator]);
+  return context.cite(
+    [id],
+    locator === undefined ? [] : [locator],
+    extra === undefined ? undefined : [extra],
+  );
+}
+
+/**
+ * Recover per-item Pandoc cite fields (prefix, suppress-author) from the raw
+ * cluster source. `input.ids`/`input.locators` are the shared parallel-array
+ * channel; the raw text is the only place the new fields survive on every
+ * surface, so both the reader and the editor derive them here and render
+ * identically. Returns undefined when nothing beyond ids/locators is present
+ * (the common case) so formatter calls stay byte-identical for old documents.
+ */
+function deriveCiteExtras(
+  input: ReferencePresentationInput,
+): readonly (CitationCiteExtras | undefined)[] | undefined {
+  if (!input.bracketed) {
+    return input.raw.startsWith("-@") ? [{ suppressAuthor: true }] : undefined;
+  }
+
+  const body = input.raw.startsWith("[") && input.raw.endsWith("]")
+    ? input.raw.slice(1, -1)
+    : input.raw;
+  const items = parseReferenceClusterBody(body);
+  if (!items || items.length !== input.ids.length) return undefined;
+  if (items.some((item, index) => item.id !== input.ids[index])) return undefined;
+
+  const extras = items.map((item): CitationCiteExtras | undefined => (
+    item.prefix !== undefined || item.suppressAuthor
+      ? {
+          ...(item.prefix !== undefined ? { prefix: item.prefix } : {}),
+          ...(item.suppressAuthor ? { suppressAuthor: true } : {}),
+        }
+      : undefined
+  ));
+  return extras.some((extra) => extra !== undefined) ? extras : undefined;
 }
 
 export function classifyReferenceTarget(
@@ -242,6 +283,7 @@ export function planReferencePresentation(
   const classifications = input.ids.map((id) =>
     context.classify(id, input.bracketed),
   );
+  const extras = deriveCiteExtras(input);
 
   if (!input.bracketed) {
     const resolved = classifications[0];
@@ -251,7 +293,11 @@ export function planReferencePresentation(
     if (resolved.kind === "citation") {
       return {
         kind: "citation",
-        rendered: context.citeNarrative(input.ids[0]),
+        // Pandoc `-@key` in running text is a suppressed-author citation
+        // ("(2004)" / "[1]"), not the narrative author-composite form.
+        rendered: extras?.[0]?.suppressAuthor
+          ? context.cite(input.ids, input.locators, extras)
+          : context.citeNarrative(input.ids[0]),
         ids: input.ids,
         narrative: true,
       };
@@ -268,7 +314,7 @@ export function planReferencePresentation(
   if (allCitations) {
     return {
       kind: "citation",
-      rendered: context.cite(input.ids, input.locators),
+      rendered: context.cite(input.ids, input.locators, extras),
       ids: input.ids,
       narrative: false,
     };
@@ -284,7 +330,9 @@ export function planReferencePresentation(
         return {
           kind: "citation" as const,
           id,
-          text: stripOuterParens(citeSingle(context, id, input.locators[index])),
+          text: stripOuterParens(
+            citeSingle(context, id, input.locators[index], extras?.[index]),
+          ),
         };
       }
       return {

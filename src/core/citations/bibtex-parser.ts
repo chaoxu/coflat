@@ -199,14 +199,23 @@ function normalizeCslItem(item: CslJsonItem): CslJsonItem {
   return item;
 }
 
+/** Result of a BibTeX parse attempt, including recoverable diagnostics. */
+export interface BibTexParseResult {
+  readonly items: CslJsonItem[];
+  /** Parse failure message; `items` is empty when set. */
+  readonly error?: string;
+  /** True when parsing succeeded only after stripping abstract/file fields. */
+  readonly recovered?: boolean;
+}
+
 /**
  * Content-keyed cache for parsed BibTeX results.
  * Bounded to avoid unbounded memory growth from many distinct inputs.
  */
-const bibParseCache = new Map<string, CslJsonItem[]>();
+const bibParseCache = new Map<string, BibTexParseResult>();
 const BIB_PARSE_CACHE_MAX = 4;
 
-function cacheBibParseResult(content: string, result: CslJsonItem[]): void {
+function cacheBibParseResult(content: string, result: BibTexParseResult): void {
   while (bibParseCache.size >= BIB_PARSE_CACHE_MAX) {
     const oldest = bibParseCache.keys().next();
     if (oldest.done) {
@@ -230,14 +239,27 @@ function cacheBibParseResult(content: string, result: CslJsonItem[]): void {
  * @returns Array of parsed CslJsonItem objects
  */
 export function parseBibTeX(content: string): CslJsonItem[] {
-  if (!content.trim()) return [];
+  return parseBibTeXResult(content).items;
+}
+
+function parseErrorMessage(error: unknown): string {
+  return error instanceof Error && error.message ? error.message : String(error);
+}
+
+/**
+ * Parse BibTeX content, reporting parse failures instead of swallowing them.
+ * Same caching and strip-and-retry behavior as {@link parseBibTeX}; used by
+ * the format-detecting bibliography loader to populate `BibliographyStatus`.
+ */
+export function parseBibTeXResult(content: string): BibTexParseResult {
+  if (!content.trim()) return { items: [] };
 
   const cached = bibParseCache.get(content);
   if (cached) return cached;
 
   try {
     const cite = new Cite(content);
-    const result = (cite.data as CslJsonItem[]).map(normalizeCslItem);
+    const result = { items: (cite.data as CslJsonItem[]).map(normalizeCslItem) };
     cacheBibParseResult(content, result);
     return result;
   } catch (e: unknown) {
@@ -245,18 +267,21 @@ export function parseBibTeX(content: string): CslJsonItem[] {
     if (sanitized !== content) {
       try {
         const cite = new Cite(sanitized);
-        const result = (cite.data as CslJsonItem[]).map(normalizeCslItem);
+        const result = {
+          items: (cite.data as CslJsonItem[]).map(normalizeCslItem),
+          recovered: true,
+        };
         cacheBibParseResult(content, result);
         return result;
       } catch (retryError: unknown) {
         console.warn("[bibtex] parse failed after stripping abstract/file fields, returning empty list", retryError);
-        return [];
+        return { items: [], error: parseErrorMessage(retryError) };
       }
     }
 
     // Malformed BibTeX content -- return empty list rather than crashing
     console.warn("[bibtex] parse failed, returning empty list", e);
-    return [];
+    return { items: [], error: parseErrorMessage(e) };
   }
 }
 

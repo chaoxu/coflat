@@ -1,101 +1,83 @@
 import { markdown } from "@codemirror/lang-markdown";
 import * as language from "@codemirror/language";
-import { EditorState } from "@codemirror/state";
-import type { Decoration } from "@codemirror/view";
+import type { Decoration, DecorationSet } from "@codemirror/view";
 import { EditorView } from "@codemirror/view";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { markdownExtensions } from "../../core/parser";
 import { documentAnalysisField } from "../state/document-analysis";
-import { frontmatterField } from "../state/frontmatter-state";
+import { createTestView, destroyAllTestViews } from "../test-utils";
 import {
-  _computeContainerDirtyRegionForTest,
-  containerAttributesField,
   containerAttributesPlugin,
+  _containerAttributePendingDirtyRegionFieldForTest as pendingDirtyRegionField,
 } from "./container-attributes";
 
-/** Create an EditorState with the markdown parser and containerAttributesField. */
-function createState(doc: string): EditorState {
-  return EditorState.create({
-    doc,
+/** Create an EditorView with the markdown parser and containerAttributesPlugin. */
+function createView(doc: string): EditorView {
+  return createTestView(doc, {
     extensions: [
       markdown({ extensions: markdownExtensions }),
-      frontmatterField,
       documentAnalysisField,
-      containerAttributesField,
+      containerAttributesPlugin,
     ],
   });
 }
 
-function createView(doc: string): { view: EditorView; parent: HTMLElement } {
-  const parent = document.createElement("div");
-  document.body.appendChild(parent);
-  const view = new EditorView({
-    state: EditorState.create({
-      doc,
-      extensions: [
-        markdown({ extensions: markdownExtensions }),
-        frontmatterField,
-        documentAnalysisField,
-        containerAttributesPlugin,
-      ],
-    }),
-    parent,
-  });
-  return { view, parent };
+type DecorationWithSpec = Decoration & {
+  spec?: { attributes?: Record<string, string>; class?: string };
+};
+
+function forEachDecoration(
+  view: EditorView,
+  visit: (from: number, deco: DecorationWithSpec) => void,
+): void {
+  for (const source of view.state.facet(EditorView.decorations)) {
+    const set: DecorationSet = typeof source === "function" ? source(view) : source;
+    const iter = set.iter();
+    while (iter.value) {
+      visit(iter.from, iter.value as DecorationWithSpec);
+      iter.next();
+    }
+  }
 }
 
-/** Extract (lineStart, tagName) pairs from the field's DecorationSet. */
-function extractTags(state: EditorState): Array<{ pos: number; tag: string }> {
-  const decos = state.field(containerAttributesField);
+/** Extract (lineStart, tagName) pairs from the plugin's decorations. */
+function extractTags(view: EditorView): Array<{ pos: number; tag: string }> {
   const result: Array<{ pos: number; tag: string }> = [];
-  const iter = decos.iter();
-  while (iter.value) {
-    const attrs = (iter.value as Decoration & { spec?: { attributes?: Record<string, string> } })
-      .spec?.attributes;
-    const tag = attrs?.["data-tag-name"];
+  forEachDecoration(view, (from, deco) => {
+    const tag = deco.spec?.attributes?.["data-tag-name"];
     if (tag) {
-      result.push({ pos: iter.from, tag });
+      result.push({ pos: from, tag });
     }
-    iter.next();
-  }
+  });
   return result;
 }
 
-function extractClasses(state: EditorState): Array<{ pos: number; className: string }> {
-  const decos = state.field(containerAttributesField);
+function extractClasses(view: EditorView): Array<{ pos: number; className: string }> {
   const result: Array<{ pos: number; className: string }> = [];
-  const iter = decos.iter();
-  while (iter.value) {
-    const className = (iter.value as Decoration & { spec?: { class?: string } })
-      .spec?.class;
+  forEachDecoration(view, (from, deco) => {
+    const className = deco.spec?.class;
     if (className) {
-      result.push({ pos: iter.from, className });
+      result.push({ pos: from, className });
     }
-    iter.next();
-  }
+  });
   return result;
 }
 
-function extractSourceRanges(state: EditorState): Array<{ pos: number; from: string; to: string }> {
-  const decos = state.field(containerAttributesField);
+function extractSourceRanges(view: EditorView): Array<{ pos: number; from: string; to: string }> {
   const result: Array<{ pos: number; from: string; to: string }> = [];
-  const iter = decos.iter();
-  while (iter.value) {
-    const attrs = (iter.value as Decoration & { spec?: { attributes?: Record<string, string> } })
-      .spec?.attributes;
-    const from = attrs?.["data-source-from"];
-    const to = attrs?.["data-source-to"];
+  forEachDecoration(view, (pos, deco) => {
+    const from = deco.spec?.attributes?.["data-source-from"];
+    const to = deco.spec?.attributes?.["data-source-to"];
     if (from && to) {
-      result.push({ pos: iter.from, from, to });
+      result.push({ pos, from, to });
     }
-    iter.next();
-  }
+  });
   return result;
 }
 
-function classNamesByLine(state: EditorState): string[][] {
+function classNamesByLine(view: EditorView): string[][] {
   const byLine = new Map<number, Set<string>>();
-  for (const line of extractClasses(state)) {
+  for (const line of extractClasses(view)) {
     let classes = byLine.get(line.pos);
     if (!classes) {
       classes = new Set();
@@ -111,16 +93,17 @@ function classNamesByLine(state: EditorState): string[][] {
 }
 
 /** Extract just the tag names in document order. */
-function extractTagNames(state: EditorState): string[] {
-  return extractTags(state).map((t) => t.tag);
+function extractTagNames(view: EditorView): string[] {
+  return extractTags(view).map((t) => t.tag);
 }
 
 afterEach(() => {
+  destroyAllTestViews();
   document.body.innerHTML = "";
   vi.useRealTimers();
 });
 
-describe("containerAttributesField", () => {
+describe("containerAttributesPlugin", () => {
   describe("headings", () => {
     it("decorates h1 through h6", () => {
       const doc = [
@@ -131,20 +114,20 @@ describe("containerAttributesField", () => {
         "##### H5",
         "###### H6",
       ].join("\n");
-      expect(extractTagNames(createState(doc))).toEqual([
+      expect(extractTagNames(createView(doc))).toEqual([
         "h1", "h2", "h3", "h4", "h5", "h6",
       ]);
     });
 
     it("places decoration at line start for a heading", () => {
       const doc = "# Title";
-      const tags = extractTags(createState(doc));
+      const tags = extractTags(createView(doc));
       expect(tags).toEqual([{ pos: 0, tag: "h1" }]);
     });
 
     it("places h2 decoration at correct offset", () => {
       const doc = "# First\n## Second";
-      const tags = extractTags(createState(doc));
+      const tags = extractTags(createView(doc));
       expect(tags).toEqual([
         { pos: 0, tag: "h1" },
         { pos: 8, tag: "h2" },
@@ -155,17 +138,17 @@ describe("containerAttributesField", () => {
   describe("paragraphs", () => {
     it("decorates a single paragraph", () => {
       const doc = "Hello world";
-      expect(extractTagNames(createState(doc))).toEqual(["p"]);
+      expect(extractTagNames(createView(doc))).toEqual(["p"]);
     });
 
     it("decorates multiple paragraphs separated by blank lines", () => {
       const doc = "First paragraph.\n\nSecond paragraph.";
-      expect(extractTagNames(createState(doc))).toEqual(["p", "p"]);
+      expect(extractTagNames(createView(doc))).toEqual(["p", "p"]);
     });
 
     it("decorates each line of a multi-line paragraph as p", () => {
       const doc = "Line one\nLine two\nLine three";
-      const tags = extractTags(createState(doc));
+      const tags = extractTags(createView(doc));
       expect(tags).toEqual([
         { pos: 0, tag: "p" },
         { pos: 9, tag: "p" },
@@ -175,7 +158,7 @@ describe("containerAttributesField", () => {
 
     it("marks editor lines as source carriers for rendered-position anchoring", () => {
       const doc = "Line one\nLine two";
-      expect(extractSourceRanges(createState(doc))).toEqual([
+      expect(extractSourceRanges(createView(doc))).toEqual([
         { pos: 0, from: "0", to: "8" },
         { pos: 9, from: "9", to: "17" },
       ]);
@@ -193,7 +176,7 @@ describe("containerAttributesField", () => {
       ].join("\n");
       const firstParagraphStart = doc.indexOf("motivated");
 
-      expect(extractTags(createState(doc))).toEqual([
+      expect(extractTags(createView(doc))).toEqual([
         { pos: firstParagraphStart, tag: "p" },
         { pos: doc.indexOf("second paragraph"), tag: "p" },
       ]);
@@ -203,9 +186,9 @@ describe("containerAttributesField", () => {
   describe("lists", () => {
     it("tags bullet list lines as paragraph list items", () => {
       const doc = "- item one\n- item two";
-      const state = createState(doc);
-      expect(extractTagNames(state)).toEqual(["p", "p"]);
-      const classes = classNamesByLine(state);
+      const view = createView(doc);
+      expect(extractTagNames(view)).toEqual(["p", "p"]);
+      const classes = classNamesByLine(view);
       expect(classes[0]).toEqual(expect.arrayContaining([
         "cf-doc-paragraph",
         "cf-doc-list",
@@ -222,9 +205,9 @@ describe("containerAttributesField", () => {
 
     it("tags ordered list lines as paragraph list items", () => {
       const doc = "1. first\n2. second";
-      const state = createState(doc);
-      expect(extractTagNames(state)).toEqual(["p", "p"]);
-      const classes = classNamesByLine(state);
+      const view = createView(doc);
+      expect(extractTagNames(view)).toEqual(["p", "p"]);
+      const classes = classNamesByLine(view);
       expect(classes[0]).toEqual(expect.arrayContaining([
         "cf-doc-paragraph",
         "cf-doc-list",
@@ -241,7 +224,7 @@ describe("containerAttributesField", () => {
 
     it("tags task list lines with shared task item classes", () => {
       const doc = "- [x] done";
-      const classes = classNamesByLine(createState(doc));
+      const classes = classNamesByLine(createView(doc));
       expect(classes[0]).toEqual(expect.arrayContaining([
         "cf-doc-list--check",
         "cf-doc-list-item--check",
@@ -258,7 +241,7 @@ describe("containerAttributesField", () => {
         "",
         "- bullet",
       ].join("\n");
-      const tags = extractTagNames(createState(doc));
+      const tags = extractTagNames(createView(doc));
       expect(tags).toEqual(["h1", "p", "p"]);
     });
   });
@@ -266,7 +249,7 @@ describe("containerAttributesField", () => {
   describe("horizontal rule", () => {
     it("decorates a horizontal rule as hr", () => {
       const doc = "Above\n\n---\n\nBelow";
-      const tags = extractTagNames(createState(doc));
+      const tags = extractTagNames(createView(doc));
       expect(tags).toContain("hr");
     });
   });
@@ -274,33 +257,45 @@ describe("containerAttributesField", () => {
   describe("fenced code", () => {
     it("decorates fenced code block lines as code", () => {
       const doc = "```\nlet x = 1;\n```";
-      const tags = extractTagNames(createState(doc));
+      const tags = extractTagNames(createView(doc));
       expect(tags).toContain("code");
     });
   });
 
   describe("empty document", () => {
     it("returns no decorations for an empty document", () => {
-      expect(extractTags(createState(""))).toEqual([]);
+      expect(extractTags(createView(""))).toEqual([]);
+    });
+  });
+
+  describe("rendered DOM", () => {
+    it("applies attributes and classes to the rendered cm-line elements", () => {
+      const view = createView("# Title\n\n- item");
+      const lines = view.contentDOM.querySelectorAll(".cm-line");
+      expect(lines.length).toBe(3);
+      expect(lines[0].getAttribute("data-tag-name")).toBe("h1");
+      expect(lines[0].getAttribute("data-source-from")).toBe("0");
+      expect(lines[0].getAttribute("data-source-to")).toBe("7");
+      expect(lines[2].className).toContain("cf-doc-list-item");
     });
   });
 
   describe("update on doc change", () => {
     it("recomputes decorations when document changes", () => {
-      const state = createState("# Hello");
-      expect(extractTagNames(state)).toEqual(["h1"]);
+      const view = createView("# Hello");
+      expect(extractTagNames(view)).toEqual(["h1"]);
 
-      const newState = state.update({
-        changes: { from: 0, to: state.doc.length, insert: "Plain text" },
-      }).state;
-      expect(extractTagNames(newState)).toEqual(["p"]);
+      view.dispatch({
+        changes: { from: 0, to: view.state.doc.length, insert: "Plain text" },
+      });
+      expect(extractTagNames(view)).toEqual(["p"]);
     });
   });
 
   describe("mapOnDocChanged (#718)", () => {
     it("decoration positions remain correct after text insertion", () => {
-      const state = createState("# Title\n\nParagraph text");
-      const before = extractTags(state);
+      const view = createView("# Title\n\nParagraph text");
+      const before = extractTags(view);
       expect(before).toEqual([
         { pos: 0, tag: "h1" },
         { pos: 9, tag: "p" },
@@ -308,10 +303,10 @@ describe("containerAttributesField", () => {
 
       // Insert text within the paragraph — shifts paragraph content
       // but doesn't change block structure
-      const edited = state.update({
+      view.dispatch({
         changes: { from: 9, insert: "More " },
-      }).state;
-      const after = extractTags(edited);
+      });
+      const after = extractTags(view);
 
       expect(after[0]).toEqual({ pos: 0, tag: "h1" });
       expect(after[1].tag).toBe("p");
@@ -319,93 +314,88 @@ describe("containerAttributesField", () => {
     });
 
     it("decoration positions remain correct after text deletion", () => {
-      const state = createState("# Title\n\nParagraph");
-      const before = extractTags(state);
+      const view = createView("# Title\n\nParagraph");
+      const before = extractTags(view);
       expect(before.length).toBe(2);
 
       // Delete the blank line between heading and paragraph
-      const edited = state.update({
+      view.dispatch({
         changes: { from: 8, to: 9 },
-      }).state;
-      const after = extractTags(edited);
+      });
+      const after = extractTags(view);
 
       // All decorations should reference valid line positions
       for (const t of after) {
-        const line = edited.doc.lineAt(t.pos);
+        const line = view.state.doc.lineAt(t.pos);
         expect(line.from).toBe(t.pos);
       }
     });
   });
 
-  describe("incremental invalidation", () => {
-    it("limits plain prose edits to the affected paragraph", () => {
-      const state = createState([
-        "# Title",
-        "",
-        "First paragraph",
-        "",
-        "Second paragraph",
-      ].join("\n"));
-      const insertPos = state.doc.toString().indexOf("paragraph");
-      const tr = state.update({
-        changes: { from: insertPos, insert: "updated " },
-      });
+  describe("viewport scoping", () => {
+    it("only decorates lines inside the current viewport", () => {
+      const doc = Array.from({ length: 800 }, (_, index) => `para ${index}`).join("\n\n");
+      const view = createView(doc);
+      // The jsdom viewport must be smaller than the document for this test
+      // to exercise viewport scoping at all.
+      expect(view.viewport.to).toBeLessThan(view.state.doc.length);
 
-      expect(_computeContainerDirtyRegionForTest(tr)).toEqual({
-        filterFrom: tr.state.doc.line(3).from,
-        filterTo: tr.state.doc.line(3).to,
-      });
+      const ranges = extractSourceRanges(view);
+      expect(ranges.length).toBeGreaterThan(0);
+      expect(ranges[0].pos).toBe(0);
+      const viewportLastLineStart = view.state.doc.lineAt(view.viewport.to).from;
+      expect(ranges.at(-1)?.pos).toBeLessThanOrEqual(viewportLastLineStart);
+
+      const tags = extractTags(view);
+      expect(tags.at(-1)?.pos).toBeLessThanOrEqual(viewportLastLineStart);
     });
+  });
 
+  describe("incremental invalidation", () => {
     it("retags lines past the literal edit when a closing fence is inserted", () => {
-      const state = createState([
+      const view = createView([
         "```",
         "code line",
         "still code",
         "plain text",
       ].join("\n"));
-      expect(extractTagNames(state)).toEqual(["code", "code", "code", "code"]);
+      expect(extractTagNames(view)).toEqual(["code", "code", "code", "code"]);
 
-      const insertPos = state.doc.toString().indexOf("plain text");
-      const edited = state.update({
+      const insertPos = view.state.doc.toString().indexOf("plain text");
+      view.dispatch({
         changes: { from: insertPos, insert: "```\n" },
-      }).state;
+      });
 
-      expect(extractTags(edited)).toEqual([
-        { pos: edited.doc.line(1).from, tag: "code" },
-        { pos: edited.doc.line(2).from, tag: "code" },
-        { pos: edited.doc.line(3).from, tag: "code" },
-        { pos: edited.doc.line(4).from, tag: "code" },
-        { pos: edited.doc.line(5).from, tag: "p" },
+      expect(extractTags(view)).toEqual([
+        { pos: view.state.doc.line(1).from, tag: "code" },
+        { pos: view.state.doc.line(2).from, tag: "code" },
+        { pos: view.state.doc.line(3).from, tag: "code" },
+        { pos: view.state.doc.line(4).from, tag: "code" },
+        { pos: view.state.doc.line(5).from, tag: "p" },
       ]);
     });
 
-    it("refreshes pending dirty lines after parse completion in a live view", async () => {
+    it("clears the pending parse region once the idle parser catches up", async () => {
       const doc = [
         "```",
         ...Array.from({ length: 800 }, (_, index) => `code ${index}`),
         "plain text",
       ].join("\n");
-      const { view, parent } = createView(doc);
+      const view = createView(doc);
 
-      try {
-        language.forceParsing(view, view.viewport.to, 5);
+      language.forceParsing(view, view.viewport.to, 5);
 
-        const insertPos = view.state.doc.toString().lastIndexOf("plain text");
-        view.dispatch({
-          changes: { from: insertPos, insert: "```\n" },
-        });
+      const insertPos = view.state.doc.toString().lastIndexOf("plain text");
+      view.dispatch({
+        changes: { from: insertPos, insert: "```\n" },
+      });
 
-        await vi.waitFor(() => {
-          expect(extractTags(view.state).at(-1)).toEqual({
-            pos: view.state.doc.line(view.state.doc.lines).from,
-            tag: "p",
-          });
-        }, { timeout: 3000 });
-      } finally {
-        view.destroy();
-        parent.remove();
-      }
+      await vi.waitFor(() => {
+        expect(view.state.field(pendingDirtyRegionField)).toBeNull();
+      }, { timeout: 3000 });
+
+      // Viewport lines rendered from the partial tree stay correctly tagged.
+      expect(extractTags(view).at(0)).toEqual({ pos: 0, tag: "code" });
     });
 
     it("ignores a queued parse retry after the plugin is destroyed", () => {
@@ -430,7 +420,7 @@ describe("containerAttributesField", () => {
         ...Array.from({ length: 800 }, (_, index) => `code ${index}`),
         "plain text",
       ].join("\n");
-      const { view, parent } = createView(doc);
+      const view = createView(doc);
 
       try {
         language.forceParsing(view, view.viewport.to, 5);
@@ -441,7 +431,6 @@ describe("containerAttributesField", () => {
         });
 
         view.destroy();
-        parent.remove();
         if (pendingTimeouts.length > 0) {
           const stateSpy = vi.spyOn(view, "state", "get").mockImplementation(() => {
             throw new Error("stale timeout accessed destroyed view state");

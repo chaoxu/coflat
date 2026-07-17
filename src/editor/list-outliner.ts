@@ -26,10 +26,19 @@ import {
   moveListItemUp,
   outdentListItem,
 } from "./list-outliner-commands";
+import { withListRenumber } from "./list-renumber";
 
 export {
   outdentListItem,
 } from "./list-outliner-commands";
+
+// The item commands dispatch without a user-event tag, so the post-hoc
+// renumber filter cannot see them; wrap them so ordered lists stay 1., 2., …
+// after indent/outdent/move (see list-renumber.ts).
+const indentListItemRenumbered = withListRenumber(indentListItem);
+const outdentListItemRenumbered = withListRenumber(outdentListItem);
+const moveListItemUpRenumbered = withListRenumber(moveListItemUp);
+const moveListItemDownRenumbered = withListRenumber(moveListItemDown);
 
 function hasNestedList(node: SyntaxNode): boolean {
   let child = node.firstChild;
@@ -110,19 +119,19 @@ const listFoldService = foldService.of((state, lineStart, _lineEnd) => {
 const listOutlinerKeymap = Prec.highest(keymap.of([
   {
     key: "Tab",
-    run: indentListItem,
+    run: indentListItemRenumbered,
   },
   {
     key: "Shift-Tab",
-    run: outdentListItem,
+    run: outdentListItemRenumbered,
   },
   {
     key: "Mod-Shift-ArrowUp",
-    run: moveListItemUp,
+    run: moveListItemUpRenumbered,
   },
   {
     key: "Mod-Shift-ArrowDown",
-    run: moveListItemDown,
+    run: moveListItemDownRenumbered,
   },
   {
     key: "Enter",
@@ -139,7 +148,7 @@ const listOutlinerDomHandlers: Extension = EditorView.domEventHandlers({
   keydown(event, view) {
     let handled = false;
     if (event.key === "Tab" && event.shiftKey && !event.metaKey && !event.ctrlKey && !event.altKey) {
-      handled = outdentListItem(view);
+      handled = outdentListItemRenumbered(view);
     }
 
     if (!handled) return false;

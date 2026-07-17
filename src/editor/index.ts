@@ -31,7 +31,15 @@ export {
   type UploadedAssetMarkdownKind,
   uploadedAssetLabel,
 } from "./asset-uploader";
+export {
+  type AutocorrectConfig,
+  autocorrectConfig,
+  autocorrectExtension,
+  MAGIC_QUOTES_PAIRS,
+  type QuoteStyle,
+} from "./autocorrect";
 export { blockTypePickerExtension, isPickerVisible } from "./block-type-picker";
+export { codeLanguageDescriptions } from "./code-languages";
 export {
   type Command,
   type CommandEnv,
@@ -69,6 +77,7 @@ export {
   renderDocumentFragmentToHtml,
 } from "./document-surfaces";
 export {
+  autocorrectCompartment,
   type Cm6HistoryState,
   captureEditorHistoryState,
   createEditor,
@@ -119,11 +128,16 @@ export {
   blockTypePickerEditorPlugin,
   type EditorPluginPresetName,
   editorPluginPresets,
+  fenceLanguageAutocompleteEditorPlugin,
   listOutlinerEditorPlugin,
   referenceAutocompleteEditorPlugin,
   resolveEditorPluginPreset,
   workbenchEditorPlugins,
 } from "./editor-plugin-presets";
+export {
+  fenceLanguageAutocompleteExtension,
+  type FenceLanguageInfo,
+} from "./fence-language-autocomplete";
 export {
   closeSearch,
   collectVisibleSearchMatches,
@@ -145,6 +159,16 @@ export {
   setSearchUiState,
   setSearchUiStateEffect,
 } from "./find-replace";
+export {
+  footnoteCommandsExtension,
+  footnotePaletteCommands,
+  insertFootnote,
+  jumpToFootnoteRef,
+} from "./footnote-commands";
+export {
+  formattingToolbarCommands,
+  formattingToolbarExtension,
+} from "./formatting-toolbar";
 export { type ImageDropConfig, imageDropExtension } from "./image-drop";
 export { insertImageFromPicker } from "./image-insert";
 export { type ImagePasteConfig, imagePasteExtension } from "./image-paste";
@@ -161,9 +185,23 @@ export {
   insertImageMarkdown,
   isImageMime,
   saveImage,} from "./image-save";
-export { createInlineEditor, type InlineEditorOptions } from "./inline-editor";
+export {
+  createInlineEditor,
+  type InlineEditorHostWindow,
+  type InlineEditorOptions,
+} from "./inline-editor";
 export { editorKeybindings } from "./keybindings";
 export { listOutlinerExtension } from "./list-outliner";
+export {
+  listRenumberExtension,
+  renumberListsCommand,
+  withListRenumber,
+} from "./list-renumber";
+export {
+  isMutedLinesActive,
+  mutedLinesExtension,
+  toggleMutedLines,
+} from "./muted-lines";
 export {
   mergeConfigs,
   PROJECT_CONFIG_FILE,
@@ -176,7 +214,22 @@ export {
 export {
   frontmatterDecoration,
 } from "./render/frontmatter-render";
+export {
+  FENCED_DIV_WRAPPER_CLASS,
+  FENCED_DIV_WRAPPER_TAG,
+  fencedDivBlockWrapper,
+} from "./render/fenced-div-block-wrapper";
 export { renderInlineMarkdown } from "./render/inline-render";
+export {
+  copySelectionAsHtml,
+  copySelectionAsMarkdown,
+  createRichPasteCommands,
+  type HtmlCopyRenderer,
+  htmlCopyRendererFacet,
+  htmlToMarkdown,
+  pastePlainText,
+  richPasteExtension,
+} from "./rich-paste";
 export {
   type FrontmatterState,
   frontmatterField,
@@ -184,6 +237,11 @@ export {
 export {
   programmaticDocumentChangeAnnotation,
 } from "./state/programmatic-document-change";
+export {
+  alignTables,
+  tableEditingCommands,
+  tableEditingKeymap,
+} from "./table-commands";
 export { coflatDarkTheme, coflatTheme } from "./theme";
 export {
   applyThemePreset,
@@ -193,6 +251,11 @@ export {
   themePresetKeys,
   themePresets,
 } from "./theme-config";
+export {
+  isTypewriterModeActive,
+  toggleTypewriterMode,
+  typewriterModeExtension,
+} from "./typewriter-mode";
 export {
   blueprintBookThemeManifest,
   COFLAT_READER_CLASS,

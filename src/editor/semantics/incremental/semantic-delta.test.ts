@@ -5,6 +5,7 @@ import { strikethroughExtension } from "../../../core/parser";
 import {
   buildSemanticDelta,
   semanticGlobalInvalidationAnnotation,
+  semanticPendingDrainAnnotation,
 } from "./semantic-delta";
 
 function createMarkdownState(doc: string): EditorState {
@@ -97,7 +98,6 @@ describe("buildSemanticDelta", () => {
     expect(delta.rawChangedRanges).toEqual([]);
     expect(delta.dirtyWindows).toEqual([]);
     expect(delta.syntaxTreeChanged).toBe(true);
-    expect(delta.frontmatterChanged).toBe(false);
     expect(delta.plainInlineTextOnlyChange).toBe(false);
   });
 
@@ -119,19 +119,6 @@ describe("buildSemanticDelta", () => {
     expect(buildSemanticDelta(tr).plainInlineTextOnlyChange).toBe(false);
   });
 
-  it("marks frontmatter edits without broadening body edits into frontmatter changes", () => {
-    const state = createMarkdownState("---\ntitle: Old\n---\nBody\n");
-    const frontmatterEdit = state.update({
-      changes: { from: 11, to: 14, insert: "New" },
-    });
-    const bodyEdit = state.update({
-      changes: { from: state.doc.length, insert: "More\n" },
-    });
-
-    expect(buildSemanticDelta(frontmatterEdit).frontmatterChanged).toBe(true);
-    expect(buildSemanticDelta(bodyEdit).frontmatterChanged).toBe(false);
-  });
-
   it("marks explicit global invalidation annotations", () => {
     const state = createMarkdownState("body");
     const tr = state.update({
@@ -143,5 +130,18 @@ describe("buildSemanticDelta", () => {
     expect(delta.docChanged).toBe(false);
     expect(delta.globalInvalidation).toBe(true);
     expect(delta.rawChangedRanges).toEqual([]);
+  });
+
+  it("marks pending-drain annotated empty transactions", () => {
+    const state = createMarkdownState("body");
+    const tr = state.update({
+      annotations: semanticPendingDrainAnnotation.of(true),
+    });
+
+    const delta = buildSemanticDelta(tr);
+
+    expect(delta.docChanged).toBe(false);
+    expect(delta.pendingDrain).toBe(true);
+    expect(buildSemanticDelta(state.update({})).pendingDrain).toBe(false);
   });
 });

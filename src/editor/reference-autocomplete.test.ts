@@ -4,6 +4,7 @@ import {
   startCompletion,
 } from "@codemirror/autocomplete";
 import { EditorState } from "@codemirror/state";
+import { EditorView } from "@codemirror/view";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   createMarkdownLanguageExtensions,
@@ -14,7 +15,9 @@ import {
   defaultPlugins,
 } from "./plugins";
 import {
+  applyCompletionInsertPlan,
   collectReferenceCompletionCandidates,
+  collectReferenceUsageCounts,
   findReferenceCompletionMatch,
   referenceCompletionSource,
 } from "./reference-autocomplete";
@@ -29,7 +32,7 @@ import { blockCounterField } from "./state/block-counter";
 import { documentAnalysisField } from "./state/document-analysis";
 import { frontmatterField } from "./state/frontmatter-state";
 import { createPluginRegistryField } from "./state/plugin-registry";
-import { CSL_FIXTURES, makeBibStore } from "./test-utils";
+import { createCslFixture, CSL_FIXTURES, makeBibStore } from "./test-utils";
 
 async function waitForCompletionLabels(
   readLabels: () => readonly string[],
@@ -532,6 +535,118 @@ describe("reference autocomplete integration", () => {
     expect(theoremItem?.querySelector(".cf-bibliography")).toBeNull();
     expect(theoremItem?.textContent).not.toContain("Minimum cuts in near-linear time");
     expect(theoremItem?.textContent).toContain("Statement cites");
+
+    view.destroy();
+    parent.remove();
+  });
+});
+
+describe("citation usage-count ordering", () => {
+  const USAGE_DOC = "Cited [@stein2001] and clustered [@stein2001; @karger2000].\n\nSee [@";
+
+  function createUsageState(doc: string): EditorState {
+    return createReferenceState(doc).update({
+      effects: bibDataEffect.of({
+        // zorn/abel unused on purpose; zorn inserted first to prove the
+        // alphabetical tiebreak reorders equal-count entries.
+        store: makeBibStore([
+          createCslFixture({ id: "zorn1935" }),
+          createCslFixture({ id: "abel1990" }),
+          CSL_FIXTURES.karger,
+          CSL_FIXTURES.stein,
+        ]),
+        formatter: new CslProcessor([CSL_FIXTURES.karger, CSL_FIXTURES.stein]),
+      }),
+    }).state;
+  }
+
+  it("counts occurrences from the analysis references slice", () => {
+    const counts = collectReferenceUsageCounts(createUsageState(USAGE_DOC));
+    expect(counts.get("stein2001")).toBe(2);
+    expect(counts.get("karger2000")).toBe(1);
+    expect(counts.get("abel1990")).toBeUndefined();
+  });
+
+  it("collects citation candidates with their usage counts", () => {
+    // Candidate order is unspecified: delivered ordering is encoded in
+    // sortText (asserted by the test below), which CM6 sorts on natively.
+    const citations = collectReferenceCompletionCandidates(createUsageState(USAGE_DOC))
+      .filter((candidate) => candidate.kind === "citation");
+    const counts = new Map(
+      citations.map((candidate) => [candidate.id, candidate.usageCount]),
+    );
+    expect(counts).toEqual(new Map([
+      ["stein2001", 2],
+      ["karger2000", 1],
+      ["abel1990", 0],
+      ["zorn1935", 0],
+    ]));
+  });
+
+  it("encodes usage counts into sortText so more-used citations rank first", async () => {
+    const state = createUsageState(USAGE_DOC);
+    const result = await referenceCompletionSource(
+      new CompletionContext(state, state.doc.length, true),
+    );
+    const citations = (result?.options ?? []).filter(
+      (option) => option.sortText?.startsWith("3-"),
+    );
+    const ordered = [...citations].sort((a, b) =>
+      (a.sortText ?? "").localeCompare(b.sortText ?? ""));
+    expect(ordered.map((option) => option.label)).toEqual([
+      "stein2001",
+      "karger2000",
+      "abel1990",
+      "zorn1935",
+    ]);
+  });
+});
+
+describe("applyCompletionInsertPlan", () => {
+  it("selects the inserted title portion so typing replaces it", () => {
+    const parent = document.createElement("div");
+    document.body.appendChild(parent);
+    const view = new EditorView({
+      state: EditorState.create({ doc: "Link: " }),
+      parent,
+    });
+
+    const insert = "target|Title";
+    const apply = applyCompletionInsertPlan({
+      insert,
+      selectFrom: "target|".length,
+      selectTo: insert.length,
+    });
+    apply(view, { label: "target" }, 6, 6);
+
+    expect(view.state.doc.toString()).toBe("Link: target|Title");
+    expect(view.state.selection.main.anchor).toBe(6 + "target|".length);
+    expect(view.state.selection.main.head).toBe(6 + insert.length);
+
+    view.dispatch(view.state.replaceSelection("My title"));
+    expect(view.state.doc.toString()).toBe("Link: target|My title");
+
+    view.destroy();
+    parent.remove();
+  });
+
+  it("clamps the selected portion to the inserted text", () => {
+    const parent = document.createElement("div");
+    document.body.appendChild(parent);
+    const view = new EditorView({
+      state: EditorState.create({ doc: "" }),
+      parent,
+    });
+
+    applyCompletionInsertPlan({ insert: "abc", selectFrom: 1, selectTo: 99 })(
+      view,
+      { label: "abc" },
+      0,
+      0,
+    );
+
+    expect(view.state.selection.main.anchor).toBe(1);
+    expect(view.state.selection.main.head).toBe(3);
 
     view.destroy();
     parent.remove();
