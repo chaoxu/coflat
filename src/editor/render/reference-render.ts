@@ -29,6 +29,7 @@ import { forEachOverlappingOrderedRange } from "../lib/range-helpers";
 import {
   createEditorReferencePresentationController,
   ensureEditorReferencePresentationCitationsRegistered,
+  getEditorNociteConfig,
   type ReferencePresentationClusteredCrossrefPart,
   type ReferencePresentationHostRefRoute,
   type ReferencePresentationMixedPart,
@@ -379,6 +380,7 @@ export function collectReferenceRanges(
       analysis,
       citationKeys,
       effectiveFormatter,
+      getEditorNociteConfig(state),
     );
   }
 

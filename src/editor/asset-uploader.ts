@@ -32,6 +32,7 @@ import {
   requestHandlerFacet,
 } from "./editor-host-api";
 import { escapeMarkdownLabel, escapeMarkdownPath } from "./image-save";
+import { clipboardIndicatesTextIntent } from "./rich-paste";
 
 /* ────────────────────────────────────────────────────────────────────────────
  * Public API
@@ -383,6 +384,14 @@ export function assetUploaderExtension(uploader: AssetUploader): Extension {
         if (!s) return false;
         const clipboardData = event.clipboardData;
         if (!clipboardData) return false;
+        // Paste-intent heuristic (clipboardIndicatesTextIntent, shared with
+        // image-paste.ts): rich sources (MS Office, LibreOffice, browsers)
+        // write text flavors AND an image fallback; a text/plain flavor means
+        // the user intends text, so the uploader stands down and the text
+        // paste path (rich-paste conversion or CM6 default) takes the event.
+        // The drop handler below is deliberately not gated — dropping a file
+        // is always file intent.
+        if (clipboardIndicatesTextIntent(clipboardData)) return false;
         const files = clipboardData.files;
         if (!files || files.length === 0) return false;
         event.preventDefault();

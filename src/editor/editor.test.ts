@@ -1,3 +1,5 @@
+// Keep after-mount plugin dynamic imports from racing environment teardown.
+import "./test-plugin-preload";
 import { insertNewline, undoDepth } from "@codemirror/commands";
 import { EditorState } from "@codemirror/state";
 import { describe, expect, it } from "vitest";

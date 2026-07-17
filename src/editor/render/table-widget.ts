@@ -8,6 +8,7 @@ import { documentContextFacet } from "../document-context";
 import {
   createEditorReferencePresentationController,
   ensureEditorReferencePresentationCitationsRegistered,
+  getEditorNociteConfig,
 } from "../references/presentation";
 import { getOptionalReferenceRenderState } from "../state/reference-render-state";
 import type { InlineReferenceRenderContext } from "./inline-render";
@@ -147,6 +148,7 @@ export class TableWidget extends ShellWidget implements
         analysis,
         citationKeys,
         effectiveFormatter,
+        getEditorNociteConfig(rootView.state),
       );
     }
     return createEditorReferencePresentationController(rootView.state, {

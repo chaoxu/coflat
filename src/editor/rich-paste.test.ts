@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { imagePasteExtension } from "./image-paste";
 import {
+  clipboardIndicatesTextIntent,
   copySelectionAsHtml,
   copySelectionAsMarkdown,
   createRichPasteCommands,
@@ -83,6 +84,28 @@ async function flush(): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, 0));
   await Promise.resolve();
 }
+
+// ── Intent heuristic: clipboardIndicatesTextIntent ───────────────────────────
+
+describe("clipboardIndicatesTextIntent", () => {
+  it("is true whenever a text/plain flavor is present", () => {
+    expect(clipboardIndicatesTextIntent({ types: ["text/plain"] })).toBe(true);
+    // MS Office shape: text flavors AND an image fallback.
+    expect(
+      clipboardIndicatesTextIntent({
+        types: ["text/plain", "text/html", "Files"],
+      }),
+    ).toBe(true);
+  });
+
+  it("is false for image/file-only clipboards", () => {
+    expect(clipboardIndicatesTextIntent({ types: ["Files"] })).toBe(false);
+    expect(
+      clipboardIndicatesTextIntent({ types: ["Files", "text/html"] }),
+    ).toBe(false);
+    expect(clipboardIndicatesTextIntent({ types: [] })).toBe(false);
+  });
+});
 
 // ── Intent heuristic: htmlIsMeaningfullyRicher ───────────────────────────────
 

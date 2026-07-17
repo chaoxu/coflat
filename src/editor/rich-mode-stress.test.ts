@@ -12,6 +12,8 @@
  * @see https://github.com/chaoxu/coflat/issues/439
  */
 
+// Keep after-mount plugin dynamic imports from racing environment teardown.
+import "./test-plugin-preload";
 import { syntaxTree } from "@codemirror/language";
 import { type DecorationSet, EditorView } from "@codemirror/view";
 import fc from "fast-check";

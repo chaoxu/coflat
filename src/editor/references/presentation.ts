@@ -19,11 +19,14 @@ import {
   type ReferencePresentationRoute,
   type ResolvedCrossref,
 } from "../../core/references/presentation";
+import type { NociteKeyLookup } from "../../core/references/nocite";
 import {
+  appendNociteRegistrationCluster,
   type CitationCollectionOptions,
   type CitationIdLookup,
   collectCitationMatches,
   collectCitationMatchesFromAnalysis,
+  createReferenceIndexLocalTargetLookup,
   getCitationRegistrationKey,
 } from "../citations/citation-matching";
 import { formatCitationPreview } from "../citations/citation-preview";
@@ -39,6 +42,7 @@ import {
   documentReferenceCatalogField,
   getEditorDocumentReferenceCatalog,
 } from "../semantics/editor-reference-catalog";
+import { frontmatterField } from "../state/frontmatter-state";
 import {
   type DocumentReferenceCatalog,
   formatBlockReferenceLabel,
@@ -302,16 +306,44 @@ export function createCatalogReferencePresentationController(
 }
 
 /**
+ * Normalized frontmatter `nocite` keys, or empty when the frontmatter field
+ * is absent. Callers pass this to
+ * {@link ensureEditorReferencePresentationCitationsRegistered} so the
+ * presentation path registers the same trailing nocite cluster as the
+ * bibliography widget.
+ */
+export function getEditorNociteConfig(state: EditorState): readonly string[] {
+  return state.field(frontmatterField, false)?.config.nocite ?? [];
+}
+
+/**
  * Ensure the current document's citation clusters have been registered with
  * the attached `CitationFormatter` (no-op if no formatter is attached).
+ *
+ * When frontmatter `nocite` keys are supplied, the same trailing nocite
+ * cluster the bibliography widget registers is appended, so both paths
+ * compute the same `citationRegistrationKey` and stop re-registering each
+ * other's clusters.
  */
 export function ensureEditorReferencePresentationCitationsRegistered(
   analysis: DocumentAnalysis,
-  citationKeys: CitationIdLookup,
+  citationKeys: CitationIdLookup & Partial<NociteKeyLookup>,
   formatter: CitationFormatter | null,
+  nocite?: readonly string[],
 ): void {
   if (!formatter) return;
   const matches = collectCitationMatchesFromAnalysis(analysis, citationKeys);
+  if (nocite && nocite.length > 0) {
+    appendNociteRegistrationCluster(
+      matches,
+      nocite,
+      {
+        has: (id) => citationKeys.has(id),
+        keys: () => citationKeys.keys?.() ?? [],
+      },
+      { isLocalTarget: createReferenceIndexLocalTargetLookup(analysis.referenceIndex) },
+    );
+  }
   const registrationKey = getCitationRegistrationKey(matches);
   if (formatter.citationRegistrationKey === registrationKey) return;
   formatter.registerCitations(matches);

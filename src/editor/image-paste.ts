@@ -26,6 +26,7 @@ import {
   IMAGE_MIME_EXT,
   type ImageSaveConfig,
 } from "./image-save";
+import { clipboardIndicatesTextIntent } from "./rich-paste";
 
 /**
  * Configuration for the image-paste extension.
@@ -48,14 +49,15 @@ export function imagePasteExtension(config: ImagePasteConfig = {}): Extension {
       const clipboardData = event.clipboardData;
       if (!clipboardData) return false;
 
-      // Paste-intent heuristic (ported from Zettlr's md-paste-drop-handlers):
-      // applications that copy rich content (MS Office, LibreOffice, browsers)
-      // write BOTH text flavors and an image fallback to the clipboard.
-      // Whenever "text/plain" is present the user intends to paste text, so
-      // the image handler stands down and lets the text paste path
-      // (rich-paste conversion or the CM6 default) take the event. Only an
-      // image without any plain-text flavor means "paste an image".
-      if (clipboardData.types.includes("text/plain")) return false;
+      // Paste-intent heuristic (clipboardIndicatesTextIntent, shared with
+      // asset-uploader.ts): applications that copy rich content (MS Office,
+      // LibreOffice, browsers) write BOTH text flavors and an image fallback
+      // to the clipboard. Whenever "text/plain" is present the user intends
+      // to paste text, so the image handler stands down and lets the text
+      // paste path (rich-paste conversion or the CM6 default) take the
+      // event. Only an image without any plain-text flavor means "paste an
+      // image".
+      if (clipboardIndicatesTextIntent(clipboardData)) return false;
 
       // Check for image items in the clipboard
       for (let i = 0; i < clipboardData.items.length; i++) {

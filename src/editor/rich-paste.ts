@@ -5,9 +5,10 @@
  *
  *   - **Paste intent heuristic** — rich sources (MS Office, LibreOffice,
  *     browsers) write text *and* image flavors to the clipboard; whenever
- *     `text/plain` is present the user intends text. The image side of the
- *     heuristic lives in `image-paste.ts`, which stands down on any clipboard
- *     that carries a `text/plain` flavor.
+ *     `text/plain` is present the user intends text. The predicate is
+ *     exported as {@link clipboardIndicatesTextIntent}; the file/image paste
+ *     paths (`image-paste.ts`, `asset-uploader.ts`) stand down on any
+ *     clipboard that carries a `text/plain` flavor.
  *   - **HTML → Markdown paste** — when the `text/html` flavor is meaningfully
  *     richer than `text/plain`, convert it to Coflat-flavored markdown via
  *     turndown (loaded lazily on first use so the eager bundle graph does not
@@ -38,6 +39,24 @@ import type { Command } from "./command-registry";
 /* ────────────────────────────────────────────────────────────────────────────
  * Paste-intent heuristic
  * ──────────────────────────────────────────────────────────────────────────── */
+
+/**
+ * Paste-intent heuristic (Zettlr md-paste-drop-handlers.ts:98-116):
+ * applications that copy rich content (MS Office, LibreOffice, browsers)
+ * write BOTH text flavors and an image fallback to the clipboard. Whenever a
+ * `text/plain` flavor is present the user intends to paste text, so file and
+ * image paste handlers (`image-paste.ts`, `asset-uploader.ts`) must stand
+ * down and let the text paste path (the rich-paste conversion or the CM6
+ * default) take the event.
+ *
+ * Applies to paste events only — drops carry no such ambiguity (dropping a
+ * file is always file intent), so drop handlers must not consult this.
+ */
+export function clipboardIndicatesTextIntent(
+  data: Pick<DataTransfer, "types">,
+): boolean {
+  return data.types.includes("text/plain");
+}
 
 /**
  * Formatting/structure tags whose presence makes an HTML clipboard flavor
@@ -308,12 +327,13 @@ function handleRichPaste(event: ClipboardEvent, view: EditorView): boolean {
   // it and stand down so CM6's default paste inserts text/plain verbatim.
   if (consumePlainPasteIntent(view)) return false;
 
-  // Intent heuristic (Zettlr md-paste-drop-handlers.ts:98-116): text/plain
-  // present means the user intends text. Without it this is an image/file
-  // paste (image-paste.ts owns that); without text/html the CM6 default
-  // plain-text paste is already correct.
-  const types = data.types;
-  if (!types.includes("text/plain") || !types.includes("text/html")) return false;
+  // Intent heuristic (clipboardIndicatesTextIntent): text/plain present
+  // means the user intends text. Without it this is an image/file paste
+  // (image-paste.ts / asset-uploader.ts own that); without text/html the
+  // CM6 default plain-text paste is already correct.
+  if (!clipboardIndicatesTextIntent(data) || !data.types.includes("text/html")) {
+    return false;
+  }
 
   const html = data.getData("text/html");
   const plain = data.getData("text/plain");
