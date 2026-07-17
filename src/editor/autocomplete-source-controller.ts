@@ -25,6 +25,7 @@ import {
   resolveOpenAutocomplete,
   type Suggestion,
 } from "./editor-host-api";
+import { documentPathFacet } from "./lib/types";
 
 interface ActiveSession {
   trigger: string;
@@ -129,14 +130,8 @@ function caretContext(view: EditorView, pos: number): CaretContext {
 class AutocompleteSourceController {
   private session: ActiveSession | null = null;
   private debounceTimer: ReturnType<typeof setTimeout> | null = null;
-  private from: string | undefined;
 
-  constructor(
-    private readonly view: EditorView,
-    from?: string,
-  ) {
-    this.from = from;
-  }
+  constructor(private readonly view: EditorView) {}
 
   update(update: ViewUpdate): void {
     if (!update.docChanged && !update.selectionSet) return;
@@ -263,7 +258,7 @@ class AutocompleteSourceController {
     if (!session) return;
     const signal = session.controller.signal;
     const cursorPos = this.view.state.selection.main.head;
-    const env = { from: this.from, cursorPos, signal };
+    const env = { from: this.view.state.facet(documentPathFacet) || undefined, cursorPos, signal };
 
     const aggregated: Suggestion[] = [];
     const results = await Promise.all(
@@ -333,14 +328,14 @@ class AutocompleteSourceController {
  * `autocompleteSources` array; the resulting facet entry plus this
  * extension drive the picker lifecycle.
  *
- * `from` is the optional source-file identifier passed into
- * {@link AutocompleteEnv.from} — usually the path the document was
- * loaded from.
+ * `from` in {@link AutocompleteEnv.from} is read from the live
+ * document-path facet, so hosts can update it without remounting.
  */
 export function autocompleteSourceExtension(opts: {
   from?: string;
 } = {}): Extension {
-  return ViewPlugin.define((view) => new AutocompleteSourceController(view, opts.from), {
+  void opts;
+  return ViewPlugin.define((view) => new AutocompleteSourceController(view), {
     eventHandlers: {
       // Nothing for now — Escape & outside-click are handled by the
       // chrome (default picker listens on `view.dom`); whitespace
