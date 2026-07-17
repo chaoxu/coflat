@@ -12,6 +12,24 @@ markdown+fenced_divs+raw_tex+grid_tables+pipe_tables+tex_math_dollars+tex_math_s
 
 The canonical filter profile runs `pandoc-crossref` before `citeproc` when exporting through Pandoc, because equation, figure, table, and block references use citation-like syntax.
 
+## Rules for Agents
+
+LLM agents do not know Coflat from training data and default to GitHub-flavored Markdown habits that break Coflat documents. This section is the delta an agent must load before writing or editing Coflat; inject it (or a pointer to it) into every agent call that writes Coflat. The rest of this document is the full specification.
+
+Ordered by how often agents get them wrong:
+
+1. **One paragraph = one source line.** A single source newline inside a paragraph is preserved visually by the reader and editor, so hard-wrapped prose renders with ragged line breaks. Never wrap prose at a source-column width; a blank line starts a new paragraph. See "Paragraphs and Line Breaks".
+2. **Never use `>` blockquotes.** They are a removed feature (no math, no nesting with fenced divs). Use a fenced div instead: `::: {.blockquote}` ... `:::`.
+3. **Theorem-like content goes in fenced divs with stable ids**, such as `::: {.theorem #thm:main title="Main theorem"}` — never bold pseudo-labels (`**Theorem 1.**`), code fences, or raw `\begin{theorem}`. The `title` attribute is plain text, not markdown or math.
+4. **Nest divs with more colons outside.** The outer div uses more colons than the inner (`::::` outside, `:::` inside); same-count nesting misparses. Every div needs its matching explicit closer with the same colon count as its opener.
+5. **Math uses `$...$` and `$$...$$`**, never backticks or code fences. Labeled equations use `$$ ... $$ {#eq:name}` with the `eq:` prefix. Escape a literal dollar in prose as `\$`.
+6. **Cross-reference with `[@id]` or narrative `@id`** using the prefix conventions in "Cross-References"; a bare key without a known prefix is treated as a BibTeX citation.
+7. **Do not use** HTML comments (`<!-- -->` is rendered, not hidden), raw inline HTML (except `<br>` inside table cells), indented code blocks, reference-style links, bare unbracketed URLs, or definition lists. See "Removed Features".
+8. **Code fences are only for literal artifacts** — code, command output, raw data, certificates, and algorithm bodies — never for prose, mathematical statements, or formulas.
+9. **When unsure, use the plainest canonical forms**: one-line paragraphs, pipe tables, and built-in fenced divs. Do not invent syntax.
+
+Host contracts may add page rules on top of this format. For example, Cosheaf wiki pages start with one meaningful `#` H1, and Cosheaf's typed file route owns YAML frontmatter, so agents writing Cosheaf pages should not add frontmatter themselves. Follow the host's contract for frontmatter and page shape.
+
 ## Editor and Reader Surfaces
 
 Coflat has two runtime surfaces for the same document format:
