@@ -1,8 +1,10 @@
+import { history } from "@codemirror/commands";
 import { markdown } from "@codemirror/lang-markdown";
 import { EditorState, StateEffect } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { markdownExtensions } from "../../core/parser";
+import { createMarkdownLanguageExtensions } from "../base-editor-extensions";
 import { frontmatterField } from "../state/frontmatter-state";
 import { mathMacrosField } from "../state/math-macros";
 import { tableDiscoveryField } from "../state/table-discovery";
@@ -10,11 +12,16 @@ import { WIDGET_KEYBOARD_ENTRY_EVENT } from "../state/widget-keyboard-entry";
 import {
   createEditorState,
   createMockEditorView,
+  createTestView,
+  destroyAllTestViews,
   ensureFullSyntaxTree,
   getDecorationSpecs,
 } from "../test-utils";
 import { editorFocusField } from "./render-core";
-import { _tableDecorationFieldForTest as tableDecorationField } from "./table-render";
+import {
+  _tableDecorationFieldForTest as tableDecorationField,
+  tableRenderPlugin,
+} from "./table-render";
 import type { ParsedTable } from "./table-utils";
 import {
   cellEditAnnotation,
@@ -46,6 +53,11 @@ beforeEach(() => {
   destroyActiveInlineEditor();
   ResizeObserverStub.instances.length = 0;
   vi.stubGlobal("ResizeObserver", ResizeObserverStub);
+});
+
+afterEach(() => {
+  destroyActiveInlineEditor();
+  destroyAllTestViews();
 });
 
 /** Minimal parsed table for testing. */
@@ -345,17 +357,65 @@ describe("TableWidget source range attributes", () => {
     expect(bubbled).not.toHaveBeenCalled();
   });
 
-  it("stops handled inline-cell arrow keys from bubbling to the root editor", () => {
-    const widget = new TableWidget(makeTable(), "| A | B |\n|---|---|\n| 1 | 2 |", 0, {});
-    const dom = widget.toDOM(makeStubView());
-    const bubbled = vi.fn();
-    dom.addEventListener("keydown", bubbled);
+  it("does not open inline cell editors when the root editor is read-only", () => {
+    for (const rootView of [makeReadOnlyStubView(), makeNonEditableStubView()]) {
+      const widget = new TableWidget(makeTable(), "| A | B |\n|---|---|\n| 1 | 2 |", 0, {});
+      const dom = widget.toDOM(rootView);
+      const bodyCell = dom.querySelector<HTMLElement>("tbody td");
+      expect(bodyCell).not.toBeNull();
+      if (!bodyCell) {
+        throw new Error("expected body table cell");
+      }
 
-    const bodyCell = dom.querySelector<HTMLElement>("tbody td");
-    expect(bodyCell).not.toBeNull();
-    if (!bodyCell) {
-      throw new Error("expected body table cell");
+      const down = new MouseEvent("mousedown", {
+        bubbles: true,
+        cancelable: true,
+      });
+      bodyCell.dispatchEvent(down);
+
+      expect(down.defaultPrevented).toBe(false);
+      expect(bodyCell.classList.contains("cf-table-cell-editing")).toBe(false);
+      expect(bodyCell.querySelector(".cm-editor")).toBeNull();
+
+      const contextmenu = new MouseEvent("contextmenu", {
+        bubbles: true,
+        cancelable: true,
+      });
+      bodyCell.dispatchEvent(contextmenu);
+      expect(contextmenu.defaultPrevented).toBe(false);
     }
+  });
+});
+
+describe("TableWidget live cell sessions (real root view)", () => {
+  const LIVE_TABLE_DOC = "| A | B |\n| --- | --- |\n| 1 | 2 |";
+
+  function createLiveRootView(doc = LIVE_TABLE_DOC): EditorView {
+    return createTestView(doc, {
+      cursorPos: 0,
+      focus: false,
+      extensions: [
+        ...createMarkdownLanguageExtensions(),
+        history(),
+        tableRenderPlugin,
+      ],
+    });
+  }
+
+  async function waitForBodyCell(view: EditorView): Promise<HTMLElement> {
+    for (let attempt = 0; attempt < 200; attempt++) {
+      const cell = view.dom.querySelector<HTMLElement>("tbody td");
+      if (cell) return cell;
+      await new Promise((resolve) => setTimeout(resolve, 5));
+    }
+    throw new Error("table widget cells never rendered");
+  }
+
+  it("stops handled inline-cell arrow keys from bubbling to the root editor", async () => {
+    const view = createLiveRootView();
+    const bodyCell = await waitForBodyCell(view);
+    const bubbled = vi.fn();
+    view.dom.addEventListener("keydown", bubbled);
 
     bodyCell.dispatchEvent(new MouseEvent("mousedown", {
       bubbles: true,
@@ -379,14 +439,9 @@ describe("TableWidget source range attributes", () => {
     expect(bubbled).not.toHaveBeenCalled();
   });
 
-  it("locks cell geometry while the inline editor is open", () => {
-    const widget = new TableWidget(makeTable(), "| A | B |\n|---|---|\n| 1 | 2 |", 0, {});
-    const dom = widget.toDOM(makeStubView());
-    const bodyCell = dom.querySelector<HTMLElement>("tbody td");
-    expect(bodyCell).not.toBeNull();
-    if (!bodyCell) {
-      throw new Error("expected body table cell");
-    }
+  it("locks cell geometry while the inline editor is open", async () => {
+    const view = createLiveRootView();
+    const bodyCell = await waitForBodyCell(view);
 
     vi.spyOn(bodyCell, "getBoundingClientRect").mockReturnValue({
       x: 0,
@@ -427,35 +482,6 @@ describe("TableWidget source range attributes", () => {
     expect(bodyCell.style.maxWidth).toBe("");
     expect(bodyCell.style.minHeight).toBe("");
   });
-
-  it("does not open inline cell editors when the root editor is read-only", () => {
-    for (const rootView of [makeReadOnlyStubView(), makeNonEditableStubView()]) {
-      const widget = new TableWidget(makeTable(), "| A | B |\n|---|---|\n| 1 | 2 |", 0, {});
-      const dom = widget.toDOM(rootView);
-      const bodyCell = dom.querySelector<HTMLElement>("tbody td");
-      expect(bodyCell).not.toBeNull();
-      if (!bodyCell) {
-        throw new Error("expected body table cell");
-      }
-
-      const down = new MouseEvent("mousedown", {
-        bubbles: true,
-        cancelable: true,
-      });
-      bodyCell.dispatchEvent(down);
-
-      expect(down.defaultPrevented).toBe(false);
-      expect(bodyCell.classList.contains("cf-table-cell-editing")).toBe(false);
-      expect(bodyCell.querySelector(".cm-editor")).toBeNull();
-
-      const contextmenu = new MouseEvent("contextmenu", {
-        bubbles: true,
-        cancelable: true,
-      });
-      bodyCell.dispatchEvent(contextmenu);
-      expect(contextmenu.defaultPrevented).toBe(false);
-    }
-  });
 });
 
 describe("table-widget blur ownership", () => {
@@ -463,13 +489,14 @@ describe("table-widget blur ownership", () => {
     return {
       controller: {
         view: {} as EditorView,
-        setReadOnly: vi.fn(),
         setCallbacks: vi.fn(),
         destroy: vi.fn(),
       },
       view: {} as EditorView,
       cell,
       owner: {} as TableWidget,
+      rootView: {} as EditorView,
+      getCellRange: () => null,
     };
   }
 
@@ -624,7 +651,7 @@ describe("tableDecorationField commit rebuild (#404)", () => {
     const staleWidget = staleDecoIter.value?.spec.widget;
 
     // Step 2: commit with NO doc change — just the annotation.
-    // This is what syncToRoot now dispatches when newText === currentText.
+    // This is what refreshRenderedCell dispatches when a session ends.
     const afterCommit = afterEdit.update({
       annotations: cellEditAnnotation.of("commit"),
     }).state;

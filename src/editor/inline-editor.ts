@@ -8,7 +8,6 @@
  */
 
 import {
-  Compartment,
   EditorState,
   type Extension,
   type Transaction,
@@ -69,8 +68,6 @@ export interface InlineEditorOptions {
   onBlur?: () => void;
   /** Called on keydown; return true to prevent default handling. */
   onKeydown?: (event: KeyboardEvent) => boolean;
-  /** Render as a read-only preview surface. */
-  readOnly?: boolean;
   /** Live-window variant: mirror a host document instead of holding a
    *  detached mini-document. Absent for the default detached behavior. */
   hostWindow?: InlineEditorHostWindow;
@@ -78,7 +75,6 @@ export interface InlineEditorOptions {
 
 export interface InlineEditorController {
   view: EditorView;
-  setReadOnly: (readOnly: boolean) => void;
   setCallbacks: (
     callbacks: Pick<InlineEditorOptions, "onChange" | "onBlur" | "onKeydown">,
   ) => void;
@@ -96,9 +92,6 @@ export interface InlineEditorController {
 export function createInlineEditorController(
   opts: InlineEditorOptions,
 ): InlineEditorController {
-  const readOnly = opts.readOnly ?? false;
-  const readOnlyCompartment = new Compartment();
-  const editableCompartment = new Compartment();
   const callbacks = {
     onChange: opts.onChange,
     onBlur: opts.onBlur,
@@ -117,8 +110,6 @@ export function createInlineEditorController(
     externalDocumentReferenceCatalogField,
     referenceRenderPlugin,
     drawSelection(),
-    readOnlyCompartment.of(EditorState.readOnly.of(readOnly)),
-    editableCompartment.of(EditorView.editable.of(!readOnly)),
     EditorView.editorAttributes.of({ class: CSS.inlineEditor }),
     EditorView.lineWrapping,
     EditorView.updateListener.of((update) => {
@@ -159,14 +150,6 @@ export function createInlineEditorController(
 
   return {
     view,
-    setReadOnly(nextReadOnly) {
-      view.dispatch({
-        effects: [
-          readOnlyCompartment.reconfigure(EditorState.readOnly.of(nextReadOnly)),
-          editableCompartment.reconfigure(EditorView.editable.of(!nextReadOnly)),
-        ],
-      });
-    },
     setCallbacks(nextCallbacks) {
       callbacks.onChange = nextCallbacks.onChange;
       callbacks.onBlur = nextCallbacks.onBlur;
@@ -178,6 +161,3 @@ export function createInlineEditorController(
   };
 }
 
-export function createInlineEditor(opts: InlineEditorOptions): EditorView {
-  return createInlineEditorController(opts).view;
-}

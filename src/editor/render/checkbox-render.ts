@@ -105,5 +105,3 @@ export const checkboxRenderPlugin: Extension = createCursorSensitiveViewPlugin(
     spanName: "cm6.checkboxRender",
   },
 );
-
-export { collectCheckboxItems as _collectCheckboxItemsForTest };

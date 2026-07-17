@@ -31,6 +31,7 @@ import {
   pushWidgetDecoration,
 } from "./decoration-core";
 import { createDecorationStateField } from "./decoration-field";
+import { planDecorationLifecycleUpdate } from "./decoration-lifecycle";
 import {
   editorFocusField,
   focusTracker,
@@ -67,7 +68,6 @@ import {
   selectionIntersectsRange,
 } from "./rendered-block-flow";
 import { serializeMacros } from "./source-widget";
-import { planSemanticSensitiveUpdate } from "./view-plugin-factories";
 
 export { renderKatexToHtml } from "./inline-shared";
 export { resolveClickToSourcePos } from "./math-interactions";
@@ -424,7 +424,7 @@ const mathDecorationField = createDecorationStateField({
       && !mathChangeSummary.hasMathSyntaxEdit
       && !mathChangeSummary.touchesExistingMath;
 
-    const updatePlan = planSemanticSensitiveUpdate(tr, {
+    const updatePlan = planDecorationLifecycleUpdate(tr, {
       docChanged: (transaction) => transaction.docChanged,
       semanticChanged: () => {
         if (docChangeOnlyShiftsMath && !mathPositionsMayShift) return false;

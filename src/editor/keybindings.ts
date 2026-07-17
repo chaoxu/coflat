@@ -16,7 +16,7 @@ import {
   getClosingFenceRanges,
 } from "./plugins/fence-protection";
 import { toggleDebugInspector } from "./render/debug-inspector";
-import { toggleFocusMode } from "./render/focus-mode";
+import { toggleMutedLines } from "./muted-lines";
 import {
   clearStructureEditTarget,
   getActiveStructureEditTarget,
@@ -442,7 +442,9 @@ export const editorKeybindings: Extension = [
     ...historyKeymap,
     indentWithTab,
     { key: "Mod-Shift-d", run: toggleDebugInspector },
-    { key: "Mod-Shift-f", run: toggleFocusMode },
+    // Muted-lines replaced the never-installed focus-mode (whose binding
+    // threw on a missing field); the shortcut slot carries over.
+    { key: "Mod-Shift-f", run: toggleMutedLines },
     { key: "Mod-Shift-m", run: cycleEditorMode },
   ]),
   // Formatting shortcuts at high precedence so they override defaults

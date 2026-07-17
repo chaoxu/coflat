@@ -405,13 +405,6 @@ const containerAttributesViewPlugin = createSimpleViewPlugin(
   },
 );
 
-/**
- * Legacy export name kept for render/index.ts. The decoration source is no
- * longer a StateField — container attributes are emitted by the
- * viewport-scoped view plugin this aliases.
- */
-export const containerAttributesField: Extension = containerAttributesViewPlugin;
-
 class ContainerAttributeParsePlugin {
   private readonly scheduler: SyntaxParseScheduler;
   private destroyed = false;

@@ -31,7 +31,6 @@ import {
 import {
   readTableCellAddress,
   type TableBoundaryHandoffDirection,
-  type TableCellAddress,
 } from "./table-widget-navigation";
 import { restoreRenderedTableCell } from "./table-widget-preview";
 import {
@@ -158,22 +157,6 @@ export class TableWidget extends ShellWidget implements
     });
   }
 
-  private syncToRoot(
-    address: TableCellAddress,
-    editedText: string,
-    annotation: "edit" | "commit",
-  ): void {
-    this.controller.syncToRoot(address, editedText, annotation);
-  }
-
-  commitRenderedCell(
-    cell: HTMLElement,
-    content: string,
-  ): void {
-    this.restoreRenderedCell(cell, content);
-    this.syncToRoot(readTableCellAddress(cell), content, "commit");
-  }
-
   refreshRenderedCell(
     cell: HTMLElement,
     content: string,
@@ -273,9 +256,6 @@ export class TableWidget extends ShellWidget implements
       getRawCellText: (address) => this.controller.getRawCellText(address),
       restoreRenderedCell: (cell, content, referenceContext) => {
         this.restoreRenderedCell(cell, content, referenceContext);
-      },
-      syncToRoot: (address, editedText, annotation) => {
-        this.syncToRoot(address, editedText, annotation);
       },
     });
   }

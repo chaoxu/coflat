@@ -67,11 +67,6 @@ export interface TableWidgetDomOptions {
     content: string,
     referenceContext?: InlineReferenceRenderContext,
   ) => void;
-  readonly syncToRoot: (
-    address: TableCellAddress,
-    editedText: string,
-    annotation: "edit" | "commit",
-  ) => void;
 }
 
 interface OpenCellEditorOptions {
@@ -96,15 +91,6 @@ function isEditorReadOnly(view: EditorView | null): boolean {
 interface LiveCellContext {
   readonly rootView: EditorView;
   readonly bounds: LiveCellRange;
-}
-
-/** True when the root exposes the full EditorState surface a live-window
- *  mirror needs (mock roots in tests fall back to the detached editor). */
-function supportsLiveCellWindow(rootView: EditorView): boolean {
-  const state = rootView.state;
-  return typeof state?.field === "function" &&
-    typeof state.sliceDoc === "function" &&
-    typeof (state.doc as { line?: unknown } | undefined)?.line === "function";
 }
 
 export function buildTableWidgetDOM(options: TableWidgetDomOptions): HTMLTableElement {
@@ -185,7 +171,7 @@ export function buildTableWidgetDOM(options: TableWidgetDomOptions): HTMLTableEl
     address: TableCellAddress,
   ): LiveCellContext | null => {
     const rootView = options.getRootView();
-    if (!rootView || !supportsLiveCellWindow(rootView)) return null;
+    if (!rootView) return null;
     const tableRange = options.currentTableRange();
     if (!tableRange) return null;
     const bounds = resolveLiveCellBounds(rootView.state, tableRange, address);
@@ -205,14 +191,18 @@ export function buildTableWidgetDOM(options: TableWidgetDomOptions): HTMLTableEl
     }: OpenCellEditorOptions = {},
   ): void => {
     if (isTableReadOnly()) return;
-    clearActivePreviewCell();
+    // The live window is the only cell-editing path: without resolvable cell
+    // bounds in the root document there is no session to open.
     const liveCell = resolveLiveCellContext(address);
+    if (!liveCell) return;
+    clearActivePreviewCell();
     // Offset between cell-local text positions (rendered-token anchors) and
-    // subview document positions. Zero for the detached mini-document.
-    const cellBase = liveCell ? liveCell.bounds.from : 0;
-    const rawText = liveCell
-      ? liveCell.rootView.state.sliceDoc(liveCell.bounds.from, liveCell.bounds.to)
-      : options.getRawCellText(address);
+    // subview document positions.
+    const cellBase = liveCell.bounds.from;
+    const rawText = liveCell.rootView.state.sliceDoc(
+      liveCell.bounds.from,
+      liveCell.bounds.to,
+    );
     const renderedRect = cell.getBoundingClientRect();
     if (renderedRect.width > 0) {
       const renderedWidth = `${renderedRect.width}px`;
@@ -226,39 +216,26 @@ export function buildTableWidgetDOM(options: TableWidgetDomOptions): HTMLTableEl
     cell.innerHTML = "";
     cell.classList.add(CSS.tableCellEditing);
 
-    const rootView = options.getRootView();
-    const bibData = rootView?.state.field?.(bibDataField, false);
-    const documentContext = rootView && typeof rootView.state.facet === "function"
-      ? rootView.state.facet(documentContextFacet)
-      : undefined;
-    const referenceCatalog = rootView && typeof rootView.state.field === "function"
-      ? getEditorDocumentReferenceCatalog(rootView.state)
-      : undefined;
+    const rootState = liveCell.rootView.state;
     const controller = createInlineEditorController({
       parent: cell,
-      doc: liveCell ? liveCell.rootView.state.sliceDoc() : rawText,
+      doc: rootState.sliceDoc(),
       macros: options.macros,
-      bibData: bibData ?? undefined,
-      documentContext,
-      referenceCatalog,
+      bibData: rootState.field(bibDataField, false),
+      documentContext: rootState.facet(documentContextFacet),
+      referenceCatalog: getEditorDocumentReferenceCatalog(rootState),
       onChange: () => {},
-      hostWindow: liveCell
-        ? {
-            extensions: createLiveCellWindowExtensions(liveCell.bounds),
-            dispatch: createLiveCellSubviewDispatch(liveCell.rootView),
-            selection: { anchor: liveCell.bounds.from },
-          }
-        : undefined,
+      hostWindow: {
+        extensions: createLiveCellWindowExtensions(liveCell.bounds),
+        dispatch: createLiveCellSubviewDispatch(liveCell.rootView),
+        selection: { anchor: liveCell.bounds.from },
+      },
     });
 
     controller.setCallbacks({
-      // Live-window edits sync through the subview dispatch; only the
-      // detached mini-document needs the whole-cell onChange sync.
-      onChange: liveCell
-        ? () => {}
-        : (newDoc) => {
-            options.syncToRoot(address, newDoc, "edit");
-          },
+      // Live-window edits sync through the subview dispatch; no whole-cell
+      // onChange sync is needed.
+      onChange: () => {},
       onBlur: () => {
         const blurredEditor = getActiveInlineEditor();
         requestAnimationFrame(() => {
@@ -324,7 +301,6 @@ export function buildTableWidgetDOM(options: TableWidgetDomOptions): HTMLTableEl
         }
 
         if (
-          liveCell &&
           (event.metaKey || event.ctrlKey) &&
           !event.altKey &&
           (event.key === "z" || event.key === "Z" ||
@@ -345,7 +321,7 @@ export function buildTableWidgetDOM(options: TableWidgetDomOptions): HTMLTableEl
 
         const active = getActiveInlineEditor();
         if (!active) return false;
-        const range = active.getCellRange?.() ?? null;
+        const range = active.getCellRange();
         const cellFrom = range?.from ?? 0;
         const cellTo = range?.to ?? active.view.state.doc.length;
         const pos = active.view.state.selection.main.head;
@@ -401,8 +377,8 @@ export function buildTableWidgetDOM(options: TableWidgetDomOptions): HTMLTableEl
       view: editorView,
       cell,
       owner: options.owner,
-      rootView: liveCell?.rootView ?? null,
-      getCellRange: liveCell ? () => getLiveCellRange(editorView) : undefined,
+      rootView: liveCell.rootView,
+      getCellRange: () => getLiveCellRange(editorView),
     });
 
     const refocusEditor = (): void => {
@@ -449,9 +425,7 @@ export function buildTableWidgetDOM(options: TableWidgetDomOptions): HTMLTableEl
     };
 
     if (placeAtEnd) {
-      const endAnchor = liveCell
-        ? (getLiveCellRange(editorView) ?? liveCell.bounds).to
-        : editorView.state.doc.length;
+      const endAnchor = (getLiveCellRange(editorView) ?? liveCell.bounds).to;
       applyInitialSelection(endAnchor);
     } else if (useClickPlacement) {
       applyClickPlacement();

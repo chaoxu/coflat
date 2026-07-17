@@ -1,9 +1,8 @@
 import type { Range } from "@codemirror/state";
-import { Decoration, type EditorView } from "@codemirror/view";
+import { Decoration } from "@codemirror/view";
 import type { SyntaxNode } from "@lezer/common";
 
 import { CSS } from "../../core/constants/css-classes";
-import { cursorInRange } from "./node-collection";
 
 const sourceDelimiterDecoration = Decoration.mark({ class: CSS.sourceDelimiter });
 const inlineSourceDecoration = Decoration.mark({ class: CSS.inlineSource });
@@ -41,17 +40,4 @@ export function addInlineMediaSourceMetricsRange(
 ): void {
   if (from >= to) return;
   items.push(inlineMediaSourceDecoration.range(from, to));
-}
-
-export function sourceRevealMetricsForNode(
-  view: EditorView,
-  node: SyntaxNode,
-): readonly Range<Decoration>[] {
-  if (!cursorInRange(view, node.from, node.to)) {
-    return [];
-  }
-
-  const items: Range<Decoration>[] = [];
-  addInlineRevealSourceMetricsInSubtree(node, items);
-  return items;
 }

@@ -1,7 +1,6 @@
-// Pandoc `nocite:` resolution shared by the editor bibliography widget, the
-// reader's References section, and the host-facing citeproc helpers — entries
-// listed in the frontmatter appear in the bibliography without an in-text
-// citation.
+// Pandoc `nocite:` resolution shared by the editor bibliography widget and
+// the reader's References section — entries listed in the frontmatter appear
+// in the bibliography without an in-text citation.
 import type { CitationCollectionOptions } from "./citation-rendering";
 
 /** Normalized form of the Pandoc `@*` wildcard (see frontmatter `nocite`). */

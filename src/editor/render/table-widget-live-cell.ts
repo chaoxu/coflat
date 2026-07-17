@@ -257,7 +257,7 @@ export function createLiveCellSubviewDispatch(
  */
 export const liveCellMainSyncPlugin = EditorView.updateListener.of((update) => {
   const active = getActiveInlineEditor();
-  if (!active?.rootView || active.rootView !== update.view) return;
+  if (!active || active.rootView !== update.view) return;
   for (const tr of update.transactions) {
     if (tr.annotation(liveCellSyncAnnotation) !== undefined || !tr.docChanged) {
       continue;
@@ -280,8 +280,8 @@ export function isLiveCellInteriorChange(tr: Transaction): boolean {
   const active = getActiveInlineEditor();
   // The subview has not yet been synced when root state fields run, so its
   // tracked cell range is still in tr.startState coordinates.
-  if (!active?.rootView || active.rootView.state !== tr.startState) return false;
-  const range = active.getCellRange?.();
+  if (!active || active.rootView.state !== tr.startState) return false;
+  const range = active.getCellRange();
   if (!range) return false;
   let interior = true;
   tr.changes.iterChanges((fromA, toA) => {

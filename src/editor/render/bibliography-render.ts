@@ -452,8 +452,7 @@ export function createBibliographyWidgetFromState(state: EditorState): Bibliogra
       cached.formatterRevision !== formatterRevision ||
       cached.store !== store
     ) {
-      // Inline registration: avoid pulling the citation-registration module
-      // (which transitively reaches CslProcessor) from the main bundle.
+      // Inline registration: keeps CslProcessor out of the main bundle.
       const matches = [
         ...collectCitationMatchesFromAnalysis(analysis, store),
         ...collectCitationClusters(footnoteTokens, store, localTargetOptions),

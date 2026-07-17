@@ -105,12 +105,8 @@ export {
 } from "./table-utils";
 // ── view-plugin-factories.ts ─────────────────────────────────────────────────
 export {
-  type CursorSensitiveCollectFn,
   createCursorSensitiveViewPlugin,
-  createSemanticSensitiveViewPlugin,
   createSimpleViewPlugin,
-  cursorSensitiveShouldUpdate,
-  defaultShouldUpdate,
 } from "./view-plugin-factories";
 // ── viewport-diff.ts ─────────────────────────────────────────────────────────
 export {

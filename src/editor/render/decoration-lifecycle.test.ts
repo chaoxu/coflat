@@ -1,7 +1,10 @@
 import { RangeSet } from "@codemirror/state";
 import { Decoration, type DecorationSet, WidgetType } from "@codemirror/view";
 import { describe, expect, it } from "vitest";
-import { removeDecorationsInRanges } from "./decoration-lifecycle";
+import {
+  planDecorationLifecycleUpdate,
+  removeDecorationsInRanges,
+} from "./decoration-lifecycle";
 
 function makeRange(from: number, to: number): DecorationSet {
   return RangeSet.of([Decoration.mark({ class: "x" }).range(from, to)], true);
@@ -90,5 +93,80 @@ describe("removeDecorationsInRanges (touch semantics)", () => {
       { from: 1001, to: 1001 },
     ]);
     expect(rangeBounds(next)).toEqual([{ from: 500, to: 502 }]);
+  });
+});
+
+describe("planDecorationLifecycleUpdate", () => {
+  it("returns map for doc changes that keep semantics and context stable", () => {
+    const plan = planDecorationLifecycleUpdate(
+      { docChanged: true },
+      {
+        docChanged: (update) => update.docChanged,
+        semanticChanged: () => false,
+      },
+    );
+    expect(plan).toEqual({ kind: "map" });
+  });
+
+  it("can keep decorations for doc changes when the caller opts out of mapping", () => {
+    const plan = planDecorationLifecycleUpdate(
+      { docChanged: true },
+      {
+        docChanged: (update) => update.docChanged,
+        semanticChanged: () => false,
+        stableDocChangeMode: "keep",
+      },
+    );
+    expect(plan).toEqual({ kind: "keep" });
+  });
+
+  it("returns dirty ranges for semantic doc changes when provided", () => {
+    const dirtyRanges = [{ from: 4, to: 7 }];
+    const plan = planDecorationLifecycleUpdate(
+      { docChanged: true },
+      {
+        docChanged: (update) => update.docChanged,
+        semanticChanged: () => true,
+        dirtyRanges: () => dirtyRanges,
+      },
+    );
+    expect(plan).toEqual({ kind: "dirty", dirtyRanges });
+  });
+
+  it("rebuilds on non-doc semantic changes", () => {
+    const plan = planDecorationLifecycleUpdate(
+      { docChanged: false },
+      {
+        docChanged: (update) => update.docChanged,
+        semanticChanged: () => true,
+      },
+    );
+    expect(plan).toEqual({ kind: "rebuild" });
+  });
+
+  it("keeps decorations for no-op updates", () => {
+    const plan = planDecorationLifecycleUpdate(
+      { docChanged: false },
+      {
+        docChanged: (update) => update.docChanged,
+        semanticChanged: () => false,
+      },
+    );
+    expect(plan).toEqual({ kind: "keep" });
+  });
+
+  it("supports incremental context-only updates", () => {
+    const dirtyRanges = [{ from: 2, to: 5 }];
+    const plan = planDecorationLifecycleUpdate(
+      { docChanged: false },
+      {
+        docChanged: (update) => update.docChanged,
+        semanticChanged: () => false,
+        contextChanged: () => true,
+        contextUpdateMode: "dirty-ranges",
+        dirtyRanges: () => dirtyRanges,
+      },
+    );
+    expect(plan).toEqual({ kind: "dirty", dirtyRanges });
   });
 });

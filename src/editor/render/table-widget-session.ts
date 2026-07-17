@@ -5,8 +5,10 @@ import type { TableRange } from "./table-discovery";
 import type { TableBoundaryHandoffDirection } from "./table-widget-navigation";
 
 export interface TableWidgetSessionOwner {
+  /** Intra-widget session switch: restore the old cell's preview and the
+   *  widget's local table model without dispatching a widget rebuild — the
+   *  current DOM must survive so the next cell's session can open in it. */
   applyLocalCellEdit(cell: HTMLElement, content: string): void;
-  commitRenderedCell(cell: HTMLElement, content: string): void;
   /** Live-window session end: the document already holds the edits, so only
    *  the rendered preview needs restoring plus a widget rebuild dispatch. */
   refreshRenderedCell(cell: HTMLElement, content: string): void;
@@ -23,20 +25,16 @@ export interface ActiveInlineEditor {
   readonly view: EditorView;
   readonly cell: HTMLElement;
   readonly owner: TableWidgetSessionOwner;
-  /** Root view mirrored by a live-window session; null/absent when the
-   *  editor holds a detached mini-document. */
-  readonly rootView?: EditorView | null;
+  /** Root view mirrored by the live-window session. */
+  readonly rootView: EditorView;
   /** Current (mapped) cell range inside the mirrored document. */
-  readonly getCellRange?: () => { from: number; to: number } | null;
+  readonly getCellRange: () => { from: number; to: number } | null;
 }
 
 export interface DestroyedInlineEditor {
   readonly text: string;
   readonly cell: HTMLElement;
   readonly owner: TableWidgetSessionOwner;
-  readonly controller: InlineEditorController;
-  /** True when the session was a live window (text is already in the doc). */
-  readonly live: boolean;
 }
 
 interface ActivePreviewCell {
@@ -70,13 +68,10 @@ export function isActiveInlineCell(cell: HTMLElement): boolean {
 export function destroyActiveInlineEditor(): DestroyedInlineEditor | null {
   if (!activeInlineEditor) return null;
   const { controller, view: inlineView, cell, owner } = activeInlineEditor;
-  const live = activeInlineEditor.rootView != null;
-  const cellRange = activeInlineEditor.getCellRange?.() ?? null;
+  const cellRange = activeInlineEditor.getCellRange();
   const text = cellRange
     ? inlineView.state.sliceDoc(cellRange.from, cellRange.to)
-    : live
-      ? ""
-      : inlineView.state.doc.toString();
+    : "";
   cell.classList.remove(CSS.tableCellEditing);
   cell.style.removeProperty("width");
   cell.style.removeProperty("min-width");
@@ -85,22 +80,18 @@ export function destroyActiveInlineEditor(): DestroyedInlineEditor | null {
   controller.destroy();
   cell.innerHTML = "";
   activeInlineEditor = null;
-  return { text, cell, owner, controller, live };
+  return { text, cell, owner };
 }
 
 export function commitDestroyedInlineEditor(destroyed: DestroyedInlineEditor): void {
-  if (destroyed.live) {
-    destroyed.owner.refreshRenderedCell(destroyed.cell, destroyed.text);
-    return;
-  }
-  destroyed.owner.commitRenderedCell(destroyed.cell, destroyed.text);
+  destroyed.owner.refreshRenderedCell(destroyed.cell, destroyed.text);
 }
 
 export function restoreDestroyedInlineEditorLocally(
   destroyed: DestroyedInlineEditor,
-  fallbackOwner: TableWidgetSessionOwner,
+  currentOwner: TableWidgetSessionOwner,
 ): void {
-  if (destroyed.owner === fallbackOwner) {
+  if (destroyed.owner === currentOwner) {
     destroyed.owner.applyLocalCellEdit(destroyed.cell, destroyed.text);
     return;
   }

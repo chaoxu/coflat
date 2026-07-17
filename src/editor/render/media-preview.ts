@@ -56,19 +56,6 @@ export {
 
 // ── Public API ──────────────────────────────────────────────────────────────
 
-/**
- * Resolve a local media reference (image or PDF) to a preview result.
- *
- * Returns `null` for non-local sources (absolute URLs, data URIs, etc.)
- * — callers render those directly with the raw src.
- */
-export function resolveLocalMediaPath(
-  view: EditorView,
-  src: string,
-): string | null {
-  return resolveLocalMediaPathFromState(view.state, src);
-}
-
 export function resolveLocalMediaPreview(
   view: EditorView,
   src: string,

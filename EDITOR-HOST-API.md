@@ -21,6 +21,12 @@ interfaces:
 These are provided through editor mount options. Missing hooks fall back to
 built-in behavior where the editor has a reasonable default.
 
+The root entry also exports the editing feature bundle (see "Editing
+Features" below) and the `BibliographyStatus` type (see "Citations and
+Bibliography"). CSL processing lives in the separate
+`@chaoxu/coflat/citeproc` entry so citation-js stays out of the main
+bundle.
+
 ```ts
 import {
   mountEditor,
@@ -77,9 +83,10 @@ storage protocol.
 
 ## Document Changes
 
-`onChange` receives the full source string for ordinary user edits.
-`onDocumentChange` receives the CodeMirror `ChangeSet` for hosts that can apply
-incremental updates:
+`onChange` receives the full source string for ordinary user edits and
+remains supported. `onDocumentChange` receives the CodeMirror `ChangeSet`
+and is the recommended alternative for hosts that can apply incremental
+updates:
 
 ```ts
 mountEditor({
@@ -134,6 +141,114 @@ mechanics; the host owns the candidate list and any app-specific ranking.
 Autocomplete is separate from `RefResolver`: resolving existing source and
 suggesting new source are different operations, even when they read from the
 same host data.
+
+## Editing Features
+
+The feature bundle is wired into the editor by default. The root entry
+exports the pieces hosts configure, toggle, or expose in their own chrome.
+Host-supplied `extensions` are appended after the built-in ones, so a facet
+value provided there wins over the built-in default.
+
+### Autocorrect
+
+Autocorrect (text replacements plus magic quotes) is on by default.
+
+- `autocorrectConfig` — facet taking `Partial<AutocorrectConfig>`; values
+  merge over the defaults. Fields: `enabled`, `magicQuotes`, `quoteStyle`
+  (a `QuoteStyle` locale key selecting the quote pairs), and `replacements`.
+- `autocorrectCompartment` / `autocorrectExtension` — the built-in instance
+  is wrapped in this compartment, so hosts can reconfigure or disable it at
+  runtime:
+
+```ts
+view.dispatch({
+  effects: autocorrectCompartment.reconfigure([
+    autocorrectExtension(),
+    autocorrectConfig.of({ magicQuotes: true, quoteStyle: "de-DE" }),
+  ]),
+});
+```
+
+### Formatting toolbar
+
+`formattingToolbarExtension` (on by default) shows a floating toolbar of
+inline-formatting buttons next to a non-empty selection.
+`formattingToolbarCommands` exposes the same actions as palette commands.
+
+### Rich clipboard and copy as HTML
+
+`richPasteExtension` (on by default) converts pasted HTML to markdown and
+binds paste-plain (Mod-Shift-v). `createRichPasteCommands()` returns the
+clipboard commands (copy as markdown / copy as HTML / paste plain) for the
+command registry.
+
+"Copy as HTML" renders the selection through `htmlCopyRendererFacet`
+(`(markdown) => string | Promise<string>`, last value wins). The editor
+provides a default renderer that lazily loads the reader's `renderToHtml`;
+hosts override it by providing the facet in `extensions`.
+
+### Tables
+
+`tableEditingKeymap` (on by default) drives pipe-table editing;
+`tableEditingCommands` exposes table actions (insert/delete row and column,
+alignment, and so on) as palette commands.
+
+Edits inside a rendered table cell are ordinary main-history transactions on
+the document: there is no separate commit boundary, undo/redo steps through
+individual cell edits, and `onChange`/`onDocumentChange` fire per edit like
+any other typing.
+
+### Footnotes
+
+`footnoteCommandsExtension` (on by default) provides footnote insertion
+(Mod-Alt-f) and reference-aware Backspace behavior.
+`footnotePaletteCommands` exposes the same actions as palette commands.
+
+### Writing modes
+
+`typewriterModeExtension` and `mutedLinesExtension` are wired but inactive
+until toggled. `toggleTypewriterMode` and `toggleMutedLines` are commands
+hosts can bind or call directly.
+
+### List renumbering
+
+`listRenumberExtension` (on by default) renumbers ordered lists after
+structural edits.
+
+## Citations and Bibliography
+
+CSL processing is host-attached. The `@chaoxu/coflat/citeproc` entry
+exports `parseBibTeX`, `CslProcessor`, `createCslCitationFormatter`, and the
+`CitationFormatter` type; hosts build a formatter and attach it through
+`DocumentContext` (`citationFormatter` plus `citationKeys`). See the
+`citeproc.ts` entry docblock for the minimal example.
+
+### CSL locale
+
+`CslProcessor.create(items, cslXml, { locale, localeXml })` selects the CSL
+locale used for rendering (default `"en-US"`). citation-js bundles `en-US`,
+`nl-NL`, `fr-FR`, `de-DE`, and `es-ES`; any other locale needs its locale
+XML supplied via `localeXml`.
+
+### nocite
+
+The frontmatter `nocite:` key adds bibliography entries without an in-text
+citation, following Pandoc semantics including the `@*` wildcard. Resolved
+entries are ordered after every in-text citation, so numeric styles number
+them last. The editor and reader bibliography pipelines both apply it.
+
+### BibliographyStatus
+
+`BibliographyStatus` (exported from the root entry) reports bibliography
+load state for hosts that surface diagnostics: `idle`, `ok`, `warning`, or
+`error`. Failure states carry a `kind` (`read-bib`, `parse-bib`,
+`detect-format`, `read-csl`, `style-csl`, or `unexpected`) and a `message`;
+`ok` and `warning` carry `entryCount`, and parse warnings report
+`skippedEntries` for recoverable per-entry skips. Load and parse failures of
+the frontmatter `bibliography:`/`csl:` files surface here instead of being
+swallowed — an unreadable or invalid CSL style degrades to a `warning` and
+rendering falls back to the default style. Documents driven by a
+`DocumentContext` formatter report a synthesized `ok` status.
 
 ## Boundary
 
