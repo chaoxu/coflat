@@ -9,6 +9,11 @@ export { autocorrectCompartment, createEditor } from "./editor";
 export { fenceLanguageAutocompleteEditorPlugin } from "./editor-plugin-presets";
 export { fenceLanguageAutocompleteExtension } from "./fence-language-autocomplete";
 export {
+  extraCompletionSourcesFacet,
+  findReferenceCompletionMatch,
+  type ReferenceCompletionMatch,
+} from "./reference-autocomplete";
+export {
   footnoteCommandsExtension,
   footnotePaletteCommands,
 } from "./footnote-commands";
