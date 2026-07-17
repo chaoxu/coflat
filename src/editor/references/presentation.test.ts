@@ -278,3 +278,131 @@ describe("reference presentation controller", () => {
     });
   });
 });
+
+describe("Pandoc citation syntax routing", () => {
+  const citationKeys = { has: (id: string) => id === "a" || id === "b" };
+
+  function makeRecordingController(calls: unknown[][]) {
+    return createCatalogReferencePresentationController(catalog, {
+      citationKeys,
+      cite: (ids, locators, extras) => {
+        calls.push([ids, locators, extras]);
+        return "(cite)";
+      },
+      citeNarrative: (id) => `${id} narrative`,
+    });
+  }
+
+  it("derives prefix and suppress-author extras from the raw cluster", () => {
+    const calls: unknown[][] = [];
+    const controller = makeRecordingController(calls);
+
+    const route = controller.planReference({
+      bracketed: true,
+      ids: ["a", "b"],
+      locators: ["p. 3", undefined],
+      raw: "[see @a, p. 3; -@b]",
+    });
+
+    expect(route).toMatchObject({ kind: "citation", rendered: "(cite)" });
+    expect(calls).toEqual([[
+      ["a", "b"],
+      ["p. 3", undefined],
+      [{ prefix: "see" }, { suppressAuthor: true }],
+    ]]);
+  });
+
+  it("passes no extras for plain clusters so old calls stay identical", () => {
+    const calls: unknown[][] = [];
+    const controller = makeRecordingController(calls);
+
+    controller.planReference({
+      bracketed: true,
+      ids: ["a", "b"],
+      locators: [undefined, "p. 3"],
+      raw: "[@a; @b, p. 3]",
+    });
+
+    expect(calls).toEqual([[["a", "b"], [undefined, "p. 3"], undefined]]);
+  });
+
+  it("routes narrative -@key through a suppressed cite, not citeNarrative", () => {
+    const calls: unknown[][] = [];
+    const controller = makeRecordingController(calls);
+
+    const route = controller.planReference({
+      bracketed: false,
+      ids: ["a"],
+      locators: [undefined],
+      raw: "-@a",
+    });
+
+    expect(route).toMatchObject({ kind: "citation", narrative: true, rendered: "(cite)" });
+    expect(calls).toEqual([[["a"], [undefined], [{ suppressAuthor: true }]]]);
+  });
+
+  it("keeps plain narrative keys on the citeNarrative path", () => {
+    const calls: unknown[][] = [];
+    const controller = makeRecordingController(calls);
+
+    const route = controller.planReference({
+      bracketed: false,
+      ids: ["a"],
+      locators: [undefined],
+      raw: "@a",
+    });
+
+    expect(route).toMatchObject({
+      kind: "citation",
+      narrative: true,
+      rendered: "a narrative",
+    });
+    expect(calls).toEqual([]);
+  });
+
+  it("applies per-item extras to citation parts of mixed clusters", () => {
+    const calls: unknown[][] = [];
+    const controller = makeRecordingController(calls);
+
+    const route = controller.planReference({
+      bracketed: true,
+      ids: ["thm-main", "a"],
+      locators: [undefined, undefined],
+      raw: "[@thm-main; see -@a]",
+    });
+
+    expect(route).toMatchObject({ kind: "mixed-cluster" });
+    expect(calls).toEqual([[["a"], [], [{ prefix: "see", suppressAuthor: true }]]]);
+  });
+
+  it("renders Pandoc syntax end-to-end through a real CSL processor", async () => {
+    const processor = await CslProcessor.create([CSL_FIXTURES.karger]);
+    processor.registerCitations([{ ids: ["karger2000"] }]);
+    const controller = createCatalogReferencePresentationController(catalog, {
+      citationKeys: { has: (id: string) => id === "karger2000" },
+      cite: (ids, locators, extras) => processor.cite([...ids], [...locators], extras),
+      citeNarrative: (id) => processor.citeNarrative(id),
+    });
+
+    expect(controller.planReference({
+      bracketed: true,
+      ids: ["karger2000"],
+      locators: ["p. 12, emphasis mine"],
+      raw: "[see @karger2000, p. 12, emphasis mine]",
+    })).toMatchObject({
+      kind: "citation",
+      rendered: "[see 1, p. 12, emphasis mine]",
+    });
+
+    expect(controller.planReference({
+      bracketed: false,
+      ids: ["karger2000"],
+      locators: [undefined],
+      raw: "-@karger2000",
+    })).toMatchObject({
+      kind: "citation",
+      narrative: true,
+      rendered: "[1]",
+    });
+  });
+});

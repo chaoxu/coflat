@@ -11,9 +11,13 @@ import {
   type Command,
   commandRegistryExtension,
 } from "./command-registry";
+import { footnotePaletteCommands } from "./footnote-commands";
+import { formattingToolbarCommands } from "./formatting-toolbar";
 import type { PaletteCommand } from "./lib/command-palette";
 import { insertTable } from "./render/table-render";
+import { createRichPasteCommands } from "./rich-paste";
 import { extractHeadings } from "./semantics/heading-ancestry";
+import { tableEditingCommands } from "./table-commands";
 
 /** Insert a fenced div block at the cursor. */
 function insertBlock(view: EditorView, className: string): void {
@@ -130,6 +134,10 @@ export function getEditorCommandRegistry(): Command[] {
         return true;
       },
     },
+    ...formattingToolbarCommands,
+    ...tableEditingCommands,
+    ...footnotePaletteCommands,
+    ...createRichPasteCommands(),
   ];
 }
 

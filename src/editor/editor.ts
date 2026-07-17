@@ -1,18 +1,21 @@
 import { historyField } from "@codemirror/commands";
-import { indentUnit, LanguageDescription } from "@codemirror/language";
+import { indentUnit } from "@codemirror/language";
 import { Compartment, EditorState, type Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import {
   DOCUMENT_SURFACE_CLASS,
   documentSurfaceClassNames,
 } from "../core/document-surface-classes";
+import { autocorrectExtension } from "./autocorrect";
 import {
   createMarkdownLanguageExtensions,
   createProjectConfigExtensions,
 } from "./base-editor-extensions";
+import { codeLanguageDescriptions } from "./code-languages";
 import { commandKeymapExtension } from "./command-registry";
 import { builtinCommandRegistryExtension } from "./commands";
 import {
+  autocorrectCompartment,
   blockTypePickerCompartment,
   syntaxHighlightCompartment,
   themeCompartment,
@@ -34,17 +37,24 @@ import {
   renderModeExtensions,
   userSettingsExtensions,
 } from "./extension-builders";
+import { footnoteCommandsExtension } from "./footnote-commands";
+import { formattingToolbarExtension } from "./formatting-toolbar";
 import { headingFold } from "./heading-fold";
 import { editorKeybindings } from "./keybindings";
+import { listRenumberExtension } from "./list-renumber";
+import { mutedLinesExtension } from "./muted-lines";
 import { defaultPlugins } from "./plugins";
 import { type ProjectConfig, type ProjectConfigStatus } from "./project-config";
 import { cm6RichRenderExtensions } from "./render/cm6-rich-render-extensions";
 import { richMouseSelectionStyle } from "./rich-mouse-selection";
+import { htmlCopyRendererFacet, richPasteExtension } from "./rich-paste";
 import { scrollStabilityExtension } from "./scroll-stability";
 import { shellSurfaceOverlayExtension } from "./shell-surface-overlay";
 import { stableHeightOracleExtension } from "./stable-height-oracle";
 import { coreDocumentStateExtensions } from "./state/document-state-extensions";
+import { tableEditingKeymap } from "./table-commands";
 import { coflatDarkTheme, coflatTheme } from "./theme";
+import { typewriterModeExtension } from "./typewriter-mode";
 import { widgetStopIndexCleanupExtension } from "./widget-stop-index";
 
 export {
@@ -69,68 +79,12 @@ const cm6DocumentSurfaceExtensions: Extension[] = [
 ];
 
 export {
+  autocorrectCompartment,
   lineNumbersCompartment,
   tabSizeCompartment,
   themeCompartment,
   wordWrapCompartment,
 } from "./compartments";
-
-/** Standard code-language descriptions for fenced code blocks. */
-const loadJavaScriptLanguage = () => import("@codemirror/lang-javascript");
-const loadPythonLanguage = () => import("@codemirror/lang-python");
-const loadHtmlLanguage = () => import("@codemirror/lang-html");
-const loadCssLanguage = () => import("@codemirror/lang-css");
-const loadJsonLanguage = () => import("@codemirror/lang-json");
-const loadJavaLanguage = () => import("@codemirror/lang-java");
-const loadCppLanguage = () => import("@codemirror/lang-cpp");
-const loadRustLanguage = () => import("@codemirror/lang-rust");
-
-const codeLanguageDescriptions: LanguageDescription[] = [
-  LanguageDescription.of({
-    name: "javascript",
-    alias: ["js", "jsx"],
-    load: async () => (await loadJavaScriptLanguage()).javascript({ jsx: true }),
-  }),
-  LanguageDescription.of({
-    name: "typescript",
-    alias: ["ts", "tsx"],
-    load: async () =>
-      (await loadJavaScriptLanguage()).javascript({ jsx: true, typescript: true }),
-  }),
-  LanguageDescription.of({
-    name: "python",
-    alias: ["py"],
-    load: async () => (await loadPythonLanguage()).python(),
-  }),
-  LanguageDescription.of({
-    name: "html",
-    alias: ["htm"],
-    load: async () => (await loadHtmlLanguage()).html(),
-  }),
-  LanguageDescription.of({
-    name: "css",
-    alias: ["scss", "less"],
-    load: async () => (await loadCssLanguage()).css(),
-  }),
-  LanguageDescription.of({
-    name: "json",
-    load: async () => (await loadJsonLanguage()).json(),
-  }),
-  LanguageDescription.of({
-    name: "java",
-    load: async () => (await loadJavaLanguage()).java(),
-  }),
-  LanguageDescription.of({
-    name: "cpp",
-    alias: ["c", "c++", "cc", "cxx", "h"],
-    load: async () => (await loadCppLanguage()).cpp(),
-  }),
-  LanguageDescription.of({
-    name: "rust",
-    alias: ["rs"],
-    load: async () => (await loadRustLanguage()).rust(),
-  }),
-];
 
 /** Core editor chrome that should be present before the first editable pixels. */
 function editorChromeExtensions(isDark: boolean): Extension[] {
@@ -144,6 +98,44 @@ function editorChromeExtensions(isDark: boolean): Extension[] {
     blockTypePickerCompartment.of([]),
     builtinCommandRegistryExtension,
     commandKeymapExtension,
+
+    // Text-level pipe-table editing. Must be ordered after the rich render
+    // extensions so the widget-aware table keymap keeps priority while
+    // tables render as widgets (both are Prec.high; extension order decides).
+    tableEditingKeymap,
+
+    // Autocorrect + magic quotes. Ordered after the list outliner (its
+    // Prec.highest Enter/Backspace keep priority) and after the table
+    // editing keymap (Enter in a table navigates rows instead of inserting
+    // a newline). Wrapped in a compartment so hosts can disable or
+    // reconfigure it at runtime.
+    autocorrectCompartment.of(autocorrectExtension()),
+
+    // Footnote authoring commands (Mod-Alt-f insert, Backspace ref guard).
+    footnoteCommandsExtension,
+
+    // Selection formatting toolbar (self-contained tooltip field).
+    formattingToolbarExtension,
+
+    // Rich clipboard: HTML→markdown paste + paste-plain (Mod-Shift-v).
+    richPasteExtension(),
+
+    // Default "Copy as HTML" renderer: the reader's renderToHtml, imported
+    // lazily on first use so the reader module graph stays out of the eager
+    // editor bundle (the static editor/reader dist graphs stay separate).
+    // Hosts can override by providing this facet in `config.extensions`
+    // (later values win).
+    htmlCopyRendererFacet.of(async (markdown) =>
+      (await import("../reader/reader")).renderToHtml(markdown).html,
+    ),
+
+    // Ordered-list renumbering after structural list edits.
+    listRenumberExtension,
+
+    // Optional writing modes (off by default; toggled via palette commands).
+    typewriterModeExtension,
+    mutedLinesExtension,
+
     debugLaneCompartment.of(defaultDebugLaneExtensions),
     coflatTheme,
 

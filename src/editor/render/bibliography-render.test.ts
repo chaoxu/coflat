@@ -238,6 +238,74 @@ describe("bibliographyPlugin", () => {
   });
 });
 
+describe("bibliographyPlugin nocite frontmatter", () => {
+  function mountBibView(doc: string): { parent: HTMLElement; view: EditorView } {
+    const parent = document.body.appendChild(document.createElement("div"));
+    const state = EditorState.create({
+      doc,
+      extensions: [
+        markdown({ extensions: markdownExtensions }),
+        frontmatterField,
+        documentAnalysisField,
+        bibDataField,
+        bibliographyPlugin,
+      ],
+    });
+    const view = new EditorView({ state, parent });
+    view.dispatch({
+      effects: bibDataEffect.of({ store: makeBibStore([karger, stein]) }),
+    });
+    return { parent, view };
+  }
+
+  it("includes nocite entries without an in-text citation or backlinks", () => {
+    const { parent, view } = mountBibView([
+      "---",
+      "nocite: \"@stein2001\"",
+      "---",
+      "",
+      "Cites [@karger2000].",
+    ].join("\n"));
+
+    expect(parent.querySelector("#bib-karger2000")).not.toBeNull();
+    const nociteEntry = parent.querySelector<HTMLElement>("#bib-stein2001");
+    expect(nociteEntry).not.toBeNull();
+    expect(nociteEntry?.querySelector(`.${CSS.bibliographyBacklink}`)).toBeNull();
+    view.destroy();
+  });
+
+  it("renders the whole store for the @* wildcard with no citations at all", () => {
+    const { parent, view } = mountBibView([
+      "---",
+      "nocite: \"@*\"",
+      "---",
+      "",
+      "No citations here.",
+    ].join("\n"));
+
+    const entries = parent.querySelectorAll(`.${CSS.bibliographyEntry}`);
+    expect(entries.length).toBe(2);
+    expect(parent.querySelector("#bib-karger2000")).not.toBeNull();
+    expect(parent.querySelector("#bib-stein2001")).not.toBeNull();
+    expect(parent.querySelector(`.${CSS.bibliographyBacklink}`)).toBeNull();
+    view.destroy();
+  });
+
+  it("skips nocite keys missing from the store", () => {
+    const { parent, view } = mountBibView([
+      "---",
+      "nocite: \"@nope2024\"",
+      "---",
+      "",
+      "Cites [@karger2000].",
+    ].join("\n"));
+
+    expect(parent.querySelector("#bib-karger2000")).not.toBeNull();
+    expect(parent.querySelectorAll(`.${CSS.bibliographyEntry}`).length).toBe(1);
+    view.destroy();
+  });
+});
+
 describe("bibliographyDependenciesChanged", () => {
   function createBibState(doc: string): EditorState {
     return EditorState.create({
@@ -265,5 +333,26 @@ describe("bibliographyDependenciesChanged", () => {
       }),
     );
     expect(bibliographyDependenciesChanged(before, after)).toBe(true);
+  });
+
+  it("reports true when the frontmatter nocite list changes", () => {
+    const base = applyStateEffects(
+      EditorState.create({
+        doc: "---\ntitle: T\n---\n\nBody.",
+        extensions: [
+          markdown({ extensions: markdownExtensions }),
+          frontmatterField,
+          documentAnalysisField,
+          bibDataField,
+        ],
+      }),
+      bibDataEffect.of({ store: makeBibStore([karger]) }),
+    );
+
+    const withNocite = base.update({
+      changes: { from: 4, insert: "nocite: \"@karger2000\"\n" },
+    }).state;
+
+    expect(bibliographyDependenciesChanged(base, withNocite)).toBe(true);
   });
 });

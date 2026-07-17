@@ -8,6 +8,7 @@ import {
   localMediaReferences,
   localMediaReferencesForResolvedPaths,
   mediaIndexField,
+  splitRangesAtFrontier,
 } from "./media-index";
 
 function createState(
@@ -149,6 +150,75 @@ describe("mediaIndexField", () => {
     ]).toEqual(["posts/paper.pdf"]);
   });
 
+  it("records uncovered ranges as pending until the syntax tree can cover them", () => {
+    // Without a language the syntax tree never covers the document, which
+    // deterministically models an unfinished background parse.
+    const language = new Compartment();
+    let state = EditorState.create({
+      doc: "![fig](fig.png)",
+      extensions: [
+        language.of([]),
+        documentPathFacet.of("posts/math.md"),
+        mediaIndexField,
+      ],
+    });
+
+    expect(localMediaReferences(state.field(mediaIndexField))).toEqual([]);
+    expect(state.field(mediaIndexField).pendingRanges).toEqual([
+      { from: 0, to: state.doc.length },
+    ]);
+
+    // Doc-unchanged updates keep the pending range while coverage is missing.
+    state = state.update({ selection: { anchor: 1 } }).state;
+    expect(state.field(mediaIndexField).pendingRanges).toEqual([
+      { from: 0, to: state.doc.length },
+    ]);
+
+    // Once a parser exists (reconfiguration rebuilds), the reference appears.
+    state = state.update({
+      effects: language.reconfigure(markdown()),
+    }).state;
+    expect(
+      localMediaReferences(state.field(mediaIndexField)).map((ref) => ref.src),
+    ).toEqual(["fig.png"]);
+    expect(state.field(mediaIndexField).pendingRanges).toEqual([]);
+  });
+
+  it("maps pending ranges through document edits until coverage arrives", () => {
+    const language = new Compartment();
+    let state = EditorState.create({
+      doc: "intro line\n\n![fig](fig.png)",
+      extensions: [
+        language.of([]),
+        documentPathFacet.of("posts/math.md"),
+        mediaIndexField,
+      ],
+    });
+    expect(state.field(mediaIndexField).pendingRanges).toEqual([
+      { from: 0, to: state.doc.length },
+    ]);
+
+    // Single-line edit: the mapped pending range must still span the whole
+    // document, not collapse to the edited line's dirty range.
+    state = state.update({ changes: { from: 0, insert: "Draft " } }).state;
+    expect(state.field(mediaIndexField).pendingRanges).toEqual([
+      { from: 0, to: state.doc.length },
+    ]);
+
+    state = state.update({
+      effects: language.reconfigure(markdown()),
+    }).state;
+    expect(
+      localMediaReferences(state.field(mediaIndexField)).map((ref) => ref.src),
+    ).toEqual(["fig.png"]);
+    expect(state.field(mediaIndexField).pendingRanges).toEqual([]);
+  });
+
+  it("keeps pendingRanges empty when the tree covers the document", () => {
+    const state = createState("![fig](fig.png)");
+    expect(state.field(mediaIndexField).pendingRanges).toEqual([]);
+  });
+
   it("rebuilds resolved paths when the document path facet changes", () => {
     const docPath = new Compartment();
     let state = createState("![fig](fig.png)", [
@@ -161,5 +231,40 @@ describe("mediaIndexField", () => {
 
     expect(localMediaReferences(state.field(mediaIndexField)).map((ref) => ref.resolvedPath))
       .toEqual(["notes/fig.png"]);
+  });
+});
+
+describe("splitRangesAtFrontier", () => {
+  it("splits a straddling range into covered prefix and pending tail", () => {
+    expect(splitRangesAtFrontier(50, [{ from: 0, to: 100 }])).toEqual({
+      covered: [{ from: 0, to: 50 }],
+      uncovered: [{ from: 50, to: 100 }],
+    });
+  });
+
+  it("keeps fully parsed ranges covered and fully unparsed ranges pending", () => {
+    expect(
+      splitRangesAtFrontier(50, [
+        { from: 0, to: 30 },
+        { from: 60, to: 90 },
+      ]),
+    ).toEqual({
+      covered: [{ from: 0, to: 30 }],
+      uncovered: [{ from: 60, to: 90 }],
+    });
+  });
+
+  it("covers everything once the frontier reaches the document end", () => {
+    expect(splitRangesAtFrontier(100, [{ from: 10, to: 100 }])).toEqual({
+      covered: [{ from: 10, to: 100 }],
+      uncovered: [],
+    });
+  });
+
+  it("covers nothing at frontier zero", () => {
+    expect(splitRangesAtFrontier(0, [{ from: 0, to: 40 }])).toEqual({
+      covered: [],
+      uncovered: [{ from: 0, to: 40 }],
+    });
   });
 });

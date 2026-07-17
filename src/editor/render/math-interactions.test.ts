@@ -181,6 +181,87 @@ describe("inline math mouse selection", () => {
     expect(inline.classList.contains("cf-selection-atom-selected")).toBe(false);
   });
 
+  it("skips the selected-atom DOM scan for selection changes away from any math", () => {
+    const doc = "before $x^2$ after some tail";
+    view = createMathRenderView(doc, doc.length);
+    const currentView = view;
+    if (!currentView) throw new Error("expected math render view");
+
+    const atomScanSelector = `.${CSS.mathInline}[data-source-from][data-source-to]`;
+    const spy = vi.spyOn(currentView.contentDOM, "querySelectorAll");
+
+    currentView.dispatch({ selection: { anchor: doc.length - 2 } });
+
+    const atomScans = spy.mock.calls.filter(([selector]) => selector === atomScanSelector);
+    expect(atomScans).toHaveLength(0);
+  });
+
+  it("still syncs the selected-atom class when the selection reaches math", () => {
+    const doc = "before $x^2$ after";
+    view = createMathRenderView(doc, doc.length);
+    const currentView = view;
+    if (!currentView) throw new Error("expected math render view");
+
+    const inline = currentView.contentDOM.querySelector<HTMLElement>(`.${CSS.mathInline}[aria-label="x^2"]`);
+    if (!inline) throw new Error("expected inline math");
+    const sourceFrom = Number.parseInt(inline.dataset.sourceFrom ?? "", 10);
+    const sourceTo = Number.parseInt(inline.dataset.sourceTo ?? "", 10);
+
+    currentView.dispatch({
+      selection: EditorSelection.range(sourceFrom - 1, sourceTo + 1),
+    });
+    expect(inline.classList.contains("cf-selection-atom-selected")).toBe(true);
+
+    currentView.dispatch({ selection: { anchor: doc.length } });
+    expect(inline.classList.contains("cf-selection-atom-selected")).toBe(false);
+  });
+
+  it("leaves a drag selection that never touches rendered math un-snapped", () => {
+    const doc = "haha $x^2$ tail text here";
+    view = createMathRenderView(doc, 0);
+    const currentView = view;
+    if (!currentView) throw new Error("expected math render view");
+
+    const inline = currentView.contentDOM.querySelector<HTMLElement>(`.${CSS.mathInline}[aria-label="x^2"]`);
+    const sourceTo = Number.parseInt(inline?.dataset.sourceTo ?? "", 10);
+    const dragFrom = sourceTo + 2;
+    const dragTo = sourceTo + 7;
+
+    vi.spyOn(currentView, "posAndSideAtCoords").mockImplementation((coords) => {
+      if (coords.x > 10) {
+        return { pos: dragTo, assoc: 1 } as ReturnType<EditorView["posAndSideAtCoords"]>;
+      }
+      return { pos: dragFrom, assoc: -1 } as ReturnType<EditorView["posAndSideAtCoords"]>;
+    });
+
+    const startEvent = new MouseEvent("mousedown", {
+      bubbles: true,
+      cancelable: true,
+      button: 0,
+      clientX: 5,
+      clientY: 5,
+      detail: 1,
+    });
+    Object.defineProperty(startEvent, "target", { value: currentView.contentDOM });
+
+    const makeStyle = currentView.state.facet(EditorView.mouseSelectionStyle)[0];
+    const style = makeStyle(currentView, startEvent);
+    if (!style) throw new Error("expected inline math mouse selection style");
+
+    const move = new MouseEvent("mousemove", {
+      bubbles: true,
+      cancelable: true,
+      button: 0,
+      clientX: 30,
+      clientY: 5,
+    });
+    Object.defineProperty(move, "target", { value: currentView.contentDOM });
+
+    const selection = style.get(move, false, false);
+    expect(selection.main.from).toBe(dragFrom);
+    expect(selection.main.to).toBe(dragTo);
+  });
+
   it("falls back to native mouse selection when no inline math is rendered", () => {
     view = createMathRenderView("plain text", 0);
     const currentView = view;

@@ -231,8 +231,10 @@ describe("document semantics analyzers", () => {
     ]);
   });
 
-  it("does not analyze narrative references inside malformed bracket clusters", () => {
-    const doc = "No [see @id] or [@id; see @other], yes [@id] and @sec:intro/motivation.\n";
+  it("analyzes Pandoc prefix clusters and skips genuinely malformed brackets", () => {
+    // `[see @id]` and `[@id; see @other]` are valid Pandoc citations with
+    // prefix text; `[no key]` stays plain text.
+    const doc = "No [no key] but [see @id] and [@id; see @other], yes [@id] and @sec:intro/motivation.\n";
     const tree = parser.parse(doc);
 
     const refs = analyzeReferences(stringTextSource(doc), tree);
@@ -241,6 +243,8 @@ describe("document semantics analyzers", () => {
       bracketed: ref.bracketed,
       ids: ref.ids,
     }))).toEqual([
+      { bracketed: true, ids: ["id"] },
+      { bracketed: true, ids: ["id", "other"] },
       { bracketed: true, ids: ["id"] },
       { bracketed: false, ids: ["sec:intro/motivation"] },
     ]);

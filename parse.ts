@@ -185,7 +185,7 @@ function collectNarrativeRefs(
     if (inRanges(from, excludedRanges)) continue;
     const id = match[1] ?? "";
     if (!id) continue;
-    const to = from + 1 + id.length;
+    const to = from + match[0].length;
     out.push({
       kind: "crossref",
       raw: source.slice(from, to),

@@ -49,10 +49,48 @@ describe("reference-tokens", () => {
     ).toEqual(["thm:main", "sec:results", "fig:plot"]);
   });
 
+  it("accepts Pandoc prefix text before the key", () => {
+    // Pandoc citation grammar: `[see @id]` is a citation with prefix "see".
+    expect(parseReferenceToken("[see @id]")).toEqual({
+      bracketed: true,
+      ids: ["id"],
+      locators: [undefined],
+    });
+    expect(parseReferenceToken("[@id; see @other]")).toEqual({
+      bracketed: true,
+      ids: ["id", "other"],
+      locators: [undefined, undefined],
+    });
+    expect(scanReferenceTokens("[see @id]").map((token) => token.id)).toEqual(["id"]);
+  });
+
   it("rejects malformed bracket content", () => {
-    expect(parseReferenceToken("[see @id]")).toBeNull();
-    expect(parseReferenceToken("[@id; see @other]")).toBeNull();
-    expect(scanReferenceTokens("[see @id]")).toEqual([]);
+    // Prefix text must end in whitespace before the `@`, and every
+    // semicolon-separated part needs a key.
+    expect(parseReferenceToken("[see@id]")).toBeNull();
+    expect(parseReferenceToken("[no key here]")).toBeNull();
+    expect(parseReferenceToken("[@id; no key]")).toBeNull();
+    expect(scanReferenceTokens("[no key here]")).toEqual([]);
+  });
+
+  it("parses suppress-author markers inside and outside brackets", () => {
+    expect(parseReferenceToken("[-@doe2020]")).toEqual({
+      bracketed: true,
+      ids: ["doe2020"],
+      locators: [undefined],
+    });
+    expect(parseReferenceToken("-@doe2020")).toEqual({
+      bracketed: false,
+      ids: ["doe2020"],
+      locators: [undefined],
+    });
+    const [token] = scanReferenceTokens("as -@doe2020 said");
+    expect(token.id).toBe("doe2020");
+    // The narrative token covers the suppress marker: `-@doe2020`.
+    expect(token.from).toBe(3);
+    expect(token.to).toBe(12);
+    expect(token.labelFrom).toBe(5);
+    expect(token.labelTo).toBe(12);
   });
 
   it("parses locator clusters", () => {
@@ -75,14 +113,20 @@ describe("reference-tokens", () => {
     ]);
   });
 
-  it("uses bare @id for narrative references, not bracket suppression syntax", () => {
+  it("treats a detached dash as prefix text, not author suppression", () => {
     expect(parseReferenceToken("@thm:foo")).toEqual({
       bracketed: false,
       ids: ["thm:foo"],
       locators: [undefined],
     });
-    expect(parseReferenceToken("[- @thm:foo]")).toBeNull();
+    // `- @key` (dash + space) is a one-character Pandoc prefix; only the
+    // adjacent `-@key` form suppresses the author.
+    expect(parseReferenceToken("[- @thm:foo]")).toEqual({
+      bracketed: true,
+      ids: ["thm:foo"],
+      locators: [undefined],
+    });
     expect(scanReferenceTokens("See [- @thm:foo] and @thm:bar.").map((token) => token.id))
-      .toEqual(["thm:bar"]);
+      .toEqual(["thm:foo", "thm:bar"]);
   });
 });

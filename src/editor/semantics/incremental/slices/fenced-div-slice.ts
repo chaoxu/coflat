@@ -17,6 +17,19 @@ export interface ExtractedDirtyStructuralWindow {
   readonly structural: StructuralWindowExtraction;
 }
 
+/**
+ * Shared per-plan cap on how much text dirty-window extraction may cover once
+ * backoff and fenced-div/math chasing have expanded the windows. `remaining`
+ * is charged with each window's final expanded length; a window whose
+ * expansion exceeds it is skipped (left to pending) unless
+ * `oversizedAllowance` grants it an atomic pass — idle drain ticks grant one
+ * per tick so blocks larger than the whole budget still converge.
+ */
+export interface ExtractionWindowBudget {
+  remaining: number;
+  oversizedAllowance: number;
+}
+
 interface OverlapSpan {
   readonly start: number;
   readonly end: number;
@@ -172,11 +185,29 @@ export function extractDirtyFencedDivWindows(
   tree: Tree,
   changes: PositionMapper,
   dirtyWindows: readonly DirtyWindow[],
+  budget?: ExtractionWindowBudget,
+  onDroppedOversized?: (range: { from: number; to: number }) => void,
 ): readonly ExtractedDirtyStructuralWindow[] {
   const mappedPrevious = previous.map((div) => mapFencedDivSemantics(div, changes));
 
-  return dirtyWindows.map((window) => {
+  return dirtyWindows.flatMap((window) => {
     let range = { from: window.fromNew, to: window.toNew };
+    // Budget honesty: each candidate range is re-checked whenever expansion
+    // grows it, BEFORE the tree probe over the grown range, so per-window
+    // work stays O(budget) unless the oversized allowance admits it.
+    let exemptFromBudget = false;
+    const fitsBudget = (candidate: { from: number; to: number }): boolean => {
+      if (budget === undefined || exemptFromBudget) return true;
+      if (candidate.to - candidate.from <= budget.remaining) return true;
+      if (budget.oversizedAllowance > 0) {
+        budget.oversizedAllowance -= 1;
+        exemptFromBudget = true;
+        return true;
+      }
+      onDroppedOversized?.(candidate);
+      return false;
+    };
+
     const oldSpan = findAffectedSpan(
       previous,
       { from: window.fromOld, to: window.toOld },
@@ -186,6 +217,7 @@ export function extractDirtyFencedDivWindows(
       const oldRange = spanRange(mappedPrevious, oldSpan);
       range = expandRange(range, oldRange.from, oldRange.to);
     }
+    if (!fitsBudget(range)) return [];
 
     let expansion = extractFencedDivExpansionWindow(doc, tree, range);
     while (true) {
@@ -211,15 +243,19 @@ export function extractDirtyFencedDivWindows(
       }
 
       if (nextRange.from === range.from && nextRange.to === range.to) {
-        return {
+        if (budget !== undefined) {
+          budget.remaining = Math.max(0, budget.remaining - (range.to - range.from));
+        }
+        return [{
           window,
           range,
           structural: extractStructuralWindow(doc, tree, range, {
             includeNarrativeRefs: false,
           }),
-        };
+        }];
       }
 
+      if (!fitsBudget(nextRange)) return [];
       range = nextRange;
       expansion = extractFencedDivExpansionWindow(doc, tree, range);
     }

@@ -1,10 +1,11 @@
 import { markdown } from "@codemirror/lang-markdown";
+import { EditorSelection, EditorState } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
 import { afterEach, describe, expect, it } from "vitest";
 import { markdownExtensions } from "../../core/parser";
 import { createEditor } from "../editor";
 import { createTestView } from "../test-utils";
-import { blockquoteRenderPlugin } from "./blockquote-render";
+import { _blockquoteFieldForTest, blockquoteRenderPlugin } from "./blockquote-render";
 import { focusEffect } from "./focus-state";
 
 let view: EditorView | undefined;
@@ -67,5 +68,49 @@ describe("blockquoteRenderPlugin", () => {
     });
     expect(editor.dom.querySelector("blockquote")?.textContent).toBe("See Eq. (1).");
     editor.destroy();
+  });
+
+  it("keeps the field value identical for caret moves outside the blockquote", () => {
+    const doc = "> quoted text\n\nbody paragraph";
+    const target = createBlockquoteView(doc, doc.length);
+    const before = target.state.field(_blockquoteFieldForTest);
+
+    target.dispatch({ selection: { anchor: doc.length - 3 } });
+
+    expect(target.state.field(_blockquoteFieldForTest)).toBe(before);
+  });
+
+  it("reveals and re-renders the blockquote as the caret crosses it", () => {
+    const doc = "> quoted text\n\nbody paragraph";
+    const target = createBlockquoteView(doc, doc.length);
+    expect(target.dom.querySelector("blockquote")).not.toBeNull();
+
+    target.dispatch({ selection: { anchor: doc.indexOf("quoted") } });
+    expect(target.dom.querySelector("blockquote")).toBeNull();
+
+    target.dispatch({ selection: { anchor: doc.length } });
+    expect(target.dom.querySelector("blockquote")).not.toBeNull();
+  });
+
+  it("reveals a blockquote touched by any range of a multi-range selection", () => {
+    const doc = "> quoted text\n\nbody paragraph";
+    view = createTestView(doc, {
+      cursorPos: doc.length,
+      extensions: [
+        markdown({ extensions: markdownExtensions }),
+        EditorState.allowMultipleSelections.of(true),
+        blockquoteRenderPlugin,
+      ],
+    });
+    view.dispatch({ effects: focusEffect.of(true) });
+    expect(view.dom.querySelector("blockquote")).not.toBeNull();
+
+    view.dispatch({
+      selection: EditorSelection.create([
+        EditorSelection.cursor(doc.indexOf("quoted")),
+        EditorSelection.cursor(doc.length),
+      ], 1),
+    });
+    expect(view.dom.querySelector("blockquote")).toBeNull();
   });
 });

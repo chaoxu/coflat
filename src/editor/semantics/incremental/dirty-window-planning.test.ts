@@ -1,8 +1,14 @@
+import { markdown } from "@codemirror/lang-markdown";
+import { EditorState } from "@codemirror/state";
 import { describe, expect, it } from "vitest";
+import { markdownExtensions } from "../../../core/parser";
+import { editorStateTextSource } from "../../state/document-analysis";
+import { ensureFullSyntaxTree } from "../../test-utils";
 import type { HeadingSemantics } from "../document-model";
 import {
   classifyStructuralExtraction,
   expandDirtyWindows,
+  planDirtyWindows,
 } from "./dirty-window-planning";
 import {
   type IncrementalDocumentAnalysisState,
@@ -28,7 +34,6 @@ function deltaForWindow(
     dirtyWindows: [window],
     docChanged: true,
     syntaxTreeChanged: false,
-    frontmatterChanged: false,
     globalInvalidation: false,
     plainInlineTextOnlyChange,
     mapOldToNew: (pos) => pos,
@@ -88,6 +93,7 @@ function incrementalState(
     revisions: ZERO_REVISION_INFO,
     excludedRanges: [],
     referenceIndex: new Map(),
+    pendingRegions: [],
     ...overrides,
   };
 }
@@ -165,5 +171,35 @@ describe("dirty window planning", () => {
         deltaForWindow(dirtyWindow(1, 2), false),
       ),
     ).toBe("full");
+  });
+});
+
+describe("dirty window availability drops", () => {
+  function planFor(isSyntaxTreeAvailable: (to: number) => boolean) {
+    const state = EditorState.create({
+      doc: "# One\n\nAlpha beta gamma.\n",
+      extensions: [markdown({ extensions: markdownExtensions })],
+    });
+    return planDirtyWindows(
+      incrementalState(),
+      editorStateTextSource(state),
+      ensureFullSyntaxTree(state),
+      deltaForWindow(dirtyWindow(8, 12), false),
+      { isSyntaxTreeAvailable },
+    );
+  }
+
+  it("records windows dropped by the availability probe", () => {
+    const plan = planFor(() => false);
+
+    expect(plan.droppedWindows).toEqual([{ from: 8, to: 12 }]);
+    expect(plan.dirtyExtractions).toEqual([]);
+  });
+
+  it("keeps droppedWindows empty when the tree covers the window", () => {
+    const plan = planFor(() => true);
+
+    expect(plan.droppedWindows).toEqual([]);
+    expect(plan.dirtyExtractions).toHaveLength(1);
   });
 });

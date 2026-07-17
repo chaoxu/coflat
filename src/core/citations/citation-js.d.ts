@@ -26,6 +26,8 @@ declare module "@citation-js/core" {
     id: string;
     locator?: string;
     label?: string;
+    prefix?: string;
+    suffix?: string;
     "author-only"?: boolean;
     "suppress-author"?: boolean;
   }

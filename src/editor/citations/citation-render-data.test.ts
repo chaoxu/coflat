@@ -39,6 +39,109 @@ describe("loadBibliographyResource", () => {
     }, resolver);
 
     expect(bibliography.store.get("cite:knuth")?.title).toBe("Literate Programming");
+    expect(bibliography.status).toEqual({
+      state: "ok",
+      bibPath: "refs/library.bib",
+      entryCount: 1,
+    });
+  });
+
+  it("loads CSL JSON bibliographies detected by path and shape", async () => {
+    const items = JSON.stringify([
+      { id: "cite:knuth", type: "book", title: "Literate Programming" },
+    ]);
+    const resolver = createTextFileResolver({ "refs/library.json": items }, "main.md");
+
+    const bibliography = await loadBibliographyResource({
+      bibliography: "refs/library.json",
+    }, resolver);
+
+    expect(bibliography.store.get("cite:knuth")?.title).toBe("Literate Programming");
+    expect(bibliography.status?.state).toBe("ok");
+  });
+
+  it("reports an idle status when no bibliography is configured", async () => {
+    const bibliography = await loadBibliographyResource({}, createTextFileResolver({}, "main.md"));
+    expect(bibliography.status).toEqual({ state: "idle" });
+  });
+
+  it("reports a read-bib error when the file cannot be read", async () => {
+    const bibliography = await loadBibliographyResource({
+      bibliography: "refs/missing.bib",
+    }, createTextFileResolver({}, "main.md"));
+
+    expect(bibliography.store.size).toBe(0);
+    expect(bibliography.status).toMatchObject({
+      state: "error",
+      kind: "read-bib",
+      bibPath: "refs/missing.bib",
+    });
+  });
+
+  it("reports a parse-bib error for malformed CSL JSON", async () => {
+    const resolver = createTextFileResolver({ "refs/broken.json": "[{ nope" }, "main.md");
+    const bibliography = await loadBibliographyResource({
+      bibliography: "refs/broken.json",
+    }, resolver);
+
+    expect(bibliography.store.size).toBe(0);
+    expect(bibliography.status).toMatchObject({
+      state: "error",
+      kind: "parse-bib",
+    });
+  });
+
+  it("reports a detect-format error for unrecognizable content", async () => {
+    const resolver = createTextFileResolver(
+      { "refs/library.txt": "certainly not a bibliography" },
+      "main.md",
+    );
+    const bibliography = await loadBibliographyResource({
+      bibliography: "refs/library.txt",
+    }, resolver);
+
+    expect(bibliography.status).toMatchObject({
+      state: "error",
+      kind: "detect-format",
+    });
+  });
+
+  it("keeps valid entries and warns with a skip count for mixed CSL JSON", async () => {
+    const mixed = JSON.stringify([
+      { id: "good", type: "book", title: "Kept" },
+      { id: "bad" },
+      { type: "book" },
+    ]);
+    const resolver = createTextFileResolver({ "refs/mixed.json": mixed }, "main.md");
+    const bibliography = await loadBibliographyResource({
+      bibliography: "refs/mixed.json",
+    }, resolver);
+
+    expect([...bibliography.store.keys()]).toEqual(["good"]);
+    expect(bibliography.status).toMatchObject({
+      state: "warning",
+      kind: "parse-bib",
+      entryCount: 1,
+      skippedEntries: 2,
+    });
+  });
+
+  it("warns when the configured CSL style cannot be read", async () => {
+    const resolver = createTextFileResolver({
+      "refs/library.bib": "@book{k, title={T}, author={A. B.}, year={2000}}",
+    }, "main.md");
+    const bibliography = await loadBibliographyResource({
+      bibliography: "refs/library.bib",
+      csl: "styles/missing.csl",
+    }, resolver);
+
+    expect(bibliography.store.size).toBe(1);
+    expect(bibliography.status).toMatchObject({
+      state: "warning",
+      kind: "read-csl",
+      cslPath: "styles/missing.csl",
+      entryCount: 1,
+    });
   });
 });
 

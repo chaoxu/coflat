@@ -27,17 +27,58 @@ describe("parseLocator", () => {
     expect(parseLocator("vol. 2")).toEqual({ label: "volume", locator: "2" });
   });
 
-  it("returns no label for unrecognized prefix", () => {
-    expect(parseLocator("theorem 3")).toEqual({ locator: "theorem 3" });
+  it("treats unrecognized label text as suffix, per Pandoc", () => {
+    // Pandoc: no recognized locator term → the whole text is a suffix.
+    // (Previously pinned as locator "theorem 3", which citeproc rendered as
+    // the garbled "p. theorem 3".)
+    expect(parseLocator("theorem 3")).toEqual({ suffix: ", theorem 3" });
   });
 
   it("handles leading/trailing whitespace", () => {
     expect(parseLocator("  chap. 5  ")).toEqual({ label: "chapter", locator: "5" });
   });
 
-  it("returns raw text when label has no remaining value", () => {
+  it("treats a label with no value as suffix, per Pandoc", () => {
     // "chap." with nothing after it — no locator value
-    expect(parseLocator("chap.")).toEqual({ locator: "chap." });
+    expect(parseLocator("chap.")).toEqual({ suffix: ", chap." });
+  });
+
+  it("splits suffix text after the locator value", () => {
+    expect(parseLocator("p. 12, emphasis mine")).toEqual({
+      label: "page",
+      locator: "12",
+      suffix: ", emphasis mine",
+    });
+  });
+
+  it("keeps bare-number locators and splits trailing words as suffix", () => {
+    expect(parseLocator("12")).toEqual({ locator: "12" });
+    expect(parseLocator("12, but see below")).toEqual({
+      locator: "12",
+      suffix: ", but see below",
+    });
+  });
+
+  it("parses roman numeral locators", () => {
+    expect(parseLocator("xiv")).toEqual({ locator: "xiv" });
+    expect(parseLocator("pp. xiv-xvi")).toEqual({ label: "page", locator: "xiv-xvi" });
+  });
+
+  it("does not treat leading roman-letter words as locator values", () => {
+    expect(parseLocator("dog days")).toEqual({ suffix: ", dog days" });
+  });
+
+  it("recognizes labels ported from the CSL locale tables", () => {
+    expect(parseLocator("table 5")).toEqual({ label: "table", locator: "5" });
+    expect(parseLocator("§ 12")).toEqual({ label: "section", locator: "12" });
+    // German and French labels map to the same CSL terms.
+    expect(parseLocator("S. 5")).toEqual({ label: "page", locator: "5" });
+    expect(parseLocator("Kap. 3")).toEqual({ label: "chapter", locator: "3" });
+    expect(parseLocator("chapitre 7")).toEqual({ label: "chapter", locator: "7" });
+  });
+
+  it("keeps the plural 'pages' label from swallowing the value", () => {
+    expect(parseLocator("pages 100")).toEqual({ label: "page", locator: "100" });
   });
 });
 
@@ -370,6 +411,108 @@ describe("CslProcessor ordering", () => {
 
     expect(entries).toEqual(['<span class="csl-entry">[1] Entry</span>']);
     expect(updateItems).not.toHaveBeenCalled();
+  });
+
+  it("renders Pandoc locator, suffix, prefix, and suppress-author fields", async () => {
+    const alpha: CslJsonItem = {
+      id: "alpha2020",
+      type: "article-journal",
+      author: [{ family: "Alpha" }],
+      issued: { "date-parts": [[2020]] },
+      title: "Alpha paper",
+    };
+    const beta: CslJsonItem = {
+      id: "beta2021",
+      type: "article-journal",
+      author: [{ family: "Beta" }],
+      issued: { "date-parts": [[2021]] },
+      title: "Beta paper",
+    };
+    const processor = await CslProcessor.create([alpha, beta]);
+    processor.registerCitations([{ ids: ["alpha2020"] }, { ids: ["beta2021"] }]);
+
+    // Locator + suffix split (previously rendered "pp. 12, emphasis mine").
+    expect(processor.cite(["alpha2020"], ["p. 12, emphasis mine"]))
+      .toBe("[1, p. 12, emphasis mine]");
+    // Bare suffix without a locator.
+    expect(processor.cite(["alpha2020"], ["emphasis mine"])).toBe("[1, emphasis mine]");
+    // Prefix before the key.
+    expect(processor.cite(["alpha2020"], [undefined], [{ prefix: "see" }]))
+      .toBe("[see 1]");
+    // Suppress-author is a no-op for numeric styles but must not break them.
+    expect(processor.cite(["alpha2020"], [undefined], [{ suppressAuthor: true }]))
+      .toBe("[1]");
+    // Per-item extras across a cluster.
+    expect(processor.cite(
+      ["alpha2020", "beta2021"],
+      [undefined, "p. 3"],
+      [{ prefix: "see" }, { prefix: "cf." }],
+    )).toBe("[see 1, cf. 2, p. 3]");
+  });
+
+  it("renders prefix and suppress-author for author-date styles", async () => {
+    const chicago = (await import("./chicago-author-date.csl?raw")).default;
+    const alpha: CslJsonItem = {
+      id: "alpha2020",
+      type: "article-journal",
+      author: [{ family: "Alpha" }],
+      issued: { "date-parts": [[2020]] },
+      title: "Alpha paper",
+    };
+    const processor = await CslProcessor.create([alpha], chicago);
+    processor.registerCitations([{ ids: ["alpha2020"] }]);
+
+    expect(processor.cite(["alpha2020"])).toBe("(Alpha, 2020)");
+    expect(processor.cite(["alpha2020"], [undefined], [{ prefix: "see" }]))
+      .toBe("(see Alpha, 2020)");
+    expect(processor.cite(["alpha2020"], [undefined], [{ suppressAuthor: true }]))
+      .toBe("(2020)");
+    expect(processor.cite(["alpha2020"], ["emphasis mine"]))
+      .toBe("(Alpha, 2020, emphasis mine)");
+  });
+
+  it("accepts a bundled locale code via options", async () => {
+    const alpha: CslJsonItem = {
+      id: "alpha2020",
+      type: "article-journal",
+      author: [{ family: "Alpha" }, { family: "Beta" }, { family: "Gamma" }, { family: "Delta" }],
+      issued: { "date-parts": [[2020]] },
+      title: "Alpha paper",
+    };
+    const chicago = (await import("./chicago-author-date.csl?raw")).default;
+    const en = await CslProcessor.create([alpha], chicago);
+    en.registerCitations([{ ids: ["alpha2020"] }]);
+    const de = await CslProcessor.create([alpha], chicago, { locale: "de-DE" });
+    de.registerCitations([{ ids: ["alpha2020"] }]);
+
+    // "et al." renders locale-dependently ("u. a." with NBSP in German).
+    expect(en.cite(["alpha2020"])).toBe("(Alpha et al., 2020)");
+    expect(de.cite(["alpha2020"])).toBe("(Alpha u.\u00a0a., 2020)");
+  });
+
+  it("registers host-supplied locale XML for non-bundled locales", async () => {
+    const alpha: CslJsonItem = {
+      id: "alpha2020",
+      type: "article-journal",
+      author: [{ family: "Alpha" }, { family: "Beta" }, { family: "Gamma" }, { family: "Delta" }],
+      issued: { "date-parts": [[2020]] },
+      title: "Alpha paper",
+    };
+    // A minimal locale that only overrides the "et-al" term.
+    const localeXml = `<?xml version="1.0" encoding="utf-8"?>
+<locale xmlns="http://purl.org/net/xbiblio/csl" version="1.0" xml:lang="xx-XX">
+  <terms>
+    <term name="et-al">with friends</term>
+  </terms>
+</locale>`;
+    const chicago = (await import("./chicago-author-date.csl?raw")).default;
+    const processor = await CslProcessor.create([alpha], chicago, {
+      locale: "xx-XX",
+      localeXml,
+    });
+    processor.registerCitations([{ ids: ["alpha2020"] }]);
+
+    expect(processor.cite(["alpha2020"])).toBe("(Alpha with friends, 2020)");
   });
 
   it("emits citeproc bibliography wrappers for default IEEE output", async () => {

@@ -12,7 +12,7 @@ import {
 import {
   Decoration,
   type DecorationSet,
-  EditorView,
+  type EditorView,
   ViewPlugin,
   type ViewUpdate,
 } from "@codemirror/view";
@@ -36,6 +36,7 @@ import { documentAnalysisField } from "../state/document-analysis";
 import { frontmatterField } from "../state/frontmatter-state";
 import { buildDecorations } from "./decoration-core";
 import { SyntaxParseScheduler } from "./syntax-parse-scheduler";
+import { createSimpleViewPlugin } from "./view-plugin-factories";
 
 /**
  * Maps Lezer syntax node type names to HTML tag names.
@@ -65,7 +66,6 @@ const TREE_ONLY_TAG_NAME_MAP: Readonly<Record<string, string>> = {
   Paragraph: "p",
 };
 
-const CONTAINER_NODE_TYPES = new Set([...Object.keys(TAG_NAME_MAP), "ListItem"]);
 const HEADING_TAGS = ["h1", "h2", "h3", "h4", "h5", "h6"] as const;
 const LINE_CLASS_BY_TAG: Readonly<Record<string, string>> = {
   p: DOCUMENT_SURFACE_CLASS.paragraph,
@@ -265,26 +265,22 @@ function hiddenFrontmatterVisualEnd(state: EditorState): number {
   return visualEnd;
 }
 
-function buildContainerItemsInRange(
-  state: EditorState,
-  rangeFrom: number,
-  rangeTo: number,
-): Range<Decoration>[] {
-  return collectLineDecorationsInRange(state, rangeFrom, rangeTo);
-}
-
 /**
- * Build a DecorationSet of `Decoration.line` decorations that add
- * `data-tag-name` attributes to each `cm-line` element covered by a
- * block-level syntax node.
+ * Build a DecorationSet of `Decoration.line` decorations for the lines that
+ * CodeMirror currently renders (the viewport expanded to line bounds), adding
+ * `data-tag-name` attributes to each covered `cm-line` element.
  *
  * `Decoration.line` must be applied at the line-start position (from).
- * We iterate over every line that falls within each matching node and
- * apply the decoration to each line's start.
+ * We iterate over every rendered line that falls within each matching node
+ * and apply the decoration to each line's start. Lines outside the viewport
+ * have no DOM, so decorating them would have no observable effect.
  */
-function buildContainerDecorations(state: EditorState): DecorationSet {
+function buildViewportContainerDecorations(view: EditorView): DecorationSet {
+  const { state } = view;
+  const rangeFrom = state.doc.lineAt(view.viewport.from).from;
+  const rangeTo = state.doc.lineAt(view.viewport.to).to;
   return buildDecorations(
-    buildContainerItemsInRange(state, 0, state.doc.length),
+    collectLineDecorationsInRange(state, rangeFrom, rangeTo),
   );
 }
 
@@ -342,113 +338,6 @@ function computePendingDirtyRegion(
   return { filterFrom, filterTo };
 }
 
-function expandDirtyRegionWithTree(
-  state: EditorState,
-  dirty: DirtyRegion,
-): DirtyRegion {
-  let filterFrom = dirty.filterFrom;
-  let filterTo = dirty.filterTo;
-
-  syntaxTree(state).iterate({
-    from: dirty.filterFrom,
-    to: dirty.filterTo,
-    enter(node) {
-      if (!CONTAINER_NODE_TYPES.has(node.type.name)) return;
-      const nodeWindow = expandRangeToLineBounds(state.doc, node.from, node.to);
-      filterFrom = Math.min(filterFrom, nodeWindow.from);
-      filterTo = Math.max(filterTo, nodeWindow.to);
-    },
-  });
-
-  return { filterFrom, filterTo };
-}
-
-function computeContainerDirtyRegion(
-  tr: Transaction,
-): DirtyRegion | null {
-  let filterFrom = Number.POSITIVE_INFINITY;
-  let filterTo = Number.NEGATIVE_INFINITY;
-
-  const oldTree = syntaxTree(tr.startState);
-  const newTree = syntaxTree(tr.state);
-
-  tr.changes.iterChangedRanges((fromA, toA, fromB, toB) => {
-    const oldWindow = expandChangeQueryRange(tr.startState.doc, fromA, toA);
-    const newWindow = expandChangeQueryRange(tr.state.doc, fromB, toB);
-
-    filterFrom = Math.min(filterFrom, newWindow.from);
-    filterTo = Math.max(filterTo, newWindow.to);
-
-    oldTree.iterate({
-      from: oldWindow.from,
-      to: oldWindow.to,
-      enter(node) {
-        if (!CONTAINER_NODE_TYPES.has(node.type.name)) return;
-
-        const mappedFrom = clampDocPos(tr.state.doc, tr.changes.mapPos(node.from, 1));
-        const mappedTo = clampDocPos(
-          tr.state.doc,
-          Math.max(mappedFrom, tr.changes.mapPos(node.to, -1)),
-        );
-        const mappedWindow = expandRangeToLineBounds(
-          tr.state.doc,
-          mappedFrom,
-          mappedTo,
-        );
-        filterFrom = Math.min(filterFrom, mappedWindow.from);
-        filterTo = Math.max(filterTo, mappedWindow.to);
-      },
-    });
-
-    newTree.iterate({
-      from: newWindow.from,
-      to: newWindow.to,
-      enter(node) {
-        if (!CONTAINER_NODE_TYPES.has(node.type.name)) return;
-
-        const nodeWindow = expandRangeToLineBounds(
-          tr.state.doc,
-          node.from,
-          node.to,
-        );
-        filterFrom = Math.min(filterFrom, nodeWindow.from);
-        filterTo = Math.max(filterTo, nodeWindow.to);
-      },
-    });
-  }, true);
-
-  if (filterFrom > filterTo) return null;
-  return { filterFrom, filterTo };
-}
-
-function replaceContainerDecorationsInRange(
-  value: DecorationSet,
-  state: EditorState,
-  dirty: DirtyRegion,
-): DecorationSet {
-  const { filterFrom, filterTo } = dirty;
-  const newItems = buildContainerItemsInRange(state, filterFrom, filterTo);
-
-  return value.update({
-    filterFrom,
-    filterTo,
-    filter: () => false,
-    add: newItems,
-    sort: true,
-  });
-}
-
-function incrementalContainerUpdate(
-  value: DecorationSet,
-  tr: Transaction,
-): DecorationSet {
-  const mapped = value.map(tr.changes);
-  const dirty = computeContainerDirtyRegion(tr);
-  if (!dirty) return mapped;
-
-  return replaceContainerDecorationsInRange(mapped, tr.state, dirty);
-}
-
 const containerAttributePendingDirtyRegionField = StateField.define<DirtyRegion | null>({
   create(state) {
     if (syntaxTreeAvailable(state, state.doc.length)) return null;
@@ -494,66 +383,34 @@ const containerAttributePendingDirtyRegionField = StateField.define<DirtyRegion 
 });
 
 /**
- * StateField that maintains a DecorationSet of `Decoration.line`
- * decorations for all block-level nodes, adding `data-tag-name`
- * attributes to the corresponding `cm-line` DOM elements.
+ * Viewport-scoped ViewPlugin that maintains `Decoration.line` decorations
+ * for the rendered lines, adding `data-tag-name` attributes to the
+ * corresponding `cm-line` DOM elements.
  *
- * Uses mapped decoration updates for text edits and only rebuilds the
- * container-tag decorations inside the dirty structural span. This keeps
- * typing in large documents from paying a broad full-document rebuild cost
- * while still updating far-reaching block-boundary edits correctly.
+ * Rebuilds are O(visible lines): on doc edits, viewport moves, and syntax
+ * tree advancement (background parse progress dispatches tree-changing
+ * updates, which re-tags any lines that were rendered from a partial tree).
  *
  * This enables CSS targeting such as:
  *   `.cm-line[data-tag-name="h1"] { ... }`
  */
-export const containerAttributesField = StateField.define<DecorationSet>({
-  create(state) {
-    return buildContainerDecorations(state);
+const containerAttributesViewPlugin = createSimpleViewPlugin(
+  buildViewportContainerDecorations,
+  {
+    shouldUpdate: (update) =>
+      update.docChanged ||
+      update.viewportChanged ||
+      syntaxTree(update.state) !== syntaxTree(update.startState),
+    spanName: "cm6.containerAttributes",
   },
+);
 
-  update(value, tr) {
-    const treeChanged = syntaxTree(tr.state) !== syntaxTree(tr.startState);
-    const previousPendingDirtyRegion = tr.startState.field(
-      containerAttributePendingDirtyRegionField,
-      false,
-    );
-    const nextPendingDirtyRegion = tr.state.field(
-      containerAttributePendingDirtyRegionField,
-      false,
-    );
-
-    if (tr.docChanged) {
-      if (!nextPendingDirtyRegion) {
-        return incrementalContainerUpdate(value, tr);
-      }
-
-      return value.map(tr.changes);
-    }
-
-    if (treeChanged) {
-      if (previousPendingDirtyRegion && !nextPendingDirtyRegion) {
-        return replaceContainerDecorationsInRange(
-          value,
-          tr.state,
-          expandDirtyRegionWithTree(tr.state, previousPendingDirtyRegion),
-        );
-      }
-
-      if (
-        !previousPendingDirtyRegion &&
-        syntaxTreeAvailable(tr.state, tr.state.doc.length)
-      ) {
-        return buildContainerDecorations(tr.state);
-      }
-    }
-
-    return value;
-  },
-
-  provide(field) {
-    return EditorView.decorations.from(field);
-  },
-});
+/**
+ * Legacy export name kept for render/index.ts. The decoration source is no
+ * longer a StateField — container attributes are emitted by the
+ * viewport-scoped view plugin this aliases.
+ */
+export const containerAttributesField: Extension = containerAttributesViewPlugin;
 
 class ContainerAttributeParsePlugin {
   private readonly scheduler: SyntaxParseScheduler;
@@ -597,8 +454,10 @@ class ContainerAttributeParsePlugin {
 export const containerAttributesPlugin: Extension = [
   frontmatterField,
   containerAttributePendingDirtyRegionField,
-  containerAttributesField,
+  containerAttributesViewPlugin,
   ViewPlugin.fromClass(ContainerAttributeParsePlugin),
 ];
 
-export { computeContainerDirtyRegion as _computeContainerDirtyRegionForTest };
+export {
+  containerAttributePendingDirtyRegionField as _containerAttributePendingDirtyRegionFieldForTest,
+};

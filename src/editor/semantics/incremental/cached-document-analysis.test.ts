@@ -82,6 +82,35 @@ describe("shared document analysis cache", () => {
     expect(after.ir.tables[0]?.rows[0]?.cells[0]?.content).toBe("9");
   });
 
+  it("converges unchanged-text reads after a structural edit defers pending work", () => {
+    // The reader path has no tree-progress or idle-drain transactions: after
+    // a fence opener reinterprets a >budget suffix, both the updating call
+    // and later unchanged-text calls must return fully drained analyses
+    // instead of short-circuiting to the stale snapshot forever.
+    const path = "notes/pending-drain.md";
+    const head = "# Intro {#sec:intro}\n\nintro para.\n\n";
+    const tail = Array.from({ length: 1200 }, (_, index) =>
+      index % 100 === 0
+        ? `## Section ${index} {#sec:s${index}}`
+        : `Filler prose line number ${index}.`,
+    ).flatMap((line) => [line, ""]).join("\n");
+    const before = head + tail;
+    const after = `${head}\`\`\`\n${tail}`;
+    expect(after.length).toBeGreaterThan(16384 * 2);
+
+    expect(getDocumentAnalysis(before, path).headings.length).toBeGreaterThan(1);
+
+    const updated = getDocumentAnalysis(after, path);
+    const again = getDocumentAnalysis(after, path);
+    const fresh = getDocumentAnalysis(after);
+
+    expect(fresh.headings.map((heading) => heading.id)).toEqual(["sec:intro"]);
+    expect(updated.headings).toEqual(fresh.headings);
+    expect(again.headings).toEqual(fresh.headings);
+    expect(again.references).toEqual(fresh.references);
+    expect(again.fencedDivs).toEqual(fresh.fencedDivs);
+  });
+
   it("builds artifacts from an adopted editor analysis without recomputing semantics", () => {
     const path = "notes/adopted-artifacts.md";
     const text = "# Title\n\nBody.\n";

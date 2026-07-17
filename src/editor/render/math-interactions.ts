@@ -2,7 +2,11 @@ import { EditorSelection, type EditorState } from "@codemirror/state";
 import { EditorView, ViewPlugin, type ViewUpdate } from "@codemirror/view";
 import { CSS } from "../../core/constants/css-classes";
 import { sourceRangeFromDataset } from "../../core/source-range-surface";
-import { rangesIntersect } from "../lib/range-helpers";
+import {
+  getOrderedRangePrefixMaxTo,
+  rangesIntersect,
+  rangesOverlap,
+} from "../lib/range-helpers";
 import { documentAnalysisField } from "../state/document-analysis";
 import {
   buildPointerSelection,
@@ -144,6 +148,38 @@ function selectionCoversRange(
   );
 }
 
+// Touch-inclusive overlap check against the (ordered) math regions, binary
+// searched so caret moves away from any math cost O(log regions) instead of
+// O(regions). Includes display/revealed regions — a conservative superset of
+// every math range the callers below act on, so skipping on false is safe.
+function selectionTouchesOrderedMathRegions(
+  regions: readonly InlineMathSourceRange[],
+  selection: EditorSelection,
+): boolean {
+  if (regions.length === 0) return false;
+  const prefixMaxTo = getOrderedRangePrefixMaxTo(regions);
+  for (const range of selection.ranges) {
+    let lo = 0;
+    let hi = regions.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >>> 1;
+      if (prefixMaxTo[mid] < range.from) lo = mid + 1;
+      else hi = mid;
+    }
+    for (let index = lo; index < regions.length; index += 1) {
+      const region = regions[index];
+      if (region.from > range.to) break;
+      if (rangesOverlap(region, range)) return true;
+    }
+  }
+  return false;
+}
+
+function selectionTouchesAnyMathRegion(state: EditorState): boolean {
+  const regions = state.field(documentAnalysisField, false)?.mathRegions;
+  return regions ? selectionTouchesOrderedMathRegions(regions, state.selection) : false;
+}
+
 function syncSelectedInlineMathAtoms(view: EditorView): void {
   const selection = view.state.selection;
   for (const el of view.contentDOM.querySelectorAll<HTMLElement>(
@@ -164,13 +200,25 @@ class InlineMathSelectionAtomView {
 
   update(update: ViewUpdate): void {
     if (
-      update.selectionSet ||
       update.docChanged ||
       update.viewportChanged ||
       update.geometryChanged
     ) {
       syncSelectedInlineMathAtoms(this.view);
+      return;
     }
+    if (!update.selectionSet) return;
+    // The selected-atom class only ever sits on math whose range the selection
+    // covers (covered ⊂ touching); when neither the old nor the new selection
+    // touches any math region, no class can need adding or clearing — skip the
+    // DOM scan.
+    if (
+      !selectionTouchesAnyMathRegion(update.startState) &&
+      !selectionTouchesAnyMathRegion(update.state)
+    ) {
+      return;
+    }
+    syncSelectedInlineMathAtoms(this.view);
   }
 
   destroy(): void {
@@ -249,38 +297,44 @@ function createInlineMathMouseSelectionStyle(
         currentEvent.clientX,
         currentEvent.clientY,
       ) ?? findInlineMathSourceRange(currentEvent.target);
-      const mathRanges = collectRenderedInlineMathRanges(view.state);
+      // Snapping can only alter a selection that touches a math region (or is
+      // adjacent to the hovered one); collect the rendered ranges — an
+      // O(regions) scan — only in that case, not on every mousemove.
+      const snap = (selection: EditorSelection): EditorSelection => {
+        if (
+          !hoveredMathRange &&
+          !selectionTouchesOrderedMathRegions(
+            view.state.field(documentAnalysisField).mathRegions,
+            selection,
+          )
+        ) {
+          return selection;
+        }
+        return snapPointerSelectionOverInlineMath(
+          selection,
+          collectRenderedInlineMathRanges(view.state),
+          hoveredMathRange,
+        );
+      };
 
       if (startMathRange) {
         if (currentEvent === startEvent) return startSelection;
 
         if (current.pos <= startMathRange.from) {
-          return snapPointerSelectionOverInlineMath(
-            EditorSelection.create([
-              EditorSelection.range(startMathRange.to, current.pos),
-            ]),
-            mathRanges,
-            hoveredMathRange,
-          );
+          return snap(EditorSelection.create([
+            EditorSelection.range(startMathRange.to, current.pos),
+          ]));
         }
         if (current.pos >= startMathRange.to) {
-          return snapPointerSelectionOverInlineMath(
-            EditorSelection.create([
-              EditorSelection.range(startMathRange.from, current.pos),
-            ]),
-            mathRanges,
-            hoveredMathRange,
-          );
+          return snap(EditorSelection.create([
+            EditorSelection.range(startMathRange.from, current.pos),
+          ]));
         }
 
         return startSelection;
       }
 
-      return snapPointerSelectionOverInlineMath(
-        buildPointerSelection(start, current),
-        mathRanges,
-        hoveredMathRange,
-      );
+      return snap(buildPointerSelection(start, current));
     },
 
     update(update: ViewUpdate) {

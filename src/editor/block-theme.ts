@@ -170,7 +170,11 @@ export const blockThemeStyles: Record<string, Record<string, string>> = {
     borderRadius: "var(--cf-border-radius)",
     background: "var(--cf-bg)",
   },
-  ".cf-doc-block--figure.cf-image-wrapper:not(.cf-image-loading):not(.cf-image-placeholder), .cf-doc-block--figure .cf-image-wrapper:not(.cf-image-loading):not(.cf-image-placeholder)": {
+  // The compound form (.cf-doc-block--figure.cf-image-wrapper — the block
+  // image widget carrying the container class) intentionally stays full-width:
+  // it stands in for the reader's full-width paragraph, and the image inside
+  // is centered by the shared `.cf-doc-block--figure img` rule.
+  ".cf-doc-block--figure .cf-image-wrapper:not(.cf-image-loading):not(.cf-image-placeholder)": {
     display: "block",
     width: "fit-content",
     maxWidth: "100%",

@@ -45,6 +45,10 @@ import {
 } from "./table-discovery";
 import { tableKeybindings } from "./table-navigation";
 import { cellEditAnnotation, TableWidget } from "./table-widget";
+import {
+  isLiveCellInteriorChange,
+  liveCellMainSyncPlugin,
+} from "./table-widget-live-cell";
 
 /**
  * Insert a blank table at the cursor position.
@@ -252,6 +256,10 @@ const tableDecorationField = createLifecycleDecorationStateField<Pick<TableRange
     const cellEdit = tr.annotation(cellEditAnnotation);
     if (cellEdit === "commit") return true;
     if (cellEdit === "edit") return false;
+    // Unannotated changes confined to the open live cell (undo/redo, other
+    // plugins writing into the cell) must map, not rebuild: a rebuild would
+    // tear down the active session's DOM mid-edit.
+    if (isLiveCellInteriorChange(tr)) return false;
 
     const tableDiscoveryChanged =
       tr.state.field(tableDiscoveryField, false) !== tr.startState.field(tableDiscoveryField, false);
@@ -264,6 +272,7 @@ const tableDecorationField = createLifecycleDecorationStateField<Pick<TableRange
 
   dirtyRangeFn(tr) {
     if (tr.annotation(cellEditAnnotation) === "edit") return [];
+    if (isLiveCellInteriorChange(tr)) return [];
 
     const tableDiscoveryChanged =
       tr.state.field(tableDiscoveryField, false) !== tr.startState.field(tableDiscoveryField, false);
@@ -312,6 +321,7 @@ export const tableRenderPlugin: Extension = [
   tableDiscoveryPendingParseField,
   tableDiscoveryParsePlugin,
   tableDecorationField,
+  liveCellMainSyncPlugin,
   tableContextMenuHandler,
   tableKeybindings,
 ];

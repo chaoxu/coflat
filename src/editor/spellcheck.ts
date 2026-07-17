@@ -35,7 +35,7 @@ import { documentAnalysisField } from "./state/document-analysis";
 const CODE_TYPES = new Set(["InlineCode", "FencedCode"]);
 
 /** Combined set of node types whose content should not be spell-checked. */
-const NO_SPELLCHECK_TYPES = new Set([...MATH_TYPES, ...CODE_TYPES]);
+export const NO_SPELLCHECK_TYPES = new Set([...MATH_TYPES, ...CODE_TYPES]);
 
 /** Decoration.mark that disables spellcheck on the decorated range. */
 const noSpellcheck = Decoration.mark({

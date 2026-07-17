@@ -1,3 +1,4 @@
+import { redo, undo } from "@codemirror/commands";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { CSS } from "../../core/constants/css-classes";
@@ -15,6 +16,13 @@ import type { InlineReferenceRenderContext } from "./inline-render";
 import type { TableRange } from "./table-discovery";
 import type { ParsedTable } from "./table-utils";
 import { consumeTableKeyboardEvent } from "./table-widget-keyboard-entry";
+import {
+  createLiveCellSubviewDispatch,
+  createLiveCellWindowExtensions,
+  getLiveCellRange,
+  type LiveCellRange,
+  resolveLiveCellBounds,
+} from "./table-widget-live-cell";
 import { appendTableWidgetRowAndFocus, showTableWidgetContextMenu } from "./table-widget-mutations";
 import {
   createTableNavigationModel,
@@ -82,6 +90,21 @@ function isEditorReadOnly(view: EditorView | null): boolean {
   } catch (_error) {
     return false;
   }
+}
+
+/** Root view plus the authoritative cell bounds a live window mirrors. */
+interface LiveCellContext {
+  readonly rootView: EditorView;
+  readonly bounds: LiveCellRange;
+}
+
+/** True when the root exposes the full EditorState surface a live-window
+ *  mirror needs (mock roots in tests fall back to the detached editor). */
+function supportsLiveCellWindow(rootView: EditorView): boolean {
+  const state = rootView.state;
+  return typeof state?.field === "function" &&
+    typeof state.sliceDoc === "function" &&
+    typeof (state.doc as { line?: unknown } | undefined)?.line === "function";
 }
 
 export function buildTableWidgetDOM(options: TableWidgetDomOptions): HTMLTableElement {
@@ -158,6 +181,17 @@ export function buildTableWidgetDOM(options: TableWidgetDomOptions): HTMLTableEl
     activateTargetCell(intent.address, intent.placeAtEnd === true);
   };
 
+  const resolveLiveCellContext = (
+    address: TableCellAddress,
+  ): LiveCellContext | null => {
+    const rootView = options.getRootView();
+    if (!rootView || !supportsLiveCellWindow(rootView)) return null;
+    const tableRange = options.currentTableRange();
+    if (!tableRange) return null;
+    const bounds = resolveLiveCellBounds(rootView.state, tableRange, address);
+    return bounds ? { rootView, bounds } : null;
+  };
+
   const openCellEditor = (
     cell: HTMLElement,
     address: TableCellAddress,
@@ -172,7 +206,13 @@ export function buildTableWidgetDOM(options: TableWidgetDomOptions): HTMLTableEl
   ): void => {
     if (isTableReadOnly()) return;
     clearActivePreviewCell();
-    const rawText = options.getRawCellText(address);
+    const liveCell = resolveLiveCellContext(address);
+    // Offset between cell-local text positions (rendered-token anchors) and
+    // subview document positions. Zero for the detached mini-document.
+    const cellBase = liveCell ? liveCell.bounds.from : 0;
+    const rawText = liveCell
+      ? liveCell.rootView.state.sliceDoc(liveCell.bounds.from, liveCell.bounds.to)
+      : options.getRawCellText(address);
     const renderedRect = cell.getBoundingClientRect();
     if (renderedRect.width > 0) {
       const renderedWidth = `${renderedRect.width}px`;
@@ -196,18 +236,29 @@ export function buildTableWidgetDOM(options: TableWidgetDomOptions): HTMLTableEl
       : undefined;
     const controller = createInlineEditorController({
       parent: cell,
-      doc: rawText,
+      doc: liveCell ? liveCell.rootView.state.sliceDoc() : rawText,
       macros: options.macros,
       bibData: bibData ?? undefined,
       documentContext,
       referenceCatalog,
       onChange: () => {},
+      hostWindow: liveCell
+        ? {
+            extensions: createLiveCellWindowExtensions(liveCell.bounds),
+            dispatch: createLiveCellSubviewDispatch(liveCell.rootView),
+            selection: { anchor: liveCell.bounds.from },
+          }
+        : undefined,
     });
 
     controller.setCallbacks({
-      onChange: (newDoc) => {
-        options.syncToRoot(address, newDoc, "edit");
-      },
+      // Live-window edits sync through the subview dispatch; only the
+      // detached mini-document needs the whole-cell onChange sync.
+      onChange: liveCell
+        ? () => {}
+        : (newDoc) => {
+            options.syncToRoot(address, newDoc, "edit");
+          },
       onBlur: () => {
         const blurredEditor = getActiveInlineEditor();
         requestAnimationFrame(() => {
@@ -272,12 +323,34 @@ export function buildTableWidgetDOM(options: TableWidgetDomOptions): HTMLTableEl
           return true;
         }
 
+        if (
+          liveCell &&
+          (event.metaKey || event.ctrlKey) &&
+          !event.altKey &&
+          (event.key === "z" || event.key === "Z" ||
+            event.key === "y" || event.key === "Y")
+        ) {
+          // The live window has no local history; route undo/redo to the
+          // root view so in-cell edits revert one root-history step at a
+          // time. The change flows back into the subview via the sync plugin.
+          consumeTableKeyboardEvent(event);
+          const isRedo = event.key.toLowerCase() === "y" || event.shiftKey;
+          if (isRedo) {
+            redo(liveCell.rootView);
+          } else {
+            undo(liveCell.rootView);
+          }
+          return true;
+        }
+
         const active = getActiveInlineEditor();
         if (!active) return false;
+        const range = active.getCellRange?.() ?? null;
+        const cellFrom = range?.from ?? 0;
+        const cellTo = range?.to ?? active.view.state.doc.length;
         const pos = active.view.state.selection.main.head;
-        const len = active.view.state.doc.length;
 
-        if (event.key === "ArrowLeft" && pos === 0) {
+        if (event.key === "ArrowLeft" && pos <= cellFrom) {
           consumeTableKeyboardEvent(event);
           const intent = moveTableCellHorizontally(navigationModel, address, "left");
           if (intent.kind === "handoff") return handoffFromActiveEditor(intent.direction);
@@ -285,7 +358,7 @@ export function buildTableWidgetDOM(options: TableWidgetDomOptions): HTMLTableEl
           return true;
         }
 
-        if (event.key === "ArrowRight" && pos === len) {
+        if (event.key === "ArrowRight" && pos >= cellTo) {
           consumeTableKeyboardEvent(event);
           const intent = moveTableCellHorizontally(navigationModel, address, "right");
           if (intent.kind === "handoff") return handoffFromActiveEditor(intent.direction);
@@ -309,11 +382,11 @@ export function buildTableWidgetDOM(options: TableWidgetDomOptions): HTMLTableEl
           return true;
         }
 
-        if (event.key === "Backspace" && pos === 0) {
+        if (event.key === "Backspace" && pos <= cellFrom) {
           consumeTableKeyboardEvent(event);
           return true;
         }
-        if (event.key === "Delete" && pos === len) {
+        if (event.key === "Delete" && pos >= cellTo) {
           consumeTableKeyboardEvent(event);
           return true;
         }
@@ -323,7 +396,14 @@ export function buildTableWidgetDOM(options: TableWidgetDomOptions): HTMLTableEl
     });
     const editorView = controller.view;
 
-    setActiveInlineEditor({ controller, view: editorView, cell, owner: options.owner });
+    setActiveInlineEditor({
+      controller,
+      view: editorView,
+      cell,
+      owner: options.owner,
+      rootView: liveCell?.rootView ?? null,
+      getCellRange: liveCell ? () => getLiveCellRange(editorView) : undefined,
+    });
 
     const refocusEditor = (): void => {
       if (getActiveInlineEditor()?.view !== editorView) return;
@@ -343,10 +423,11 @@ export function buildTableWidgetDOM(options: TableWidgetDomOptions): HTMLTableEl
     // such as `[`…`](`…`)`. Clamp it to the nearest safe source boundary near
     // the click rather than discarding the click and snapping to a fixed gap.
     const placeClickPosition = (pos: number): void => {
+      const local = pos - cellBase;
       const clamped = clampClickToNeutral
-        ? findNearestTableInlineSafeAnchor(rawText, pos)
+        ? findNearestTableInlineSafeAnchor(rawText, local)
         : null;
-      applyInitialSelection(clamped ?? pos);
+      applyInitialSelection(cellBase + (clamped ?? local));
     };
 
     const applyClickPlacement = (): boolean => {
@@ -368,12 +449,14 @@ export function buildTableWidgetDOM(options: TableWidgetDomOptions): HTMLTableEl
     };
 
     if (placeAtEnd) {
-      const docLen = editorView.state.doc.length;
-      applyInitialSelection(docLen);
+      const endAnchor = liveCell
+        ? (getLiveCellRange(editorView) ?? liveCell.bounds).to
+        : editorView.state.doc.length;
+      applyInitialSelection(endAnchor);
     } else if (useClickPlacement) {
       applyClickPlacement();
     } else if (typeof initialAnchor === "number") {
-      applyInitialSelection(initialAnchor);
+      applyInitialSelection(cellBase + initialAnchor);
     }
 
     if (hasInitialSelection || !useClickPlacement) {
@@ -400,7 +483,7 @@ export function buildTableWidgetDOM(options: TableWidgetDomOptions): HTMLTableEl
         // Hit testing never resolved a position; fall back to the neutral
         // anchor so a click on rendered markup still lands somewhere sensible.
         if (!hasInitialSelection && typeof initialAnchor === "number") {
-          applyInitialSelection(initialAnchor);
+          applyInitialSelection(cellBase + initialAnchor);
         }
         refocusEditor();
       });

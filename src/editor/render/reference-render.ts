@@ -1,9 +1,14 @@
 /**
- * Unified CM6 StateField for rendering all [@id] and @id references.
+ * Unified viewport-scoped CM6 ViewPlugin for rendering all [@id] and @id
+ * references.
  *
- * Replaces the separate crossref-render and citation-render ViewPlugins
- * with a single tree walk that routes each reference through the shared
- * presentation planner. Unmatched ids stay on the crossref path by default.
+ * Routes each reference through the shared presentation planner. Unmatched
+ * ids stay on the crossref path by default. Decorations are collected only
+ * for the visible ranges; emissions are inline-only (source-reveal marks and
+ * inline replace widgets), so viewport scoping is safe. Citation-cluster
+ * registration stays document-global inside `collectReferenceRanges` and is
+ * cached at the analysis+store boundary, independent of which ranges get
+ * decorated.
  *
  * Widget classes remain render-owned; this plugin only handles discovery and
  * routing.
@@ -12,7 +17,6 @@
 import { type ChangeSet, type EditorState, type Extension, type Range, type Transaction } from "@codemirror/state";
 import {
   Decoration,
-  type DecorationSet,
   type EditorView,
   type ViewUpdate,
 } from "@codemirror/view";
@@ -49,8 +53,7 @@ import {
   UnresolvedRefWidget,
 } from "./crossref-render";
 import { isDebugRenderFlagEnabled } from "./debug-render-flags";
-import { buildDecorations, pushWidgetDecoration } from "./decoration-core";
-import { createLifecycleDecorationStateField } from "./decoration-field";
+import { pushWidgetDecoration } from "./decoration-core";
 import {
   editorFocusField,
   focusTracker,
@@ -64,6 +67,7 @@ import {
   findFocusedInlineRevealTarget,
   inlineRevealTargetChanged,
 } from "./inline-reveal-policy";
+import { createCursorSensitiveViewPlugin } from "./view-plugin-factories";
 
 export {
   getReferenceRenderDependencySignature,
@@ -389,13 +393,6 @@ export function collectReferenceRanges(
   );
 }
 
-/** Build reference decorations from the view state. */
-function buildReferenceDecorations(state: EditorState): DecorationSet {
-  const { bibliography } = getReferenceRenderState(state);
-  const { store, formatter } = bibliography;
-  return buildDecorations(collectReferenceRanges(state, referenceStateFocus(state), store, formatter));
-}
-
 function collectDirtyReferences(
   references: readonly ReferenceSemantics[],
   dirtyRanges: readonly DirtyRange[],
@@ -411,13 +408,6 @@ function collectDirtyReferences(
     });
   }
   return dirty;
-}
-
-function mappedDecorationsWithFreshWidgetSources(
-  decorations: DecorationSet,
-  changes: ChangeSet,
-): DecorationSet {
-  return decorations.map(changes);
 }
 
 function mergeDirtyRangesWithActiveReference(
@@ -488,25 +478,24 @@ interface ReferenceRevealChange {
   readonly activeChanged: boolean;
 }
 
-function getReferenceRevealChange(update: ViewUpdate): ReferenceRevealChange {
-  const endFocused = update.view.hasFocus;
-  const startFocused = update.focusChanged ? !endFocused : endFocused;
-  const beforeActive = getRevealedReferenceTarget(update.startState, startFocused);
-  const afterActive = getRevealedReferenceTarget(update.state, endFocused);
-  return {
-    beforeActive,
-    afterActive,
-    activeChanged: inlineRevealTargetChanged(beforeActive, afterActive),
-  };
-}
-
 function referenceStateFocus(state: EditorState): boolean {
   return state.field(editorFocusField, false) ?? false;
 }
 
-function getReferenceRevealChangeForTransaction(tr: Transaction): ReferenceRevealChange {
-  const beforeActive = getRevealedReferenceTarget(tr.startState, referenceStateFocus(tr.startState));
-  const afterActive = getRevealedReferenceTarget(tr.state, referenceStateFocus(tr.state));
+// Reveal focus comes from editorFocusField (flipped by focusTracker's
+// focusEffect transactions), not view.hasFocus, so plan-time and collect-time
+// focus agree even when DOM focus has already flipped before the effect lands.
+function getReferenceRevealChange(
+  update: Pick<ViewUpdate, "startState" | "state">,
+): ReferenceRevealChange {
+  const beforeActive = getRevealedReferenceTarget(
+    update.startState,
+    referenceStateFocus(update.startState),
+  );
+  const afterActive = getRevealedReferenceTarget(
+    update.state,
+    referenceStateFocus(update.state),
+  );
   return {
     beforeActive,
     afterActive,
@@ -514,85 +503,74 @@ function getReferenceRevealChangeForTransaction(tr: Transaction): ReferenceRevea
   };
 }
 
-function referenceRenderDependenciesNeedRebuild(tr: Transaction): boolean {
-  return referenceRenderRebuildDependenciesChanged(tr.startState, tr.state);
+/** Line-expanded doc-change ranges that could add or remove reference tokens. */
+function referenceDocChangeDirtyRanges(update: ViewUpdate): DirtyRange[] {
+  const docDirty = computeReferenceDocDirtyRanges(update);
+  // Reference tokens always contain "@", so changed lines without "@" on
+  // either side of the edit cannot add or remove reference decorations.
+  return docDirty.couldContainReferences ? [...docDirty.ranges] : [];
 }
 
-function computeReferenceDirtyRangesForTransaction(tr: Transaction): DirtyRange[] {
-  const { beforeActive, afterActive, activeChanged } = getReferenceRevealChangeForTransaction(tr);
-  const docDirty = computeReferenceDocDirtyRanges(tr);
-  if (
-    docDirty.ranges.length > 0 &&
-    !activeChanged &&
-    !docDirty.couldContainReferences
-  ) {
-    return [];
-  }
-  const mappedBeforeActive = activeChanged && beforeActive && tr.docChanged
-    ? mapReferenceDirtyRange(beforeActive, tr.changes)
+/** Ranges of the reveal targets entered/exited by a selection or focus change. */
+function referenceRevealDirtyRanges(update: ViewUpdate): DirtyRange[] {
+  const { beforeActive, afterActive, activeChanged } = getReferenceRevealChange(update);
+  if (!activeChanged) return [];
+  const mappedBeforeActive = beforeActive && update.docChanged
+    ? mapReferenceDirtyRange(beforeActive, update.changes)
     : beforeActive;
-  return mergeDirtyRangesWithActiveReference(
-    docDirty.ranges,
-    activeChanged ? mappedBeforeActive : null,
-    activeChanged ? afterActive : null,
+  return mergeDirtyRangesWithActiveReference([], mappedBeforeActive, afterActive);
+}
+
+function collectVisibleReferenceRanges(
+  view: EditorView,
+  ranges: readonly DirtyRange[],
+  skip: (nodeFrom: number) => boolean,
+): Range<Decoration>[] {
+  const { analysis, bibliography } = getReferenceRenderState(view.state);
+  const visibleRefs = collectDirtyReferences(analysis.references, ranges)
+    .filter((reference) => !skip(reference.from));
+  if (visibleRefs.length === 0) return [];
+  const { store, formatter } = bibliography;
+  return collectReferenceRanges(
+    view.state,
+    referenceStateFocus(view.state),
+    store,
+    formatter,
+    visibleRefs,
   );
 }
 
-function collectReferenceRangesForDirtySpans(
-  state: EditorState,
-  dirtyRanges: readonly DirtyRange[],
-): Range<Decoration>[] {
-  const { analysis, bibliography } = getReferenceRenderState(state);
-  const { store, formatter } = bibliography;
-  const dirtyRefs = collectDirtyReferences(
-    analysis.references,
-    dirtyRanges,
-  );
-  return dirtyRefs.length > 0
-    ? collectReferenceRanges(state, referenceStateFocus(state), store, formatter, dirtyRefs)
-    : [];
-}
+const referenceViewPlugin = createCursorSensitiveViewPlugin(
+  collectVisibleReferenceRanges,
+  {
+    contextChangeRanges: referenceRevealDirtyRanges,
+    docChangeRanges: referenceDocChangeDirtyRanges,
+    // Viewport rebuild when render dependencies change, or when the
+    // references slice is replaced. The slice check must run on doc-changed
+    // transactions too: in-transaction pending-region consumption can swap
+    // references far from the edit (e.g. a fence opener recoding the tail of
+    // the document) while referenceDocChangeDirtyRanges only covers
+    // edit-local lines. When the slice is unchanged, the incremental
+    // doc-change/mapping path below stays in effect.
+    extraRebuildCheck: (update) =>
+      referenceRenderRebuildDependenciesChanged(update.startState, update.state) ||
+      referenceRenderSliceChanged(update.startState, update.state),
+    spanName: "cm6.referenceRender",
+  },
+);
 
 /** CM6 extension that renders all [@id] and @id references with Typora-style toggle. */
-const referenceDecorationField = createLifecycleDecorationStateField<DirtyRange>({
-  spanName: "cm6.referenceRender",
-  build: buildReferenceDecorations,
-  collectRanges: collectReferenceRangesForDirtySpans,
-  semanticChanged: referenceRenderSliceChanged,
-  contextChanged: (tr) =>
-    getReferenceRevealChangeForTransaction(tr).activeChanged,
-  contextUpdateMode: "dirty-ranges",
-  shouldRebuild: (tr) => referenceRenderDependenciesNeedRebuild(tr),
-  dirtyRangeFn: (tr) => computeReferenceDirtyRangesForTransaction(tr),
-  mapDecorations: (decorations, tr) =>
-    mappedDecorationsWithFreshWidgetSources(decorations, tr.changes),
-});
-
 export const referenceRenderPlugin: Extension = [
   editorFocusField,
   focusTracker,
-  referenceDecorationField,
+  referenceViewPlugin,
 ];
 
 function computeReferenceDirtyRanges(update: ViewUpdate): DirtyRange[] {
-  const { beforeActive, afterActive, activeChanged } = getReferenceRevealChange(update);
-  const docDirty = computeReferenceDocDirtyRanges(update);
-  const changes = update.changes;
-  if (
-    docDirty.ranges.length > 0 &&
-    !activeChanged &&
-    !docDirty.couldContainReferences
-  ) {
-    return [];
-  }
-  const mappedBeforeActive = activeChanged && beforeActive && update.docChanged
-    ? mapReferenceDirtyRange(beforeActive, changes)
-    : beforeActive;
-  return mergeDirtyRangesWithActiveReference(
-    docDirty.ranges,
-    activeChanged ? mappedBeforeActive : null,
-    activeChanged ? afterActive : null,
-  );
+  return mergeDirtyRanges([
+    ...referenceDocChangeDirtyRanges(update),
+    ...referenceRevealDirtyRanges(update),
+  ]);
 }
 
 export { computeReferenceDirtyRanges as _computeReferenceDirtyRangesForTest };

@@ -38,6 +38,7 @@ import {
   destroyActiveInlineEditor,
   destroyInlineEditorForOwner,
   getActiveInlineEditor,
+  restoreDestroyedInlineEditorLocally,
   setActivePreviewCell,
   shouldCommitBlurredInlineEditor,
   type TableWidgetSessionOwner,
@@ -59,9 +60,11 @@ export function serializeTableWidgetMacros(macros: Record<string, string>): stri
  * Used with Decoration.replace to show a rendered table. Cells display
  * rendered inline markdown by default. On click, an InlineEditor (nested
  * CM6 instance) is created inside the cell for Typora-style editing:
- * math renders with KaTeX, bold/italic markers are hidden when the
- * cursor is not adjacent, and the cell has its own undo/redo stack.
- * Only one cell editor is active at a time.
+ * math renders with KaTeX and bold/italic markers are hidden when the
+ * cursor is not adjacent. The active cell is a clamped live window onto
+ * the root document, so edits land in root history as granular steps and
+ * undo/redo route to the root view. Only one cell editor is active at a
+ * time.
  */
 export class TableWidget extends ShellWidget implements
   TableKeyboardEntryController,
@@ -169,6 +172,20 @@ export class TableWidget extends ShellWidget implements
     this.syncToRoot(readTableCellAddress(cell), content, "commit");
   }
 
+  refreshRenderedCell(
+    cell: HTMLElement,
+    content: string,
+  ): void {
+    this.restoreRenderedCell(cell, content);
+    this.controller.replaceLocalCell(readTableCellAddress(cell), content);
+    // The document already holds the live-window edits; dispatch the commit
+    // annotation so the decoration field rebuilds the widget with a fresh
+    // ParsedTable instead of keeping the mapped, stale one (#404).
+    this.editorView?.dispatch({
+      annotations: cellEditAnnotation.of("commit"),
+    });
+  }
+
   applyLocalCellEdit(
     cell: HTMLElement,
     content: string,
@@ -198,11 +215,7 @@ export class TableWidget extends ShellWidget implements
     const destroyed = destroyActiveInlineEditor();
     if (!destroyed) return false;
 
-    if (destroyed.owner === this) {
-      destroyed.owner.applyLocalCellEdit(destroyed.cell, destroyed.text);
-    } else {
-      destroyed.owner.commitRenderedCell(destroyed.cell, destroyed.text);
-    }
+    restoreDestroyedInlineEditorLocally(destroyed, this);
     return true;
   }
 

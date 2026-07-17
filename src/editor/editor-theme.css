@@ -162,8 +162,33 @@
   text-transform: uppercase;
 }
 
-.cm-line.cf-doc-block--blockquote {
-  padding-left: var(--cf-doc-blockquote-padding-left, 1em);
+/* Fenced-div blockquote lines. The reader wraps blockquote children in a
+ * container that carries the border and padding, so a reader paragraph's box
+ * excludes that inset. CM6 lines are flat: the same inset lands on the line
+ * itself, which would leave the line's border box wider than the reader
+ * paragraph's. Carry the inset as margin instead and draw the border with an
+ * ::before (mirroring .cf-doc-blockquote-display-math) so the painted pixels
+ * are unchanged while the line box matches the reader paragraph box. */
+.cm-line.cf-doc-block.cf-doc-block--blockquote {
+  border-left: none;
+  padding-left: 0;
+  margin-inline-start: calc(
+    var(--cf-doc-blockquote-border-width, 3px) + var(--cf-doc-blockquote-padding-left, 1em)
+  );
+  position: relative;
+}
+
+.cm-line.cf-doc-block.cf-doc-block--blockquote::before {
+  border-left: var(--cf-doc-blockquote-border-width, 3px) solid var(--cf-blockquote-border);
+  bottom: 0;
+  content: "";
+  inset-inline-start: calc(
+    -1 * (
+      var(--cf-doc-blockquote-border-width, 3px) + var(--cf-doc-blockquote-padding-left, 1em)
+    )
+  );
+  position: absolute;
+  top: 0;
 }
 
 .cm-editor.cm-focused {
@@ -902,3 +927,71 @@
     --cf-active: rgba(255, 255, 255, 0.28);
   }
 }
+
+/* ── Formatting toolbar (formatting-toolbar.ts) ─────────────────────────────
+ * Floating selection toolbar rendered as a CM6 tooltip. The root element
+ * receives .cm-tooltip from CodeMirror plus .cf-formatting-toolbar. Each
+ * button carries data-command="bold|italic|code|strikethrough|highlight|link"
+ * so its glyph can preview the formatting it applies. */
+
+.cm-tooltip.cf-formatting-toolbar {
+  display: flex;
+  background: var(--cf-bg);
+  border: 1px solid var(--cf-border);
+  border-radius: 0;
+  box-shadow: none;
+  max-width: initial;
+  overflow: hidden;
+}
+
+.cf-formatting-toolbar-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--cf-fg);
+  font-family: var(--cf-ui-font);
+  font-size: var(--cf-ui-font-size-sm);
+  line-height: 1;
+  cursor: pointer;
+  transition: background var(--cf-transition);
+}
+
+.cf-formatting-toolbar-button:hover {
+  background: var(--cf-hover);
+}
+
+.cf-formatting-toolbar-button:active {
+  background: var(--cf-active);
+}
+
+/* Glyph previews of each command's formatting */
+.cf-formatting-toolbar-button[data-command="bold"] {
+  font-weight: 700;
+}
+
+.cf-formatting-toolbar-button[data-command="italic"] {
+  font-style: italic;
+}
+
+.cf-formatting-toolbar-button[data-command="code"] {
+  font-family: var(--cf-code-font);
+}
+
+.cf-formatting-toolbar-button[data-command="strikethrough"] {
+  text-decoration: line-through;
+}
+
+.cf-formatting-toolbar-button[data-command="highlight"] {
+  box-shadow: inset 0 -0.55em var(--cf-mark-bg, rgba(255, 255, 0, 0.2));
+}
+
+.cf-formatting-toolbar-button[data-command="link"] {
+  text-decoration: underline;
+}
+/* ── End formatting toolbar ─────────────────────────────────────────────── */

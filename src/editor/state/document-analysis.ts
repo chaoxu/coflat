@@ -1,5 +1,5 @@
 import { ensureSyntaxTree, syntaxTree, syntaxTreeAvailable } from "@codemirror/language";
-import { type EditorState, StateField, type Transaction } from "@codemirror/state";
+import { type EditorState, StateField, type Text, type Transaction } from "@codemirror/state";
 import { measureSync } from "../lib/perf";
 import type { DocumentAnalysis, TextSource } from "../semantics/document";
 import {
@@ -17,6 +17,14 @@ import { buildSemanticDelta } from "../semantics/incremental/semantic-delta";
 
 const MATERIALIZE_TEXT_AFTER_SLICE_CALLS = 8;
 
+/**
+ * Materialized full-document strings, cached per immutable `Text` instance.
+ * `Text` is shared across every transaction and field on the same document
+ * version, so tree-progress ticks (doc unchanged) materialize at most once
+ * per document version instead of once per transaction.
+ */
+const materializedDocText = new WeakMap<Text, string>();
+
 function lineAtInText(text: string, pos: number) {
   const safePos = Math.max(0, Math.min(pos, text.length));
   const from = Math.max(0, text.lastIndexOf("\n", Math.max(0, safePos - 1)) + 1);
@@ -31,7 +39,7 @@ function lineAtInText(text: string, pos: number) {
 
 export function editorStateTextSource(state: EditorState): TextSource {
   const doc = state.doc;
-  let materializedText: string | undefined;
+  let materializedText = materializedDocText.get(doc);
   let sliceCalls = 0;
 
   function getMaterializedText(): string {
@@ -40,6 +48,7 @@ export function editorStateTextSource(state: EditorState): TextSource {
         "cm6.documentAnalysis.text.materialize",
         () => doc.toString(),
       );
+      materializedDocText.set(doc, materializedText);
     }
     return materializedText;
   }
@@ -49,6 +58,10 @@ export function editorStateTextSource(state: EditorState): TextSource {
     slice(from, to) {
       if (materializedText !== undefined) {
         return materializedText.slice(from, to);
+      }
+      if (from === 0 && to === doc.length) {
+        // A full-document read costs the same as materializing; cache it.
+        return getMaterializedText();
       }
       sliceCalls++;
       if (sliceCalls >= MATERIALIZE_TEXT_AFTER_SLICE_CALLS) {
@@ -82,7 +95,12 @@ function updateDocumentAnalysisForTransaction(
   tr: Transaction,
 ): DocumentAnalysisSnapshot {
   const delta = buildSemanticDelta(tr);
-  if (!delta.docChanged && !delta.syntaxTreeChanged && !delta.globalInvalidation) {
+  if (
+    !delta.docChanged
+    && !delta.syntaxTreeChanged
+    && !delta.globalInvalidation
+    && !delta.pendingDrain
+  ) {
     return value;
   }
 
@@ -106,7 +124,9 @@ function updateDocumentAnalysisForTransaction(
 export const documentAnalysisField = StateField.define<DocumentAnalysisSnapshot>({
   create(state) {
     return measureSync("cm6.documentAnalysis.create", () =>
-      createDocumentAnalysisSnapshot(editorStateTextSource(state), completeSyntaxTree(state))
+      createDocumentAnalysisSnapshot(editorStateTextSource(state), completeSyntaxTree(state), {
+        isSyntaxTreeAvailable: (to) => syntaxTreeAvailable(state, to),
+      })
     );
   },
 

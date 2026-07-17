@@ -90,7 +90,6 @@ function identityDirtyDelta(
     dirtyWindows: [dirtyWindow],
     docChanged: true,
     syntaxTreeChanged: false,
-    frontmatterChanged: false,
     globalInvalidation: false,
     plainInlineTextOnlyChange: true,
     mapOldToNew: (pos) => pos,

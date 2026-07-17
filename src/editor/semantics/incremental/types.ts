@@ -17,9 +17,14 @@ export interface SemanticDelta {
   readonly dirtyWindows: readonly DirtyWindow[];
   readonly docChanged: boolean;
   readonly syntaxTreeChanged: boolean;
-  readonly frontmatterChanged: boolean;
   readonly globalInvalidation: boolean;
   readonly plainInlineTextOnlyChange: boolean;
+  /**
+   * Set on otherwise-empty transactions dispatched by the idle pending-drain
+   * driver: asks the engine to consume a bounded chunk of pending regions
+   * even though neither the document nor the syntax tree changed.
+   */
+  readonly pendingDrain?: boolean;
   mapOldToNew(pos: number, assoc?: number): number;
   mapNewToOld(pos: number, assoc?: number): number;
 }

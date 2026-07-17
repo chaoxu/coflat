@@ -12,7 +12,6 @@ import {
 } from "../test-utils";
 import {
   CheckboxWidget,
-  _checkboxDecorationFieldForTest as checkboxDecorationField,
   checkboxRenderPlugin,
 } from "./checkbox-render";
 
@@ -26,7 +25,13 @@ function getCheckboxPlugin(): CheckboxPluginProbe {
   if (!view) {
     throw new Error("expected checkbox render view");
   }
-  return { decorations: view.state.field(checkboxDecorationField) };
+  const plugin = view.plugin(checkboxRenderPlugin as never) as
+    | CheckboxPluginProbe
+    | null;
+  if (!plugin) {
+    throw new Error("expected checkbox render plugin");
+  }
+  return plugin;
 }
 
 function createCheckboxView(doc: string, cursorPos: number): CheckboxPluginProbe {

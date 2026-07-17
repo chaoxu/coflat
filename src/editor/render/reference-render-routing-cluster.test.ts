@@ -1,11 +1,16 @@
+import { StateEffect } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { afterEach, describe, expect, it } from "vitest";
 import { CSS } from "../../core/constants/css-classes";
+import { CslProcessor } from "../citations/csl-processor";
+import { documentContextFacet } from "../document-context";
 import { renderPreviewBlockContentToDom } from "./preview-block-renderer";
 import { collectReferenceRanges } from "./reference-render";
 import {
   createView,
   expectPresent,
+  karger,
+  stein,
   store,
   widgetClass,
 } from "./reference-render-test-utils";
@@ -295,6 +300,40 @@ describe("collectReferenceRanges (clusters)", () => {
     expectPresent(ref, "reference range");
     if (!ref) return;
     expect(widgetClass(ref)).toBe("ClusteredCrossrefWidget");
+  });
+
+  it("renders Pandoc prefix, suppress-author, and suffix syntax through CitationWidget", async () => {
+    const doc = "See [see -@karger2000, p. 12, emphasis mine] and -@stein2001.";
+    view = createView(doc, 0, false);
+    const processor = await CslProcessor.create([karger, stein]);
+    view.dispatch({
+      effects: StateEffect.appendConfig.of(documentContextFacet.of({
+        citationFormatter: processor,
+        citationKeys: new Set(["karger2000", "stein2001"]),
+      })),
+    });
+
+    const ranges = collectReferenceRanges(view, store, processor);
+
+    const cluster = ranges.find(
+      (r) => view.state.sliceDoc(r.from, r.to) === "[see -@karger2000, p. 12, emphasis mine]",
+    );
+    expectPresent(cluster, "cluster range");
+    if (!cluster) return;
+    expect(widgetClass(cluster)).toBe("CitationWidget");
+    const clusterEl = cluster.value.spec.widget?.toDOM() as HTMLElement;
+    // IEEE ignores suppress-author; prefix and locator+suffix render in place.
+    expect(clusterEl.textContent).toBe("[see 1, p. 12, emphasis mine]");
+
+    // The narrative suppress marker is part of the replaced range.
+    const narrative = ranges.find(
+      (r) => view.state.sliceDoc(r.from, r.to) === "-@stein2001",
+    );
+    expectPresent(narrative, "narrative range");
+    if (!narrative) return;
+    expect(widgetClass(narrative)).toBe("CitationWidget");
+    const narrativeEl = narrative.value.spec.widget?.toDOM() as HTMLElement;
+    expect(narrativeEl.textContent).toBe("[2]");
   });
 
   it("pure crossref cluster still routes to ClusteredCrossrefWidget", () => {

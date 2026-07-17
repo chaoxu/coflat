@@ -96,7 +96,8 @@ export function scanReferenceTokens(text: string): ReferenceToken[] {
     if (!id) {
       continue;
     }
-    const tokenTo = tokenFrom + 1 + id.length;
+    // match[0] is `@id` or the suppress-author form `-@id`; the id is its tail.
+    const tokenTo = tokenFrom + match[0].length;
     references.push({
       bracketed: false,
       clusterFrom: tokenFrom,
@@ -104,7 +105,7 @@ export function scanReferenceTokens(text: string): ReferenceToken[] {
       clusterTo: tokenTo,
       from: tokenFrom,
       id,
-      labelFrom: tokenFrom + 1,
+      labelFrom: tokenTo - id.length,
       labelTo: tokenTo,
       to: tokenTo,
     });

@@ -122,6 +122,13 @@ export interface FrontmatterConfig {
   ccsdesc?: Array<Record<string, unknown>>;
   bibliography?: string;
   csl?: string;
+  /**
+   * Pandoc `nocite:` metadata — citation keys included in the bibliography
+   * without an in-text citation. Accepts a single key, a comma/semicolon
+   * separated string, or a list; keys are normalized to bare ids (no leading
+   * `@`), and the Pandoc `@*` wildcard is preserved as `"*"`.
+   */
+  nocite?: string[];
   latex?: {
     bibliography?: string;
     csl?: string;
@@ -337,6 +344,33 @@ function validateBlocks(
 }
 
 /**
+ * Validate and normalize a raw `nocite` value from YAML into bare citation
+ * keys. Pandoc writes nocite as citations (`@key`, `@*`), so both string and
+ * list forms strip the leading `@`; string entries may hold several keys
+ * separated by commas or semicolons.
+ */
+function validateNocite(value: unknown): string[] | undefined {
+  const parts: string[] = [];
+  if (typeof value === "string") {
+    parts.push(...value.split(/[,;]/));
+  } else if (Array.isArray(value)) {
+    for (const entry of value) {
+      if (typeof entry === "string") parts.push(...entry.split(/[,;]/));
+    }
+  } else {
+    return undefined;
+  }
+
+  const keys: string[] = [];
+  for (const part of parts) {
+    const trimmed = part.trim();
+    const key = (trimmed.startsWith("@") ? trimmed.slice(1) : trimmed).trim();
+    if (key.length > 0 && !keys.includes(key)) keys.push(key);
+  }
+  return keys.length > 0 ? keys : undefined;
+}
+
+/**
  * Validate and convert a raw `math` object from YAML into string key-value pairs.
  */
 function validateMath(raw: Record<string, unknown>): Record<string, string> {
@@ -491,6 +525,10 @@ export function parseFrontmatter(doc: string): FrontmatterResult {
       config.latex = latexConfig;
     }
   }
+
+  // Pandoc nocite metadata
+  const nocite = validateNocite(raw["nocite"]);
+  if (nocite) config.nocite = nocite;
 
   // Numbering enum
   const numbering = raw["numbering"];

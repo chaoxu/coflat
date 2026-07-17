@@ -7,7 +7,12 @@
  * Used for table cell editing, sidenote editing, and other embedded contexts.
  */
 
-import { Compartment, EditorState, type Extension } from "@codemirror/state";
+import {
+  Compartment,
+  EditorState,
+  type Extension,
+  type Transaction,
+} from "@codemirror/state";
 import { drawSelection, EditorView } from "@codemirror/view";
 import { CSS } from "../core/constants/css-classes";
 import type { DocumentContext } from "../core/document-context-types";
@@ -27,6 +32,21 @@ import type { DocumentReferenceCatalog } from "./semantics/reference-catalog";
 import { type BibData, bibDataEffect, bibDataField } from "./state/bib-data";
 import { documentAnalysisField } from "./state/document-analysis";
 import { frontmatterField } from "./state/frontmatter-state";
+
+/**
+ * Live-window variant configuration. When set, `doc` is the full host
+ * document mirrored by this editor: the window extensions hide everything
+ * outside the edited span and clamp edits to it, while the dispatch hook
+ * applies transactions locally and forwards document changes to the host.
+ */
+export interface InlineEditorHostWindow {
+  /** Extensions that hide/clamp the mirrored host document around the window. */
+  extensions: Extension;
+  /** Transaction router: applies to this editor and syncs with the host view. */
+  dispatch: (tr: Transaction, view: EditorView) => void;
+  /** Initial selection, in host-document coordinates. */
+  selection?: { anchor: number; head?: number };
+}
 
 /** Options for creating a lightweight inline editor. */
 export interface InlineEditorOptions {
@@ -51,6 +71,9 @@ export interface InlineEditorOptions {
   onKeydown?: (event: KeyboardEvent) => boolean;
   /** Render as a read-only preview surface. */
   readOnly?: boolean;
+  /** Live-window variant: mirror a host document instead of holding a
+   *  detached mini-document. Absent for the default detached behavior. */
+  hostWindow?: InlineEditorHostWindow;
 }
 
 export interface InlineEditorController {
@@ -111,12 +134,18 @@ export function createInlineEditorController(
     }),
   ];
 
+  if (opts.hostWindow) {
+    extensions.push(opts.hostWindow.extensions);
+  }
+
   const view = new EditorView({
     state: EditorState.create({
       doc: opts.doc,
+      selection: opts.hostWindow?.selection,
       extensions,
     }),
     parent: opts.parent,
+    ...(opts.hostWindow ? { dispatch: opts.hostWindow.dispatch } : {}),
   });
 
   if (opts.bibData) {

@@ -4,6 +4,7 @@ import type {
   DocumentAnalysis,
   FencedDivSemantics,
 } from "../document-model";
+import type { PendingRegion } from "./pending-regions";
 import type { EquationSlice } from "./slices/equation-slice";
 import type { FootnoteSlice } from "./slices/footnote-slice";
 import type { HeadingSlice } from "./slices/heading-slice";
@@ -48,6 +49,11 @@ export interface IncrementalDocumentAnalysisState extends DocumentAnalysisSlices
   readonly revisions: DocumentAnalysisRevisionInfo;
   readonly excludedRanges: readonly ExcludedRange[];
   readonly referenceIndex: ReferenceIndexModel;
+  /**
+   * Sorted, non-overlapping current-doc spans whose slice content is not yet
+   * backed by a parsed-tree extraction. Empty when fully tree-backed.
+   */
+  readonly pendingRegions: readonly PendingRegion[];
 }
 
 interface SliceRegistryEntry {

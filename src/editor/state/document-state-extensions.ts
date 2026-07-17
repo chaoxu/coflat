@@ -13,6 +13,7 @@ import { documentLabelGraphField } from "./document-label-graph";
 import { frontmatterField } from "./frontmatter-state";
 import { imageUrlField } from "./image-url";
 import { pdfPreviewField } from "./pdf-preview";
+import { pendingAnalysisDrainPlugin } from "./pending-analysis-drain";
 import { createPluginRegistryField } from "./plugin-registry";
 
 export function coreDocumentStateExtensions(
@@ -22,6 +23,9 @@ export function coreDocumentStateExtensions(
     frontmatterField,
     activeStructureEditField,
     documentAnalysisField,
+    // Idle consumer for pending analysis regions the budgeted doc-changed
+    // reconcile leaves behind (no-op outside an EditorView).
+    pendingAnalysisDrainPlugin,
     createPluginRegistryField(defaultPlugins),
     blockCounterField,
     editorBlockReferenceTargetInputsField,

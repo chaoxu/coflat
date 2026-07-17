@@ -9,8 +9,8 @@ import {
   createDocumentArtifacts,
   type DocumentAnalysisSnapshot,
   type DocumentArtifacts,
+  drainPendingDocumentAnalysis,
   updateDocumentAnalysisSnapshot,
-  updateDocumentArtifacts,
 } from "./engine";
 import type { RawChangedRange, SemanticDelta } from "./types";
 
@@ -36,7 +36,7 @@ export function getCachedDocumentAnalysis(
   previous?: CachedDocumentAnalysis,
 ): CachedDocumentAnalysis {
   if (previous?.text === text) {
-    return previous;
+    return drainCachedDocumentAnalysis(previous);
   }
 
   const doc = stringTextSource(text);
@@ -51,15 +51,45 @@ export function getCachedDocumentAnalysis(
     };
   }
 
-  const snapshot = updateDocumentAnalysisSnapshot(
-    previous.snapshot,
+  const snapshot = drainPendingDocumentAnalysis(
+    updateDocumentAnalysisSnapshot(
+      previous.snapshot,
+      doc,
+      tree,
+      buildTextSemanticDelta(previous.text, text),
+    ),
     doc,
     tree,
-    buildTextSemanticDelta(previous.text, text),
   );
   return {
     version: previous.version + 1,
     text,
+    analysis: snapshot.analysis,
+    snapshot,
+  };
+}
+
+/**
+ * Readers are one-shot renders with no tree-progress or idle-drain
+ * transactions, so the unchanged-text fast path must not short-circuit to a
+ * snapshot the doc-changed budget left partially reconciled: consume any
+ * remaining pending regions before reuse.
+ */
+function drainCachedDocumentAnalysis(
+  previous: CachedDocumentAnalysis,
+): CachedDocumentAnalysis {
+  if (previous.snapshot.incrementalState.pendingRegions.length === 0) {
+    return previous;
+  }
+  const doc = stringTextSource(previous.text);
+  const tree = markdownSemanticsParser.parse(previous.text);
+  const snapshot = drainPendingDocumentAnalysis(previous.snapshot, doc, tree);
+  if (snapshot === previous.snapshot) {
+    return previous;
+  }
+  return {
+    version: previous.version,
+    text: previous.text,
     analysis: snapshot.analysis,
     snapshot,
   };
@@ -92,7 +122,26 @@ export function getCachedDocumentArtifacts(
   previous?: CachedDocumentArtifacts,
 ): CachedDocumentArtifacts {
   if (previous?.text === text) {
-    return previous;
+    if (
+      previous.artifacts.analysisSnapshot.incrementalState.pendingRegions.length === 0
+    ) {
+      return previous;
+    }
+    const doc = stringTextSource(text);
+    const tree = markdownSemanticsParser.parse(text);
+    const snapshot = drainPendingDocumentAnalysis(
+      previous.artifacts.analysisSnapshot,
+      doc,
+      tree,
+    );
+    if (snapshot === previous.artifacts.analysisSnapshot) {
+      return previous;
+    }
+    return {
+      version: previous.version,
+      text,
+      artifacts: buildDocumentArtifacts(snapshot, doc, tree),
+    };
   }
 
   const doc = stringTextSource(text);
@@ -105,15 +154,20 @@ export function getCachedDocumentArtifacts(
     };
   }
 
-  return {
-    version: previous.version + 1,
-    text,
-    artifacts: updateDocumentArtifacts(
-      previous.artifacts,
+  const snapshot = drainPendingDocumentAnalysis(
+    updateDocumentAnalysisSnapshot(
+      previous.artifacts.analysisSnapshot,
       doc,
       tree,
       buildTextSemanticDelta(previous.text, text),
     ),
+    doc,
+    tree,
+  );
+  return {
+    version: previous.version + 1,
+    text,
+    artifacts: buildDocumentArtifacts(snapshot, doc, tree),
   };
 }
 
@@ -136,15 +190,23 @@ function getCachedDocumentArtifactsFromAnalysis(
     return {
       version: previous.version,
       text,
-      artifacts: buildDocumentArtifacts(previous.snapshot, doc, tree),
+      artifacts: buildDocumentArtifacts(
+        drainPendingDocumentAnalysis(previous.snapshot, doc, tree),
+        doc,
+        tree,
+      ),
     };
   }
 
-  const snapshot = updateDocumentAnalysisSnapshot(
-    previous.snapshot,
+  const snapshot = drainPendingDocumentAnalysis(
+    updateDocumentAnalysisSnapshot(
+      previous.snapshot,
+      doc,
+      tree,
+      buildTextSemanticDelta(previous.text, text),
+    ),
     doc,
     tree,
-    buildTextSemanticDelta(previous.text, text),
   );
   return {
     version: previous.version + 1,
@@ -286,10 +348,6 @@ function buildTextSemanticDelta(
     dirtyWindows: coalesceChangedRanges(rawChangedRanges),
     docChanged: rawChangedRanges.length > 0,
     syntaxTreeChanged: rawChangedRanges.length > 0,
-    frontmatterChanged: rawChangedRanges.some((range) =>
-      touchesFrontmatter(previousText, range.fromOld, range.toOld)
-      || touchesFrontmatter(nextText, range.fromNew, range.toNew),
-    ),
     globalInvalidation: false,
     plainInlineTextOnlyChange: false,
     mapOldToNew(pos, assoc = -1) {
@@ -421,57 +479,4 @@ function collectChangedRanges(
     fromNew: prefix,
     toNew: nextSuffix,
   }];
-}
-
-function touchesFrontmatter(text: string, from: number, to: number): boolean {
-  const end = frontmatterEnd(text);
-  if (end <= 0) {
-    return false;
-  }
-  if (from === to) {
-    return from < end;
-  }
-  return from < end && to > 0;
-}
-
-function frontmatterEnd(text: string): number {
-  if (!lineIsFrontmatterDelimiter(text, 0)) {
-    return -1;
-  }
-
-  let pos = nextLineStart(text, 0);
-  if (pos < 0) {
-    return -1;
-  }
-
-  while (pos <= text.length) {
-    if (lineIsFrontmatterDelimiter(text, pos)) {
-      const lineEnd = lineEndOffset(text, pos);
-      return lineEnd === text.length ? text.length : lineEnd + 1;
-    }
-
-    const next = nextLineStart(text, pos);
-    if (next < 0) {
-      break;
-    }
-    pos = next;
-  }
-
-  return -1;
-}
-
-function lineIsFrontmatterDelimiter(text: string, from: number): boolean {
-  const end = lineEndOffset(text, from);
-  const line = text.slice(from, end);
-  return line.startsWith("---") && line.slice(3).trim().length === 0;
-}
-
-function lineEndOffset(text: string, from: number): number {
-  const end = text.indexOf("\n", from);
-  return end === -1 ? text.length : end;
-}
-
-function nextLineStart(text: string, from: number): number {
-  const end = text.indexOf("\n", from);
-  return end === -1 ? -1 : end + 1;
 }

@@ -110,8 +110,10 @@ describe("documentRenderPlan", () => {
     });
 
     expect(emitted).toEqual(["Paragraph", "Paragraph"]);
+    // @lezer/markdown 1.7.2: leaf nodes no longer start on empty lines, so the
+    // first paragraph starts at "First" (14) instead of the preceding newline.
     expect(events).toEqual([
-      "child:13-19",
+      "child:14-19",
       "blank:\n",
       "child:21-27",
     ]);

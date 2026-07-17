@@ -158,9 +158,24 @@ describe("theme CSS contract", () => {
     expect(cssRuleBody(css, ".cm-line.cf-doc-list-item")).toContain("margin: 0;");
     expect(cssRuleBody(css, ".cm-line.cf-codeblock-header,\n.cm-line.cf-codeblock-body,\n.cm-line.cf-codeblock-last")).toContain("font-style: normal;");
     expect(cssRuleBody(css, ".cm-line.cf-doc-block")).toContain("margin: 0;");
-    expect(cssRuleBody(css, ".cm-line.cf-doc-block--blockquote")).toContain(
-      "padding-left: var(--cf-doc-blockquote-padding-left, 1em);",
+    // Blockquote fenced-div lines carry the container inset as margin (not
+    // border+padding) so the line's border box matches the reader paragraph
+    // box; the border paints via ::before at the same pixels.
+    const blockquoteLineRule = cssRuleBody(css, ".cm-line.cf-doc-block.cf-doc-block--blockquote");
+    expect(blockquoteLineRule).toContain("padding-left: 0;");
+    expect(blockquoteLineRule).toContain(
+      "var(--cf-doc-blockquote-padding-left, 1em)",
     );
+    expect(blockquoteLineRule).toContain("margin-inline-start: calc(");
+    expect(blockquoteLineRule).toContain("position: relative;");
+    const blockquoteLineBeforeRule = cssRuleBody(
+      css,
+      ".cm-line.cf-doc-block.cf-doc-block--blockquote::before",
+    );
+    expect(blockquoteLineBeforeRule).toContain(
+      "border-left: var(--cf-doc-blockquote-border-width, 3px) solid var(--cf-blockquote-border);",
+    );
+    expect(blockquoteLineBeforeRule).toContain("position: absolute;");
     expect(css).not.toContain(".cf-editor-virtual-blockquote-display-math");
   });
 

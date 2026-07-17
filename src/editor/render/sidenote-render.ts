@@ -31,6 +31,8 @@ import {
 import {
   Decoration,
   type DecorationSet,
+  EditorView,
+  WidgetType,
 } from "@codemirror/view";
 import { CSS } from "../../core/constants/css-classes";
 import {
@@ -39,6 +41,7 @@ import {
 import {
   footnotePlanSectionEntries,
 } from "../../core/semantics/footnote-plan";
+import { jumpToFootnoteRefAtPos } from "../footnote-commands";
 import { createEditorReferencePresentationController } from "../references/presentation";
 import {
   type FootnoteSemantics,
@@ -96,6 +99,61 @@ export {
 /** Collect footnote references and definitions from the shared semantics field. */
 export function collectFootnotes(state: EditorState): FootnoteSemantics {
   return state.field(documentAnalysisField).footnotes;
+}
+
+/** Class for the jump-back affordance at the end of an expanded definition. */
+export const FOOTNOTE_JUMP_BACK_CLASS = "cf-sidenote-jump-back";
+
+/**
+ * Jump-back affordance (C5): a small trailing "↩" in the definition chrome
+ * that re-selects the corresponding [^n] reference in the body text.
+ *
+ * The definition's number label itself keeps its existing click-to-edit
+ * (structure edit) behavior, so the jump-back gets its own widget, mirroring
+ * the Tufte/Pandoc backref arrow at the end of a footnote body.
+ */
+export class FootnoteJumpBackWidget extends WidgetType {
+  private readonly mouseDownHandlers = new WeakMap<HTMLElement, (event: MouseEvent) => void>();
+
+  constructor(
+    private readonly id: string,
+    private readonly defFrom: number,
+  ) {
+    super();
+  }
+
+  toDOM(view: EditorView): HTMLElement {
+    const el = document.createElement("button");
+    el.type = "button";
+    el.className = FOOTNOTE_JUMP_BACK_CLASS;
+    el.textContent = "↩";
+    el.title = "Go to footnote reference";
+    el.setAttribute("aria-label", `Go to footnote ${this.id} reference`);
+
+    const defFrom = this.defFrom;
+    const handleMouseDown = (event: MouseEvent): void => {
+      event.preventDefault();
+      jumpToFootnoteRefAtPos(view, defFrom);
+    };
+    this.mouseDownHandlers.set(el, handleMouseDown);
+    el.addEventListener("mousedown", handleMouseDown);
+    return el;
+  }
+
+  override destroy(dom: HTMLElement): void {
+    const handleMouseDown = this.mouseDownHandlers.get(dom);
+    if (!handleMouseDown) return;
+    dom.removeEventListener("mousedown", handleMouseDown);
+    this.mouseDownHandlers.delete(dom);
+  }
+
+  eq(other: FootnoteJumpBackWidget): boolean {
+    return this.id === other.id && this.defFrom === other.defFrom;
+  }
+
+  ignoreEvent(): boolean {
+    return true;
+  }
 }
 
 const footnoteSliceChanged = createChangeChecker(
@@ -272,6 +330,14 @@ export function buildSidenoteDecorations(state: EditorState): DecorationSet {
       items.push(inlineSourceDecoration.range(def.from, def.labelTo));
     }
     addMarkerReplacement(def.from, def.labelTo, cursorOnLabel, labelWidget, items);
+
+    // Jump-back affordance at the end of the definition body (C5).
+    items.push(
+      Decoration.widget({
+        widget: new FootnoteJumpBackWidget(def.id, def.from),
+        side: 1,
+      }).range(def.to),
+    );
   }
 
   return buildDecorations(items);
@@ -372,6 +438,21 @@ const footnoteSectionPlugin = createDecorationsField(
   "cm6.footnoteSection",
 );
 
+const footnoteJumpBackTheme = EditorView.baseTheme({
+  [`.${FOOTNOTE_JUMP_BACK_CLASS}`]: {
+    border: "none",
+    background: "none",
+    padding: "0 0 0 0.25em",
+    font: "inherit",
+    fontSize: "0.85em",
+    opacity: "0.6",
+    cursor: "pointer",
+  },
+  [`.${FOOTNOTE_JUMP_BACK_CLASS}:hover`]: {
+    opacity: "1",
+  },
+});
+
 /** CM6 extension that renders footnote refs as superscripts and hides defs.
  *  Sidenote content is rendered by the React SidenoteMargin component. */
 export const sidenoteRenderWithoutSectionPlugin: Extension = [
@@ -381,6 +462,7 @@ export const sidenoteRenderWithoutSectionPlugin: Extension = [
   sidenotesCollapsedField,
   footnoteInlineExpandedField,
   sidenoteDecorationField,
+  footnoteJumpBackTheme,
 ];
 
 export const sidenoteRenderPlugin: Extension = [

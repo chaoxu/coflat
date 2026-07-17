@@ -1,5 +1,5 @@
 import { syntaxTree } from "@codemirror/language";
-import type { EditorState, Range } from "@codemirror/state";
+import type { EditorSelection, EditorState, Range } from "@codemirror/state";
 import { Decoration, WidgetType } from "@codemirror/view";
 import type { SyntaxNodeRef } from "@lezer/common";
 import { CSS } from "../../core/constants/css-classes";
@@ -14,6 +14,7 @@ import {
   listMarkerText,
 } from "../../core/list-surface";
 import { documentContextFacet } from "../document-context";
+import { containsRange } from "../lib/range-helpers";
 import { isReferenceTokenSource } from "../lib/reference-tokens";
 import { documentPathFacet } from "../lib/types";
 import { findTrailingHeadingAttributes } from "../semantics/heading-ancestry";
@@ -27,7 +28,6 @@ import {
   isBareDocumentAnchor,
 } from "./link-handler";
 import { addInlineRevealSourceMetricsInSubtree } from "./markdown-inline-source";
-import { cursorInRange } from "./node-collection";
 
 /** Heading mark decorations (font-weight, text styling on spans). */
 const headingMarkByLevel: Record<string, Decoration> = {
@@ -168,18 +168,24 @@ class BulletListMarkerWidget extends WidgetType {
 const bulletListMarkerWidget = new BulletListMarkerWidget();
 
 function cursorInMarkdownRange(
-  state: EditorState,
-  focused: boolean,
+  ctx: MarkdownHandlerContext,
   from: number,
   to: number,
 ): boolean {
-  return focused && cursorInRange(state, from, to);
+  return ctx.focused && containsRange({ from, to }, ctx.revealSelection.main);
 }
 
 /** Shared mutable context passed to handlers during tree iteration. */
 export interface MarkdownHandlerContext {
   readonly state: EditorState;
   readonly focused: boolean;
+  /**
+   * Selection used for reveal decisions. Normally state.selection; during a
+   * pointer-drag reveal freeze it is the selection captured at freeze time so
+   * newly collected ranges match the frozen decorations instead of the live
+   * drag selection.
+   */
+  readonly revealSelection: EditorSelection;
   readonly items: Range<Decoration>[];
   /** Set by ATXHeading handler, read by HeaderMark handler. */
   cursorInHeading: boolean;
@@ -231,7 +237,7 @@ function isIntrawordMarker(state: EditorState, from: number, to: number): boolea
 
 function isCursorActiveIntrawordEmphasis(node: SyntaxNodeRef, ctx: MarkdownHandlerContext): boolean {
   if (node.name !== "Emphasis") return false;
-  if (!cursorInMarkdownRange(ctx.state, ctx.focused, node.from, node.to)) return false;
+  if (!cursorInMarkdownRange(ctx, node.from, node.to)) return false;
 
   const marks = node.node.getChildren("EmphasisMark");
   if (marks.length !== 2) return false;
@@ -251,7 +257,7 @@ export interface MarkdownNodeHandler {
 }
 
 function handleHeading(node: SyntaxNodeRef, ctx: MarkdownHandlerContext): void {
-  const { state, focused, items } = ctx;
+  const { state, items } = ctx;
   const headingMark = headingMarkByLevel[node.name];
   if (headingMark) {
     items.push(headingMark.range(node.from, node.to));
@@ -262,7 +268,7 @@ function handleHeading(node: SyntaxNodeRef, ctx: MarkdownHandlerContext): void {
     items.push(headingLine.range(line.from));
   }
 
-  ctx.cursorInHeading = cursorInMarkdownRange(state, focused, node.from, node.to);
+  ctx.cursorInHeading = cursorInMarkdownRange(ctx, node.from, node.to);
 
   if (!ctx.cursorInHeading) {
     const hLine = state.doc.lineAt(node.from);
@@ -304,15 +310,15 @@ function handleHighlight(node: SyntaxNodeRef, ctx: MarkdownHandlerContext) {
   if (contentFrom < contentTo) {
     ctx.items.push(highlightDecoration.range(contentFrom, contentTo));
   }
-  if (cursorInMarkdownRange(ctx.state, ctx.focused, node.from, node.to)) {
+  if (cursorInMarkdownRange(ctx, node.from, node.to)) {
     addInlineRevealSourceMetricsInSubtree(node.node, ctx.items);
     return false as const;
   }
 }
 
 function handleLink(node: SyntaxNodeRef, ctx: MarkdownHandlerContext) {
-  const { state, focused, items } = ctx;
-  if (cursorInMarkdownRange(state, focused, node.from, node.to)) {
+  const { state, items } = ctx;
+  if (cursorInMarkdownRange(ctx, node.from, node.to)) {
     addInlineRevealSourceMetricsInSubtree(node.node, items);
     return false as const;
   }
@@ -370,7 +376,7 @@ function handleUrl(node: SyntaxNodeRef, ctx: MarkdownHandlerContext) {
     return;
   }
   if (parentName !== "Autolink") return undefined;
-  if (cursorInMarkdownRange(ctx.state, ctx.focused, node.from, node.to)) {
+  if (cursorInMarkdownRange(ctx, node.from, node.to)) {
     return false as const;
   }
   const url = ctx.state.sliceDoc(node.from, node.to);
@@ -379,27 +385,27 @@ function handleUrl(node: SyntaxNodeRef, ctx: MarkdownHandlerContext) {
 }
 
 function handleElement(node: SyntaxNodeRef, ctx: MarkdownHandlerContext) {
-  const { state, focused, items } = ctx;
+  const { items } = ctx;
   const styleDeco = styleMap[node.name];
   if (styleDeco && !isCursorActiveIntrawordEmphasis(node, ctx)) {
     items.push(styleDeco.range(node.from, node.to));
   }
 
-  if (cursorInMarkdownRange(state, focused, node.from, node.to)) {
+  if (cursorInMarkdownRange(ctx, node.from, node.to)) {
     addInlineRevealSourceMetricsInSubtree(node.node, items);
     return false as const;
   }
 }
 
 function handleImage(node: SyntaxNodeRef, ctx: MarkdownHandlerContext) {
-  if (cursorInMarkdownRange(ctx.state, ctx.focused, node.from, node.to)) {
+  if (cursorInMarkdownRange(ctx, node.from, node.to)) {
     addInlineRevealSourceMetricsInSubtree(node.node, ctx.items);
   }
   return false as const;
 }
 
 function handleBlockquote(node: SyntaxNodeRef, ctx: MarkdownHandlerContext) {
-  if (!cursorInMarkdownRange(ctx.state, ctx.focused, node.from, node.to)) {
+  if (!cursorInMarkdownRange(ctx, node.from, node.to)) {
     return false as const;
   }
 }
@@ -413,7 +419,7 @@ function handleHidden(node: SyntaxNodeRef, ctx: MarkdownHandlerContext): void {
 }
 
 function handleHorizontalRule(node: SyntaxNodeRef, ctx: MarkdownHandlerContext) {
-  if (cursorInMarkdownRange(ctx.state, ctx.focused, node.from, node.to)) {
+  if (cursorInMarkdownRange(ctx, node.from, node.to)) {
     return false as const;
   }
   ctx.items.push(
@@ -424,7 +430,7 @@ function handleHorizontalRule(node: SyntaxNodeRef, ctx: MarkdownHandlerContext) 
 }
 
 function handleEscape(node: SyntaxNodeRef, ctx: MarkdownHandlerContext): void {
-  if (cursorInMarkdownRange(ctx.state, ctx.focused, node.from, node.to)) return;
+  if (cursorInMarkdownRange(ctx, node.from, node.to)) return;
   ctx.items.push(Decoration.replace({}).range(node.from, node.from + 1));
 }
 
@@ -475,7 +481,7 @@ export function addActiveLineTypingSupplements(
 ): void {
   if (!ctx.focused) return;
   const { state } = ctx;
-  const selection = state.selection.main;
+  const selection = ctx.revealSelection.main;
   if (!selection.empty) return;
 
   const line = state.doc.lineAt(selection.from);
