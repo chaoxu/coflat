@@ -1,6 +1,5 @@
 import { syntaxTree } from "@codemirror/language";
 import {
-  type EditorState,
   type Extension,
   type Range,
 } from "@codemirror/state";
@@ -16,15 +15,8 @@ import {
 import { measureSync } from "../lib/perf";
 import { buildDecorations } from "./decoration-core";
 import {
-  type DecorationLifecycleContext,
-  type DecorationLifecyclePlan,
-  type DecorationLifecyclePlanOptions,
-  type DecorationRangeBounds,
   filterDecorationSetInRanges,
   hasProgrammaticDocumentRewrite,
-  mapDecorationsOnDocChange,
-  planDecorationLifecycleUpdate,
-  removeDecorationsInRanges,
 } from "./decoration-lifecycle";
 import {
   diffVisibleRanges,
@@ -36,9 +28,6 @@ import {
   type VisibleRange,
 } from "./viewport-diff";
 
-export type { DecorationRangeBounds } from "./decoration-lifecycle";
-export { filterDecorationSetInRanges } from "./decoration-lifecycle";
-
 /**
  * Default update predicate for render ViewPlugins.
  *
@@ -47,22 +36,6 @@ export { filterDecorationSetInRanges } from "./decoration-lifecycle";
 export function defaultShouldUpdate(update: ViewUpdate): boolean {
   return (
     update.docChanged ||
-    syntaxTree(update.state) !== syntaxTree(update.startState)
-  );
-}
-
-/**
- * Cursor-sensitive update predicate for render ViewPlugins.
- *
- * Returns true for structural changes plus selection, focus, and viewport
- * changes for plugins that render based on cursor proximity or visible ranges.
- */
-export function cursorSensitiveShouldUpdate(update: ViewUpdate): boolean {
-  return (
-    update.docChanged ||
-    update.selectionSet ||
-    update.focusChanged ||
-    update.viewportChanged ||
     syntaxTree(update.state) !== syntaxTree(update.startState)
   );
 }
@@ -116,127 +89,6 @@ export type CursorSensitiveDocChangeRangesFn = (
 export type CursorSensitiveContextChangeRangesFn = (
   update: ViewUpdate,
 ) => readonly VisibleRange[] | null;
-
-export type IncrementalDecorationsRangeFn<T extends DecorationRangeBounds> = (
-  update: ViewUpdate,
-) => readonly T[] | null;
-
-export type SemanticSensitiveUpdateContext = DecorationLifecycleContext;
-
-export type SemanticSensitiveUpdatePlan<T extends DecorationRangeBounds> =
-  DecorationLifecyclePlan<T>;
-
-export interface SemanticSensitiveUpdatePlanOptions<
-  TUpdate,
-  TRange extends DecorationRangeBounds,
-> extends DecorationLifecyclePlanOptions<TUpdate, TRange> {}
-
-export function planSemanticSensitiveUpdate<
-  TUpdate,
-  TRange extends DecorationRangeBounds,
->(
-  update: TUpdate,
-  options: SemanticSensitiveUpdatePlanOptions<TUpdate, TRange>,
-): SemanticSensitiveUpdatePlan<TRange> {
-  return planDecorationLifecycleUpdate(update, options);
-}
-
-/**
- * Factory for ViewPlugins that rebuild only dirty ranges and otherwise map
- * existing decorations through doc changes.
- */
-export function createIncrementalDecorationsViewPlugin<
-  T extends DecorationRangeBounds = DecorationRangeBounds,
->(
-  buildFn: (view: EditorView) => DecorationSet,
-  options: {
-    incrementalRanges: IncrementalDecorationsRangeFn<T>;
-    collectRanges: (view: EditorView, ranges: readonly T[]) => Range<Decoration>[];
-    shouldRebuild?: (update: ViewUpdate) => boolean;
-    mapDecorations?: (
-      decorations: DecorationSet,
-      update: ViewUpdate,
-    ) => DecorationSet;
-    pluginSpec?: Omit<PluginSpec<PluginValue>, "decorations">;
-    spanName?: string;
-  },
-): Extension {
-  const mapDecorations = options.mapDecorations
-    ?? mapDecorationsOnDocChange;
-
-  class IncrementalDecorationsViewPlugin implements PluginValue {
-    decorations: DecorationSet;
-
-    constructor(view: EditorView) {
-      this.decorations = measurePluginBranch(options.spanName, "create", () => buildFn(view));
-    }
-
-    update(update: ViewUpdate): void {
-      if (hasProgrammaticDocumentRewrite(update)) {
-        this.decorations = measurePluginBranch(
-          options.spanName,
-          "rebuild",
-          () => buildFn(update.view),
-        );
-        return;
-      }
-
-      if (options.shouldRebuild?.(update)) {
-        this.decorations = measurePluginBranch(
-          options.spanName,
-          "rebuild",
-          () => buildFn(update.view),
-        );
-        return;
-      }
-
-      const dirtyRanges = options.incrementalRanges(update);
-      if (dirtyRanges === null) {
-        this.decorations = measurePluginBranch(
-          options.spanName,
-          "rebuild",
-          () => buildFn(update.view),
-        );
-        return;
-      }
-
-      if (dirtyRanges.length === 0) {
-        this.decorations = measurePluginBranch(
-          options.spanName,
-          "map",
-          () => mapDecorations(this.decorations, update),
-        );
-        return;
-      }
-
-      this.decorations = measurePluginBranch(
-        options.spanName,
-        update.docChanged ? "incrementalDoc" : "incrementalContext",
-        () => {
-          let nextDecorations = mapDecorations(this.decorations, update);
-          nextDecorations = filterDecorationSetInRanges(
-            nextDecorations,
-            dirtyRanges,
-            (from, to) => !rangeIntersectsRanges(from, to, dirtyRanges),
-          );
-          const items = options.collectRanges(update.view, dirtyRanges);
-          if (items.length > 0) {
-            nextDecorations = nextDecorations.update({
-              add: items,
-              sort: true,
-            });
-          }
-          return nextDecorations;
-        },
-      );
-    }
-  }
-
-  return ViewPlugin.fromClass(IncrementalDecorationsViewPlugin, {
-    ...options.pluginSpec,
-    decorations: (value) => value.decorations,
-  });
-}
 
 /**
  * Factory for cursor-sensitive ViewPlugins with differential viewport updates.
@@ -431,110 +283,6 @@ export function createCursorSensitiveViewPlugin(
 
   return ViewPlugin.fromClass(CursorSensitivePlugin, {
     ...options?.pluginSpec,
-    decorations: (value) => value.decorations,
-  });
-}
-
-export type SemanticSensitiveDirtyRangeFn<
-  T extends DecorationRangeBounds,
-> = (
-  update: ViewUpdate,
-  context: SemanticSensitiveUpdateContext,
-) => readonly T[] | null;
-
-export function createSemanticSensitiveViewPlugin<
-  T extends DecorationRangeBounds = DecorationRangeBounds,
->(
-  buildFn: (view: EditorView) => DecorationSet,
-  options: {
-    collectRanges: (view: EditorView, dirtyRanges: readonly T[]) => Range<Decoration>[];
-    semanticChanged: (beforeState: EditorState, afterState: EditorState) => boolean;
-    dirtyRangeFn: SemanticSensitiveDirtyRangeFn<T>;
-    contextChanged?: (update: ViewUpdate) => boolean;
-    contextUpdateMode?: "rebuild" | "dirty-ranges";
-    shouldRebuild?: (
-      update: ViewUpdate,
-      context: SemanticSensitiveUpdateContext,
-    ) => boolean;
-    mapDecorations?: (
-      decorations: DecorationSet,
-      update: ViewUpdate,
-    ) => DecorationSet;
-    pluginSpec?: Omit<PluginSpec<PluginValue>, "decorations">;
-    spanName?: string;
-  },
-): Extension {
-  const mapDecorations = options.mapDecorations
-    ?? mapDecorationsOnDocChange;
-
-  class SemanticSensitiveViewPlugin implements PluginValue {
-    decorations: DecorationSet;
-
-    constructor(view: EditorView) {
-      this.decorations = measurePluginBranch(options.spanName, "create", () => buildFn(view));
-    }
-
-    private rebuild(view: EditorView): void {
-      this.decorations = measurePluginBranch(options.spanName, "rebuild", () => buildFn(view));
-    }
-
-    private updateDirtyRanges(
-      update: ViewUpdate,
-      dirtyRanges: readonly T[],
-    ): void {
-      this.decorations = measurePluginBranch(options.spanName, "dirty", () => {
-        let nextDecorations = mapDecorations(this.decorations, update);
-        if (dirtyRanges.length > 0) {
-          nextDecorations = removeDecorationsInRanges(nextDecorations, dirtyRanges);
-          const items = options.collectRanges(update.view, dirtyRanges);
-          if (items.length > 0) {
-            nextDecorations = nextDecorations.update({
-              add: items,
-              sort: true,
-            });
-          }
-        }
-
-        return nextDecorations;
-      });
-    }
-
-    update(update: ViewUpdate): void {
-      const plan = planSemanticSensitiveUpdate(update, {
-        docChanged: (current) => current.docChanged,
-        semanticChanged: (current) => options.semanticChanged(
-          current.startState,
-          current.state,
-        ),
-        programmaticRewrite: hasProgrammaticDocumentRewrite,
-        contextChanged: options.contextChanged,
-        shouldRebuild: options.shouldRebuild,
-        dirtyRanges: options.dirtyRangeFn,
-        contextUpdateMode: options.contextUpdateMode,
-      });
-
-      switch (plan.kind) {
-        case "keep":
-          return;
-        case "map":
-          this.decorations = measurePluginBranch(
-            options.spanName,
-            "map",
-            () => mapDecorations(this.decorations, update),
-          );
-          return;
-        case "rebuild":
-          this.rebuild(update.view);
-          return;
-        case "dirty":
-          this.updateDirtyRanges(update, plan.dirtyRanges);
-          return;
-      }
-    }
-  }
-
-  return ViewPlugin.fromClass(SemanticSensitiveViewPlugin, {
-    ...options.pluginSpec,
     decorations: (value) => value.decorations,
   });
 }

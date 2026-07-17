@@ -5,18 +5,18 @@ import {
   findTablesInState,
   type TableRange,
 } from "./table-discovery";
-import { formatTable, type ParsedTable } from "./table-utils";
+import type { ParsedTable } from "./table-utils";
 import type { TableCellAddress } from "./table-widget-navigation";
 
 /**
  * Annotation attached to transactions dispatched by cell-edit sync.
  *
- * - `"edit"`: live keystroke while the inline editor is open — the
+ * - `"edit"`: live keystroke forwarded from the open cell's subview — the
  *   StateField maps existing decorations through the change so the
  *   widget (and its nested editor) is not destroyed mid-edit.
- * - `"commit"`: the inline editor has been destroyed and the final
- *   content synced back — the StateField does a full rebuild so the
- *   rendered table reflects the new content.
+ * - `"commit"`: the inline session ended — the document already holds the
+ *   live-window edits, so the (usually change-less) dispatch just makes the
+ *   StateField rebuild the widget with a fresh ParsedTable (#404).
  */
 export const cellEditAnnotation = Annotation.define<"edit" | "commit">();
 
@@ -58,38 +58,6 @@ export class TableWidgetController {
     const rootView = this.getRootView();
     if (!rootView) return null;
     return findClosestTable(findTablesInState(rootView.state), this.trackedTableFrom) ?? null;
-  }
-
-  syncToRoot(
-    address: TableCellAddress,
-    editedText: string,
-    annotation: "edit" | "commit",
-  ): void {
-    const rootView = this.getRootView();
-    if (!rootView) return;
-    const currentTables = findTablesInState(rootView.state);
-    const bestTable = findClosestTable(currentTables, this.trackedTableFrom);
-    if (!bestTable) return;
-    this.trackedTableFrom = bestTable.from;
-    const currentText = rootView.state.sliceDoc(bestTable.from, bestTable.to);
-    const updated = this.buildUpdatedTable(address, editedText);
-    const newText = formatTable(updated).join("\n");
-    if (newText === currentText) {
-      // The document already reflects the edit (synced by live keystrokes).
-      // On commit we still need to dispatch the annotation so the StateField
-      // rebuilds the widget with the current ParsedTable — otherwise the old
-      // widget's stale table data will be used on re-entry (#404).
-      if (annotation === "commit") {
-        rootView.dispatch({
-          annotations: cellEditAnnotation.of("commit"),
-        });
-      }
-      return;
-    }
-    rootView.dispatch({
-      changes: { from: bestTable.from, to: bestTable.to, insert: newText },
-      annotations: cellEditAnnotation.of(annotation),
-    });
   }
 
   private buildUpdatedTable(

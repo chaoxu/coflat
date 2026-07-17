@@ -317,4 +317,4 @@ export const fenceGuidePlugin: Extension = [
 
 // ── Test exports ───────────────────────────────────────────────────────────
 
-export { buildFenceGuides as _buildFenceGuides_forTest, computeActivePath as _computeActivePath_forTest, fenceGuideField as _fenceGuideField_forTest };
+export { computeActivePath as _computeActivePath_forTest, fenceGuideField as _fenceGuideField_forTest };

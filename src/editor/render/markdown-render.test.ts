@@ -1,7 +1,7 @@
 import { markdown } from "@codemirror/lang-markdown";
 import { forceParsing, syntaxTree } from "@codemirror/language";
 import { StateEffect } from "@codemirror/state";
-import { Decoration, EditorView, type ViewUpdate } from "@codemirror/view";
+import { EditorView } from "@codemirror/view";
 import { afterEach, describe, expect, it } from "vitest";
 import { CSS } from "../../core/constants/css-classes";
 import { markdownExtensions } from "../../core/parser";
@@ -17,19 +17,18 @@ import {
 import {
   _clearLinkDecorationCacheForTest as clearLinkDecorationCache,
   _collectMarkdownItemsForTest as collectMarkdownItems,
-  computeMarkdownContextChangeRanges,
-  computeMarkdownDocChangeRanges,
+  computeMarkdownContextChangeRangesForTransition,
+  computeMarkdownDocChangeRangesForTransition,
   cursorContextKey,
   _linkDecorationCacheSizeForTest as linkDecorationCacheSize,
-  _markdownDocChangeNeedsContextMergeForTest as markdownDocChangeNeedsContextMerge,
+  _markdownTransitionNeedsContextMergeForTest as markdownTransitionNeedsContextMerge,
   markdownRenderPlugin,
-  markdownShouldUpdate,
   _setMarkdownRevealFrozenForTest as setMarkdownRevealFrozen,
 } from "./markdown-render";
 import {
   createCursorSensitiveViewPlugin,
-  createSimpleViewPlugin,
   cursorInRange,
+  editorFocusField,
   focusEffect,
 } from "./render-core";
 
@@ -1028,90 +1027,97 @@ describe("cursorContextKey", () => {
   });
 });
 
-describe("markdownShouldUpdate (rebuild narrowing, #579)", () => {
-  let view: EditorView;
-
-  afterEach(() => {
-    view?.destroy();
-  });
-
+describe("computeMarkdownContextChangeRangesForTransition (rebuild narrowing, #579)", () => {
   /**
-   * Create a view with a counting plugin that uses markdownShouldUpdate.
-   * Performs a warm-up dispatch to flush the spurious focusChanged that
-   * JSDOM produces on the first dispatch after construction.
+   * Compute the context dirty ranges for a focused cursor move. Empty ranges
+   * mean the production plugin keeps its decorations; non-empty ranges mean
+   * only those fragments are re-collected.
    */
-  function createCountingView(doc: string, cursorPos = 0) {
-    let buildCount = 0;
-    const ext = createSimpleViewPlugin(
-      () => { buildCount++; return Decoration.none; },
-      { shouldUpdate: markdownShouldUpdate },
-    );
-    view = createTestView(doc, {
-      cursorPos,
-      extensions: [markdown(), ext],
+  function contextRangesForCursorMove(doc: string, from: number, to: number) {
+    const base = createEditorState(doc, {
+      cursorPos: from,
+      extensions: [markdown(), editorFocusField],
     });
-    // Warm-up: first dispatch after construction has spurious focusChanged
-    view.dispatch({ selection: { anchor: cursorPos } });
-    buildCount = 0;
-    return { getBuildCount: () => buildCount };
+    const focused = base.update({ effects: focusEffect.of(true) }).state;
+    return computeMarkdownContextChangeRangesForTransition(
+      focused.update({ selection: { anchor: to } }),
+    );
   }
 
-  it("does not rebuild when cursor moves within plain text", () => {
-    const { getBuildCount } = createCountingView("hello world", 0);
-    view.dispatch({ selection: { anchor: 5 } });
-    expect(getBuildCount()).toBe(0);
+  it("emits no dirty ranges when cursor moves within plain text", () => {
+    expect(contextRangesForCursorMove("hello world", 0, 5)).toEqual([]);
   });
 
-  it("rebuilds when cursor enters a bold node", () => {
-    const { getBuildCount } = createCountingView("**bold** text", 12);
-    view.dispatch({ selection: { anchor: 4 } });
-    expect(getBuildCount()).toBe(1);
+  it("dirties the bold node when cursor enters it", () => {
+    expect(contextRangesForCursorMove("**bold** text", 12, 4)).toEqual([
+      { from: 0, to: 8 },
+    ]);
   });
 
-  it("does not rebuild when cursor moves within the same bold node", () => {
-    const { getBuildCount } = createCountingView("**bold** text", 3);
-    view.dispatch({ selection: { anchor: 5 } });
-    expect(getBuildCount()).toBe(0);
+  it("emits no dirty ranges when cursor moves within the same bold node", () => {
+    expect(contextRangesForCursorMove("**bold** text", 3, 5)).toEqual([]);
   });
 
-  it("rebuilds when cursor leaves a bold node", () => {
-    const { getBuildCount } = createCountingView("**bold** text", 4);
-    view.dispatch({ selection: { anchor: 12 } });
-    expect(getBuildCount()).toBe(1);
+  it("dirties the bold node when cursor leaves it", () => {
+    expect(contextRangesForCursorMove("**bold** text", 4, 12)).toEqual([
+      { from: 0, to: 8 },
+    ]);
   });
 
-  it("rebuilds when cursor moves between different sensitive nodes", () => {
-    const { getBuildCount } = createCountingView("**bold** *italic*", 4);
-    view.dispatch({ selection: { anchor: 11 } });
-    expect(getBuildCount()).toBe(1);
+  it("dirties both nodes when cursor moves between different sensitive nodes", () => {
+    const ranges = contextRangesForCursorMove("**bold** *italic*", 4, 11);
+    expect(ranges.length).toBeGreaterThan(0);
+    const doc = "**bold** *italic*";
+    const covers = (from: number, to: number) =>
+      ranges.some((range) => range.from <= from && to <= range.to);
+    expect(covers(0, "**bold**".length)).toBe(true);
+    expect(covers(doc.indexOf("*italic*"), doc.length)).toBe(true);
   });
 
-  it("rebuilds on document change", () => {
-    const { getBuildCount } = createCountingView("hello", 0);
-    view.dispatch({ changes: { from: 0, insert: "x" } });
-    expect(getBuildCount()).toBe(1);
+  it("emits no dirty ranges when cursor moves within a heading", () => {
+    expect(contextRangesForCursorMove("# Hello World\n\ntext", 3, 7)).toEqual([]);
   });
 
-  it("does not rebuild when cursor moves within a heading", () => {
-    const { getBuildCount } = createCountingView("# Hello World\n\ntext", 3);
-    view.dispatch({ selection: { anchor: 7 } });
-    expect(getBuildCount()).toBe(0);
+  it("dirties the heading when cursor enters it", () => {
+    expect(
+      contextRangesForCursorMove("# Hello\n\ntext", 12, 3).length,
+    ).toBeGreaterThan(0);
   });
 
-  it("rebuilds when cursor enters a heading", () => {
-    const { getBuildCount } = createCountingView("# Hello\n\ntext", 12);
-    view.dispatch({ selection: { anchor: 3 } });
-    expect(getBuildCount()).toBe(1);
+  it("dirties the nested inline node when cursor moves from heading text into it", () => {
+    const doc = "# Hello **bold**\n\ntext";
+    const boldFrom = doc.indexOf("**bold**");
+    expect(contextRangesForCursorMove(doc, 3, 12)).toEqual([
+      { from: boldFrom, to: boldFrom + "**bold**".length },
+    ]);
   });
 
-  it("rebuilds when cursor moves from heading to nested inline node", () => {
-    const { getBuildCount } = createCountingView("# Hello **bold**\n\ntext", 3);
-    view.dispatch({ selection: { anchor: 12 } }); // into bold inside heading
-    expect(getBuildCount()).toBe(1);
+  it("emits no dirty ranges while the editor is unfocused", () => {
+    const base = createEditorState("**bold** text", {
+      cursorPos: 12,
+      extensions: [markdown(), editorFocusField],
+    });
+    expect(
+      computeMarkdownContextChangeRangesForTransition(
+        base.update({ selection: { anchor: 4 } }),
+      ),
+    ).toEqual([]);
+  });
+
+  it("dirties the node containing the cursor when focus flips", () => {
+    const base = createEditorState("**bold** text", {
+      cursorPos: 4,
+      extensions: [markdown(), editorFocusField],
+    });
+    expect(
+      computeMarkdownContextChangeRangesForTransition(
+        base.update({ effects: focusEffect.of(true) }),
+      ),
+    ).toEqual([{ from: 0, to: 8 }]);
   });
 });
 
-describe("computeMarkdownDocChangeRanges (#823)", () => {
+describe("computeMarkdownDocChangeRangesForTransition (#823)", () => {
   let view: EditorView;
 
   afterEach(() => {
@@ -1128,14 +1134,15 @@ describe("computeMarkdownDocChangeRanges (#823)", () => {
       {
         selectionCheck: (update) =>
           cursorContextKey(update.state) !== cursorContextKey(update.startState),
-        docChangeRanges: computeMarkdownDocChangeRanges,
+        docChangeRanges: computeMarkdownDocChangeRangesForTransition,
       },
     );
     view = createTestView(doc, {
       cursorPos,
-      extensions: [markdown(), ext],
+      extensions: [markdown(), editorFocusField, ext],
     });
-    // Warm-up: first dispatch after construction has a spurious focusChanged.
+    // Focus via the effect the production focusTracker dispatches.
+    view.dispatch({ effects: focusEffect.of(true) });
     view.dispatch({ selection: { anchor: cursorPos } });
     receivedRanges = [];
     return { getRanges: () => receivedRanges };
@@ -1149,62 +1156,50 @@ describe("computeMarkdownDocChangeRanges (#823)", () => {
         return [];
       },
       {
-        contextChangeRanges: computeMarkdownContextChangeRanges,
+        contextChangeRanges: computeMarkdownContextChangeRangesForTransition,
       },
     );
     view = createTestView(doc, {
       cursorPos,
-      extensions: [markdown(), ext],
+      extensions: [markdown(), editorFocusField, ext],
     });
+    view.dispatch({ effects: focusEffect.of(true) });
     view.dispatch({ selection: { anchor: cursorPos } });
     receivedRanges = [];
     return { getRanges: () => receivedRanges };
   }
 
-  function mockDocChangeUpdate(
-    startState: ReturnType<typeof createEditorState>,
-    state: ReturnType<typeof createEditorState>,
-    overrides: Partial<Pick<ViewUpdate, "focusChanged">> = {},
-  ): ViewUpdate {
-    return {
-      docChanged: true,
-      selectionSet: false,
-      focusChanged: overrides.focusChanged ?? false,
-      viewportChanged: false,
-      state,
-      startState,
-      view: { hasFocus: true } as EditorView,
-    } as unknown as ViewUpdate;
+  function focusedState(doc: string, cursorPos: number) {
+    const base = createEditorState(doc, {
+      cursorPos,
+      extensions: [markdown(), editorFocusField],
+    });
+    return base.update({ effects: focusEffect.of(true) }).state;
   }
 
   it("skips cursor-context merging when doc changes keep selection and focus stable", () => {
-    const startState = createEditorState("plain **bold** text", {
-      cursorPos: 3,
-      extensions: [markdown()],
-    });
+    const startState = focusedState("plain **bold** text", 3);
     const tr = startState.update({
       changes: { from: startState.doc.length, insert: "x" },
     });
 
-    expect(markdownDocChangeNeedsContextMerge(mockDocChangeUpdate(startState, tr.state))).toBe(false);
+    expect(markdownTransitionNeedsContextMerge(tr)).toBe(false);
   });
 
   it("keeps cursor-context merging enabled when doc changes move selection or focus", () => {
-    const startState = createEditorState("plain **bold** text", {
-      cursorPos: 3,
-      extensions: [markdown()],
-    });
-    const movedSelection = createEditorState("plain **bold** text", {
-      cursorPos: 5,
-      extensions: [markdown()],
-    });
+    const startState = focusedState("plain **bold** text", 3);
 
-    expect(markdownDocChangeNeedsContextMerge(mockDocChangeUpdate(startState, movedSelection))).toBe(true);
-    expect(
-      markdownDocChangeNeedsContextMerge(
-        mockDocChangeUpdate(startState, startState, { focusChanged: true }),
-      ),
-    ).toBe(true);
+    const movedSelection = startState.update({
+      changes: { from: startState.doc.length, insert: "x" },
+      selection: { anchor: 5 },
+    });
+    expect(markdownTransitionNeedsContextMerge(movedSelection)).toBe(true);
+
+    const focusFlipped = startState.update({
+      changes: { from: startState.doc.length, insert: "x" },
+      effects: focusEffect.of(false),
+    });
+    expect(markdownTransitionNeedsContextMerge(focusFlipped)).toBe(true);
   });
 
   it("keeps prose typing scoped to the dirty fragment", () => {
@@ -1268,7 +1263,7 @@ describe("markdownRenderPlugin doc-change invalidation (#823)", () => {
     // The tree-driven analogue of the reference-render slice-swap fix: the
     // fence opener's changed range is 4 characters at the top, but the whole
     // tail reparses as code text in the same transaction. The enclosing-node
-    // expansion in computeMarkdownDocChangeRanges must dirty the recoded tail
+    // expansion in computeMarkdownDocChangeRangesForTransition must dirty the recoded tail
     // so its previously hidden emphasis markers are dropped and re-collected,
     // not mapped forward as stale replacements.
     const doc = "intro\n\n**bold** tail";

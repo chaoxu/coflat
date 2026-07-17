@@ -298,18 +298,6 @@ function collectCursorContextSnapshot(
   };
 }
 
-function focusStates(update: ViewUpdate): { readonly startFocused: boolean; readonly endFocused: boolean } {
-  const endFocused = update.view.hasFocus;
-  return {
-    startFocused: update.focusChanged ? !endFocused : endFocused,
-    endFocused,
-  };
-}
-
-function markdownDocChangeNeedsContextMerge(update: ViewUpdate): boolean {
-  return update.focusChanged || !update.state.selection.eq(update.startState.selection);
-}
-
 interface MarkdownContextRangeCacheEntry {
   readonly startState: EditorState;
   readonly startFocused: boolean;
@@ -385,20 +373,6 @@ function computeMarkdownContextChangeRangesBetweenUncached(
   return mergeRanges(dirtyRanges);
 }
 
-export function computeMarkdownContextChangeRanges(
-  update: ViewUpdate,
-): readonly VisibleRange[] {
-  const { startFocused, endFocused } = focusStates(update);
-  const mergedDirtyRanges = computeMarkdownContextChangeRangesBetween(
-    update.startState,
-    update.state,
-    update.changes,
-    startFocused,
-    endFocused,
-  );
-  return mergedDirtyRanges;
-}
-
 function stateFocus(state: EditorState): boolean {
   return state.field(editorFocusField, false) ?? false;
 }
@@ -412,15 +386,17 @@ function stateFocus(state: EditorState): boolean {
 type MarkdownStateTransition = Pick<Transaction, "startState" | "state" | "changes">;
 
 /**
- * editorFocusField-based context ranges for the production plugin and field.
+ * editorFocusField-based context ranges for the production plugin and field
+ * (#579 narrowing: selection/focus changes dirty only the cursor-sensitive
+ * nodes whose reveal state flips).
  *
  * Reveal state must key off the same focus source as the collect pass
  * (editorFocusField, kept in sync by focusTracker), not the raw
- * update.focusChanged/hasFocus signal used by the exported ViewUpdate
- * predicates: the plugin is constructed before the view gains focus, and the
- * focusEffect transaction is what flips reveal semantics.
+ * update.focusChanged/hasFocus signal: the plugin is constructed before the
+ * view gains focus, and the focusEffect transaction is what flips reveal
+ * semantics.
  */
-function computeMarkdownContextChangeRangesForTransition(
+export function computeMarkdownContextChangeRangesForTransition(
   transition: MarkdownStateTransition,
 ): readonly VisibleRange[] {
   return computeMarkdownContextChangeRangesBetween(
@@ -430,10 +406,6 @@ function computeMarkdownContextChangeRangesForTransition(
     stateFocus(transition.startState),
     stateFocus(transition.state),
   );
-}
-
-function markdownCursorContextChanged(update: ViewUpdate): boolean {
-  return computeMarkdownContextChangeRanges(update).length > 0;
 }
 
 /**
@@ -446,31 +418,6 @@ function markdownCursorContextChanged(update: ViewUpdate): boolean {
  */
 export function cursorContextKey(state: EditorState): string {
   return collectCursorContextSnapshot(state).key;
-}
-
-/**
- * Narrowed shouldUpdate for markdown-render (#579).
- *
- * Rebuilds on structural changes (doc, tree, viewport) unconditionally.
- * For selection/focus changes, only rebuilds when the cursor context crosses
- * a cursor-sensitive node boundary — i.e., moved into, out of, or between
- * nodes that toggle marker visibility, or when focus changes whether those
- * nodes should render as source.
- */
-export function markdownShouldUpdate(update: ViewUpdate): boolean {
-  if (
-    update.docChanged ||
-    update.viewportChanged ||
-    syntaxTree(update.state) !== syntaxTree(update.startState)
-  ) {
-    return true;
-  }
-
-  if (update.selectionSet || update.focusChanged) {
-    return markdownCursorContextChanged(update);
-  }
-
-  return false;
 }
 
 /**
@@ -540,19 +487,6 @@ function computeMarkdownDocChangeRangesBetweenUncached(
   return mergeRanges(dirtyRanges);
 }
 
-export function computeMarkdownDocChangeRanges(
-  update: ViewUpdate,
-): readonly VisibleRange[] | null {
-  return computeMarkdownDocChangeRangesBetween(
-    update.startState,
-    update.state,
-    update.changes,
-    markdownDocChangeNeedsContextMerge(update)
-      ? computeMarkdownContextChangeRanges(update)
-      : NO_SEED_RANGES,
-  );
-}
-
 function markdownTransitionNeedsContextMerge(
   transition: MarkdownStateTransition,
 ): boolean {
@@ -562,8 +496,12 @@ function markdownTransitionNeedsContextMerge(
   );
 }
 
-/** editorFocusField-based dual of computeMarkdownDocChangeRanges for the plugin and field. */
-function computeMarkdownDocChangeRangesForTransition(
+/**
+ * editorFocusField-based doc-change dirty ranges for the plugin and field
+ * (#823): expands literal edits to the markdown nodes they overlap and merges
+ * in cursor/focus context changes from the same transaction.
+ */
+export function computeMarkdownDocChangeRangesForTransition(
   transition: MarkdownStateTransition,
 ): readonly VisibleRange[] | null {
   return computeMarkdownDocChangeRangesBetween(
@@ -695,7 +633,7 @@ function buildMarkdownLineBreakDecorations(state: EditorState): DecorationSet {
   );
 }
 
-export { collectMarkdownItems as _collectMarkdownItemsForTest, markdownDocChangeNeedsContextMerge as _markdownDocChangeNeedsContextMergeForTest };
+export { collectMarkdownItems as _collectMarkdownItemsForTest, markdownTransitionNeedsContextMerge as _markdownTransitionNeedsContextMergeForTest };
 export function _clearLinkDecorationCacheForTest(): void {
   clearLinkDecorationCacheForTest();
 }

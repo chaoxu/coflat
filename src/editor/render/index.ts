@@ -9,17 +9,13 @@ export {
   codeBlockStructureField,
   collectCodeBlocks,
 } from "./code-block-render";
-export {
-  containerAttributesField,
-  containerAttributesPlugin,
-} from "./container-attributes";
+export { containerAttributesPlugin } from "./container-attributes";
 export {
   CrossrefWidget,
   UnresolvedRefWidget,
 } from "./crossref-render";
 export { debugInspectorPlugin, toggleDebugInspector } from "./debug-inspector";
 export { fenceGuidePlugin } from "./fence-guide";
-export { focusModeExtension, toggleFocusMode } from "./focus-mode";
 export { frontmatterDecoration, frontmatterDecorationField } from "./frontmatter-render";
 export { hoverPreviewExtension } from "./hover-preview";
 export {

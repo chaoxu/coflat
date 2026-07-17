@@ -23,7 +23,7 @@ import {
   sharedInlineRenderExtensions,
 } from "./base-editor-extensions";
 import { CslProcessor } from "./citations/csl-processor";
-import { createInlineEditor } from "./inline-editor";
+import { createInlineEditorController } from "./inline-editor";
 import { referenceRenderPlugin } from "./render/reference-render";
 import type { DocumentReferenceCatalog } from "./semantics/reference-catalog";
 import { bibDataField } from "./state/bib-data";
@@ -168,7 +168,7 @@ describe("inline editor decoration rendering (#406)", () => {
   it("adds a root class for CSS-based inline editor chrome overrides", () => {
     const parent = document.createElement("div");
     document.body.appendChild(parent);
-    const view = createInlineEditor({
+    const { view } = createInlineEditorController({
       parent,
       doc: "text",
       macros: {},
@@ -267,7 +267,7 @@ describe("inline editor citation state wiring (#406)", () => {
     const store = makeBibStore([CSL_FIXTURES.karger]);
     const cslProcessor = new CslProcessor([CSL_FIXTURES.karger]);
 
-    const view = createInlineEditor({
+    const { view } = createInlineEditorController({
       parent,
       doc: "[@karger2000]",
       macros: {},
@@ -287,7 +287,7 @@ describe("inline editor citation state wiring (#406)", () => {
     const parent = document.createElement("div");
     document.body.appendChild(parent);
 
-    const view = createInlineEditor({
+    const { view } = createInlineEditorController({
       parent,
       doc: "[@unknown]",
       macros: {},
@@ -310,7 +310,7 @@ describe("inline editor citation state wiring (#406)", () => {
     const store = makeBibStore([CSL_FIXTURES.karger]);
     const cslProcessor = new CslProcessor([CSL_FIXTURES.karger]);
 
-    const view = createInlineEditor({
+    const { view } = createInlineEditorController({
       parent,
       doc: "See [@karger2000] for details",
       macros: {},
@@ -340,7 +340,7 @@ describe("inline editor reference widget rendering (#422)", () => {
     const store = makeBibStore([CSL_FIXTURES.karger]);
     const cslProcessor = new CslProcessor([CSL_FIXTURES.karger]);
 
-    const view = createInlineEditor({
+    const { view } = createInlineEditorController({
       parent,
       doc: "[@karger2000]",
       macros: {},
@@ -363,7 +363,7 @@ describe("inline editor reference widget rendering (#422)", () => {
     document.body.appendChild(parent);
 
     // No bib data — this is a crossref, not a citation
-    const view = createInlineEditor({
+    const { view } = createInlineEditorController({
       parent,
       doc: "[@eq:gaussian]",
       macros: {},
@@ -401,7 +401,7 @@ describe("inline editor reference widget rendering (#422)", () => {
       references: [],
     };
 
-    const view = createInlineEditor({
+    const { view } = createInlineEditorController({
       parent,
       doc: "[@thm:fundamental]",
       macros: {},
@@ -426,7 +426,7 @@ describe("inline editor reference widget rendering (#422)", () => {
     const store = makeBibStore([CSL_FIXTURES.karger, CSL_FIXTURES.stein]);
     const cslProcessor = new CslProcessor([CSL_FIXTURES.karger, CSL_FIXTURES.stein]);
 
-    const view = createInlineEditor({
+    const { view } = createInlineEditorController({
       parent,
       doc: "[@karger2000; @stein2001]",
       macros: {},

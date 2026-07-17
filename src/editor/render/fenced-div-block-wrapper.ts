@@ -222,9 +222,3 @@ export const fencedDivBlockWrapper: Extension = [
   fencedDivBlockWrapperPlugin,
   fencedDivBlockWrapperTheme,
 ];
-
-export {
-  buildFencedDivWrappers as _buildFencedDivWrappersForTest,
-  contentRangeFor as _contentRangeForTest,
-  wrapperAttributesFor as _wrapperAttributesForTest,
-};
