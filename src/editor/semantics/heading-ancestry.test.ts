@@ -1,3 +1,5 @@
+// Keep after-mount plugin dynamic imports from racing environment teardown.
+import "../test-plugin-preload";
 import { describe, expect, it } from "vitest";
 import { createEditor } from "..";
 import {

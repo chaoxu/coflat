@@ -202,7 +202,18 @@ function bibDataFromDocumentContext(context: DocumentContext | undefined): BibDa
   for (const id of context.citationKeys) {
     store.set(id, { id, type: "article" });
   }
-  return { store, formatter: context.citationFormatter };
+  return {
+    store,
+    formatter: context.citationFormatter,
+    // Store entries are synthesized stubs (rendering goes through the host
+    // formatter); report a populated status so hosts can distinguish this
+    // from an unloaded bibliography.
+    status: {
+      state: "ok",
+      bibPath: "(document-context formatter)",
+      entryCount: store.size,
+    },
+  };
 }
 
 function applyDocumentContext(view: EditorView, context: DocumentContext): void {
@@ -479,3 +490,33 @@ export type {
 };
 
 export { formatUploadedAssetMarkdown };
+
+// Host-facing surface of the 2026-07 feature bundle (autocorrect, formatting
+// toolbar, rich paste, table/footnote commands, display modes, div wrappers).
+export {
+  type AutocorrectConfig,
+  autocorrectCompartment,
+  autocorrectConfig,
+  autocorrectExtension,
+  createRichPasteCommands,
+  FENCED_DIV_WRAPPER_CLASS,
+  FENCED_DIV_WRAPPER_TAG,
+  fenceLanguageAutocompleteEditorPlugin,
+  fenceLanguageAutocompleteExtension,
+  footnoteCommandsExtension,
+  footnotePaletteCommands,
+  formattingToolbarCommands,
+  formattingToolbarExtension,
+  htmlCopyRendererFacet,
+  type InlineEditorHostWindow,
+  listRenumberExtension,
+  mutedLinesExtension,
+  type QuoteStyle,
+  richPasteExtension,
+  tableEditingCommands,
+  tableEditingKeymap,
+  toggleMutedLines,
+  toggleTypewriterMode,
+  typewriterModeExtension,
+} from "./src/editor";
+export { type BibliographyStatus } from "./src/editor/state/bib-data";

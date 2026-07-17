@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { renderHook, waitFor } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { extractFileIndex } from "../index-helpers/extract";
 import { analyzeMarkdownDocument } from "../semantics/markdown-analysis";
@@ -6,7 +7,10 @@ import {
   buildCitationRenderData,
   buildCitationRenderDataFromAnalysis,
   type CitationTextResourceResolver,
+  EMPTY_BIBLIOGRAPHY,
+  EMPTY_CITATIONS,
   loadBibliographyResource,
+  useCitationRenderData,
 } from "./citation-render-data";
 
 function createTextFileResolver(
@@ -326,5 +330,141 @@ describe("buildCitationRenderData", () => {
     ]);
     expect(citations.citedIds).toEqual(["cite:real"]);
     expect([...citations.store.keys()]).toEqual(["cite:real"]);
+  });
+});
+
+describe("buildCitationRenderData nocite", () => {
+  const store = new Map([
+    ["cite:knuth", {
+      id: "cite:knuth",
+      title: "Literate Programming",
+      type: "book",
+    }],
+    ["cite:lamport", {
+      id: "cite:lamport",
+      title: "LaTeX",
+      type: "book",
+    }],
+  ]);
+
+  it("includes frontmatter nocite entries in citedIds without backlinks", () => {
+    const citations = buildCitationRenderData(
+      "See [@cite:knuth].",
+      { store },
+      { nocite: ["cite:lamport"] },
+    );
+
+    expect(citations.citedIds).toEqual(["cite:knuth", "cite:lamport"]);
+    expect(citations.backlinks.get("cite:lamport")).toBeUndefined();
+  });
+
+  it("expands the nocite wildcard and skips ids already cited in-text", () => {
+    const citations = buildCitationRenderData(
+      "See [@cite:knuth].",
+      { store },
+      { nocite: ["*", "cite:knuth"] },
+    );
+
+    expect(citations.citedIds).toEqual(["cite:knuth", "cite:lamport"]);
+  });
+
+  it("ignores nocite keys missing from the store and local targets", () => {
+    const citations = buildCitationRenderData(
+      [
+        "## Background {#cite:lamport}",
+        "",
+        "See [@cite:knuth].",
+      ].join("\n"),
+      { store },
+      { nocite: ["cite:lamport", "cite:missing"] },
+    );
+
+    expect(citations.citedIds).toEqual(["cite:knuth"]);
+  });
+});
+
+describe("citation render data status surfacing", () => {
+  it("returns the idle EMPTY_CITATIONS identity for an idle empty bibliography", () => {
+    expect(buildCitationRenderData("See [@x].", EMPTY_BIBLIOGRAPHY)).toBe(EMPTY_CITATIONS);
+  });
+
+  it("carries an error status through even when the store is empty", async () => {
+    const bibliography = await loadBibliographyResource({
+      bibliography: "refs/missing.bib",
+    }, createTextFileResolver({}, "main.md"));
+
+    const citations = buildCitationRenderData("See [@x].", bibliography);
+
+    expect(citations.status).toMatchObject({
+      state: "error",
+      kind: "read-bib",
+      bibPath: "refs/missing.bib",
+    });
+  });
+
+  it("carries the ok status alongside loaded citation data", async () => {
+    const resolver = createTextFileResolver({
+      "refs/library.bib": "@book{cite:knuth, title={Literate Programming}, author={Knuth, Donald}, year={1984}}",
+    }, "main.md");
+    const bibliography = await loadBibliographyResource({
+      bibliography: "refs/library.bib",
+    }, resolver);
+
+    const citations = buildCitationRenderData("See [@cite:knuth].", bibliography);
+
+    expect(citations.citedIds).toEqual(["cite:knuth"]);
+    expect(citations.status).toMatchObject({
+      state: "ok",
+      bibPath: "refs/library.bib",
+      entryCount: 1,
+    });
+  });
+});
+
+describe("useCitationRenderData", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("surfaces an unexpected-error status when bibliography loading throws", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const resolver: CitationTextResourceResolver = {
+      readProjectTextFile: () => Promise.reject(new Error("boom")),
+    };
+
+    const { result } = renderHook(() => useCitationRenderData(
+      "See [@cite:knuth].",
+      { bibliography: "refs/library.bib" },
+      resolver,
+    ));
+
+    await waitFor(() => {
+      expect(result.current.status).toMatchObject({
+        state: "error",
+        kind: "unexpected",
+        bibPath: "refs/library.bib",
+        message: "boom",
+      });
+    });
+    expect(warn).toHaveBeenCalled();
+  });
+
+  it("passes frontmatter nocite through to citedIds", async () => {
+    const resolver = createTextFileResolver({
+      "refs/library.bib": [
+        "@book{cite:knuth, title={Literate Programming}, author={Knuth, Donald}, year={1984}}",
+        "@book{cite:lamport, title={LaTeX}, author={Lamport, Leslie}, year={1994}}",
+      ].join("\n"),
+    }, "main.md");
+
+    const { result } = renderHook(() => useCitationRenderData(
+      "See [@cite:knuth].",
+      { bibliography: "refs/library.bib", nocite: ["cite:lamport"] },
+      resolver,
+    ));
+
+    await waitFor(() => {
+      expect(result.current.citedIds).toEqual(["cite:knuth", "cite:lamport"]);
+    });
   });
 });

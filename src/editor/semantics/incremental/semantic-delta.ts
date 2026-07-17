@@ -18,6 +18,19 @@ export interface SemanticDeltaBuildOptions {
 
 const INLINE_PROSE_SAFE_CHANGE_RE = /^[A-Za-z0-9 ,.;!?'"()/_-]*$/;
 
+/**
+ * Line shapes that reinterpret structure at a distance when created or
+ * destroyed: `---` (thematic break, setext H2 underline, frontmatter
+ * delimiter), `===` (setext H1 underline), `___`/`***` (thematic breaks),
+ * and ```` ``` ````/`~~~`/`:::` (fence toggles). `-` and `_` are reachable by
+ * inserting characters from the safe set above; the others only by deleting
+ * safe characters around them (e.g. removing the `x` from `x---`), which is
+ * why the whole family is checked. Markers may be interleaved with spaces
+ * (`- - -` is a thematic break); leading indent is accepted conservatively
+ * (over-matching only routes rare lines onto the heavy path).
+ */
+const DELIMITER_LINE_RE = /^[ \t]*([-_*=:~`])(?:[ \t]*\1)*[ \t]*$/;
+
 function isPlainInlineText(text: string): boolean {
   return text.length === 0 || (
     !text.includes("\n")
@@ -32,11 +45,25 @@ function detectPlainInlineTextOnlyChange(tr: Transaction): boolean {
   }
 
   let plain = true;
-  tr.changes.iterChanges((fromOld, toOld, _fromNew, _toNew, inserted) => {
+  tr.changes.iterChanges((fromOld, toOld, fromNew, _toNew, inserted) => {
     if (!plain) return;
     const removedText = tr.startState.doc.sliceString(fromOld, toOld);
     const insertedText = inserted.sliceString(0, inserted.length);
     if (!isPlainInlineText(removedText) || !isPlainInlineText(insertedText)) {
+      plain = false;
+      return;
+    }
+    // Character-class safety alone is not enough: a safe keystroke can
+    // complete a delimiter line (typing the final `-` of `---`) or destroy
+    // one (inserting prose into an existing `---`), reinterpreting content
+    // far outside the changed range — closing frontmatter, forming a
+    // thematic break or setext underline. Removed and inserted text contain
+    // no newline here, so each change touches exactly one old and one new
+    // line; checking both directions stays O(changed lines).
+    if (
+      DELIMITER_LINE_RE.test(tr.newDoc.lineAt(fromNew).text)
+      || DELIMITER_LINE_RE.test(tr.startState.doc.lineAt(fromOld).text)
+    ) {
       plain = false;
     }
   });

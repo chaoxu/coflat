@@ -113,7 +113,11 @@ function getContent(parent: HTMLElement): HTMLElement {
   return el as HTMLElement;
 }
 
-function firePaste(parent: HTMLElement, files: File[]): void {
+function firePaste(
+  parent: HTMLElement,
+  files: File[],
+  options: { withPlainText?: boolean } = {},
+): Event {
   const content = getContent(parent);
   // jsdom's ClipboardEvent has no clipboardData support out of the box —
   // construct a base Event and attach the property.
@@ -125,25 +129,35 @@ function firePaste(parent: HTMLElement, files: File[]): void {
     value: {
       files: makeFileList(files),
       items: [],
-      types: ["Files"],
+      types: options.withPlainText ? ["Files", "text/plain"] : ["Files"],
+      getData: (type: string) =>
+        options.withPlainText && type === "text/plain" ? "pasted text" : "",
     },
   });
   content.dispatchEvent(event);
+  return event;
 }
 
-function fireDrop(parent: HTMLElement, files: File[]): void {
+function fireDrop(
+  parent: HTMLElement,
+  files: File[],
+  options: { withPlainText?: boolean } = {},
+): Event {
   const content = getContent(parent);
   const event = new Event("drop", { bubbles: true, cancelable: true });
   Object.defineProperty(event, "dataTransfer", {
     value: {
       files: makeFileList(files),
-      types: ["Files"],
+      types: options.withPlainText ? ["Files", "text/plain"] : ["Files"],
       dropEffect: "copy",
+      getData: (type: string) =>
+        options.withPlainText && type === "text/plain" ? "dragged text" : "",
     },
   });
   Object.defineProperty(event, "clientX", { value: 0 });
   Object.defineProperty(event, "clientY", { value: 0 });
   content.dispatchEvent(event);
+  return event;
 }
 
 const cleanups: Array<() => void> = [];
@@ -303,6 +317,35 @@ describe("assetUploaderExtension paste", () => {
     const ev = h.events.onAssetUploading.mock.calls[0][0];
     expect(ev.file).toBe(file);
     expect(typeof ev.placeholderId).toBe("string");
+  });
+
+  it("stands down when text/plain accompanies the files (paste-intent heuristic), then fires on an image-only paste", async () => {
+    const h = makeHarness();
+    track(h);
+
+    // MS Office & co. write text flavors AND an image fallback to the
+    // clipboard; a text/plain flavor means the user intends text, so the
+    // uploader must not upload the junk screenshot bitmap.
+    firePaste(h.parent, [makeFile("junk-screenshot.png")], {
+      withPlainText: true,
+    });
+    await flush();
+
+    expect(h.uploader.upload).not.toHaveBeenCalled();
+    expect(h.uploadCalls).toHaveLength(0);
+    expect(h.events.onAssetUploading).not.toHaveBeenCalled();
+    expect(h.editor.getDoc()).not.toContain("upload:");
+
+    // An image-only clipboard has no text intent: the uploader fires.
+    const file = makeFile("real-image.png");
+    const imageOnly = firePaste(h.parent, [file]);
+    await flush();
+
+    expect(imageOnly.defaultPrevented).toBe(true);
+    expect(h.uploadCalls).toHaveLength(1);
+    expect(h.uploadCalls[0].file).toBe(file);
+    expect(h.editor.getDoc()).toMatch(/!\[uploading…\]\(upload:[^)]+\)/);
+    expect(h.events.onAssetUploading).toHaveBeenCalledTimes(1);
   });
 
   it("on resolve rewrites the placeholder to the returned path and fires onAssetUploadSucceeded", async () => {
@@ -644,6 +687,24 @@ describe("assetUploaderExtension drop", () => {
     await flush();
     expect(h.editor.getDoc()).toContain("![x](drops/x.png)");
     expect(h.events.onAssetUploadSucceeded).toHaveBeenCalledTimes(1);
+  });
+
+  it("still uploads when text/plain accompanies a dropped file (no intent ambiguity on drop)", async () => {
+    // Dragging a file out of a file manager can carry a text flavor (the
+    // path), but a drop is always file intent — the paste-only heuristic
+    // must not gate it.
+    const h = makeHarness();
+    track(h);
+    const file = makeFile("dropped.png");
+
+    const event = fireDrop(h.parent, [file], { withPlainText: true });
+    await flush();
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(h.uploadCalls).toHaveLength(1);
+    expect(h.uploadCalls[0].file).toBe(file);
+    expect(h.editor.getDoc()).toMatch(/!\[uploading…\]\(upload:[^)]+\)/);
+    expect(h.events.onAssetUploading).toHaveBeenCalledTimes(1);
   });
 });
 

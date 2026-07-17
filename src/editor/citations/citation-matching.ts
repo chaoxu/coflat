@@ -10,6 +10,10 @@ import {
   isCitationId as coreIsCitationId,
 } from "../../core/references/citation-rendering";
 import type { ReferenceIndexModel } from "../../core/references/model";
+import {
+  type NociteKeyLookup,
+  resolveNociteIds,
+} from "../../core/references/nocite";
 import type {
   DocumentAnalysis,
   ReferenceSemantics,
@@ -224,6 +228,29 @@ export function collectCitedIdsFromClusters(
   clusters: readonly CitationCluster[],
 ): string[] {
   return coreCollectCitedIdsFromClusters(clusters);
+}
+
+/**
+ * Append the trailing Pandoc `nocite` cluster shared by every registration
+ * path: `nocite` keys resolve against the bibliography, ids already cited
+ * in-text are dropped, and the cluster registers last so numeric styles
+ * number nocite entries after all in-text citations, matching Pandoc.
+ * Mutates `clusters` in place and returns the appended ids (empty when
+ * there is nothing new to register).
+ */
+export function appendNociteRegistrationCluster(
+  clusters: CitationCluster[],
+  nocite: readonly string[] | undefined,
+  bibliography: NociteKeyLookup,
+  options?: CitationCollectionOptions,
+): string[] {
+  const cited = new Set(clusters.flatMap((cluster) => cluster.ids));
+  const nociteIds = resolveNociteIds(nocite, bibliography, options)
+    .filter((id) => !cited.has(id));
+  if (nociteIds.length > 0) {
+    clusters.push({ ids: nociteIds, locators: [] });
+  }
+  return nociteIds;
 }
 
 export function collectCitationBacklinksFromTokens(

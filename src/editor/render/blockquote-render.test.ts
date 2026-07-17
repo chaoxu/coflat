@@ -1,3 +1,5 @@
+// Keep after-mount plugin dynamic imports from racing environment teardown.
+import "../test-plugin-preload";
 import { markdown } from "@codemirror/lang-markdown";
 import { EditorSelection, EditorState } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";

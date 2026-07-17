@@ -1,7 +1,11 @@
 import { markdown } from "@codemirror/lang-markdown";
 import { EditorState, StateEffect } from "@codemirror/state";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { CitationFormatter } from "../../core/document-context-types";
+import {
+  type CitationCluster,
+  getCitationRegistrationKey,
+} from "../citations/citation-matching";
 import { equationLabelExtension } from "../../core/parser/equation-label";
 import { fencedDiv } from "../../core/parser/fenced-div";
 import { mathExtension } from "../../core/parser/math-backslash";
@@ -21,8 +25,11 @@ import {
   makeBibStore,
   makeBlockPlugin,
 } from "../test-utils";
+import { createBibliographyWidgetFromState } from "../render/bibliography-render";
 import {
   createCatalogReferencePresentationController,
+  ensureEditorReferencePresentationCitationsRegistered,
+  getEditorNociteConfig,
   getReferencePresentationComputationCountForTest,
   getReferencePresentationModel,
   planReferencePresentation,
@@ -404,5 +411,156 @@ describe("Pandoc citation syntax routing", () => {
       narrative: true,
       rendered: "[1]",
     });
+  });
+});
+
+describe("ensureEditorReferencePresentationCitationsRegistered nocite", () => {
+  function createRecordingFormatter(): {
+    formatter: CitationFormatter;
+    registrations: CitationCluster[][];
+  } {
+    const registrations: CitationCluster[][] = [];
+    let key: string | null = null;
+    const formatter: CitationFormatter = {
+      cite: () => "",
+      citeNarrative: (id) => id,
+      bibliographyEntries: () => [],
+      registerCitations(clusters) {
+        const normalized = clusters.map((cluster) => ({
+          ids: [...cluster.ids],
+          locators: cluster.locators ? [...cluster.locators] : [],
+        }));
+        registrations.push(normalized);
+        key = getCitationRegistrationKey(normalized);
+      },
+      get citationRegistrationKey() {
+        return key;
+      },
+      revision: 0,
+    };
+    return { formatter, registrations };
+  }
+
+  it("appends the trailing nocite cluster and skips re-registration on the same inputs", () => {
+    const analysis = createState("Cites [@karger2000].").field(documentAnalysisField);
+    const store = makeBibStore([CSL_FIXTURES.karger, CSL_FIXTURES.stein]);
+    const { formatter, registrations } = createRecordingFormatter();
+
+    ensureEditorReferencePresentationCitationsRegistered(
+      analysis,
+      store,
+      formatter,
+      ["stein2001"],
+    );
+
+    expect(registrations).toHaveLength(1);
+    expect(registrations[0].map((cluster) => [...cluster.ids])).toEqual([
+      ["karger2000"],
+      ["stein2001"],
+    ]);
+
+    ensureEditorReferencePresentationCitationsRegistered(
+      analysis,
+      store,
+      formatter,
+      ["stein2001"],
+    );
+    expect(registrations).toHaveLength(1);
+  });
+
+  it("expands the wildcard and drops nocite ids already cited in-text", () => {
+    const analysis = createState("Cites [@karger2000].").field(documentAnalysisField);
+    const store = makeBibStore([CSL_FIXTURES.karger, CSL_FIXTURES.stein]);
+    const { formatter, registrations } = createRecordingFormatter();
+
+    ensureEditorReferencePresentationCitationsRegistered(
+      analysis,
+      store,
+      formatter,
+      ["*", "karger2000"],
+    );
+
+    expect(registrations).toHaveLength(1);
+    expect(registrations[0].map((cluster) => [...cluster.ids])).toEqual([
+      ["karger2000"],
+      ["stein2001"],
+    ]);
+  });
+
+  it("registers only in-text clusters when nocite is absent or empty", () => {
+    const analysis = createState("Cites [@karger2000].").field(documentAnalysisField);
+    const store = makeBibStore([CSL_FIXTURES.karger, CSL_FIXTURES.stein]);
+    const { formatter, registrations } = createRecordingFormatter();
+
+    ensureEditorReferencePresentationCitationsRegistered(analysis, store, formatter, []);
+
+    expect(registrations).toHaveLength(1);
+    expect(registrations[0].map((cluster) => [...cluster.ids])).toEqual([["karger2000"]]);
+  });
+
+  it("computes the same registration key as the bibliography widget path", async () => {
+    const items = [CSL_FIXTURES.karger, CSL_FIXTURES.stein];
+    const state = applyStateEffects(
+      createState([
+        "---",
+        "nocite: \"@stein2001\"",
+        "---",
+        "",
+        "Cites [@karger2000].",
+      ].join("\n")),
+      bibDataEffect.of({
+        store: makeBibStore(items),
+        formatter: await CslProcessor.create(items),
+      }),
+    );
+    const { store, formatter } = state.field(bibDataField);
+    expect(getEditorNociteConfig(state)).toEqual(["stein2001"]);
+
+    // Bibliography widget path registers first (in-text + trailing nocite).
+    expect(createBibliographyWidgetFromState(state)).not.toBeNull();
+    const registrationKey = formatter?.citationRegistrationKey;
+    expect(registrationKey).not.toBeNull();
+
+    // The presentation path must recognize that key instead of re-registering.
+    const registerSpy = vi.spyOn(formatter as CitationFormatter, "registerCitations");
+    ensureEditorReferencePresentationCitationsRegistered(
+      state.field(documentAnalysisField),
+      store,
+      formatter,
+      getEditorNociteConfig(state),
+    );
+    expect(registerSpy).not.toHaveBeenCalled();
+    expect(formatter?.citationRegistrationKey).toBe(registrationKey);
+    registerSpy.mockRestore();
+  });
+
+  it("primes the bibliography widget path when the presentation path registers first", async () => {
+    const items = [CSL_FIXTURES.karger, CSL_FIXTURES.stein];
+    const state = applyStateEffects(
+      createState([
+        "---",
+        "nocite: \"@*\"",
+        "---",
+        "",
+        "Cites [@karger2000].",
+      ].join("\n")),
+      bibDataEffect.of({
+        store: makeBibStore(items),
+        formatter: await CslProcessor.create(items),
+      }),
+    );
+    const { store, formatter } = state.field(bibDataField);
+
+    ensureEditorReferencePresentationCitationsRegistered(
+      state.field(documentAnalysisField),
+      store,
+      formatter,
+      getEditorNociteConfig(state),
+    );
+
+    const registerSpy = vi.spyOn(formatter as CitationFormatter, "registerCitations");
+    expect(createBibliographyWidgetFromState(state)).not.toBeNull();
+    expect(registerSpy).not.toHaveBeenCalled();
+    registerSpy.mockRestore();
   });
 });

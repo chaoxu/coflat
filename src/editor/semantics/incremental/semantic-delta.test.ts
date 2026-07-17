@@ -119,6 +119,69 @@ describe("buildSemanticDelta", () => {
     expect(buildSemanticDelta(tr).plainInlineTextOnlyChange).toBe(false);
   });
 
+  it("does not mark a '-' that completes a '---' delimiter line as plain inline", () => {
+    const doc = "alpha paragraph\n\n--\nbeta paragraph";
+    const state = createMarkdownState(doc);
+    const tr = state.update({
+      changes: { from: doc.indexOf("--") + 2, insert: "-" },
+    });
+
+    expect(buildSemanticDelta(tr).plainInlineTextOnlyChange).toBe(false);
+  });
+
+  it("does not mark a '_' that completes a '___' thematic break as plain inline", () => {
+    const doc = "alpha paragraph\n\n__\nbeta paragraph";
+    const state = createMarkdownState(doc);
+    const tr = state.update({
+      changes: { from: doc.indexOf("__") + 2, insert: "_" },
+    });
+
+    expect(buildSemanticDelta(tr).plainInlineTextOnlyChange).toBe(false);
+  });
+
+  it("does not mark a deletion that reveals a delimiter line as plain inline", () => {
+    // Removing the safe `x` turns the line into a setext underline: the
+    // removed text alone looks plain, only the resulting line shape gives
+    // the reinterpretation away.
+    const doc = "title text\nx---";
+    const state = createMarkdownState(doc);
+    const from = doc.indexOf("x---");
+    const tr = state.update({ changes: { from, to: from + 1 } });
+
+    expect(buildSemanticDelta(tr).plainInlineTextOnlyChange).toBe(false);
+  });
+
+  it("does not mark an insertion that destroys a delimiter line as plain inline", () => {
+    const doc = "alpha paragraph\n\n---\n\nbeta paragraph";
+    const state = createMarkdownState(doc);
+    const tr = state.update({
+      changes: { from: doc.indexOf("---"), insert: "x" },
+    });
+
+    expect(buildSemanticDelta(tr).plainInlineTextOnlyChange).toBe(false);
+  });
+
+  it("keeps a hyphen typed inside prose on the plain-inline fast path", () => {
+    const doc = "a well known issue in prose";
+    const state = createMarkdownState(doc);
+    const from = doc.indexOf(" known");
+    const tr = state.update({
+      changes: { from, to: from + 1, insert: "-" },
+    });
+
+    expect(buildSemanticDelta(tr).plainInlineTextOnlyChange).toBe(true);
+  });
+
+  it("keeps a hyphen typed at the end of a prose line on the fast path", () => {
+    const doc = "first line re\nsecond line";
+    const state = createMarkdownState(doc);
+    const tr = state.update({
+      changes: { from: doc.indexOf("re\n") + 2, insert: "-" },
+    });
+
+    expect(buildSemanticDelta(tr).plainInlineTextOnlyChange).toBe(true);
+  });
+
   it("marks explicit global invalidation annotations", () => {
     const state = createMarkdownState("body");
     const tr = state.update({

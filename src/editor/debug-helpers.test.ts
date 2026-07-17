@@ -1,3 +1,5 @@
+// Keep after-mount plugin dynamic imports from racing environment teardown.
+import "./test-plugin-preload";
 import { forceParsing } from "@codemirror/language";
 import { EditorView } from "@codemirror/view";
 import { afterEach, describe, expect, it } from "vitest";

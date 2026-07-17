@@ -5,6 +5,7 @@ import type { DocumentAnalysis } from "../semantics/document";
 import { analyzeMarkdownSemantics } from "../semantics/markdown-analysis";
 import { buildCitationBacklinkMap } from "./bibliography";
 import {
+  appendNociteRegistrationCluster,
   type CitationBacklink,
   type CitationCollectionOptions,
   type CitationReferenceToken,
@@ -29,6 +30,8 @@ export interface CitationRenderData {
   readonly cslProcessor?: CslProcessor;
   readonly rawStore?: BibStore;
   readonly store: BibStore;
+  /** Bibliography load/parse status for hosts that surface diagnostics. */
+  readonly status?: BibliographyStatus;
 }
 
 export interface LoadedBibliography {
@@ -61,6 +64,19 @@ export const EMPTY_CITATIONS: CitationRenderData = {
   rawStore: EMPTY_STORE,
   store: EMPTY_STORE,
 };
+
+/**
+ * `EMPTY_CITATIONS`, carrying any non-idle bibliography status so hosts can
+ * surface load/parse diagnostics even when no citation data was produced.
+ */
+function emptyCitationsWithStatus(
+  loadedBibliography: LoadedBibliography,
+): CitationRenderData {
+  const status = loadedBibliography.status;
+  return status && status.state !== "idle"
+    ? { ...EMPTY_CITATIONS, status }
+    : EMPTY_CITATIONS;
+}
 
 function filterCitationStore(
   store: BibStore,
@@ -164,19 +180,22 @@ export async function loadBibliographyResource(
 export function buildCitationRenderData(
   doc: string,
   loadedBibliography: LoadedBibliography,
+  config?: Pick<FrontmatterConfig, "nocite">,
 ): CitationRenderData {
   return buildCitationRenderDataFromAnalysis(
     analyzeMarkdownSemantics(doc),
     loadedBibliography,
+    config,
   );
 }
 
 export function buildCitationRenderDataFromAnalysis(
   analysis: Pick<DocumentAnalysis, "references" | "referenceIndex">,
   loadedBibliography: LoadedBibliography,
+  config?: Pick<FrontmatterConfig, "nocite">,
 ): CitationRenderData {
   if (loadedBibliography.store.size === 0) {
-    return EMPTY_CITATIONS;
+    return emptyCitationsWithStatus(loadedBibliography);
   }
 
   const options = {
@@ -184,6 +203,14 @@ export function buildCitationRenderDataFromAnalysis(
   };
   const citationStore = filterCitationStore(loadedBibliography.store, options);
   const clusters = collectCitationMatchesFromAnalysis(analysis, loadedBibliography.store);
+  // Trailing nocite cluster mirrors the editor bibliography path, so
+  // host-consumed citedIds include Pandoc `nocite` entries.
+  appendNociteRegistrationCluster(
+    clusters,
+    config?.nocite,
+    loadedBibliography.store,
+    options,
+  );
   const cslProcessor = loadedBibliography.cslProcessor;
   if (
     cslProcessor
@@ -203,6 +230,7 @@ export function buildCitationRenderDataFromAnalysis(
     cslProcessor,
     rawStore: loadedBibliography.store,
     store: citationStore,
+    status: loadedBibliography.status,
   };
 }
 
@@ -212,7 +240,7 @@ export function buildCitationRenderDataFromReferences(
   options?: CitationCollectionOptions,
 ): CitationRenderData {
   if (loadedBibliography.store.size === 0) {
-    return EMPTY_CITATIONS;
+    return emptyCitationsWithStatus(loadedBibliography);
   }
 
   const citationStore = filterCitationStore(loadedBibliography.store, options);
@@ -237,6 +265,7 @@ export function buildCitationRenderDataFromReferences(
     cslProcessor,
     rawStore: loadedBibliography.store,
     store: citationStore,
+    status: loadedBibliography.status,
   };
 }
 
@@ -264,10 +293,20 @@ export function useCitationRenderData(
           setLoadedBibliography(nextBibliography);
         }
       })
-      .catch((error) => {
+      .catch((error: unknown) => {
         console.warn("[bibliography] failed to load bibliography", error);
         if (!cancelled) {
-          setLoadedBibliography(EMPTY_BIBLIOGRAPHY);
+          // Surface the failure through the bibliography status channel
+          // instead of silently reporting an idle empty bibliography.
+          setLoadedBibliography({
+            store: EMPTY_STORE,
+            status: {
+              state: "error",
+              kind: "unexpected",
+              bibPath: bibliographyPath,
+              message: error instanceof Error ? error.message : String(error),
+            },
+          });
         }
       });
 
@@ -276,8 +315,9 @@ export function useCitationRenderData(
     };
   }, [config.bibliography, config.csl, resolver.readProjectTextFile]);
 
+  const nocite = config.nocite;
   return useMemo(
-    () => buildCitationRenderData(doc, loadedBibliography),
-    [doc, loadedBibliography],
+    () => buildCitationRenderData(doc, loadedBibliography, { nocite }),
+    [doc, loadedBibliography, nocite],
   );
 }

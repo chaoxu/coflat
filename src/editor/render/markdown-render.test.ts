@@ -1264,6 +1264,33 @@ describe("markdownRenderPlugin doc-change invalidation (#823)", () => {
     expect(after.some((spec) => spec.from === 0 && spec.to === 2)).toBe(false);
   });
 
+  it("drops stale tail inline decorations when a fence opener at the top recodes the tail", () => {
+    // The tree-driven analogue of the reference-render slice-swap fix: the
+    // fence opener's changed range is 4 characters at the top, but the whole
+    // tail reparses as code text in the same transaction. The enclosing-node
+    // expansion in computeMarkdownDocChangeRanges must dirty the recoded tail
+    // so its previously hidden emphasis markers are dropped and re-collected,
+    // not mapped forward as stale replacements.
+    const doc = "intro\n\n**bold** tail";
+    const boldFrom = doc.indexOf("**bold**");
+    view = createView(doc, doc.length);
+    const before = getAllDecorationSpecs(view);
+    expect(before.some((spec) => spec.from === boldFrom && spec.to === boldFrom + 2)).toBe(true);
+
+    view.dispatch({ changes: { from: 0, insert: "```\n" } });
+
+    // Precondition: the tail reparsed in-transaction into the fenced block.
+    const mappedBoldFrom = boldFrom + "```\n".length;
+    expect(
+      syntaxTree(view.state).resolveInner(mappedBoldFrom + 1, 1).name,
+    ).toBe("CodeText");
+
+    const after = getAllDecorationSpecs(view);
+    expect(after.some((spec) =>
+      spec.from === mappedBoldFrom && spec.to === mappedBoldFrom + 2
+    )).toBe(false);
+  });
+
   it("replaces stale heading line decorations when the heading level changes", () => {
     view = createView("# Heading", 1);
     expect(hasLineClassAt(getAllDecorationSpecs(view), 0, "cf-heading-line-1")).toBe(true);

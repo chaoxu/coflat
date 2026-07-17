@@ -467,6 +467,118 @@ describe("tree-progress incremental reconciliation", () => {
     expectMatchesRebuild(after, rebuilt);
   });
 
+  it("repairs a paragraph reinterpreted as a setext heading by a typed underline dash", () => {
+    // `-` is in the inline-prose safe character set, but a line consisting
+    // solely of dashes is a setext underline: the keystroke must not take
+    // the plain-inline fast path or the new heading is never extracted.
+    const doc = [
+      "intro paragraph",
+      "",
+      "beta title",
+      "",
+    ].join("\n");
+    const state = createState(doc);
+    const before = analyze(state);
+    expect(before.headings).toEqual([]);
+
+    const tr = state.update({ changes: { from: doc.length, insert: "-" } });
+    let after = updateDocumentAnalysisSnapshot(
+      before,
+      editorStateTextSource(tr.state),
+      fullTree(tr.state),
+      buildSemanticDelta(tr),
+    );
+    for (let tick = 0; tick < 8 && pendingOf(after).length > 0; tick += 1) {
+      after = updateDocumentAnalysisSnapshot(
+        after,
+        editorStateTextSource(tr.state),
+        fullTree(tr.state),
+        pendingDrainDelta(),
+      );
+    }
+
+    const rebuilt = createDocumentAnalysisSnapshot(
+      editorStateTextSource(tr.state),
+      fullTree(tr.state),
+    );
+    expect(rebuilt.headings).toHaveLength(1);
+    expectMatchesRebuild(after, rebuilt);
+  });
+
+  it("re-extracts the prefix when the final '-' of a frontmatter closer is typed", () => {
+    // Same reinterpretation as the test above, but reached through a single
+    // safe-character keystroke: typing the last `-` of the `---` closer must
+    // not stay on the plain-inline fast path, which would skip the
+    // reinterpretation guard and keep stale prefix slices.
+    const doc = [
+      "---",
+      "title: Draft",
+      "",
+      "# Inside Heading {#sec:inside}",
+      "",
+      "alpha paragraph with @sec:inside.",
+      "",
+      "--",
+      "",
+      "tail paragraph",
+      "",
+    ].join("\n");
+    const state = createState(doc);
+    const before = analyze(state);
+    expect(before.headings).toHaveLength(1);
+
+    const closerEnd = doc.indexOf("\n\ntail paragraph");
+    const tr = state.update({ changes: { from: closerEnd, insert: "-" } });
+    let after = updateDocumentAnalysisSnapshot(
+      before,
+      editorStateTextSource(tr.state),
+      fullTree(tr.state),
+      buildSemanticDelta(tr),
+    );
+    for (let tick = 0; tick < 8 && pendingOf(after).length > 0; tick += 1) {
+      after = updateDocumentAnalysisSnapshot(
+        after,
+        editorStateTextSource(tr.state),
+        fullTree(tr.state),
+        pendingDrainDelta(),
+      );
+    }
+
+    const rebuilt = createDocumentAnalysisSnapshot(
+      editorStateTextSource(tr.state),
+      fullTree(tr.state),
+    );
+    expect(rebuilt.headings).toEqual([]);
+    expectMatchesRebuild(after, rebuilt);
+  });
+
+  it("keeps a hyphen typed inside prose on the fast path with snapshot identity", () => {
+    const doc = [
+      "# Intro {#sec:intro}",
+      "",
+      "a well known issue in prose",
+      "",
+    ].join("\n");
+    const state = createState(doc);
+    const before = analyze(state);
+
+    const from = doc.indexOf(" known");
+    const tr = state.update({ changes: { from, to: from + 1, insert: "-" } });
+    const delta = buildSemanticDelta(tr);
+    expect(delta.plainInlineTextOnlyChange).toBe(true);
+
+    const after = updateDocumentAnalysisSnapshot(
+      before,
+      editorStateTextSource(tr.state),
+      fullTree(tr.state),
+      delta,
+    );
+
+    // The reinterpretation guard was not applied and no slice changed.
+    expect(after).toBe(before);
+    expect(pendingOf(after)).toEqual([]);
+  });
+
   it("skips oversized backoff windows on the doc-changed path and leaves them pending", () => {
     // The pending region's backoff lands at the start of an enclosing
     // >budget fenced div: a keystroke must not extract it; the drain ticks
