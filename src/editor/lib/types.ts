@@ -5,7 +5,8 @@
  * file adds the CM6 Facet machinery that requires @codemirror/state.
  */
 
-import { Facet } from "@codemirror/state";
+import { Compartment, type Extension, Facet } from "@codemirror/state";
+import type { EditorView } from "@codemirror/view";
 import type { FileSystem } from "../../core/lib/file-system-types";
 
 /**
@@ -45,3 +46,15 @@ export const documentPathFacet = Facet.define<string, string>({
     return "";
   },
 });
+
+export const documentPathCompartment = new Compartment();
+
+export function documentPathExtension(path?: string): Extension {
+  return documentPathCompartment.of(documentPathFacet.of(path ?? ""));
+}
+
+export function setDocumentPath(view: EditorView, path?: string): void {
+  view.dispatch({
+    effects: documentPathCompartment.reconfigure(documentPathFacet.of(path ?? "")),
+  });
+}

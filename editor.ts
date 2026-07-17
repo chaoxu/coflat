@@ -60,7 +60,7 @@ import {
   type ScrollToLineOptions,
   type ScrollToPositionOptions,
 } from "./src/editor/headless/per-file-panels";
-import { documentPathFacet, fileSystemFacet } from "./src/editor/lib/types";
+import { documentPathExtension, fileSystemFacet, setDocumentPath } from "./src/editor/lib/types";
 import { sidenotesCollapsedField } from "./src/editor/render";
 import { createSaveController, saveExtension } from "./src/editor/save-handler";
 import { type BibData, bibDataEffect } from "./src/editor/state/bib-data";
@@ -132,6 +132,7 @@ export interface MountedEditor {
   getDoc(): string;
   setDoc(doc: string): void;
   insertText(text: string, opts?: EditorInsertTextOptions): void;
+  setPath(path?: string): void;
   setContext(context: DocumentContext): void;
   getMode(): EditorMode;
   setMode(mode: EditorMode): void;
@@ -287,7 +288,7 @@ export function mountEditor(options: MountEditorOptions): MountedEditor {
             autocompleteSourceExtension({ from: options.from }),
           ]
         : []),
-      ...(options.from ? [documentPathFacet.of(options.from)] : []),
+      documentPathExtension(options.from),
       ...(options.fileSystem ? [fileSystemFacet.of(options.fileSystem)] : []),
       [sidenotesCollapsedField.init(() => initialSidenotesCollapsed)],
       ...(options.extensions ?? []),
@@ -353,6 +354,11 @@ export function mountEditor(options: MountEditorOptions): MountedEditor {
         scrollIntoView: true,
         userEvent: "input",
       });
+    },
+
+    setPath(path) {
+      if (!view) return;
+      setDocumentPath(view, path);
     },
 
     setContext(context) {
