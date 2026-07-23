@@ -1,4 +1,5 @@
 import type { SyntaxNode } from "@lezer/common";
+import { createAlgoLineDom } from "../../core/algo-line-surface";
 import {
   appendBlockCaptionLabel,
   appendBlockCaptionText,
@@ -12,6 +13,7 @@ import {
 } from "../../core/block-heading-surface";
 import type { BlockPresentationPlan } from "../../core/block-presentation";
 import {
+  algoLineRenderPlan,
   blockquoteRenderPlan,
   codeBlockRenderPlan,
   dispatchBlockNodeRender,
@@ -194,6 +196,7 @@ function renderNode(
   dispatchBlockNodeRender(node, {
     document: () => renderDocument(parent, node, context),
     paragraph: () => renderParagraph(parent, node, context),
+    algoLine: () => renderAlgoLine(parent, node, context),
     heading: () => renderHeading(parent, node, context),
     codeBlock: () => renderFencedCode(parent, node, context),
     list: () => renderList(parent, node, context),
@@ -231,6 +234,34 @@ function renderChildNodes(
     renderNode(parent, child, context);
     child = child.nextSibling;
   }
+}
+
+function renderAlgoLine(
+  parent: HTMLElement | DocumentFragment,
+  node: SyntaxNode,
+  context: PreviewRenderContext,
+): void {
+  const plan = algoLineRenderPlan(context.doc, node, {
+    sourceRanges: context.paragraphSourcePositions,
+  });
+  const line = createAlgoLineDom(document, plan.indentDepth, (el) => {
+    renderInlineFragmentsToDom(
+      el,
+      plan.fragments,
+      context.macros,
+      context.surfacePolicy.bodyInlineSurface,
+      {
+        ...context.referenceContext,
+        imageUrlOverrides: context.imageUrlOverrides,
+        footnoteNumbers: context.footnoteNumbers,
+      },
+      {
+        sourceOffset: context.paragraphSourceOffset,
+        sourcePositions: context.paragraphSourcePositions,
+      },
+    );
+  });
+  parent.appendChild(line);
 }
 
 function renderParagraph(

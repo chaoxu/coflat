@@ -417,6 +417,16 @@
   overflow-wrap: anywhere;
 }
 
+/* Erickson-style algo pseudocode line. Indentation is the literal leading
+   whitespace of the source line (break-spaces preserves it), keeping the
+   reader pixel-aligned with the CM6 editor's rendering of the same line. */
+.cf-doc-flow .cf-doc-algo-line {
+  margin: 0;
+  white-space: break-spaces;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
 .cf-doc-flow .cf-doc-list {
   margin: 0;
   padding-left: 0;

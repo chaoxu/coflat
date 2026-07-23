@@ -456,7 +456,8 @@ Display math and fenced divs are independent block structures. A display math op
 | `example` | -- (unnumbered) | normal | -- |
 | `remark` | -- (unnumbered) | normal | -- |
 | `proof` | -- (unnumbered) | normal | QED tombstone at end |
-| `algorithm` | algorithm | normal | -- |
+| `algorithm` | algorithm | normal | verbatim code-fence body |
+| `algo` | algorithm | normal | line-mode pseudocode body (see below) |
 | `figure` | figure | normal | caption rendered below content |
 | `table` | table | normal | caption rendered below content |
 | `blockquote` | -- (unnumbered) | normal | header label hidden |
@@ -503,6 +504,53 @@ Output: distances d[v]
 ```
 :::
 ````
+
+#### Erickson-style pseudocode (`.algo`)
+
+`.algo` blocks are line-mode pseudocode in the style of Jeff Erickson's `algo`
+LaTeX environment: every non-blank physical line inside the div is one
+algorithm line, and leading whitespace is the block structure (2 spaces = 1
+indent level; a tab counts as 1 level). Line content is ordinary inline
+markdown, so `$...$` math renders everywhere:
+
+```markdown
+::: {.algo #alg:min3 title="Compute a minimum 3-partition."}
+$\textsc{Min3Partition}(f)$:
+  $V \gets \mathrm{domain}(f)$
+  if $|V| \le 6$
+    return the optimum by brute force
+  for $X \in \binom{V}{1}$
+    add candidate $\{X\} \cup \textsc{Min2Partition}(f_{\setminus X})$
+  return minimum over all candidates
+:::
+```
+
+Rules:
+
+- One source line = one rendered line; there is no continuation syntax.
+  On-screen surfaces render the literal leading spaces (reader and editor
+  stay pixel-aligned); the LaTeX tabbing export keeps wrapped and following
+  lines at their indent level.
+- Blank lines inside the block are preserved as vertical spacing.
+- The body has **no nested block structure**: a line starting with `:::`,
+  `#`, `-`, or ` ``` ` is still just a pseudocode line. Only the exact
+  matching closing fence ends the block.
+- `.algo` shares the `algorithm` counter group and the `alg:` ID prefix, so
+  `.algo` and `.algorithm` blocks number together and cross-reference the
+  same way. The `title` attribute becomes the caption, as with `.algorithm`.
+- There are no keywords, line numbers, or automatic styling — the Erickson
+  aesthetic is plain text plus math plus indentation.
+
+LaTeX export maps the body onto a boxed, centered `tabbing` environment
+(`coflatalgo` in the article template, after chao.sty / Jeff Erickson's
+macros), converting indent changes between consecutive lines into `\+` / `\-`
+tabbing marks inside an `algorithm` float whose `\caption` is the title.
+
+Internally, `.algo` is the first block class with `bodyMode: "lines"` in the
+block manifest: the fenced-div parser starts a `LineFencedDiv` composite
+instead of `FencedDiv` (same fence syntax, opener attributes, nesting, and
+closer rules), and each body line parses as an `AlgoLine` node with inline
+content.
 
 ### Custom block types
 
@@ -719,7 +767,7 @@ Three or more hyphens on a line. Must not be at the start of the document (where
 
 ## LaTeX Export
 
-The LaTeX export pipeline (`scripts/export-latex.mjs`, desktop PDF/LaTeX export, `src/latex/`) emits a compilable `.tex` or `.pdf` file from a canonical Coflat Markdown document. The stages are:
+The LaTeX export pipeline (`scripts/export-latex.mjs`, desktop PDF/LaTeX export, `src/editor/latex/`) emits a compilable `.tex` or `.pdf` file from a canonical Coflat Markdown document. The default `article` template is the Springer LNCS proceedings layout; `llncs.cls` must be installed by the TeX distribution. The existing `lipics` template remains available when selected explicitly.
 
 1. **Prepare metadata** — preserve root frontmatter as Pandoc metadata and hoist supported export-only fields such as `math:` into Pandoc-compatible metadata.
 2. **Pandoc** — invoked as:
@@ -727,8 +775,8 @@ The LaTeX export pipeline (`scripts/export-latex.mjs`, desktop PDF/LaTeX export,
    ```text
    pandoc --from markdown+fenced_divs+raw_tex+grid_tables+pipe_tables+tex_math_dollars+tex_math_single_backslash+mark \
           --to latex --wrap=preserve --syntax-highlighting=none \
-          --lua-filter=src/latex/filter.lua \
-          --template=src/latex/template/<variant>.tex \
+          --lua-filter=src/editor/latex/filter.lua \
+          --template=src/editor/latex/template/<variant>.tex \
           --metadata=bibliography=<bib-name-without-.bib> \
           --output=out/<doc>.tex
    ```
@@ -745,13 +793,14 @@ Each built-in block maps to a LaTeX environment. Unknown classes are passed thro
 | `.lemma` | `lemma` | |
 | `.corollary` | `corollary` | |
 | `.proposition` | `proposition` | |
-| `.conjecture` | `conjecture` | Requires `\newtheorem{conjecture}` |
+| `.conjecture` | `conjecture` | |
 | `.definition` | `definition` | |
 | `.problem` | `problem` | |
 | `.example` | `example` | |
 | `.remark` | `remark` | |
 | `.proof` | `proof` | |
 | `.algorithm` | `algorithm` | Body becomes pseudocode; title → `\caption`, `#id` → `\label` |
+| `.algo` | `algorithm` + `coflatalgo` | Erickson-style tabbing box; indent deltas → `\+`/`\-`; title → `\caption`, `#id` → `\label` |
 | `.figure` | `figure` | Multi-image → subfigures |
 | `.table` | `table` + `tabularx` | Supports `<br>` → `\newline`, grid tables → multi-paragraph cells |
 | `.blockquote` | `quote` | |
@@ -795,7 +844,7 @@ macros back into frontmatter `math:`.
 
 ### Template variants
 
-- `template/article.tex` — plain `\documentclass{article}` fallback with `amsthm`, `cleveref`, `soul`, `tabularx`, `booktabs`, `algorithm`, `hyperref`.
+- `template/article.tex` — default Springer LNCS proceedings layout (`\documentclass[runningheads,envcountsame]{llncs}`), with LNCS title metadata, theorem environments, `cleveref`, tables, figures, and algorithms.
 - `template/lipics.tex` — LIPIcs submissions; consumes article metadata plus LIPIcs-specific template metadata (`author`/`authors`, `ccsdesc`, `keywords`, `copyright`, `titlerunning`, `authorrunning`, `funding`, `acknowledgements`, `category`, `relatedversion`).
 
 Select a variant with `scripts/export-latex.mjs --template lipics` or by setting `latex.template: lipics` in frontmatter. `latex.bibliography` overrides the top-level `bibliography` value for LaTeX export; command-line `--template` and `--bibliography` flags override frontmatter in the CLI.

@@ -21,6 +21,7 @@ import {
   type Extension,
 } from "@codemirror/state";
 import type { SyntaxNode, Tree } from "@lezer/common";
+import { isFencedDivNodeName } from "../../core/constants/node-types";
 import { programmaticDocumentChangeAnnotation } from "../state/programmatic-document-change";
 import { fenceOperationAnnotation } from "./fence-protection";
 
@@ -49,7 +50,7 @@ export function collectAncestorFencesFromTree(
   const fences: AncestorFence[] = [];
   let node: SyntaxNode | null = tree.resolveInner(pos, -1);
   while (node) {
-    if (node.name === "FencedDiv") {
+    if (isFencedDivNodeName(node.name)) {
       const open = node.firstChild;
       const close = node.lastChild;
       if (open && open.name === "FencedDivFence") {

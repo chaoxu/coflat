@@ -1,6 +1,7 @@
 import { syntaxTree } from "@codemirror/language";
 import type { EditorView } from "@codemirror/view";
 import { CSS } from "../core/constants/css-classes";
+import { isFencedDivNodeName } from "../core/constants/node-types";
 import { DOCUMENT_SURFACE_CLASS } from "../core/document-surface-classes";
 import {
   type DebugTimelineEvent,
@@ -124,7 +125,7 @@ export function collectDebugTreeDivs(view: EditorView): DebugDivInfo[] {
   const divs: DebugDivInfo[] = [];
   tree.iterate({
     enter(node) {
-      if (node.type.name === "FencedDiv") {
+      if (isFencedDivNodeName(node.type.name)) {
         divs.push({
           from: node.from,
           to: node.to,

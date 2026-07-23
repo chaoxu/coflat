@@ -89,7 +89,17 @@ local function make_env(name, title, id, content)
   local opt = (title and title ~= "") and ("[" .. escape_latex_text(title) .. "]") or ""
   local out = { raw("\\begin{" .. name .. "}" .. opt .. label_for(id)) }
   for _, b in ipairs(content) do table.insert(out, b) end
-  table.insert(out, raw("\\end{" .. name .. "}"))
+  -- The LaTeX writer separates blocks with a blank line, so a standalone
+  -- \end{...} block leaves an empty line closing every environment and pushes
+  -- the proof QED mark onto its own line. Glue \end{...} onto the last
+  -- paragraph instead whenever one exists.
+  local endtag = "\\end{" .. name .. "}"
+  local last = out[#out]
+  if #out > 1 and (last.t == "Para" or last.t == "Plain") then
+    last.content:insert(pandoc.RawInline("latex", endtag))
+  else
+    table.insert(out, raw(endtag))
+  end
   return out
 end
 
@@ -252,8 +262,71 @@ end
 local function handle_algorithm(el)
   local title = markdown_title_to_latex(pop_title(el) or "")
   local id = el.identifier
-  local out = { raw("\\begin{algorithm}[ht]\\caption{" .. title .. "}" .. label_for(id)) }
+  local out = { raw("\\begin{algorithm}[H]\\caption{" .. title .. "}" .. label_for(id)) }
   for _, b in ipairs(el.content) do table.insert(out, b) end
+  table.insert(out, raw("\\end{algorithm}"))
+  return out
+end
+
+-- Erickson-style .algo blocks. The Coflat preprocess step rewrites the algo
+-- body into a pandoc line block ("| " prefix per line), which preserves both
+-- the line structure and the leading indentation (pandoc encodes leading
+-- spaces as U+00A0 on the first Str of each line). Export maps 2 spaces to
+-- one tabbing indent level, emitted as \+ / \- deltas between lines.
+local NBSP = "\194\160"
+
+-- Strip leading non-breaking spaces from a line-block line; returns the
+-- indent depth (2 space units = 1 level) and the remaining inlines.
+local function algo_line_depth(inlines)
+  local first = inlines[1]
+  if not first or first.t ~= "Str" then return 0, inlines end
+  local text = first.text
+  local units = 0
+  local i = 1
+  while text:sub(i, i + 1) == NBSP do
+    units = units + 1
+    i = i + 2
+  end
+  if units == 0 then return 0, inlines end
+  local rest = { table.unpack(inlines) }
+  local remainder = text:sub(i)
+  if remainder == "" then
+    table.remove(rest, 1)
+  else
+    rest[1] = pandoc.Str(remainder)
+  end
+  return math.floor(units / 2), rest
+end
+
+local function handle_algo(el)
+  local title = markdown_title_to_latex(pop_title(el) or "")
+  local id = el.identifier
+  local rows = {}
+  for _, b in ipairs(el.content) do
+    if b.t == "LineBlock" then
+      if #rows > 0 then
+        -- Blank source line between two line blocks: preserved as an empty row.
+        table.insert(rows, { depth = rows[#rows].depth, tex = "" })
+      end
+      for _, line in ipairs(b.content) do
+        local depth, rest = algo_line_depth(line)
+        table.insert(rows, { depth = depth, tex = inlines_to_latex(rest):gsub("%s+$", "") })
+      end
+    end
+  end
+  local body = {}
+  for i, row in ipairs(rows) do
+    local prev = rows[i - 1]
+    local marks = ""
+    if prev then
+      local delta = row.depth - prev.depth
+      marks = string.rep(delta > 0 and "\\+" or "\\-", math.abs(delta))
+    end
+    local prefix = (i == 1) and "" or "\\\\ "
+    table.insert(body, marks .. prefix .. row.tex)
+  end
+  local out = { raw("\\begin{algorithm}[H]\\caption{" .. title .. "}" .. label_for(id)) }
+  table.insert(out, raw("\\begin{coflatalgo}\n" .. table.concat(body, "\n") .. "\n\\end{coflatalgo}"))
   table.insert(out, raw("\\end{algorithm}"))
   return out
 end
@@ -273,6 +346,7 @@ local function transform_div(el)
   if kind == "figure" then return handle_figure(el) end
   if kind == "table" then return handle_table_div(el) end
   if kind == "algorithm" then return handle_algorithm(el) end
+  if kind == "algo" then return handle_algo(el) end
   if kind == "blockquote" then return handle_blockquote(el) end
   return nil
 end
@@ -295,5 +369,12 @@ function Pandoc(doc)
   return doc:walk({
     Cite = function(el) return transform_cite(el, document_labels) end,
     Div = transform_div,
+    Str = function(el)
+      if el.text:find("~", 1, true) then
+        el.text = el.text:gsub("~", "\u{00a0}")
+        return el
+      end
+      return nil
+    end,
   })
 end

@@ -20,12 +20,23 @@ export type BlockPresentationKind =
 
 /** How a block participates in LaTeX export. */
 export type LatexExportKind =
+  | "algo"
   | "algorithm"
   | "blockquote"
   | "environment"
   | "figure"
   | "none"
   | "table";
+
+/**
+ * How the body of a fenced div is parsed.
+ *
+ * - "markdown" (default): body parses as regular markdown blocks.
+ * - "lines": each physical line is one `AlgoLine` node with inline content
+ *   (math, emphasis, ...) and indentation carried by leading whitespace.
+ *   The div parses as a `LineFencedDiv` composite instead of `FencedDiv`.
+ */
+export type BlockBodyMode = "lines" | "markdown";
 
 /** Where the caption/header label is placed relative to block content. */
 export type CaptionPosition = "above" | "below";
@@ -45,6 +56,8 @@ export interface BlockManifestEntry {
   readonly bodyStyle: BodyStyle;
   /** Special rendering behavior, if any. */
   readonly specialBehavior?: SpecialBehavior;
+  /** How the div body is parsed. Defaults to "markdown". */
+  readonly bodyMode?: BlockBodyMode;
   /** LaTeX export strategy for this block type. Defaults to "environment". */
   readonly latexExportKind?: LatexExportKind;
   /** LaTeX environment name when latexExportKind is "environment". */
@@ -104,6 +117,10 @@ export const BLOCK_MANIFEST = [
   // Algorithm — own counter, normal body
   { name: "algorithm",   counterGroup: "algorithm",  numbered: true,  bodyStyle: "normal", latexExportKind: "algorithm" },
 
+  // Erickson-style pseudocode — shares the algorithm counter; line-mode body
+  // (one AlgoLine per physical line, indentation = leading whitespace)
+  { name: "algo",        counterGroup: "algorithm",  numbered: true,  bodyStyle: "normal", bodyMode: "lines", title: "Algorithm", latexExportKind: "algo" },
+
   // Figure — own counter, caption below content
   { name: "figure",      counterGroup: "figure",     numbered: true,  bodyStyle: "normal", captionPosition: "below", latexExportKind: "figure" },
 
@@ -156,7 +173,7 @@ export function isCollapsibleBlockType(blockType: string | undefined): boolean {
   const entry = getBlockManifestEntry(blockType);
   return Boolean(
     blockType
-    && entry?.latexExportKind === "environment"
+    && (entry?.latexExportKind === "environment" || entry?.latexExportKind === "algo")
     && entry.headerPosition !== "inline"
     && entry.displayHeader !== false,
   );
@@ -164,6 +181,21 @@ export function isCollapsibleBlockType(blockType: string | undefined): boolean {
 
 export function isKnownManifestBlockType(blockType: string): boolean {
   return BLOCK_MANIFEST_BY_NAME.has(blockType);
+}
+
+/** Block classes whose div bodies parse line-by-line (`bodyMode: "lines"`). */
+export const LINE_MODE_BLOCK_CLASSES: ReadonlySet<string> = new Set(
+  BLOCK_MANIFEST_ENTRIES.filter((entry) => entry.bodyMode === "lines").map((entry) => entry.name),
+);
+
+/**
+ * Whether a fenced-div class parses its body in line mode.
+ *
+ * Consulted by the parser when an opening fence is recognized, so the
+ * decision is per-class and static for a given build of the manifest.
+ */
+export function isLineModeBlockClass(blockType: string): boolean {
+  return LINE_MODE_BLOCK_CLASSES.has(blockType);
 }
 
 export function getManifestBlockTitle(entry: BlockManifestEntry): string {

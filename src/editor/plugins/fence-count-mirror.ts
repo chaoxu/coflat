@@ -24,6 +24,7 @@ import {
   type Extension,
 } from "@codemirror/state";
 import type { SyntaxNode } from "@lezer/common";
+import { isFencedDivNodeName } from "../../core/constants/node-types";
 import { countColons } from "../../core/parser/fenced-div";
 import { programmaticDocumentChangeAnnotation } from "../state/programmatic-document-change";
 import { fenceOperationAnnotation } from "./fence-protection";
@@ -70,7 +71,7 @@ export const fenceCountMirrorExtension: Extension = EditorState.transactionFilte
   const collectFromPosition = (pos: number, side: -1 | 1) => {
     let node: SyntaxNode | null = tree.resolveInner(pos, side);
     while (node) {
-      if (node.name === "FencedDiv" && !visited.has(node.from)) {
+      if (isFencedDivNodeName(node.name) && !visited.has(node.from)) {
         visited.add(node.from);
         candidates.push(node);
       }

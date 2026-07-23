@@ -183,6 +183,7 @@ describe("blockNodeRenderKind", () => {
       displayMath: () => seen.push("display-math"),
       codeBlock: () => seen.push("code-block"),
       blockquote: () => seen.push("blockquote"),
+      algoLine: () => seen.push("algo-line"),
       list: () => seen.push("list"),
       table: () => seen.push("table"),
       fencedDiv: () => seen.push("fenced-div"),

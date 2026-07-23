@@ -280,6 +280,7 @@ export function collectStructuralWindow(
             collectFootnoteDef(source, c, result);
             break;
           case NODE.FencedDiv:
+          case NODE.LineFencedDiv:
             collectFencedDiv(source, c, result);
             break;
           case NODE.InlineMath:
@@ -396,6 +397,7 @@ export function extractFencedDivExpansionWindow(
       let shouldDescend = true;
       switch (c.name) {
         case NODE.FencedDiv:
+        case NODE.LineFencedDiv:
           collectFencedDiv(source, c, structural);
           break;
         case NODE.InlineMath:

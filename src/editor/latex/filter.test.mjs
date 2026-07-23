@@ -63,6 +63,19 @@ describe("LaTeX filter custom blocks", () => {
 
     expect(latex).toContain("\\caption{rank-\\(j\\) reduction}\\label{tbl:main}");
   });
+
+  it.skipIf(!hasPandoc)("keeps algorithms at their source position", () => {
+    const latex = runPandoc('::: {.algorithm #alg:main title="Main procedure"}\nBody\n:::\n');
+
+    expect(latex).toContain("\\begin{algorithm}[H]\\caption{Main procedure}\\label{alg:main}");
+  });
+
+  it.skipIf(!hasPandoc)("glues the environment end onto the final paragraph", () => {
+    const latex = runPandoc("::: {.proof}\nThe result follows.\n:::\n");
+
+    expect(latex).toContain("The result follows.\\end{proof}");
+    expect(latex).not.toContain("\n\n\\end{proof}");
+  });
 });
 
 describe("LaTeX filter inline mappings", () => {
@@ -81,6 +94,13 @@ describe("LaTeX filter inline mappings", () => {
     const latex = runPandoc("A ==highlighted **term**==.\n");
 
     expect(latex).toContain("==highlighted \\textbf{term}==");
+  });
+
+  it.skipIf(!hasPandoc)("preserves author-written LaTeX nonbreaking spaces", () => {
+    const latex = runPandoc("See Theorem~3.1 and [@karger2000, Thm.~5].\n");
+
+    expect(latex).toContain("Theorem~3.1");
+    expect(latex).not.toContain("\\textasciitilde");
   });
 
   it.skipIf(!hasPandoc)("renders document citations as cross-reference clusters", () => {
@@ -108,5 +128,40 @@ describe("LaTeX filter inline mappings", () => {
 
     expect(latex).toContain("\\cref{thm:main}");
     expect(latex).not.toContain("\\cref{karger2000}");
+  });
+});
+
+describe("LaTeX filter algo blocks", () => {
+  it.skipIf(!hasPandoc)("maps line-block algo bodies to the coflatalgo tabbing environment", () => {
+    const latex = runPandoc([
+      '::: {.algo #alg:min title="Compute a minimum."}',
+      "| $\\textsc{Min}(f)$:",
+      "|   if $|V| \\le 6$",
+      "|     return brute force",
+      "|   return best candidate",
+      ":::",
+    ].join("\n"));
+
+    expect(latex).toContain("\\begin{algorithm}[H]\\caption{Compute a minimum.}\\label{alg:min}");
+    expect(latex).toContain("\\begin{coflatalgo}");
+    expect(latex).toContain("\\end{coflatalgo}");
+    // Indent deltas become tabbing marks placed before the line break.
+    expect(latex).toContain("\\+\\\\ if \\(|V| \\le 6\\)");
+    expect(latex).toContain("\\+\\\\ return brute force");
+    expect(latex).toContain("\\-\\\\ return best candidate");
+    // No leading non-breaking spaces survive into the body.
+    expect(latex).not.toContain(" ");
+  });
+
+  it.skipIf(!hasPandoc)("keeps blank algo lines as empty rows", () => {
+    const latex = runPandoc([
+      "::: {.algo}",
+      "| phase one",
+      "",
+      "| phase two",
+      ":::",
+    ].join("\n"));
+
+    expect(latex).toContain("phase one\n\\\\ \n\\\\ phase two");
   });
 });

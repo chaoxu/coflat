@@ -679,6 +679,33 @@ describe("renderToHtml — block-level rendering ()", () => {
     expect(r.html).not.toContain('data-ref-key="knuth1984"');
   });
 
+  it("renders .algo divs as line-mode pseudocode with indent and math", () => {
+    const doc = [
+      '::: {.algo #alg:min title="Compute a minimum."}',
+      "$\\textsc{Min}(f)$:",
+      "  if $|V| \\le 6$",
+      "    return brute force",
+      ":::",
+    ].join("\n");
+    const r = renderToHtml(doc);
+    expect(r.html).toContain("cf-doc-block--algo");
+    expect(r.html).toContain('id="alg:min"');
+    // Theorem-style header chrome: label + parenthesized title, so the
+    // reader pixel-matches the CM6 editor rendering of the same block.
+    expect(r.html).toContain('<span class="cf-block-header-rendered">Algorithm 1</span>');
+    expect(r.html).toContain("Compute a minimum.");
+    // One line per physical line, indent as CSS custom property.
+    const lineCount = (r.html.match(/cf-doc-algo-line/g) ?? []).length;
+    expect(lineCount).toBe(3);
+    expect(r.html).toContain('data-indent="1"');
+    expect(r.html).toContain('data-indent="2"');
+    // Literal leading spaces are preserved for editor pixel parity.
+    expect(r.html).toContain('>    return brute force</div>');
+    // Inline math renders as hydratable math placeholder spans.
+    expect(r.hasMath).toBe(true);
+    expect(r.html).toContain('data-math="|V| \\le 6"');
+  });
+
   it("renders fenced divs with class and data-* attributes", () => {
     const r = renderToHtml("::: {.theorem #thm-1 title=\"Pythagoras\"}\nbody\n:::");
     expect(r.html).toContain('cf-doc-block-collapsible');

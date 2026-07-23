@@ -6,7 +6,9 @@ import type {
   MarkdownConfig,
   NodeSpec,
 } from "@lezer/markdown";
+import { isLineModeBlockClass } from "../constants/block-manifest";
 import { COLON, findMatchingBrace, isSpaceTab, OPEN_BRACE, skipSpaceTab } from "./char-utils";
+import { extractDivClass } from "./fenced-div-attrs";
 
 /**
  * Lezer markdown extension for Pandoc-style fenced divs.
@@ -247,11 +249,14 @@ interface OpeningFenceInfo {
  * closing fence.
  */
 let parseGeneration = 0;
-const fencedDivContexts = new Map<number, { colonCount: number; sameFenceDepth: number }>();
+const fencedDivContexts = new Map<
+  number,
+  { colonCount: number; sameFenceDepth: number; lineMode: boolean }
+>();
 
-function packValue(colonCount: number): number {
+function packValue(colonCount: number, lineMode: boolean): number {
   parseGeneration += 1;
-  fencedDivContexts.set(parseGeneration, { colonCount, sameFenceDepth: 0 });
+  fencedDivContexts.set(parseGeneration, { colonCount, sameFenceDepth: 0, lineMode });
   return parseGeneration;
 }
 
@@ -293,10 +298,12 @@ function fencedDivComposite(
 
   const colonCount = unpackColonCount(value);
   const context = fencedDivContexts.get(value);
-  const opening = parseOpeningFence(
-    line.text,
-    readFencePrefix(line.text, line.pos),
-  );
+  // Line-mode bodies have no nested block structure: an opener-shaped line
+  // inside is just a pseudocode line, so same-fence nesting tracking is
+  // skipped and only an exact closing fence can end the block.
+  const opening = context?.lineMode
+    ? undefined
+    : parseOpeningFence(line.text, readFencePrefix(line.text, line.pos));
   if (opening?.colonCount === colonCount) {
     if (context) context.sameFenceDepth += 1;
     fencedDivLog(`SAME-FENCE nested open at lineStart=${cx.lineStart} depth=${cx.depth}`);
@@ -355,13 +362,21 @@ const fencedDivBlockParser: BlockParser = {
     const fenceStart = cx.lineStart + line.pos;
     const fenceEnd = cx.lineStart + line.pos + info.colonCount;
 
-    const value = packValue(info.colonCount);
-    fencedDivLog(`OPEN at ${fenceStart} colons=${info.colonCount} gen=${value}`);
+    // The primary class decides the body mode: classes registered as
+    // line-mode parse as LineFencedDiv (one AlgoLine per body line, see
+    // algo-line.ts); everything else parses as a regular FencedDiv with a
+    // markdown body. Same opener/attr/closer structure either way.
+    const attrText = info.attrFrom >= 0 ? line.text.slice(info.attrFrom, info.attrTo) : "";
+    const primaryClass = extractDivClass(attrText)?.classes[0];
+    const lineMode = primaryClass !== undefined && isLineModeBlockClass(primaryClass);
+
+    const value = packValue(info.colonCount, lineMode);
+    fencedDivLog(`OPEN at ${fenceStart} colons=${info.colonCount} gen=${value} lineMode=${lineMode}`);
 
     // Start the composite block. Negative value signals self-closing
     // to the composite callback (it will end immediately).
     cx.startComposite(
-      "FencedDiv",
+      lineMode ? "LineFencedDiv" : "FencedDiv",
       line.pos,
       info.isSelfClosing
         ? -value
@@ -430,10 +445,19 @@ const fencedDivNodeSpec: NodeSpec = {
   composite: fencedDivComposite,
 };
 
+// Line-mode variant: identical fence semantics (same composite callback),
+// different body children (AlgoLine leaves instead of markdown blocks).
+const lineFencedDivNodeSpec: NodeSpec = {
+  name: "LineFencedDiv",
+  block: true,
+  composite: fencedDivComposite,
+};
+
 /** Markdown extension that adds fenced div parsing. */
 export const fencedDiv: MarkdownConfig = {
   defineNodes: [
     fencedDivNodeSpec,
+    lineFencedDivNodeSpec,
     { name: "FencedDivFence", block: true },
     { name: "FencedDivAttributes", block: true },
     { name: "FencedDivTitle" },

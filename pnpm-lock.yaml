@@ -6,7 +6,7 @@ settings:
 
 patchedDependencies:
   '@lezer/markdown@1.7.2':
-    hash: db5f9c7fdc1372e8f0176043cb5fd402a7c63e4592699a20611606690fa8ee46
+    hash: f4dc5e7b9cd695dcd90b1f41bb8e872d914975e1f1eb3d657172829c24992df9
     path: patches/@lezer__markdown@1.7.2.patch
   katex@0.16.38:
     hash: 803df0b4b4e1809179417a58b26839e80f2dee2847a6cb2434e98657f788465f
@@ -81,7 +81,7 @@ importers:
         version: 1.2.3
       '@lezer/markdown':
         specifier: ^1.7.2
-        version: 1.7.2(patch_hash=db5f9c7fdc1372e8f0176043cb5fd402a7c63e4592699a20611606690fa8ee46)
+        version: 1.7.2(patch_hash=f4dc5e7b9cd695dcd90b1f41bb8e872d914975e1f1eb3d657172829c24992df9)
       '@overleaf/codemirror-tree-view':
         specifier: ^0.1.3
         version: 0.1.3(@codemirror/language@6.12.4)(@codemirror/state@6.7.1)(@codemirror/view@6.43.6)
@@ -1991,7 +1991,7 @@ snapshots:
       '@codemirror/state': 6.7.1
       '@codemirror/view': 6.43.6
       '@lezer/common': 1.5.2
-      '@lezer/markdown': 1.7.2(patch_hash=db5f9c7fdc1372e8f0176043cb5fd402a7c63e4592699a20611606690fa8ee46)
+      '@lezer/markdown': 1.7.2(patch_hash=f4dc5e7b9cd695dcd90b1f41bb8e872d914975e1f1eb3d657172829c24992df9)
 
   '@codemirror/lang-python@6.2.1':
     dependencies:
@@ -2145,7 +2145,7 @@ snapshots:
     dependencies:
       '@lezer/common': 1.5.2
 
-  '@lezer/markdown@1.7.2(patch_hash=db5f9c7fdc1372e8f0176043cb5fd402a7c63e4592699a20611606690fa8ee46)':
+  '@lezer/markdown@1.7.2(patch_hash=f4dc5e7b9cd695dcd90b1f41bb8e872d914975e1f1eb3d657172829c24992df9)':
     dependencies:
       '@lezer/common': 1.5.2
       '@lezer/highlight': 1.2.3

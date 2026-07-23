@@ -27,7 +27,7 @@ index c7a9a0635880e92239067e985e3d03a73c2f3281..12c4ebee0be98c0ef438a91ff46547ab
 +        // a `:::` line. Reusing an old unclosed FencedDiv would skip its composite
 +        // callback, so only reject reuse for unclosed FencedDiv fragments. Closed
 +        // blocks keep the normal markdown fragment-reuse fast path.
-+        if (cur.type.name == "FencedDiv" && cur.tree && !isClosedFencedDiv(cur.tree))
++        if ((cur.type.name == "FencedDiv" || cur.type.name == "LineFencedDiv") && cur.tree && !isClosedFencedDiv(cur.tree))
 +            return 0;
          let start = cx.absoluteLineStart, end = start, blockI = cx.block.children.length;
          let prevEnd = end, prevI = blockI;
@@ -61,7 +61,7 @@ index 07ce727452fe191aba6d5b3090c4585dd2135853..82a1b5ce543c8cb85e0b67d1ea76766f
 +        // a `:::` line. Reusing an old unclosed FencedDiv would skip its composite
 +        // callback, so only reject reuse for unclosed FencedDiv fragments. Closed
 +        // blocks keep the normal markdown fragment-reuse fast path.
-+        if (cur.type.name == "FencedDiv" && cur.tree && !isClosedFencedDiv(cur.tree))
++        if ((cur.type.name == "FencedDiv" || cur.type.name == "LineFencedDiv") && cur.tree && !isClosedFencedDiv(cur.tree))
 +            return 0;
          let start = cx.absoluteLineStart, end = start, blockI = cx.block.children.length;
          let prevEnd = end, prevI = blockI;
@@ -94,7 +94,7 @@ index 52c151ed6a2aa97bdd719fb80a5f46b493215812..886e4cc7760ef02d957b76730b6e673e
 +    // a `:::` line. Reusing an old unclosed FencedDiv would skip its composite
 +    // callback, so only reject reuse for unclosed FencedDiv fragments. Closed
 +    // blocks keep the normal markdown fragment-reuse fast path.
-+    if (cur.type.name == "FencedDiv" && cur.tree && !isClosedFencedDiv(cur.tree)) return 0
++    if ((cur.type.name == "FencedDiv" || cur.type.name == "LineFencedDiv") && cur.tree && !isClosedFencedDiv(cur.tree)) return 0
      let start = cx.absoluteLineStart, end = start, blockI = cx.block.children.length
      let prevEnd = end, prevI = blockI
      for (;;) {

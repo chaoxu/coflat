@@ -41,7 +41,7 @@ const INLINE_NODES = new Set([
 
 const MATH_NODES = new Set(["InlineMath", "DisplayMath"]);
 
-const BLOCK_NODES = new Set(["FencedDiv", "FencedCode"]);
+const BLOCK_NODES = new Set(["FencedDiv", "LineFencedDiv", "FencedCode"]);
 
 const LINK_NODES = new Set(["Link", "Image"]);
 

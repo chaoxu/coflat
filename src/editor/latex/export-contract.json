@@ -22,7 +22,7 @@
       "--from={pandoc_from}-latex_macros",
       "--to=latex",
       "--wrap=preserve",
-      "--no-highlight",
+      "--syntax-highlighting=none",
       "--lua-filter={latex_filter_path}",
       "--citeproc",
       "--csl={latex_csl_path}",

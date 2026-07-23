@@ -29,6 +29,7 @@ return {
     remark = "environment",
     example = "environment",
     algorithm = "algorithm",
+    algo = "algo",
     figure = "figure",
     table = "table",
     blockquote = "blockquote",

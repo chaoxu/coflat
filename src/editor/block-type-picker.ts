@@ -29,6 +29,7 @@ import {
 import { flushSync } from "react-dom";
 import { createRoot, type Root } from "react-dom/client";
 import { BLOCK_MANIFEST_ENTRIES } from "../core/constants/block-manifest";
+import { isFencedDivNodeName } from "../core/constants/node-types";
 import { editorModeField } from "./editor-mode-state";
 import { fenceOperationAnnotation } from "./plugins";
 import { pluginRegistryField } from "./state/plugin-registry";
@@ -43,7 +44,7 @@ function collectAncestorFences(view: EditorView, pos: number): AncestorFence[] {
   const fences: AncestorFence[] = [];
   let node: SyntaxNode | null = syntaxTree(view.state).resolveInner(pos, -1);
   while (node) {
-    if (node.name === "FencedDiv") {
+    if (isFencedDivNodeName(node.name)) {
       let openFence: SyntaxNode | null = null;
       let closeFence: SyntaxNode | null = null;
       let child = node.firstChild;

@@ -267,6 +267,20 @@ This problem title uses the `title=` attribute and should render "3SUM" in bold.
 This block body keeps rich inline coverage with [a link](https://example.com), [@cormen2009], `code`, and $x^2$.
 :::
 
+# Erickson-Style Algorithms
+
+::: {.algo #alg:min3 title="Compute a minimum 3-partition."}
+$\textsc{Min3Partition}(f)$:
+  $V \gets \mathrm{domain}(f)$
+  if $|V| \le 6$
+    return the optimum by brute force
+  for $X \in \binom{V}{1}$
+    add candidate $\{X\} \cup \textsc{Min2Partition}(f_{\setminus X})$
+  return minimum over all candidates
+:::
+
+See @alg:min3 for the line-mode pseudocode block.
+
 # Appendix {.appendix}
 
 # Parser Notes

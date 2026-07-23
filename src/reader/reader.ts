@@ -9,6 +9,7 @@
 
 import type { SyntaxNode, Tree } from "@lezer/common";
 import createDOMPurify from "dompurify";
+import { renderAlgoLineHtml } from "../core/algo-line-surface";
 import {
   appendBibliographyBacklinks,
   bibliographyEntryId,
@@ -26,6 +27,7 @@ import {
 } from "../core/block-heading-surface";
 import { blockPresentationPlan } from "../core/block-presentation";
 import {
+  algoLineRenderPlan,
   blockLineCost,
   blockquoteRenderPlan,
   codeBlockRenderPlan,
@@ -57,7 +59,7 @@ import {
   CSS,
   hostReferenceClassNames,
 } from "../core/constants/css-classes";
-import { NODE } from "../core/constants/node-types";
+import { isFencedDivNodeName, NODE } from "../core/constants/node-types";
 import {
   createDisclosureToggleButton,
   type DisclosureToggleLabels,
@@ -348,7 +350,7 @@ function computeReaderBlockNumbers(
   const blocks: FencedDivNumberingInfo[] = [];
   tree.iterate({
     enter(node) {
-      if (node.name !== NODE.FencedDiv) return;
+      if (!isFencedDivNodeName(node.name)) return;
       if (node.from < frontmatterEnd) return false;
       const info = fencedDivNumberingInfo(source, node.node);
       if (info) blocks.push(info);
@@ -1195,6 +1197,7 @@ function renderBlock(ctx: WalkContext, node: SyntaxNode): BlockResult {
     document: () => renderParagraph(ctx, node),
     heading: () => renderHeading(ctx, node),
     paragraph: () => renderParagraph(ctx, node),
+    algoLine: () => renderAlgoLine(ctx, node),
     list: () => renderList(ctx, node),
     blockquote: () => renderBlockquote(ctx, node),
     codeBlock: () => renderFencedCode(ctx, node),
@@ -1367,6 +1370,27 @@ function renderParagraph(ctx: WalkContext, node: SyntaxNode): BlockResult {
   );
   return {
     html: renderParagraphHtml(inner.html, blockSourceAttrs(ctx, plan.sourceRange.from, plan.sourceRange.to, "paragraph")),
+    text: plan.text,
+    hasMath: plan.hasMath,
+  };
+}
+
+function renderAlgoLine(ctx: WalkContext, node: SyntaxNode): BlockResult {
+  const plan = algoLineRenderPlan(ctx.source, node, {
+    sourceRanges: ctx.sourcePositions || ctx.mathSourcePositions,
+  });
+  const inner = renderInlineFragmentsForReader(
+    ctx,
+    plan.fragments,
+    plan.contentRange.from,
+    plan.contentRange.to,
+  );
+  return {
+    html: renderAlgoLineHtml(
+      inner.html,
+      plan.indentDepth,
+      blockSourceAttrs(ctx, plan.sourceRange.from, plan.sourceRange.to, "algo-line"),
+    ),
     text: plan.text,
     hasMath: plan.hasMath,
   };

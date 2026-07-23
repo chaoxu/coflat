@@ -1,52 +1,60 @@
-\documentclass[11pt,a4paper]{article}
+\documentclass[runningheads,envcountsame]{llncs}
 
-\usepackage[margin=1in]{geometry}
-\usepackage[dvipsnames,usenames]{xcolor}
-\usepackage{iftex}
-\ifPDFTeX
-  \usepackage[utf8]{inputenc}
-  \usepackage[T1]{fontenc}
-  \usepackage{textcomp}
-  \usepackage{lmodern}
-\else
-  \usepackage{fontspec}
-  \defaultfontfeatures{Ligatures=TeX,Scale=MatchLowercase}
-  \setmainfont{Latin Modern Roman}
-  \setsansfont{Latin Modern Sans}
-  \setmonofont{Latin Modern Mono}
-\fi
+\usepackage[T1]{fontenc}
+\usepackage[dvipsnames]{xcolor}
 \usepackage{microtype}
-\usepackage{amsmath,amssymb,amsthm}
+\usepackage{amsmath,amssymb}
 \usepackage{mathtools}
-\usepackage[colorlinks=true,linkcolor=BrickRed,citecolor=Green,urlcolor=Blue]{hyperref}
+$if(natbib)$
+\usepackage[numbers,sort&compress]{natbib}
+\renewcommand{\bibname}{References}
+\renewcommand{\refname}{References}
+$endif$
+\usepackage[hypertexnames=false,colorlinks=true,linkcolor=BrickRed,citecolor=Green,urlcolor=Blue]{hyperref}
 \usepackage[capitalise,noabbrev]{cleveref}
+\usepackage{etoolbox}
+\crefname{theorem}{Theorem}{Theorems}
+\crefname{lemma}{Lemma}{Lemmas}
+\crefname{corollary}{Corollary}{Corollaries}
+\crefname{proposition}{Proposition}{Propositions}
+\crefname{conjecture}{Conjecture}{Conjectures}
+\crefname{definition}{Definition}{Definitions}
+\crefname{problem}{Problem}{Problems}
+\crefname{example}{Example}{Examples}
+\crefname{remark}{Remark}{Remarks}
+\crefname{appendix}{Appendix}{Appendices}
+\apptocmd{\appendix}{%
+  \crefalias{section}{appendix}%
+  \renewcommand*{\theHsection}{appendix.\Alph{section}}%
+}{}{}
 \usepackage{soul}
 \usepackage{graphicx}
-\usepackage{subcaption}
+\graphicspath{{../}{./}}
 \usepackage{tabularx}
 \usepackage{booktabs}
 \usepackage{array}
 \usepackage{calc}
 \usepackage{algorithm}
 \usepackage{algpseudocode}
+% Erickson-style pseudocode box for .algo blocks (after Jeff Erickson's
+% algo/algorithm tabbing environments): a boxed, centered tabbing region.
+% Indentation is driven by \+ / \- emitted from the source's leading spaces.
+\newenvironment{coflatalgo}{%
+  \begin{center}\small
+  \begin{tabular}{|l|}\hline
+  \begin{minipage}{1in}
+  \begin{tabbing}
+    \quad\=\qquad\=\qquad\=\qquad\=\qquad\=\qquad\=\qquad\=\qquad\=\qquad\=\qquad\=\qquad\=\qquad\=\qquad\=\kill}%
+  {\end{tabbing}
+  \end{minipage}\\\hline
+  \end{tabular}
+  \end{center}}
 \usepackage{listings}
 \lstset{basicstyle=\ttfamily\small,breaklines=true}
 \urlstyle{same}
 
 \widowpenalty 5000
 \clubpenalty 5000
-
-\newtheorem{theorem}{Theorem}
-\newtheorem{lemma}[theorem]{Lemma}
-\newtheorem{corollary}[theorem]{Corollary}
-\newtheorem{proposition}[theorem]{Proposition}
-\newtheorem{conjecture}[theorem]{Conjecture}
-\theoremstyle{definition}
-\newtheorem{definition}[theorem]{Definition}
-\newtheorem{problem}[theorem]{Problem}
-\newtheorem{example}[theorem]{Example}
-\theoremstyle{remark}
-\newtheorem{remark}[theorem]{Remark}
 
 \providecommand{\tightlist}{\setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
 \NewDocumentCommand\citeproctext{}{}
@@ -69,12 +77,32 @@
  {}
 \newcommand{\CSLBlock}[1]{#1\hfill\break}
 \newcommand{\CSLLeftMargin}[1]{\parbox[t]{\csllabelwidth}{#1}}
-\newcommand{\CSLRightInline}[1]{\parbox[t]{\linewidth - \csllabelwidth}{#1}\break}
+\newcommand{\CSLRightInline}[1]{\parbox[t]{\dimexpr\linewidth-\csllabelwidth\relax}{#1}\break}
 \newcommand{\CSLIndent}[1]{\hspace{\cslhangindent}#1}
 
 $if(title)$\title{$title$}$endif$
-$if(author)$\author{$for(author)$$author$$sep$ \and $endfor$}$endif$
-$if(date)$\date{$date$}$else$\date{}$endif$
+$if(titlerunning)$\titlerunning{$titlerunning$}$endif$
+$if(anonymous)$
+\author{Anonymous submission}
+\authorrunning{Anonymous submission}
+\institute{}
+$else$
+$if(authors)$
+\author{$for(authors)$$authors.name$$if(authors.orcid)$\orcidID{$authors.orcid$}$endif$$sep$ \and $endfor$}
+$elseif(author)$
+\author{$for(author)$$author$$sep$ \and $endfor$}
+$else$
+\author{}
+$endif$
+$if(authorrunning)$\authorrunning{$authorrunning$}$endif$
+$if(institute)$
+\institute{$institute$$if(email)$\\\email{$email$}$endif$}
+$elseif(authors)$
+\institute{$for(authors)$$authors.affiliation$$if(authors.email)$\\\email{$authors.email$}$endif$$sep$ \and $endfor$}
+$else$
+\institute{}
+$endif$
+$endif$
 
 $for(header-includes)$
 $header-includes$
@@ -87,14 +115,36 @@ $if(title)$\maketitle$endif$
 $if(abstract)$
 \begin{abstract}
 $abstract$
+$if(keywords)$
+\keywords{$for(keywords)$$keywords$$sep$ \and $endfor$}
+$endif$
 \end{abstract}
 $endif$
 
 $body$
 
+$if(anonymous)$
+$else$
+$if(funding)$
+\begin{credits}
+\subsubsection{\ackname}
+$funding$
+$if(acknowledgements)$
+
+$acknowledgements$
+$endif$
+\end{credits}
+$elseif(acknowledgements)$
+\begin{credits}
+\subsubsection{\ackname}
+$acknowledgements$
+\end{credits}
+$endif$
+$endif$
+
 $if(natbib)$
 $if(bibliography)$
-\bibliographystyle{plainurl}
+\bibliographystyle{$if(biblio-style)$$biblio-style$$else$splncs04$endif$}
 \bibliography{$for(bibliography)$$bibliography$$sep$,$endfor$}
 $endif$
 $endif$

@@ -34,6 +34,7 @@ const surfaceCss = read("dist/document-surface.css");
 const latexCsl = read("dist/latex/csl/ieee.csl");
 const latexFilter = read("dist/latex/filter.lua");
 const latexSyntaxManifest = read("dist/latex/syntax-manifest.lua");
+const latexArticleTemplate = read("dist/latex/template/article.tex");
 const jsExports = [
   "../dist/editor.mjs",
   "../dist/inline-render.mjs",
@@ -115,6 +116,7 @@ console.log(formatPackageGraphReport(packageGraph));
 assertIncludes(latexCsl, 'citation-format="numeric"', "dist/latex/csl/ieee.csl");
 assertIncludes(latexFilter, "syntax-manifest.lua", "dist/latex/filter.lua");
 assertIncludes(latexSyntaxManifest, "latex_kind_by_block", "dist/latex/syntax-manifest.lua");
+assertIncludes(latexArticleTemplate, "\\documentclass[runningheads,envcountsame]{llncs}", "dist/latex/template/article.tex");
 
 const latexSmoke = spawnSync(
   "pandoc",

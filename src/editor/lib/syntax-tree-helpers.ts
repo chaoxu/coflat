@@ -1,5 +1,5 @@
 import type { SyntaxNode } from "@lezer/common";
-import { NODE } from "../../core/constants/node-types";
+import { isFencedDivNodeName, NODE } from "../../core/constants/node-types";
 
 interface NamedSyntaxNode {
   readonly name: string;
@@ -53,7 +53,7 @@ export function isFencedCode(node: NamedSyntaxNode | null | undefined): boolean 
 }
 
 export function isFencedDiv(node: NamedSyntaxNode | null | undefined): boolean {
-  return hasNodeName(node, NODE.FencedDiv);
+  return node ? isFencedDivNodeName(node.name) : false;
 }
 
 export function isFencedDivFence(node: NamedSyntaxNode | null | undefined): boolean {

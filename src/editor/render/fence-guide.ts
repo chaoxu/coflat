@@ -29,13 +29,12 @@ import {
   type ViewUpdate,
 } from "@codemirror/view";
 import { CSS } from "../../core/constants/css-classes";
-import { NODE } from "../../core/constants/node-types";
 import {
   containsRange,
   type RangeLike,
   toRanges,
 } from "../lib/range-helpers";
-import { findAncestorByName } from "../lib/syntax-tree-helpers";
+import { findAncestor, isFencedDiv } from "../lib/syntax-tree-helpers";
 import {
   documentAnalysisField,
   getDocumentAnalysisSliceRevision,
@@ -74,7 +73,7 @@ function computeActivePath(state: EditorState): string {
 
   let node = tree.resolveInner(cursor.from);
   for (;;) {
-    const fencedDiv = findAncestorByName(node, NODE.FencedDiv);
+    const fencedDiv = findAncestor(node, isFencedDiv);
     if (!fencedDiv) break;
     const fencedDivRange = { from: fencedDiv.from, to: fencedDiv.to };
     if (containsRange(fencedDivRange, cursor)) {

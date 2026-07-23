@@ -1,3 +1,4 @@
+export { algoLineExtension, algoLineIndentDepth, algoLineIndentUnits } from "./algo-line";
 export { equationLabelExtension } from "./equation-label";
 export { countColons, fencedDiv } from "./fenced-div";
 export type { FencedDivAttrs } from "./fenced-div-attrs";
@@ -20,6 +21,7 @@ export { tableExtension } from "./table";
 
 import type { Tree } from "@lezer/common";
 import { Autolink, parser as baseMarkdownParser, TaskList } from "@lezer/markdown";
+import { algoLineExtension } from "./algo-line";
 import { equationLabelExtension } from "./equation-label";
 import { fencedDiv } from "./fenced-div";
 import { footnoteExtension } from "./footnote";
@@ -40,6 +42,7 @@ export const coflatSharedMarkdownExtensions = [
   removeIndentedCode,
   mathExtension,
   fencedDiv,
+  algoLineExtension,
   equationLabelExtension,
   strikethroughExtension,
   highlightExtension,

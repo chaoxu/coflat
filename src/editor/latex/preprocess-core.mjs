@@ -28,6 +28,41 @@ export function liftFencedDivTitles(markdown) {
   return out.join("\n");
 }
 
+/**
+ * Rewrite the body of Erickson-style `.algo` divs into pandoc line blocks.
+ *
+ * Coflat parses each physical line of an algo body as one pseudocode line
+ * with leading-whitespace indentation, but pandoc's markdown reader would
+ * merge those lines into paragraphs (or, at 4+ spaces, indented code) and
+ * drop the indentation. A line block (`| ` prefix) preserves both the line
+ * structure and the leading spaces (as U+00A0 in the AST), which filter.lua
+ * converts to tabbing indentation.
+ */
+const ALGO_OPENER_RE = /^(:{3,})\s*(?:\{\s*\.algo(?![\w-])[^}]*\}|algo)\s*$/;
+
+export function lineBlockAlgoBodies(markdown) {
+  const out = [];
+  const lines = markdown.split("\n");
+  let closer = null;
+  for (const line of lines) {
+    if (closer !== null) {
+      if (new RegExp(`^${closer}\\s*$`).test(line)) {
+        closer = null;
+        out.push(line);
+      } else if (line.trim() === "") {
+        out.push(line);
+      } else {
+        out.push(`| ${line}`);
+      }
+      continue;
+    }
+    const opened = ALGO_OPENER_RE.exec(line);
+    if (opened) closer = opened[1];
+    out.push(line);
+  }
+  return out.join("\n");
+}
+
 const FRONTMATTER_FENCE = FRONTMATTER_DELIMITER;
 
 /**
@@ -393,5 +428,6 @@ export async function preprocessWithReadFile(markdown) {
   const withAbstract = hoistAbstractBlock(withMacros);
   const withAppendix = insertAppendixBoundary(withAbstract);
   const withEquations = promoteLabeledDisplayMath(withAppendix);
-  return liftFencedDivTitles(withEquations);
+  const withTitles = liftFencedDivTitles(withEquations);
+  return lineBlockAlgoBodies(withTitles);
 }

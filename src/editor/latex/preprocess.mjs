@@ -3,6 +3,7 @@ export {
   hoistMathMacros,
   insertAppendixBoundary,
   liftFencedDivTitles,
+  lineBlockAlgoBodies,
   promoteLabeledDisplayMath,
   renderMathMacros,
 } from "./preprocess-core.mjs";

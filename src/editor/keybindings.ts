@@ -10,13 +10,14 @@ import { EditorView, keymap } from "@codemirror/view";
 import type { SyntaxNode } from "@lezer/common";
 import { CSS } from "../core/constants/css-classes";
 import { MODE_CHANGE_EVENT } from "../core/constants/events";
+import { isFencedDivNodeName } from "../core/constants/node-types";
 import { type EditorMode, editorModeField, setEditorMode } from "./editor-mode-state";
+import { toggleMutedLines } from "./muted-lines";
 import {
   fenceOperationAnnotation,
   getClosingFenceRanges,
 } from "./plugins/fence-protection";
 import { toggleDebugInspector } from "./render/debug-inspector";
-import { toggleMutedLines } from "./muted-lines";
 import {
   clearStructureEditTarget,
   getActiveStructureEditTarget,
@@ -316,7 +317,7 @@ function findEnclosingFencedDiv(state: EditorState, pos: number): SyntaxNode | n
   for (const bias of [-1, 1, 0] as const) {
     let node: SyntaxNode | null = syntaxTree(state).resolveInner(pos, bias);
     while (node) {
-      if (node.name === "FencedDiv") return node;
+      if (isFencedDivNodeName(node.name)) return node;
       node = node.parent;
     }
   }

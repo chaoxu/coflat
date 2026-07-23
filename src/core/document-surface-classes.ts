@@ -8,6 +8,7 @@ export const DOCUMENT_SURFACE_CLASS = {
   surface: "cf-doc-surface",
   flow: "cf-doc-flow",
   paragraph: "cf-doc-paragraph",
+  algoLine: "cf-doc-algo-line",
   blockquote: "cf-doc-blockquote",
   heading: "cf-doc-heading",
   headingLevel: (level: number) => `cf-doc-heading--h${level}`,

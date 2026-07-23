@@ -20,9 +20,11 @@ export const NODE = {
 
   // Fenced divs (custom extension)
   FencedDiv: "FencedDiv",
+  LineFencedDiv: "LineFencedDiv",
   FencedDivFence: "FencedDivFence",
   FencedDivAttributes: "FencedDivAttributes",
   FencedDivTitle: "FencedDivTitle",
+  AlgoLine: "AlgoLine",
 
   // Code
   FencedCode: "FencedCode",
@@ -86,3 +88,24 @@ export const NODE = {
 
 /** Union type of all known Lezer node type names. */
 export type NodeTypeName = (typeof NODE)[keyof typeof NODE];
+
+/**
+ * All composite node types that represent a fenced div.
+ *
+ * `FencedDiv` bodies parse as regular markdown; `LineFencedDiv` bodies
+ * parse line-by-line (one `AlgoLine` per physical line) for block classes
+ * with `bodyMode: "lines"`. Both share the same opener/attr/closer child
+ * structure, so downstream code should match divs through
+ * `isFencedDivNodeName` instead of comparing against `NODE.FencedDiv`.
+ */
+export const FENCED_DIV_NODE_NAMES: readonly string[] = [
+  NODE.FencedDiv,
+  NODE.LineFencedDiv,
+];
+
+const FENCED_DIV_NODE_NAME_SET: ReadonlySet<string> = new Set(FENCED_DIV_NODE_NAMES);
+
+/** Whether a Lezer node type name is a fenced div composite (any body mode). */
+export function isFencedDivNodeName(name: string): boolean {
+  return FENCED_DIV_NODE_NAME_SET.has(name);
+}

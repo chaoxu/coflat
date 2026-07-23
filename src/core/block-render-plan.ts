@@ -10,7 +10,7 @@ import {
   BLOCK_MANIFEST_ENTRIES,
   type BlockManifestEntry,
 } from "./constants/block-manifest";
-import { NODE } from "./constants/node-types";
+import { isFencedDivNodeName, NODE } from "./constants/node-types";
 import {
   buildInlineFragments,
   type InlineFragment,
@@ -19,6 +19,7 @@ import {
 } from "./inline-fragments";
 import { taskMarkerChecked } from "./list-surface";
 import { displayMathSourcePlan } from "./math-source";
+import { algoLineIndentDepth } from "./parser/algo-line";
 import {
   blankLineRangesBetweenBlocks,
   trailingBlankLineRangesAfterLastBlock,
@@ -356,6 +357,7 @@ export interface BlockRenderPlanOptions {
 export type BlockNodeRenderKind =
   | "document"
   | "paragraph"
+  | "algo-line"
   | "heading"
   | "horizontal-rule"
   | "display-math"
@@ -371,6 +373,7 @@ export type BlockNodeRenderKind =
 export interface BlockNodeRenderHandlers<T> {
   readonly document: (node: SyntaxNode) => T;
   readonly paragraph: (node: SyntaxNode) => T;
+  readonly algoLine: (node: SyntaxNode) => T;
   readonly heading: (node: SyntaxNode) => T;
   readonly horizontalRule: (node: SyntaxNode) => T;
   readonly displayMath: (node: SyntaxNode) => T;
@@ -416,6 +419,8 @@ export function blockNodeRenderKind(name: string): BlockNodeRenderKind {
       return "document";
     case NODE.Paragraph:
       return "paragraph";
+    case NODE.AlgoLine:
+      return "algo-line";
     case NODE.HorizontalRule:
       return "horizontal-rule";
     case NODE.DisplayMath:
@@ -431,6 +436,7 @@ export function blockNodeRenderKind(name: string): BlockNodeRenderKind {
     case NODE.Table:
       return "table";
     case NODE.FencedDiv:
+    case NODE.LineFencedDiv:
       return "fenced-div";
     case NODE.FootnoteDef:
       return "footnote-definition";
@@ -452,6 +458,8 @@ export function dispatchBlockNodeRender<T>(
       return handlers.document(node);
     case "paragraph":
       return handlers.paragraph(node);
+    case "algo-line":
+      return handlers.algoLine(node);
     case "heading":
       return handlers.heading(node);
     case "horizontal-rule":
@@ -511,6 +519,7 @@ export function blockLineCost(source: string, node: SyntaxNode): number {
   switch (blockNodeRenderKind(node.name)) {
     case "heading":
     case "paragraph":
+    case "algo-line":
     case "horizontal-rule":
     case "display-math":
       return 1;
@@ -605,6 +614,41 @@ export function paragraphRenderPlan(
     fragments,
     text: inlineFragmentsPlainText(fragments),
     hasMath: fragmentsContainMath(fragments),
+  };
+}
+
+export interface AlgoLineRenderPlan extends Omit<ParagraphRenderPlan, "kind"> {
+  readonly kind: "algo-line";
+  /** Indent depth from leading whitespace: 2 spaces (or 1 tab) = 1 level. */
+  readonly indentDepth: number;
+}
+
+export function algoLineRenderPlan(
+  source: string,
+  node: SyntaxNode,
+  options: BlockRenderPlanOptions = {},
+): AlgoLineRenderPlan {
+  // Keep leading whitespace inside the content range: the CM6 editor shows
+  // the literal source spaces, and reader/editor pixel parity requires the
+  // rendered line to be the same characters. Only trailing space is trimmed.
+  let contentTo = node.to;
+  while (contentTo > node.from && /\s/.test(source[contentTo - 1] ?? "")) contentTo--;
+  const contentRange = { from: node.from, to: contentTo };
+  const fragments = buildInlineFragments(
+    node,
+    source,
+    contentRange.from,
+    contentRange.to,
+    { sourceRanges: options.sourceRanges },
+  );
+  return {
+    kind: "algo-line",
+    sourceRange: { from: node.from, to: node.to },
+    contentRange,
+    fragments,
+    text: inlineFragmentsPlainText(fragments),
+    hasMath: fragmentsContainMath(fragments),
+    indentDepth: algoLineIndentDepth(source.slice(node.from, node.to)),
   };
 }
 
@@ -947,7 +991,7 @@ export function fencedDivSyntaxPlan(
   source: string,
   node: SyntaxNode,
 ): FencedDivSyntaxPlan {
-  if (node.name !== NODE.FencedDiv) {
+  if (!isFencedDivNodeName(node.name)) {
     throw new Error(`expected fenced div node, got ${node.name}`);
   }
 

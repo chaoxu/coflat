@@ -5,6 +5,7 @@ import {
   hoistMathMacros,
   insertAppendixBoundary,
   liftFencedDivTitles,
+  lineBlockAlgoBodies,
   preprocess,
   promoteLabeledDisplayMath,
   renderMathMacros,
@@ -315,5 +316,45 @@ describe("preprocess", () => {
 
     expect(out).toContain("\\appendix\n# Appendix {.unnumbered}");
     expect(out).not.toContain("{.appendix}");
+  });
+});
+
+describe("lineBlockAlgoBodies", () => {
+  it("prefixes algo body lines with line-block markers", () => {
+    const input = [
+      "::: {.algo #alg:a title=\"T\"}",
+      "$f(x)$:",
+      "  if $x \\le 6$",
+      "    return $1$",
+      ":::",
+    ].join("\n");
+    expect(lineBlockAlgoBodies(input)).toBe([
+      "::: {.algo #alg:a title=\"T\"}",
+      "| $f(x)$:",
+      "|   if $x \\le 6$",
+      "|     return $1$",
+      ":::",
+    ].join("\n"));
+  });
+
+  it("keeps blank algo lines blank and matches the exact closer", () => {
+    const input = "::: {.algo}\nphase one\n\nphase two\n:::\nAfter text.";
+    expect(lineBlockAlgoBodies(input)).toBe(
+      "::: {.algo}\n| phase one\n\n| phase two\n:::\nAfter text.",
+    );
+  });
+
+  it("supports the class-only shorthand opener", () => {
+    expect(lineBlockAlgoBodies("::: algo\nstep\n:::")).toBe("::: algo\n| step\n:::");
+  });
+
+  it("leaves non-algo divs untouched", () => {
+    const input = "::: {.theorem}\nBody line.\n:::";
+    expect(lineBlockAlgoBodies(input)).toBe(input);
+  });
+
+  it("does not match classes that merely start with algo", () => {
+    const input = "::: {.algorithm}\nbody\n:::";
+    expect(lineBlockAlgoBodies(input)).toBe(input);
   });
 });
