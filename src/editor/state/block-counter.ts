@@ -1,12 +1,9 @@
 import { type EditorState, StateField, type Transaction } from "@codemirror/state";
 
 import type { NumberingScheme } from "../../core/parser/frontmatter";
-import { docChangeTouchesFencedDivStructure } from "../fenced-block/model";
 import {
   type BlockCounterState,
-  computeBlockNumberingKeyFromFencedDivs,
   computeBlockNumbers,
-  mapBlockCounterState,
 } from "./block-counter-core";
 import { createChangeChecker } from "./change-detection";
 import {
@@ -51,24 +48,6 @@ function shouldRecomputeBlockNumbers(tr: Transaction): boolean {
   return blockCounterConfigChanged(tr);
 }
 
-function nextBlockNumberingKey(tr: Transaction): string {
-  return computeBlockNumberingKeyFromFencedDivs(
-    tr.state.field(documentAnalysisField).fencedDivs,
-    tr.state.field(pluginRegistryField),
-    getEffectiveNumbering(tr.state),
-  );
-}
-
-function blockCounterStateFitsDoc(
-  value: BlockCounterState,
-  docLength: number,
-): boolean {
-  return value.blocks.every((block) =>
-    block.from >= 0 &&
-    block.from <= block.to &&
-    block.to <= docLength
-  );
-}
 
 /**
  * CM6 StateField that maintains block numbering.
@@ -96,42 +75,13 @@ export const blockCounterField = StateField.define<BlockCounterState>({
       return value;
     }
 
-    const configChanged = blockCounterConfigChanged(tr);
-    const canMapExistingPositions = blockCounterStateFitsDoc(
-      value,
-      tr.startState.doc.length,
-    );
-
-    if (
-      tr.docChanged
-      && !configChanged
-      && !docChangeTouchesFencedDivStructure(tr)
-    ) {
-      return canMapExistingPositions
-        ? mapBlockCounterState(value, tr.changes)
-        : computeBlockNumbers(
-            tr.state,
-            tr.state.field(pluginRegistryField),
-            getEffectiveNumbering(tr.state),
-          );
-    }
-
-    if (
-      !configChanged
-      && nextBlockNumberingKey(tr) === value.numberingKey
-    ) {
-      if (!tr.docChanged) {
-        return value;
-      }
-      return canMapExistingPositions
-        ? mapBlockCounterState(value, tr.changes)
-        : computeBlockNumbers(
-            tr.state,
-            tr.state.field(pluginRegistryField),
-            getEffectiveNumbering(tr.state),
-          );
-    }
-
+    // Recompute straight from the analysis snapshot. `byPosition` is looked up
+    // with the positions the renderer reads out of that same snapshot
+    // (`collectFencedDivs`), so the two must come from one source: mapping the
+    // previous positions through `tr.changes` instead, or keeping them on a
+    // no-doc-change reconciliation, lets the counter drift out of the
+    // renderer's reach and the block header silently loses its number until
+    // some later edit happens to force a full recompute.
     return computeBlockNumbers(
       tr.state,
       tr.state.field(pluginRegistryField),

@@ -664,4 +664,78 @@ describe("blockCounterField", () => {
     expect(theorem2?.from).toBe((theorem1?.from ?? 0) + insert.length);
     expect(theorem2?.to).toBe((theorem1?.to ?? 0) + insert.length);
   });
+
+  // Regression: the renderer looks numbers up with the positions it reads out
+  // of documentAnalysisField, so every numbered div in that snapshot must be
+  // present in byPosition after every transaction. Deriving the counter from
+  // the previous state instead (mapping through tr.changes, or keeping it on a
+  // no-doc-change reconciliation) let the two drift apart, and the block header
+  // silently rendered without its number.
+  it("keeps every numbered fenced div reachable by position across edits", () => {
+    const doc = [
+      "# Intro",
+      "",
+      "Prose before.",
+      "",
+      "::: {.lemma #lem:a}",
+      "First lemma body.",
+      ":::",
+      "",
+      "Middle prose.",
+      "",
+      "::: {.theorem #thm:b}",
+      "Theorem body.",
+      ":::",
+      "",
+      "Tail prose.",
+    ].join("\n");
+    // Edits that repeatedly break and restore fence structure; the last one
+    // touches unrelated prose while the analysis re-discovers the theorem.
+    const edits = [
+      { from: 33, to: 37, insert: "" },
+      { from: 77, to: 77, insert: "\n" },
+      { from: 15, to: 16, insert: "" },
+      { from: 2, to: 2, insert: "#" },
+      { from: 4, to: 7, insert: "" },
+      { from: 21, to: 24, insert: "" },
+      { from: 106, to: 110, insert: "" },
+      { from: 74, to: 74, insert: "x" },
+      { from: 116, to: 116, insert: "#" },
+      { from: 97, to: 100, insert: "" },
+      { from: 4, to: 6, insert: "" },
+      { from: 63, to: 66, insert: "" },
+      { from: 2, to: 4, insert: "" },
+      { from: 25, to: 27, insert: "" },
+      { from: 65, to: 66, insert: "" },
+      { from: 15, to: 15, insert: "#" },
+    ];
+
+    let state = EditorState.create({
+      doc,
+      extensions: [
+        markdown({ extensions: [fencedDiv] }),
+        frontmatterField,
+        documentAnalysisField,
+        createPluginRegistryField([
+          makeBlockPlugin({ name: "lemma" }),
+          makeBlockPlugin({ name: "theorem" }),
+        ]),
+        blockCounterField,
+      ],
+    });
+
+    const unnumbered: string[] = [];
+    for (const [step, changes] of edits.entries()) {
+      state = state.update({ changes, userEvent: "input.type" }).state;
+      const counter = state.field(blockCounterField);
+      for (const div of state.field(documentAnalysisField).fencedDivs) {
+        if (div.primaryClass !== "lemma" && div.primaryClass !== "theorem") continue;
+        if (!counter.byPosition.has(div.from)) {
+          unnumbered.push(`step ${step}: ${div.primaryClass}@${div.from}`);
+        }
+      }
+    }
+
+    expect(unnumbered).toEqual([]);
+  });
 });
