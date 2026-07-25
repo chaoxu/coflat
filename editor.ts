@@ -11,6 +11,7 @@ import { EditorView } from "@codemirror/view";
 import type { CslJsonItem } from "./src/core/citations/csl-json";
 import type { DocumentContext } from "./src/core/document-context-types";
 import type { FileSystem } from "./src/core/lib/file-system-types";
+import { minimalChange } from "./src/core/minimal-change";
 import {
   sourceElementAtPosition,
   visibleSourcePositionInScroller,
@@ -319,17 +320,23 @@ export function mountEditor(options: MountEditorOptions): MountedEditor {
 
     setDoc(doc) {
       currentDoc = doc;
-      if (!view || doc === view.state.doc.toString()) return;
+      if (!view) return;
+      const previous = view.state.doc.toString();
+      if (doc === previous) return;
+      // Bound the change to the text that actually differs and let CodeMirror
+      // map the selection through it. A wholesale `{from: 0, to: length}`
+      // replacement maps every position to 0, so a host syncing content back
+      // into an open document would throw the caret to the top mid-typing.
+      // Loading a genuinely different document still diffs to (nearly) the
+      // whole doc, so the caret and scroll collapse to the start as before.
+      const change = minimalChange(previous, doc);
+      const replacedEverything = change.from === 0 && change.to === previous.length;
       view.dispatch({
-        changes: {
-          from: 0,
-          to: view.state.doc.length,
-          insert: doc,
-        },
-        selection: { anchor: 0 },
+        changes: change,
         annotations: programmaticDocumentChangeAnnotation.of(true),
+        scrollIntoView: false,
       });
-      view.scrollDOM.scrollTop = 0;
+      if (replacedEverything) view.scrollDOM.scrollTop = 0;
     },
 
     insertText(text, opts = {}) {

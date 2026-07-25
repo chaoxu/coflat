@@ -111,6 +111,34 @@ describe("@chaoxu/coflat", () => {
     editor.unmount();
   });
 
+  it("keeps the cursor in place when setDoc syncs content into an open document", () => {
+    const parent = document.createElement("div");
+    const editor = mountEditor({ parent, doc: "# Intro\n\nfirst\n\nsecond\n" });
+
+    editor.scrollToPosition("# Intro\n\nfirst\n\nsec".length, { select: true });
+    const before = editor.cursorContext.get().from;
+
+    // A host syncing back a document that differs only near the end must not
+    // move the caret — that is the "cursor jumps to the top while typing" bug.
+    editor.setDoc("# Intro\n\nfirst\n\nsecond\n\nthird\n");
+
+    expect(editor.cursorContext.get().from).toBe(before);
+    editor.unmount();
+  });
+
+  it("resets the cursor when setDoc loads an unrelated document", () => {
+    const parent = document.createElement("div");
+    const editor = mountEditor({ parent, doc: "# Intro\n\nfirst\n\nsecond\n" });
+
+    editor.scrollToPosition("# Intro\n\nfirst\n\nsec".length, { select: true });
+    expect(editor.cursorContext.get().from).toBeGreaterThan(0);
+
+    editor.setDoc("totally different content\n");
+
+    expect(editor.cursorContext.get().from).toBe(0);
+    editor.unmount();
+  });
+
   it("does not expose a retained CodeMirror view after unmount", () => {
     const parent = document.createElement("div");
     const editor = mountEditor({

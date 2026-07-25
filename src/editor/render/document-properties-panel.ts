@@ -23,6 +23,7 @@ import { EditorView, type Panel, showPanel } from "@codemirror/view";
 import katex from "katex";
 
 import { buildKatexOptions } from "../../core/lib/katex-options";
+import { minimalChange } from "../../core/minimal-change";
 import {
   type PanelProperties,
   readPanelProperties,
@@ -101,20 +102,6 @@ function frontmatterSource(state: EditorState): string {
  * the real value was already committed via `commitFocusedEdit` or a prior blur.
  */
 let panelRebuilding = false;
-
-/** The smallest {from,to,insert} turning `oldStr` into `newStr` (common prefix/suffix). */
-function minimalChange(oldStr: string, newStr: string): { from: number; to: number; insert: string } {
-  const limit = Math.min(oldStr.length, newStr.length);
-  let from = 0;
-  while (from < limit && oldStr[from] === newStr[from]) from++;
-  let oldEnd = oldStr.length;
-  let newEnd = newStr.length;
-  while (oldEnd > from && newEnd > from && oldStr[oldEnd - 1] === newStr[newEnd - 1]) {
-    oldEnd--;
-    newEnd--;
-  }
-  return { from, to: oldEnd, insert: newStr.slice(from, newEnd) };
-}
 
 /**
  * Apply a frontmatter source mutation as a minimal, bounded diff.
