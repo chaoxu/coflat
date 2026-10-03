@@ -129,7 +129,7 @@
     "@radix-ui/react-context-menu": "^2.2.16",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
-    "dompurify": "^3.4.1",
+    "dompurify": "^3.4.16",
     "katex": "0.16.38",
     "lucide-react": "^0.577.0",
     "pathe": "^2.0.3",
@@ -147,7 +147,7 @@
   "devDependencies": {
     "@biomejs/biome": "^2.4.9",
     "@types/turndown": "^5.0.6",
-    "@playwright/test": "^1.49.0",
+    "@playwright/test": "^1.63.0",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@types/katex": "^0.16.8",
