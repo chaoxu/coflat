@@ -8,9 +8,9 @@ patchedDependencies:
   '@lezer/markdown@1.7.2':
     hash: f4dc5e7b9cd695dcd90b1f41bb8e872d914975e1f1eb3d657172829c24992df9
     path: patches/@lezer__markdown@1.7.2.patch
-  katex@0.16.38:
-    hash: 803df0b4b4e1809179417a58b26839e80f2dee2847a6cb2434e98657f788465f
-    path: patches/katex@0.16.38.patch
+  katex@0.19.0:
+    hash: b6b0cca162bcf8c757b2f8c94c062f1bdfdbb6ddb930822bed340023251273ae
+    path: patches/katex@0.19.0.patch
 
 importers:
 
@@ -98,8 +98,8 @@ importers:
         specifier: ^3.4.16
         version: 3.4.16
       katex:
-        specifier: 0.16.38
-        version: 0.16.38(patch_hash=803df0b4b4e1809179417a58b26839e80f2dee2847a6cb2434e98657f788465f)
+        specifier: 0.19.0
+        version: 0.19.0(patch_hash=b6b0cca162bcf8c757b2f8c94c062f1bdfdbb6ddb930822bed340023251273ae)
       lucide-react:
         specifier: ^0.577.0
         version: 0.577.0(react@19.2.6)
@@ -140,9 +140,6 @@ importers:
       '@testing-library/react':
         specifier: ^16.3.2
         version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
-      '@types/katex':
-        specifier: ^0.16.8
-        version: 0.16.8
       '@types/node':
         specifier: ^25.5.0
         version: 25.6.2
@@ -996,9 +993,6 @@ packages:
   '@types/estree@1.0.9':
     resolution: {integrity: sha512-GhdPgy1el4/ImP05X05Uw4cw2/M93BCUmnEvWZNStlCzEKME4Fkk+YpoA5OiHNQmoS7Cafb8Xa3Pya8m1Qrzeg==}
 
-  '@types/katex@0.16.8':
-    resolution: {integrity: sha512-trgaNyfU+Xh2Tc+ABIb44a5AYUpicB3uwirOioeOkNPPbmgRNtcWyDeeFRzjPZENO9Vq8gvVqfhaaXWLlevVwg==}
-
   '@types/node@25.6.2':
     resolution: {integrity: sha512-sokuT28dxf9JT5Kady1fsXOvI4HVpjZa95NKT5y9PNTIrs2AsobR4GFAA90ZG8M+nxVRLysCXsVj6eGC7Vbrlw==}
 
@@ -1110,9 +1104,9 @@ packages:
       react: ^18 || ^19 || ^19.0.0-rc
       react-dom: ^18 || ^19 || ^19.0.0-rc
 
-  commander@8.3.0:
-    resolution: {integrity: sha512-OkTL9umf+He2DZkUq8f8J9of7yL6RJKI24dVITBmNfZBmri9zYZQrKkuXiKhyfPSu8tUhnVBB1iKXevvnlR4Ww==}
-    engines: {node: '>= 12'}
+  commander@15.0.0:
+    resolution: {integrity: sha512-z67u4ZhzCL/Tydu1lJARtEZYWbWaN7oYLHbsuzocr6y4N6WZAagG3RQ4FW61V1/0+jImpj293XfrcYnd1qxtPg==}
+    engines: {node: '>=22.12.0'}
 
   convert-source-map@2.0.0:
     resolution: {integrity: sha512-Kvp459HrV2FEJ1CAsi1Ku+MY3kasH19TFykTz2xWmMeq6bk2NU3XXvfJ+Q61m0xktWwt+1HSYf3JZsTms3aRJg==}
@@ -1267,8 +1261,8 @@ packages:
       canvas:
         optional: true
 
-  katex@0.16.38:
-    resolution: {integrity: sha512-cjHooZUmIAUmDsHBN+1n8LaZdpmbj03LtYeYPyuYB7OuloiaeaV6N4LcfjcnHVzGWjVQmKrxxTrpDcmSzEZQwQ==}
+  katex@0.19.0:
+    resolution: {integrity: sha512-v6Tznz3zJ7u3niRCoDTsumM2+HA2XXcCu+WAacCeHD2z3p9A9Ks987o5FzfTGBN0e8A0vjEgIDvLbICrXpdw/Q==}
     hasBin: true
 
   lightningcss-android-arm64@1.32.0:
@@ -2606,8 +2600,6 @@ snapshots:
 
   '@types/estree@1.0.9': {}
 
-  '@types/katex@0.16.8': {}
-
   '@types/node@25.6.2':
     dependencies:
       undici-types: 7.19.2
@@ -2725,7 +2717,7 @@ snapshots:
       - '@types/react'
       - '@types/react-dom'
 
-  commander@8.3.0: {}
+  commander@15.0.0: {}
 
   convert-source-map@2.0.0: {}
 
@@ -2861,9 +2853,9 @@ snapshots:
     transitivePeerDependencies:
       - '@noble/hashes'
 
-  katex@0.16.38(patch_hash=803df0b4b4e1809179417a58b26839e80f2dee2847a6cb2434e98657f788465f):
+  katex@0.19.0(patch_hash=b6b0cca162bcf8c757b2f8c94c062f1bdfdbb6ddb930822bed340023251273ae):
     dependencies:
-      commander: 8.3.0
+      commander: 15.0.0
 
   lightningcss-android-arm64@1.32.0:
     optional: true

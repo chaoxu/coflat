@@ -99,8 +99,8 @@
       "esbuild"
     ],
     "patchedDependencies": {
-      "katex@0.16.38": "patches/katex@0.16.38.patch",
-      "@lezer/markdown@1.7.2": "patches/@lezer__markdown@1.7.2.patch"
+      "@lezer/markdown@1.7.2": "patches/@lezer__markdown@1.7.2.patch",
+      "katex@0.19.0": "patches/katex@0.19.0.patch"
     }
   },
   "peerDependencies": {
@@ -130,7 +130,7 @@
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "dompurify": "^3.4.16",
-    "katex": "0.16.38",
+    "katex": "0.19.0",
     "lucide-react": "^0.577.0",
     "pathe": "^2.0.3",
     "pdfjs-dist": "^5.5.207",
@@ -146,14 +146,13 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.9",
-    "@types/turndown": "^5.0.6",
     "@playwright/test": "^1.63.0",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
-    "@types/katex": "^0.16.8",
     "@types/node": "^25.5.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
+    "@types/turndown": "^5.0.6",
     "fast-check": "^4.6.0",
     "jsdom": "^29.0.0",
     "publint": "^0.3.18",

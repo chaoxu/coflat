@@ -95,8 +95,11 @@ beforeEach(() => {
   localStorageMock.clear();
 });
 
-afterEach(() => {
+afterEach(async () => {
   destroyAllTestViews();
+  // Destroying a view cannot cancel an import already started by a lazy plugin.
+  // Finish those imports before Vitest tears down this file's environment.
+  await vi.dynamicImportSettled();
   if (typeof document !== "undefined") {
     cleanup();
   }

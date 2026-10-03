@@ -1,8 +1,8 @@
 diff --git a/dist/katex.js b/dist/katex.js
-index 69a5eac63dba04361390b46275880332c983cc9f..69d9b21b9610ac31c6a95b0db582509649ecbf85 100644
+index 86a98536b1334e98fa1b8f84470b41a13a1d7358..c7660a8ba547134fa84f2435f5aa20cc18db7952 100644
 --- a/dist/katex.js
 +++ b/dist/katex.js
-@@ -1265,6 +1265,7 @@ class SymbolNode {
+@@ -1306,6 +1306,7 @@ class SymbolNode {
      this.width = width || 0;
      this.classes = classes || [];
      this.style = style || {};
@@ -10,7 +10,7 @@ index 69a5eac63dba04361390b46275880332c983cc9f..69d9b21b9610ac31c6a95b0db5825096
      this.maxFontSize = 0;
  
      // Mark text from non-Latin scripts with specific classes so that we
-@@ -1286,6 +1287,9 @@ class SymbolNode {
+@@ -1327,6 +1328,9 @@ class SymbolNode {
    hasClass(className) {
      return this.classes.includes(className);
    }
@@ -20,9 +20,9 @@ index 69a5eac63dba04361390b46275880332c983cc9f..69d9b21b9610ac31c6a95b0db5825096
  
    /**
     * Creates a text node or span from a symbol node. Note that a span is only
-@@ -1306,6 +1310,10 @@ class SymbolNode {
+@@ -1347,6 +1351,10 @@ class SymbolNode {
        span = span || document.createElement("span");
-       span.style[key] = this.style[key];
+       Object.assign(span.style, this.style);
      }
 +    for (const attr of Object.keys(this.attributes)) {
 +      span = span || document.createElement("span");
@@ -31,7 +31,7 @@ index 69a5eac63dba04361390b46275880332c983cc9f..69d9b21b9610ac31c6a95b0db5825096
      if (span) {
        span.appendChild(node);
        return span;
-@@ -1339,6 +1347,10 @@ class SymbolNode {
+@@ -1378,6 +1386,10 @@ class SymbolNode {
        needsSpan = true;
        markup += " style=\"" + utils_escape(styles) + "\"";
      }
@@ -42,7 +42,7 @@ index 69a5eac63dba04361390b46275880332c983cc9f..69d9b21b9610ac31c6a95b0db5825096
      const escaped = utils_escape(this.text);
      if (needsSpan) {
        markup += ">";
-@@ -5819,6 +5831,40 @@ const makeNullDelimiter = function (options, classes) {
+@@ -5938,6 +5950,40 @@ const makeNullDelimiter = function (options, classes) {
    return makeSpan(classes.concat(moreClasses));
  };
  
@@ -83,7 +83,7 @@ index 69a5eac63dba04361390b46275880332c983cc9f..69d9b21b9610ac31c6a95b0db5825096
  /**
   * buildGroup is the function that takes a group and calls the correct groupType
   * function for it. It also handles the interaction of size and style changes
-@@ -5841,6 +5887,19 @@ const buildGroup = function (group, options, baseOptions) {
+@@ -5960,6 +6006,19 @@ const buildGroup = function (group, options, baseOptions) {
        groupNode.height *= multiplier;
        groupNode.depth *= multiplier;
      }
@@ -104,10 +104,10 @@ index 69a5eac63dba04361390b46275880332c983cc9f..69d9b21b9610ac31c6a95b0db5825096
    } else {
      throw new src_ParseError("Got group of unknown type: '" + group.type + "'");
 diff --git a/dist/katex.mjs b/dist/katex.mjs
-index 250484b791d3954163ae2320972ca011d2494df9..2d2d1a45276b1277d32e7fc7d2a3fad389a1754f 100644
+index 10a14abb465a47d53b9aa5813291e6555d314c10..d90e40ff99b483b3644a477ef576196d3442ccbd 100644
 --- a/dist/katex.mjs
 +++ b/dist/katex.mjs
-@@ -1123,6 +1123,7 @@ class SymbolNode {
+@@ -1158,6 +1158,7 @@ class SymbolNode {
      this.width = width || 0;
      this.classes = classes || [];
      this.style = style || {};
@@ -115,7 +115,7 @@ index 250484b791d3954163ae2320972ca011d2494df9..2d2d1a45276b1277d32e7fc7d2a3fad3
      this.maxFontSize = 0;
      // Mark text from non-Latin scripts with specific classes so that we
      // can specify which fonts to use.  This allows us to render these
-@@ -1143,6 +1144,9 @@ class SymbolNode {
+@@ -1178,6 +1179,9 @@ class SymbolNode {
    hasClass(className) {
      return this.classes.includes(className);
    }
@@ -125,9 +125,9 @@ index 250484b791d3954163ae2320972ca011d2494df9..2d2d1a45276b1277d32e7fc7d2a3fad3
    /**
     * Creates a text node or span from a symbol node. Note that a span is only
     * created if it is needed.
-@@ -1162,6 +1166,10 @@ class SymbolNode {
+@@ -1197,6 +1201,10 @@ class SymbolNode {
        span = span || document.createElement("span");
-       span.style[key] = this.style[key];
+       Object.assign(span.style, this.style);
      }
 +    for (var attr of Object.keys(this.attributes)) {
 +      span = span || document.createElement("span");
@@ -136,7 +136,7 @@ index 250484b791d3954163ae2320972ca011d2494df9..2d2d1a45276b1277d32e7fc7d2a3fad3
      if (span) {
        span.appendChild(node);
        return span;
-@@ -1194,6 +1202,10 @@ class SymbolNode {
+@@ -1227,6 +1235,10 @@ class SymbolNode {
        needsSpan = true;
        markup += " style=\"" + escape(styles) + "\"";
      }
@@ -147,7 +147,7 @@ index 250484b791d3954163ae2320972ca011d2494df9..2d2d1a45276b1277d32e7fc7d2a3fad3
      var escaped = escape(this.text);
      if (needsSpan) {
        markup += ">";
-@@ -5510,6 +5522,39 @@ var makeNullDelimiter = function makeNullDelimiter(options, classes) {
+@@ -5607,6 +5619,39 @@ var makeNullDelimiter = function makeNullDelimiter(options, classes) {
    var moreClasses = ["nulldelimiter"].concat(options.baseSizingClasses());
    return makeSpan(classes.concat(moreClasses));
  };
@@ -187,7 +187,7 @@ index 250484b791d3954163ae2320972ca011d2494df9..2d2d1a45276b1277d32e7fc7d2a3fad3
  /**
   * buildGroup is the function that takes a group and calls the correct groupType
   * function for it. It also handles the interaction of size and style changes
-@@ -5531,6 +5576,19 @@ var buildGroup$1 = function buildGroup(group, options, baseOptions) {
+@@ -5628,6 +5673,19 @@ var buildGroup$1 = function buildGroup(group, options, baseOptions) {
        groupNode.height *= multiplier;
        groupNode.depth *= multiplier;
      }
@@ -208,7 +208,7 @@ index 250484b791d3954163ae2320972ca011d2494df9..2d2d1a45276b1277d32e7fc7d2a3fad3
    } else {
      throw new ParseError("Got group of unknown type: '" + group.type + "'");
 diff --git a/src/buildHTML.ts b/src/buildHTML.ts
-index 24ef95b02bf9506aebfa339b7f305d1794589f23..22121794c93d3d7ab3baea67ad36268380ebb092 100644
+index 84d60dafaa8ea7ec8765abbbe83d58b53a2a7fe5..53044dff6961ff00e95e8e21d19b5b5d2e3b4138 100644
 --- a/src/buildHTML.ts
 +++ b/src/buildHTML.ts
 @@ -251,6 +251,42 @@ export const makeNullDelimiter = function(
@@ -281,10 +281,10 @@ index 24ef95b02bf9506aebfa339b7f305d1794589f23..22121794c93d3d7ab3baea67ad362683
      } else {
          throw new ParseError(
 diff --git a/src/domTree.ts b/src/domTree.ts
-index 8d60b661b65abd83c64885b1e482e47ae4739c4c..2d3bf7f4ea502c5abb70993069f1527e3c8825df 100644
+index 50d79dfdce10a17aa0f455b07461c8ca7cf37740..c7302e6910e07bdf73345de8ef24a382307a8737 100644
 --- a/src/domTree.ts
 +++ b/src/domTree.ts
-@@ -369,6 +369,7 @@ export class SymbolNode implements HtmlDomNode {
+@@ -376,6 +376,7 @@ export class SymbolNode implements HtmlDomNode {
      width: number;
      maxFontSize: number;
      classes: string[];
@@ -292,7 +292,7 @@ index 8d60b661b65abd83c64885b1e482e47ae4739c4c..2d3bf7f4ea502c5abb70993069f1527e
      style: CssStyle;
  
      constructor(
-@@ -389,6 +390,7 @@ export class SymbolNode implements HtmlDomNode {
+@@ -396,6 +397,7 @@ export class SymbolNode implements HtmlDomNode {
          this.width = width || 0;
          this.classes = classes || [];
          this.style = style || {};
@@ -300,7 +300,7 @@ index 8d60b661b65abd83c64885b1e482e47ae4739c4c..2d3bf7f4ea502c5abb70993069f1527e
          this.maxFontSize = 0;
  
          // Mark text from non-Latin scripts with specific classes so that we
-@@ -412,6 +414,10 @@ export class SymbolNode implements HtmlDomNode {
+@@ -419,6 +421,10 @@ export class SymbolNode implements HtmlDomNode {
          return this.classes.includes(className);
      }
  
@@ -311,8 +311,8 @@ index 8d60b661b65abd83c64885b1e482e47ae4739c4c..2d3bf7f4ea502c5abb70993069f1527e
      /**
       * Creates a text node or span from a symbol node. Note that a span is only
       * created if it is needed.
-@@ -435,6 +441,11 @@ export class SymbolNode implements HtmlDomNode {
-             (span.style as any)[key] = this.style[key];
+@@ -442,6 +448,11 @@ export class SymbolNode implements HtmlDomNode {
+             Object.assign(span.style, this.style);
          }
  
 +        for (const attr of Object.keys(this.attributes)) {
@@ -323,7 +323,7 @@ index 8d60b661b65abd83c64885b1e482e47ae4739c4c..2d3bf7f4ea502c5abb70993069f1527e
          if (span) {
              span.appendChild(node);
              return span;
-@@ -474,6 +485,11 @@ export class SymbolNode implements HtmlDomNode {
+@@ -479,6 +490,11 @@ export class SymbolNode implements HtmlDomNode {
              markup += " style=\"" + escape(styles) + "\"";
          }
  
