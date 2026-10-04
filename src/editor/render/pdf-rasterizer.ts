@@ -50,9 +50,9 @@ export async function rasterizePdfPage1(
     const pdfjsLib = await getPdfjsLib();
 
     const loadingTask = pdfjsLib.getDocument({ data });
-    const pdf = await loadingTask.promise;
 
     try {
+      const pdf = await loadingTask.promise;
       const page = await pdf.getPage(1);
 
       const maxWidth = opts?.maxWidth ?? DEFAULT_MAX_WIDTH;
@@ -83,7 +83,7 @@ export async function rasterizePdfPage1(
       page.cleanup();
       return canvas;
     } finally {
-      await pdf.destroy();
+      await loadingTask.destroy();
     }
   } catch (_error) {
     return null;

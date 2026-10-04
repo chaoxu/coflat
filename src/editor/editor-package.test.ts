@@ -223,7 +223,7 @@ describe("package editor export", () => {
     const packageJson = readPackageJson();
 
     expect(packageJson.name).toBe("@chaoxu/coflat");
-    expect(packageJson.packageManager).toBe("pnpm@10.33.0");
+    expect(packageJson.packageManager).toBe("pnpm@10.34.5");
     expect(packageJson.scripts?.build).toContain("rm -rf dist");
     expect(packageJson.scripts?.build).toContain("tsc -p tsconfig.editor.json");
     expect(packageJson.scripts?.build).toContain("vite build --config vite.editor.config.ts");
