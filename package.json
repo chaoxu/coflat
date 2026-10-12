@@ -154,7 +154,7 @@
     "@types/react-dom": "^19.2.3",
     "@types/turndown": "^5.0.6",
     "fast-check": "^4.6.0",
-    "jsdom": "^29.0.0",
+    "jsdom": "^30.0.0",
     "publint": "^0.3.18",
     "rollup-plugin-visualizer": "^7.0.1",
     "typescript": "^5.9.3",
