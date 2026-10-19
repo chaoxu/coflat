@@ -101,7 +101,7 @@ importers:
         specifier: 0.19.0
         version: 0.19.0(patch_hash=b6b0cca162bcf8c757b2f8c94c062f1bdfdbb6ddb930822bed340023251273ae)
       lucide-react:
-        specifier: ^0.577.0
+        specifier: ^0.577.0 || ^1.0.0
         version: 0.577.0(react@19.2.6)
       pathe:
         specifier: ^2.0.3
